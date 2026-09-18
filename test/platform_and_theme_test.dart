@@ -10,6 +10,11 @@ import 'package:ledger_pulse/core/widgets/adaptive_button.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_segmented_control.dart';
 import 'package:ledger_pulse/core/widgets/empty_state_view.dart';
 import 'package:ledger_pulse/core/widgets/skeleton_list_tile.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ledger_pulse/data/models/party_model.dart';
+import 'package:ledger_pulse/data/models/transaction_model.dart';
+import 'package:ledger_pulse/presentation/home/add_party_dialog.dart';
+import 'package:ledger_pulse/presentation/ledger/add_entry_bottom_sheet.dart';
 import 'package:real_liquid_glass/real_liquid_glass.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -300,4 +305,216 @@ void main() {
       expect(clicked, isTrue);
     });
   });
+
+  group('Draggable Modal Sheets & PopScope Navigation Tests', () {
+    testWidgets('AddPartyDialog renders DraggableScrollableSheet and PopScope with clean state', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: Colors.transparent,
+                      barrierColor: Colors.black54,
+                      builder: (context) => const AddPartyDialog(
+                        initialType: PartyType.customer,
+                      ),
+                    );
+                  },
+                  child: const Text('Open Add Party'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Add Party'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is PopScope), findsWidgets);
+      expect(find.text('Add New Customer'), findsOneWidget);
+      expect(find.byIcon(Icons.contacts_rounded), findsOneWidget);
+
+      // Verify DraggableScrollableSheet configuration
+      final sheet = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
+      expect(sheet.initialChildSize, equals(0.44));
+      expect(sheet.minChildSize, equals(0.25));
+      expect(sheet.maxChildSize, equals(0.50));
+      expect(sheet.expand, isFalse);
+
+      // Close cleanly when inputs are empty via back navigation / maybePop
+      final dynamic navState = tester.state(find.byType(Navigator));
+      navState.maybePop();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add New Customer'), findsNothing);
+    });
+
+    testWidgets('AddPartyDialog prompts discard confirmation when inputs are dirty', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: Colors.transparent,
+                      barrierColor: Colors.black.withValues(alpha: 0.3),
+                      builder: (context) => const AddPartyDialog(
+                        initialType: PartyType.customer,
+                      ),
+                    );
+                  },
+                  child: const Text('Open Add Party'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Add Party'));
+      await tester.pumpAndSettle();
+
+      // Enter name so form becomes dirty
+      await tester.enterText(find.byType(TextField).first, 'John Doe');
+      await tester.pumpAndSettle();
+
+      // Trigger back navigation -> should trigger discard confirmation dialog
+      final dynamic navState = tester.state(find.byType(Navigator));
+      navState.maybePop();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard unsaved changes?'), findsOneWidget);
+      expect(find.text('Keep Editing'), findsOneWidget);
+      expect(find.text('Discard'), findsOneWidget);
+
+      // Tap Keep Editing -> dialog dismisses, sheet remains open
+      await tester.tap(find.text('Keep Editing'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard unsaved changes?'), findsNothing);
+      expect(find.text('Add New Customer'), findsOneWidget);
+
+      // Trigger back navigation again and choose Discard
+      navState.maybePop();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add New Customer'), findsNothing);
+    });
+
+    testWidgets('AddEntryBottomSheet renders DraggableScrollableSheet and PopScope', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: Colors.transparent,
+                      barrierColor: Colors.black.withValues(alpha: 0.3),
+                      builder: (context) => const AddEntryBottomSheet(
+                        partyId: 'p1',
+                        partyName: 'Alice',
+                        initialType: EntryType.gave,
+                      ),
+                    );
+                  },
+                  child: const Text('Open Add Entry'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Add Entry'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is PopScope), findsWidgets);
+      expect(find.text('YOU GAVE'), findsOneWidget);
+      expect(find.text('Alice'), findsOneWidget);
+
+      final sheet = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
+      expect(sheet.initialChildSize, equals(0.55));
+      expect(sheet.minChildSize, equals(0.3));
+      expect(sheet.maxChildSize, equals(0.95));
+      expect(sheet.expand, isFalse);
+
+      // Close cleanly when clean
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Alice'), findsNothing);
+    });
+
+    testWidgets('AddEntryBottomSheet prompts discard confirmation when amount entered', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => ElevatedButton(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      useSafeArea: true,
+                      backgroundColor: Colors.transparent,
+                      barrierColor: Colors.black.withValues(alpha: 0.3),
+                      builder: (context) => const AddEntryBottomSheet(
+                        partyId: 'p1',
+                        partyName: 'Alice',
+                        initialType: EntryType.gave,
+                      ),
+                    );
+                  },
+                  child: const Text('Open Add Entry'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open Add Entry'));
+      await tester.pumpAndSettle();
+
+      // Tap preset chip +₹500 to dirty the form
+      await tester.tap(find.text('+₹500'));
+      await tester.pumpAndSettle();
+
+      // Tap close -> confirmation dialog appears
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Discard unsaved changes?'), findsOneWidget);
+
+      // Tap Discard
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Alice'), findsNothing);
+    });
+  });
 }
+

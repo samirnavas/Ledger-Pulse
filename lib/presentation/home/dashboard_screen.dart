@@ -26,7 +26,9 @@ class DashboardScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
       builder: (context) => AddPartyDialog(initialType: initialType),
     );
   }
@@ -51,9 +53,20 @@ class DashboardScreen extends ConsumerWidget {
 
     final activeFilter = ref.watch(selectedPartyTypeFilterProvider);
     final summaryAsync = ref.watch(businessSummaryProvider);
+    final isSearchActive = ref.watch(isPartySearchActiveProvider) ||
+        ref.watch(partySearchQueryProvider).isNotEmpty;
 
-    return AdaptiveScaffold(
-      title: AppStrings.appName,
+    return PopScope(
+      canPop: !isSearchActive,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        HapticFeedback.lightImpact();
+        FocusManager.instance.primaryFocus?.unfocus();
+        ref.read(partySearchQueryProvider.notifier).setQuery('');
+        ref.read(isPartySearchActiveProvider.notifier).setActive(false);
+      },
+      child: AdaptiveScaffold(
+        title: AppStrings.appName,
       actions: [
         // iOS Add Party Action in navigation bar
         if (isIos)
@@ -107,151 +120,161 @@ class DashboardScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          // 1. Top Business Metric Cards
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: summaryAsync.when(
-              loading: () => Container(
-                height: 90,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(28),
+          // 1. Top Business Metric Cards (collapses smoothly when search is active)
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeInOutCubic,
+            firstCurve: Curves.easeIn,
+            secondCurve: Curves.easeOut,
+            crossFadeState: isSearchActive
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: summaryAsync.when(
+                loading: () => Container(
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerLow,
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  child: const Center(child: CupertinoActivityIndicator()),
                 ),
-                child: const Center(child: CupertinoActivityIndicator()),
+                error: (err, _) => Text('Error loading metrics: $err'),
+                data: (summary) {
+                  final (totalReceivable, totalPayable) = summary;
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+
+                  final Widget getCardContent = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.receivableGreen.withValues(alpha: 0.2)
+                                  : AppColors.receivableGreenLight,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.arrow_downward_rounded,
+                              size: 14,
+                              color: isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppStrings.youWillGet,
+                            style: AppTypography.labelSmall.copyWith(
+                              color: isDark
+                                  ? const Color(0xFF4ADE80)
+                                  : AppColors.receivableGreenDark,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      AmountText(
+                        amountInCents: totalReceivable,
+                        variant: AmountVariant.large,
+                        overrideColor: isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen,
+                      ),
+                    ],
+                  );
+
+                  final Widget giveCardContent = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.payableRed.withValues(alpha: 0.2)
+                                  : AppColors.payableRedLight,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.arrow_upward_rounded,
+                              size: 14,
+                              color: isDark ? const Color(0xFFF87171) : AppColors.payableRed,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppStrings.youWillGive,
+                            style: AppTypography.labelSmall.copyWith(
+                              color: isDark
+                                  ? const Color(0xFFF87171)
+                                  : AppColors.payableRedDark,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      AmountText(
+                        amountInCents: totalPayable,
+                        variant: AmountVariant.large,
+                        overrideColor: isDark ? const Color(0xFFF87171) : AppColors.payableRed,
+                      ),
+                    ],
+                  );
+
+                  return Row(
+                    children: [
+                      // You'll Get Card (Green)
+                      Expanded(
+                        child: isIos
+                            ? LiquidGlassCard(
+                                padding: const EdgeInsets.all(16),
+                                child: getCardContent,
+                              )
+                            : Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                                  borderRadius: BorderRadius.circular(28),
+                                  border: Border.all(
+                                    color: AppColors.receivableGreen.withValues(alpha: isDark ? 0.35 : 0.2),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: getCardContent,
+                              ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // You'll Give Card (Red)
+                      Expanded(
+                        child: isIos
+                            ? LiquidGlassCard(
+                                padding: const EdgeInsets.all(16),
+                                child: giveCardContent,
+                              )
+                            : Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                                  borderRadius: BorderRadius.circular(28),
+                                  border: Border.all(
+                                    color: AppColors.payableRed.withValues(alpha: isDark ? 0.35 : 0.2),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: giveCardContent,
+                              ),
+                      ),
+                    ],
+                  );
+                },
               ),
-              error: (err, _) => Text('Error loading metrics: $err'),
-              data: (summary) {
-                final (totalReceivable, totalPayable) = summary;
-                final isDark = Theme.of(context).brightness == Brightness.dark;
-
-                final Widget getCardContent = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.receivableGreen.withValues(alpha: 0.2)
-                                : AppColors.receivableGreenLight,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.arrow_downward_rounded,
-                            size: 14,
-                            color: isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          AppStrings.youWillGet,
-                          style: AppTypography.labelSmall.copyWith(
-                            color: isDark
-                                ? const Color(0xFF4ADE80)
-                                : AppColors.receivableGreenDark,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    AmountText(
-                      amountInCents: totalReceivable,
-                      variant: AmountVariant.large,
-                      overrideColor: isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen,
-                    ),
-                  ],
-                );
-
-                final Widget giveCardContent = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(5),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.payableRed.withValues(alpha: 0.2)
-                                : AppColors.payableRedLight,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            Icons.arrow_upward_rounded,
-                            size: 14,
-                            color: isDark ? const Color(0xFFF87171) : AppColors.payableRed,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          AppStrings.youWillGive,
-                          style: AppTypography.labelSmall.copyWith(
-                            color: isDark
-                                ? const Color(0xFFF87171)
-                                : AppColors.payableRedDark,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    AmountText(
-                      amountInCents: totalPayable,
-                      variant: AmountVariant.large,
-                      overrideColor: isDark ? const Color(0xFFF87171) : AppColors.payableRed,
-                    ),
-                  ],
-                );
-
-                return Row(
-                  children: [
-                    // You'll Get Card (Green)
-                    Expanded(
-                      child: isIos
-                          ? LiquidGlassCard(
-                              padding: const EdgeInsets.all(16),
-                              child: getCardContent,
-                            )
-                          : Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(28),
-                                border: Border.all(
-                                  color: AppColors.receivableGreen.withValues(alpha: isDark ? 0.35 : 0.2),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: getCardContent,
-                            ),
-                    ),
-                    const SizedBox(width: 12),
-
-                    // You'll Give Card (Red)
-                    Expanded(
-                      child: isIos
-                          ? LiquidGlassCard(
-                              padding: const EdgeInsets.all(16),
-                              child: giveCardContent,
-                            )
-                          : Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(28),
-                                border: Border.all(
-                                  color: AppColors.payableRed.withValues(alpha: isDark ? 0.35 : 0.2),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: giveCardContent,
-                            ),
-                    ),
-                  ],
-                );
-              },
             ),
+            secondChild: const SizedBox(width: double.infinity, height: 0),
           ),
 
           // 2. Sticky Party List with search & sort animated with SharedAxisTransition
@@ -273,6 +296,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

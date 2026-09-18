@@ -18,7 +18,6 @@ import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
-import 'package:real_liquid_glass/real_liquid_glass.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/ledger_providers.dart';
 import '../reports/statement_preview_screen.dart';
@@ -60,7 +59,9 @@ class PartyLedgerScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
       builder: (context) => AddEntryBottomSheet(
         partyId: party.id,
         partyName: party.name,
@@ -399,10 +400,87 @@ class PartyLedgerScreen extends ConsumerWidget {
                       );
                     }
 
-                    return _AnimatedPartyLedgerList(
-                      entries: entries,
-                      isIos: isIos,
-                      onShowReceipt: _showReceiptDialog,
+                    return Column(
+                      children: [
+                        // Top List Column Indicator (One indicator for all list)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+                          child: Row(
+                            children: [
+                              Text(
+                                'ENTRIES',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.payableRed
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'GAVE',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.payableRed,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.receivableGreen
+                                      .withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Text(
+                                  'GOT',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.receivableGreen,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Divider(
+                          height: 1,
+                          thickness: 0.5,
+                          indent: 16,
+                          endIndent: 16,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outlineVariant
+                              .withValues(
+                                  alpha: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? 0.2
+                                      : 0.35),
+                        ),
+                        Expanded(
+                          child: _AnimatedPartyLedgerList(
+                            entries: entries,
+                            isIos: isIos,
+                            onShowReceipt: _showReceiptDialog,
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -456,8 +534,10 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       itemCount: widget.entries.length,
       itemBuilder: (context, index) {
         final entry = widget.entries[index];
@@ -470,59 +550,29 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
             DateFormatter.formatRelative(widget.entries[index - 1].date) !=
                 DateFormatter.formatRelative(entry.date);
 
-        final Widget cardContent = widget.isIos
-            ? LiquidGlassContainer(
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                padding: const EdgeInsets.all(14),
-                borderRadius: 16,
-                child: _buildRowContent(context, entry, isGave, color),
-              )
-            : Container(
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                        alpha: Theme.of(context).brightness == Brightness.dark
-                            ? 0.35
-                            : 0.5),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: _buildRowContent(context, entry, isGave, color),
-              );
+        final Widget plainRowContent = Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: _buildRowContent(context, entry, isGave, color),
+        );
 
         Widget rowWidget = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (showHeader) ...[
               Padding(
-                padding: const EdgeInsets.only(top: 12, bottom: 8),
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      DateFormatter.formatRelative(entry.date),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: index == 0 ? 6 : 14,
+                  bottom: 4,
+                ),
+                child: Text(
+                  DateFormatter.formatRelative(entry.date),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    letterSpacing: 0.1,
                   ),
                 ),
               ),
@@ -534,7 +584,15 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
               onHighlightComplete: () {
                 _newlyAddedEntryIds.remove(entry.id);
               },
-              child: cardContent,
+              child: plainRowContent,
+            ),
+            Divider(
+              height: 1,
+              thickness: 0.5,
+              indent: 16,
+              endIndent: 16,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                  alpha: isDark ? 0.2 : 0.35),
             ),
           ],
         );
@@ -560,24 +618,6 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
       BuildContext context, LedgerEntry entry, bool isGave, Color color) {
     return Row(
       children: [
-        // Entry Type Badge Tag ("GAVE" / "GOT")
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            isGave ? 'GAVE' : 'GOT',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-
         // Note & Timestamp & Optional Bill Icon
         Expanded(
           child: Column(
@@ -637,9 +677,9 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             Text(
-              CurrencyFormatter.format(entry.amountInCents),
+              '${isGave ? "-" : "+"} ${CurrencyFormatter.format(entry.amountInCents)}',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w800,
                 color: color,
               ),
@@ -648,10 +688,10 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
               const SizedBox(height: 2),
               Text(
                 'Bal: ${CurrencyFormatter.format(entry.runningBalanceInCents!)}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondaryLight,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

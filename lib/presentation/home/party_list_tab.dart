@@ -25,6 +25,7 @@ class PartyListTab extends ConsumerStatefulWidget {
 
 class _PartyListTabState extends ConsumerState<PartyListTab> {
   late final TextEditingController _searchController;
+  late final FocusNode _searchFocusNode;
 
   @override
   void initState() {
@@ -32,12 +33,30 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
     _searchController = TextEditingController(
       text: ref.read(partySearchQueryProvider),
     );
+    _searchFocusNode = FocusNode();
+    _searchFocusNode.addListener(_onSearchFocusChanged);
+  }
+
+  void _onSearchFocusChanged() {
+    final isActive =
+        _searchFocusNode.hasFocus || _searchController.text.isNotEmpty;
+    ref.read(isPartySearchActiveProvider.notifier).setActive(isActive);
   }
 
   @override
   void dispose() {
+    _searchFocusNode.removeListener(_onSearchFocusChanged);
+    _searchFocusNode.dispose();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _clearSearch() {
+    HapticFeedback.lightImpact();
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    ref.read(partySearchQueryProvider.notifier).setQuery('');
+    ref.read(isPartySearchActiveProvider.notifier).setActive(false);
   }
 
   Color _getAvatarColor(String name) {
@@ -105,6 +124,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
         context: context,
         showDragHandle: true,
         backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        barrierColor: Colors.black.withValues(alpha: 0.35),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
@@ -224,6 +244,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                             Expanded(
                               child: TextField(
                                 controller: _searchController,
+                                focusNode: _searchFocusNode,
                                 onTapOutside: (event) => FocusManager.instance.primaryFocus?.unfocus(),
                                 onChanged: (val) {
                                   ref
@@ -246,12 +267,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                             ),
                             if (currentQuery.isNotEmpty)
                               GestureDetector(
-                                onTap: () {
-                                  _searchController.clear();
-                                  ref
-                                      .read(partySearchQueryProvider.notifier)
-                                      .setQuery('');
-                                },
+                                onTap: _clearSearch,
                                 child: const Icon(
                                   CupertinoIcons.clear_circled_solid,
                                   size: 16,
@@ -292,6 +308,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                             Expanded(
                               child: TextField(
                                 controller: _searchController,
+                                focusNode: _searchFocusNode,
                                 onTapOutside: (event) =>
                                     FocusManager.instance.primaryFocus?.unfocus(),
                                 onChanged: (val) {
@@ -312,17 +329,12 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                                   focusedBorder: InputBorder.none,
                                   contentPadding: EdgeInsets.zero,
                                   isDense: true,
-                                ),
+                                  ),
                               ),
                             ),
                             if (currentQuery.isNotEmpty)
                               GestureDetector(
-                                onTap: () {
-                                  _searchController.clear();
-                                  ref
-                                      .read(partySearchQueryProvider.notifier)
-                                      .setQuery('');
-                                },
+                                onTap: _clearSearch,
                                 child: Icon(
                                   Icons.close_rounded,
                                   size: 20,
@@ -421,25 +433,22 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                   subtitle: currentQuery.isNotEmpty
                       ? 'Try searching by a different name or phone number.'
                       : 'Add a new ${filter == PartyType.supplier ? 'supplier' : 'customer'} to start tracking transactions.',
-                  actionButton: currentQuery.isNotEmpty
-                      ? TextButton(
-                          onPressed: () {
-                            _searchController.clear();
-                            ref
-                                .read(partySearchQueryProvider.notifier)
-                                .setQuery('');
-                          },
-                          child: const Text('Clear Search'),
-                        )
-                      : null,
                 );
               }
 
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+
               return ListView.separated(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(vertical: 4),
                 itemCount: parties.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                separatorBuilder: (_, _) => Divider(
+                  height: 1,
+                  thickness: 0.5,
+                  indent: 76,
+                  endIndent: 16,
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                      alpha: isDark ? 0.2 : 0.35),
+                ),
                 itemBuilder: (context, index) {
                   final party = parties[index];
                   final avatarBg = _getAvatarColor(party.name);
@@ -517,38 +526,11 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                     );
                   }
 
-                  if (isIos) {
-                    return LiquidGlassContainer(
-                      borderRadius: 16,
-                      blur: 20,
-                      padding: const EdgeInsets.all(14),
-                      onTap: openLedger,
-                      child: rowContent,
-                    );
-                  }
-
                   return InkWell(
                     onTap: openLedger,
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outlineVariant
-                              .withValues(
-                                  alpha: Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? 0.35
-                                      : 0.5),
-                          width: 1,
-                        ),
-                      ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
                       child: rowContent,
                     ),
                   );

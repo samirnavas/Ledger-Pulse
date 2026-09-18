@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/data/mock/mock_ledger_repository.dart';
 import 'package:ledger_pulse/data/models/party_model.dart';
 import 'package:ledger_pulse/data/models/transaction_model.dart';
+import 'package:ledger_pulse/presentation/home/dashboard_screen.dart';
 import 'package:ledger_pulse/presentation/home/party_list_tab.dart';
 import 'package:ledger_pulse/presentation/ledger/party_ledger_screen.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
@@ -176,19 +178,21 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Add a new entry to repo for party_1
-      await repo.addEntry(
-        LedgerEntry(
-          id: 'entry_animated_new',
-          partyId: 'party_1',
-          amountInCents: 125000,
-          type: EntryType.got,
-          date: DateTime.now(),
-          note: 'Animated Cash Received',
+      // Add a new entry to repo for party_1 (let pump advance the fakeAsync clock)
+      unawaited(
+        repo.addEntry(
+          LedgerEntry(
+            id: 'entry_animated_new',
+            partyId: 'party_1',
+            amountInCents: 125000,
+            type: EntryType.got,
+            date: DateTime.now(),
+            note: 'Animated Cash Received',
+          ),
         ),
       );
 
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
       // Pump frame of entrance animation (within 300ms)
       await tester.pump(const Duration(milliseconds: 150));
       expect(find.text('Animated Cash Received'), findsOneWidget);
@@ -196,6 +200,42 @@ void main() {
       // Advance clock past entrance animation and highlight fade
       await tester.pump(const Duration(milliseconds: 1500));
       expect(find.text('Animated Cash Received'), findsOneWidget);
+    });
+
+    testWidgets('DashboardScreen back press in search mode exits search mode rather than popping',
+        (WidgetTester tester) async {
+      final repo = MockLedgerRepository();
+      addTearDown(repo.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ledgerRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: const MaterialApp(
+            home: DashboardScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Enter search query
+      await tester.enterText(find.byType(TextField), 'Sharma');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Rahul Sharma'), findsOneWidget);
+
+      // Trigger back navigation (system back button)
+      final dynamic navState = tester.state(find.byType(Navigator));
+      navState.maybePop();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Dashboard screen remains open, but search is reset
+      expect(find.byType(DashboardScreen), findsOneWidget);
     });
   });
 }

@@ -60,6 +60,21 @@ final partySearchQueryProvider =
   PartySearchQueryNotifier.new,
 );
 
+// Search focus / active state Notifier to collapse dashboard metrics on search
+class PartySearchActiveNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void setActive(bool active) {
+    state = active;
+  }
+}
+
+final isPartySearchActiveProvider =
+    NotifierProvider<PartySearchActiveNotifier, bool>(
+  PartySearchActiveNotifier.new,
+);
+
 // Sorting options for party list
 enum PartySortOption {
   mostRecent,

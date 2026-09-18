@@ -20,7 +20,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Import from Contacts'), findsOneWidget);
+      expect(find.byIcon(Icons.contacts_rounded), findsOneWidget);
       expect(find.text('Contact / Business Name'), findsOneWidget);
       expect(find.text('Phone Number'), findsOneWidget);
       expect(find.text('Save & Open Ledger'), findsOneWidget);
@@ -56,6 +56,8 @@ void main() {
       expect(find.text('500'), findsOneWidget);
 
       // Test tapping keypad digits
+      await tester.ensureVisible(find.text('00'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('00'));
       await tester.pump();
       expect(find.text('50000'), findsOneWidget);

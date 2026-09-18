@@ -50,10 +50,12 @@ class AdaptivePageRoute<T> extends PageRoute<T> {
   Duration get reverseTransitionDuration => const Duration(milliseconds: 250);
 
   @override
-  bool canTransitionTo(TransitionRoute<dynamic> nextRoute) => true;
+  bool canTransitionTo(TransitionRoute<dynamic> nextRoute) =>
+      nextRoute is PageRoute && nextRoute.opaque;
 
   @override
-  bool canTransitionFrom(TransitionRoute<dynamic> previousRoute) => true;
+  bool canTransitionFrom(TransitionRoute<dynamic> previousRoute) =>
+      previousRoute is PageRoute && previousRoute.opaque;
 
   @override
   Widget buildPage(
@@ -83,19 +85,13 @@ class AdaptivePageRoute<T> extends PageRoute<T> {
       );
     }
 
-    if (useFadeThrough) {
-      return FadeThroughTransition(
-        animation: animation,
-        secondaryAnimation: secondaryAnimation,
-        child: child,
-      );
-    }
-
-    return SharedAxisTransition(
-      animation: animation,
-      secondaryAnimation: secondaryAnimation,
-      transitionType: transitionType,
-      child: child,
+    final theme = Theme.of(context);
+    return theme.pageTransitionsTheme.buildTransitions<T>(
+      this,
+      context,
+      animation,
+      secondaryAnimation,
+      child,
     );
   }
 }

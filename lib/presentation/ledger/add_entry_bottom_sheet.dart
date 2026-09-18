@@ -9,6 +9,7 @@ import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
+import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../data/models/transaction_model.dart';
 import '../providers/ledger_providers.dart';
 
@@ -39,16 +40,40 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
   String? _errorMessage;
   bool _showNoteField = false;
 
+  bool get _isClean =>
+      (_amountString == '0' || _amountString.isEmpty) &&
+      _noteController.text.trim().isEmpty &&
+      _receiptUrl == null;
+
   @override
   void initState() {
     super.initState();
     _entryType = widget.initialType;
+    _noteController.addListener(_onNoteChanged);
+  }
+
+  void _onNoteChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
+    _noteController.removeListener(_onNoteChanged);
     _noteController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handlePopAction() async {
+    if (_isClean) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final shouldDiscard = await showDiscardChangesDialog(context);
+    if (shouldDiscard && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   void _onKeypadTap(String key) {
@@ -172,9 +197,9 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                 Navigator.of(context).pop();
                 _pickImage(ImageSource.camera);
               },
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(CupertinoIcons.camera, size: 20),
                   SizedBox(width: 8),
                   Text('Take Photo'),
@@ -186,9 +211,9 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                 Navigator.of(context).pop();
                 _pickImage(ImageSource.gallery);
               },
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(CupertinoIcons.photo, size: 20),
                   SizedBox(width: 8),
                   Text('Choose from Gallery'),
@@ -379,7 +404,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                     : 0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
+              color:
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
               width: 1.2,
             ),
           ),
@@ -407,529 +433,572 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     final rawAmountInt = int.tryParse(_amountString) ?? 0;
     final formattedDisplay = CurrencyFormatter.format(rawAmountInt * 100);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isIos
-            ? CupertinoColors.systemGroupedBackground
-            : Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-      ),
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 10,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Platform Adaptive Top Handle / Pill Indicator
-            Center(
-              child: isIos
-                  ? Container(
-                      width: 38,
-                      height: 5,
-                      margin: const EdgeInsets.only(bottom: 12),
+    final containerColor = isIos
+        ? (Theme.of(context).brightness == Brightness.dark
+            ? CupertinoColors.systemGroupedBackground.darkColor
+            : CupertinoColors.systemGroupedBackground)
+        : Theme.of(context).colorScheme.surface;
+
+    return PopScope(
+      canPop: _isClean,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldDiscard = await showDiscardChangesDialog(context);
+        if (shouldDiscard && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.3,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) {
+          return Container(
+            decoration: BoxDecoration(
+              color: containerColor,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(28.0)),
+            ),
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 12,
+              bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+            ),
+            child: SingleChildScrollView(
+              controller: scrollController,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Top Drag Handle
+                  Center(
+                    child: Container(
+                      height: 4.0,
+                      width: 32.0,
+                      margin: const EdgeInsets.only(bottom: 12.0),
                       decoration: BoxDecoration(
-                        color: CupertinoColors.systemGrey4,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    )
-                  : Container(
-                      width: 38,
-                      height: 4.5,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                            alpha: Theme.of(context).brightness == Brightness.dark
-                                ? 0.4
-                                : 0.7),
-                        borderRadius: BorderRadius.circular(3),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant
+                            .withValues(alpha: 0.4),
+                        borderRadius: BorderRadius.circular(2.0),
                       ),
                     ),
-            ),
+                  ),
 
-            // Top Header: Type Indicator & Party Name & Close Button
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
+                  // Top Header: Type Indicator & Party Name & Close Button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: themeColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+                      Expanded(
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              isGave
-                                  ? Icons.arrow_upward_rounded
-                                  : Icons.arrow_downward_rounded,
-                              size: 15,
-                              color: themeColor,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: themeColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isGave
+                                        ? Icons.arrow_upward_rounded
+                                        : Icons.arrow_downward_rounded,
+                                    size: 15,
+                                    color: themeColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isGave ? 'YOU GAVE' : 'YOU GOT',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: themeColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              isGave ? 'YOU GAVE' : 'YOU GOT',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: themeColor,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                widget.partyName,
+                                style: AppTypography.titleMedium
+                                    .copyWith(fontSize: 15),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          widget.partyName,
-                          style: AppTypography.titleMedium.copyWith(fontSize: 15),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          _handlePopAction();
+                        },
                       ),
                     ],
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-            // Type Switcher: You Gave vs You Got
-            Container(
-              decoration: BoxDecoration(
-                color: isIos
-                    ? CupertinoColors.systemGrey5
-                    : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.all(4),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        setState(() => _entryType = EntryType.gave);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                        decoration: BoxDecoration(
-                          color: isGave
-                              ? AppColors.payableRed
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: isGave
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.payableRed
-                                        .withValues(alpha: 0.3),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
+                  // Type Switcher: You Gave vs You Got
+                  Container(
+                    decoration: BoxDecoration(
+                      color: isIos
+                          ? CupertinoColors.systemGrey5
+                          : Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              setState(() => _entryType = EntryType.gave);
+                            },
+                            child: Container(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 9),
+                              decoration: BoxDecoration(
+                                color: isGave
+                                    ? AppColors.payableRed
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: isGave
+                                    ? [
+                                        BoxShadow(
+                                          color: AppColors.payableRed
+                                              .withValues(alpha: 0.3),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '- You Gave',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: isGave
+                                        ? Colors.white
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
                                   ),
-                                ]
-                              : null,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '- You Gave',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: isGave
-                                  ? Colors.white
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        setState(() => _entryType = EntryType.got);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                        decoration: BoxDecoration(
-                          color: !isGave
-                              ? AppColors.receivableGreen
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: !isGave
-                              ? [
-                                  BoxShadow(
-                                    color: AppColors.receivableGreen
-                                        .withValues(alpha: 0.3),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              setState(() => _entryType = EntryType.got);
+                            },
+                            child: Container(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 9),
+                              decoration: BoxDecoration(
+                                color: !isGave
+                                    ? AppColors.receivableGreen
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: !isGave
+                                    ? [
+                                        BoxShadow(
+                                          color: AppColors.receivableGreen
+                                              .withValues(alpha: 0.3),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '+ You Got',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: !isGave
+                                        ? Colors.white
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
                                   ),
-                                ]
-                              : null,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '+ You Got',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: !isGave
-                                  ? Colors.white
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-            // Giant Typographic Amount Display (No system keyboard popup)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isIos
-                    ? (Theme.of(context).brightness == Brightness.dark
-                        ? CupertinoColors.systemBackground.darkColor
-                        : CupertinoColors.white)
-                    : Theme.of(context).colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _errorMessage != null
-                      ? AppColors.payableRed
-                      : themeColor.withValues(
-                          alpha: Theme.of(context).brightness == Brightness.dark
-                              ? 0.4
-                              : 0.3),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                  // Giant Typographic Amount Display (No system keyboard popup)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isIos
+                          ? (Theme.of(context).brightness == Brightness.dark
+                              ? CupertinoColors.systemBackground.darkColor
+                              : CupertinoColors.white)
+                          : Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _errorMessage != null
+                            ? AppColors.payableRed
+                            : themeColor.withValues(
+                                alpha: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? 0.4
+                                    : 0.3),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '₹',
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800,
+                                color: themeColor,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                _amountString,
+                                style: TextStyle(
+                                  fontSize:
+                                      _amountString.length > 6 ? 34 : 42,
+                                  fontWeight: FontWeight.w900,
+                                  color: themeColor,
+                                  letterSpacing: 0.5,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (rawAmountInt > 0)
+                          Text(
+                            formattedDisplay,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textMutedLight,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
+
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height: 6),
+                    Center(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: AppColors.payableRed,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 10),
+
+                  // Quick Preset Chips (+₹100, +₹500, +₹1000, +₹5000)
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        '₹',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          color: themeColor,
+                      _buildQuickPresetChip(100),
+                      _buildQuickPresetChip(500),
+                      _buildQuickPresetChip(1000),
+                      _buildQuickPresetChip(5000),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // Date & Optional Note & Attach Receipt row
+                  Row(
+                    children: [
+                      // Date Chip
+                      OutlinedButton.icon(
+                        onPressed: _pickDate,
+                        icon: const Icon(Icons.calendar_today_rounded,
+                            size: 14),
+                        label: Text(
+                          DateFormatter.formatRelative(_selectedDate),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          minimumSize: const Size(0, 34),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          _amountString,
-                          style: TextStyle(
-                            fontSize: _amountString.length > 6 ? 34 : 42,
-                            fontWeight: FontWeight.w900,
-                            color: themeColor,
-                            letterSpacing: 0.5,
+
+                      // Note Toggle Button
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          HapticFeedback.lightImpact();
+                          setState(
+                              () => _showNoteField = !_showNoteField);
+                        },
+                        icon: Icon(
+                          _showNoteField || _noteController.text.isNotEmpty
+                              ? Icons.edit_note_rounded
+                              : Icons.note_add_outlined,
+                          size: 16,
+                        ),
+                        label: Text(
+                          _noteController.text.isNotEmpty
+                              ? 'Note Added'
+                              : 'Add Note',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          minimumSize: const Size(0, 34),
+                          foregroundColor:
+                              _noteController.text.isNotEmpty
+                                  ? AppColors.primaryBlue
+                                  : AppColors.textSecondaryLight,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Attach Bill Button
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _showAttachmentOptions,
+                          icon: Icon(
+                            _receiptUrl != null
+                                ? Icons.check_circle_rounded
+                                : Icons.camera_alt_outlined,
+                            size: 14,
+                            color: _receiptUrl != null
+                                ? AppColors.primaryBlue
+                                : AppColors.textSecondaryLight,
+                          ),
+                          label: Text(
+                            _receiptUrl != null
+                                ? 'Bill Attached'
+                                : 'Attach Bill',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _receiptUrl != null
+                                  ? AppColors.primaryBlue
+                                  : AppColors.textSecondaryLight,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 6),
+                            minimumSize: const Size(0, 34),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  if (rawAmountInt > 0)
-                    Text(
-                      formattedDisplay,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textMutedLight,
+
+                  // Expandable Note input
+                  if (_showNoteField) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: isIos
+                            ? (Theme.of(context).brightness ==
+                                    Brightness.dark
+                                ? CupertinoColors.systemBackground.darkColor
+                                : CupertinoColors.white)
+                            : Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outlineVariant
+                              .withValues(
+                                  alpha:
+                                      Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? 0.35
+                                          : 0.5),
+                          width: 1,
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: TextField(
+                        controller: _noteController,
+                        autofocus: true,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          hintText:
+                              'Enter optional note (e.g. Bill #104)...',
+                          hintStyle: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 10),
+                          isDense: true,
+                        ),
                       ),
                     ),
-                ],
-              ),
-            ),
+                  ],
 
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 6),
-              Center(
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(
-                    color: AppColors.payableRed,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 10),
 
-            const SizedBox(height: 10),
-
-            // Quick Preset Chips (+₹100, +₹500, +₹1000, +₹5000)
-            Row(
-              children: [
-                _buildQuickPresetChip(100),
-                _buildQuickPresetChip(500),
-                _buildQuickPresetChip(1000),
-                _buildQuickPresetChip(5000),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // Date & Optional Note & Attach Receipt row
-            Row(
-              children: [
-                // Date Chip
-                OutlinedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_today_rounded, size: 14),
-                  label: Text(
-                    DateFormatter.formatRelative(_selectedDate),
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    minimumSize: const Size(0, 34),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // Note Toggle Button
-                OutlinedButton.icon(
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    setState(() => _showNoteField = !_showNoteField);
-                  },
-                  icon: Icon(
-                    _showNoteField || _noteController.text.isNotEmpty
-                        ? Icons.edit_note_rounded
-                        : Icons.note_add_outlined,
-                    size: 16,
-                  ),
-                  label: Text(
-                    _noteController.text.isNotEmpty
-                        ? 'Note Added'
-                        : 'Add Note',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    minimumSize: const Size(0, 34),
-                    foregroundColor: _noteController.text.isNotEmpty
-                        ? AppColors.primaryBlue
-                        : AppColors.textSecondaryLight,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // Attach Bill Button
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _showAttachmentOptions,
-                    icon: Icon(
-                      _receiptUrl != null
-                          ? Icons.check_circle_rounded
-                          : Icons.camera_alt_outlined,
-                      size: 14,
-                      color: _receiptUrl != null
-                          ? AppColors.primaryBlue
-                          : AppColors.textSecondaryLight,
-                    ),
-                    label: Text(
-                      _receiptUrl != null ? 'Bill Attached' : 'Attach Bill',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _receiptUrl != null
-                            ? AppColors.primaryBlue
-                            : AppColors.textSecondaryLight,
+                  // Custom Oversized On-Screen Numeric Keypad (0-9, 00, ⌫)
+                  Column(
+                    children: [
+                      Row(
+                        children: [
+                          _buildKeypadButton(
+                              label: '1', onTap: () => _onKeypadTap('1')),
+                          _buildKeypadButton(
+                              label: '2', onTap: () => _onKeypadTap('2')),
+                          _buildKeypadButton(
+                              label: '3', onTap: () => _onKeypadTap('3')),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 6),
-                      minimumSize: const Size(0, 34),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                      Row(
+                        children: [
+                          _buildKeypadButton(
+                              label: '4', onTap: () => _onKeypadTap('4')),
+                          _buildKeypadButton(
+                              label: '5', onTap: () => _onKeypadTap('5')),
+                          _buildKeypadButton(
+                              label: '6', onTap: () => _onKeypadTap('6')),
+                        ],
                       ),
-                    ),
+                      Row(
+                        children: [
+                          _buildKeypadButton(
+                              label: '7', onTap: () => _onKeypadTap('7')),
+                          _buildKeypadButton(
+                              label: '8', onTap: () => _onKeypadTap('8')),
+                          _buildKeypadButton(
+                              label: '9', onTap: () => _onKeypadTap('9')),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          _buildKeypadButton(
+                            label: '00',
+                            onTap: () => _onKeypadTap('00'),
+                            isAction: true,
+                          ),
+                          _buildKeypadButton(
+                              label: '0', onTap: () => _onKeypadTap('0')),
+                          _buildKeypadButton(
+                            label: '',
+                            icon: Icons.backspace_outlined,
+                            onTap: () => _onKeypadTap('backspace'),
+                            onLongPress: _onKeypadLongPressBackspace,
+                            isAction: true,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
 
-            // Expandable Note input
-            if (_showNoteField) ...[
-              const SizedBox(height: 8),
-              Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isIos
-                      ? (Theme.of(context).brightness == Brightness.dark
-                          ? CupertinoColors.systemBackground.darkColor
-                          : CupertinoColors.white)
-                      : Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                        alpha: Theme.of(context).brightness == Brightness.dark
-                            ? 0.35
-                            : 0.5),
-                    width: 1,
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: TextField(
-                  controller: _noteController,
-                  autofocus: true,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Enter optional note (e.g. Bill #104)...',
-                    hintStyle: TextStyle(
-                      fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                    isDense: true,
-                  ),
-                ),
-              ),
-            ],
+                  const SizedBox(height: 12),
 
-            const SizedBox(height: 10),
-
-            // Custom Oversized On-Screen Numeric Keypad (0-9, 00, ⌫)
-            Column(
-              children: [
-                Row(
-                  children: [
-                    _buildKeypadButton(
-                        label: '1', onTap: () => _onKeypadTap('1')),
-                    _buildKeypadButton(
-                        label: '2', onTap: () => _onKeypadTap('2')),
-                    _buildKeypadButton(
-                        label: '3', onTap: () => _onKeypadTap('3')),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _buildKeypadButton(
-                        label: '4', onTap: () => _onKeypadTap('4')),
-                    _buildKeypadButton(
-                        label: '5', onTap: () => _onKeypadTap('5')),
-                    _buildKeypadButton(
-                        label: '6', onTap: () => _onKeypadTap('6')),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _buildKeypadButton(
-                        label: '7', onTap: () => _onKeypadTap('7')),
-                    _buildKeypadButton(
-                        label: '8', onTap: () => _onKeypadTap('8')),
-                    _buildKeypadButton(
-                        label: '9', onTap: () => _onKeypadTap('9')),
-                  ],
-                ),
-                Row(
-                  children: [
-                    _buildKeypadButton(
-                      label: '00',
-                      onTap: () => _onKeypadTap('00'),
-                      isAction: true,
-                    ),
-                    _buildKeypadButton(
-                        label: '0', onTap: () => _onKeypadTap('0')),
-                    _buildKeypadButton(
-                      label: '',
-                      icon: Icons.backspace_outlined,
-                      onTap: () => _onKeypadTap('backspace'),
-                      onLongPress: _onKeypadLongPressBackspace,
-                      isAction: true,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Instant Submission Button
-            AdaptiveButton(
-              onPressed: _saveEntry,
-              isFullWidth: true,
-              height: 52,
-              type: isGave
-                  ? AdaptiveButtonType.destructive
-                  : AdaptiveButtonType.success,
-              isLoading: _isSubmitting,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    isGave
-                        ? Icons.arrow_upward_rounded
-                        : Icons.arrow_downward_rounded,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Save ${_entryType == EntryType.gave ? "You Gave" : "You Got"} Entry',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                  // Instant Submission Button
+                  AdaptiveButton(
+                    onPressed: _saveEntry,
+                    isFullWidth: true,
+                    height: 52,
+                    type: isGave
+                        ? AdaptiveButtonType.destructive
+                        : AdaptiveButtonType.success,
+                    isLoading: _isSubmitting,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isGave
+                              ? Icons.arrow_upward_rounded
+                              : Icons.arrow_downward_rounded,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Save ${_entryType == EntryType.gave ? "You Gave" : "You Got"} Entry',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-          ],
-        ),
-        ),
+          );
+        },
       ),
     );
   }
