@@ -24,7 +24,7 @@ void main() {
       final shape = theme.cardTheme.shape as RoundedRectangleBorder;
       expect(shape.borderRadius, equals(BorderRadius.circular(28)));
       expect(theme.cardTheme.color, equals(theme.colorScheme.surfaceContainerLow));
-      expect(theme.floatingActionButtonTheme.elevation, equals(0));
+      expect(theme.floatingActionButtonTheme.elevation, equals(2));
 
       // Predictive back page transitions theme check
       final builders = theme.pageTransitionsTheme.builders;
