@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants/colors.dart';
 import '../theme/adaptive_theme.dart';
 
@@ -28,14 +29,26 @@ class AdaptiveScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark ||
+        CupertinoTheme.of(context).brightness == Brightness.dark;
 
     if (isIos) {
       return CupertinoPageScaffold(
-        backgroundColor: backgroundColor ?? AppColors.cupertinoSystemBackground,
+        backgroundColor: backgroundColor ??
+            (isDark
+                ? CupertinoColors.systemBackground.darkColor
+                : CupertinoColors.systemBackground),
         navigationBar: CupertinoNavigationBar(
-          backgroundColor: AppColors.cupertinoBarBackground,
-          border: const Border(
-            bottom: BorderSide(color: AppColors.borderLight, width: 0.5),
+          backgroundColor: isDark
+              ? const Color(0xCC0F172A)
+              : AppColors.cupertinoBarBackground,
+          border: Border(
+            bottom: BorderSide(
+              color: isDark
+                  ? const Color(0x33475569)
+                  : AppColors.borderLight,
+              width: 0.5,
+            ),
           ),
           middle: titleWidget ?? (title != null ? Text(title!) : null),
           trailing: actions == null || actions!.isEmpty
@@ -57,19 +70,42 @@ class AdaptiveScaffold extends StatelessWidget {
       );
     } else {
       // Android Material 3 Expressive
-      return Scaffold(
-        backgroundColor: backgroundColor ?? AppColors.surfaceLight,
-        appBar: AppBar(
-          title: titleWidget ?? (title != null ? Text(title!) : null),
-          actions: actions,
-          bottom: bottomAppBar,
-          backgroundColor: AppColors.surfaceWhite,
-          surfaceTintColor: Colors.transparent,
+      final scheme = Theme.of(context).colorScheme;
+      return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness:
+              isDark ? Brightness.light : Brightness.dark,
+          statusBarBrightness:
+              isDark ? Brightness.dark : Brightness.light,
+          systemNavigationBarColor: scheme.surface,
+          systemNavigationBarIconBrightness:
+              isDark ? Brightness.light : Brightness.dark,
         ),
-        body: body,
-        floatingActionButton: floatingActionButton,
-        bottomNavigationBar: bottomNavigationBar,
+        child: Scaffold(
+          backgroundColor: backgroundColor ?? scheme.surface,
+          appBar: AppBar(
+            title: titleWidget ?? (title != null ? Text(title!) : null),
+            actions: actions,
+            bottom: bottomAppBar,
+            backgroundColor: scheme.surface,
+            foregroundColor: scheme.onSurface,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            systemOverlayStyle: SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness:
+                  isDark ? Brightness.light : Brightness.dark,
+              statusBarBrightness:
+                  isDark ? Brightness.dark : Brightness.light,
+            ),
+          ),
+          body: body,
+          floatingActionButton: floatingActionButton,
+          bottomNavigationBar: bottomNavigationBar,
+        ),
       );
     }
   }
 }
+

@@ -43,26 +43,36 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colorScheme = Theme.of(context).colorScheme;
+
     Color backgroundColor;
     Color foregroundColor = Colors.white;
 
     switch (widget.type) {
       case AdaptiveButtonType.primary:
-        backgroundColor = AppColors.primaryBlue;
+        backgroundColor = isIos ? AppColors.primaryBlue : colorScheme.primary;
+        foregroundColor = isIos ? Colors.white : colorScheme.onPrimary;
         break;
       case AdaptiveButtonType.success:
-        backgroundColor = AppColors.receivableGreen;
+        backgroundColor = isDark ? const Color(0xFF16A34A) : AppColors.receivableGreen;
+        foregroundColor = Colors.white;
         break;
       case AdaptiveButtonType.destructive:
-        backgroundColor = AppColors.payableRed;
+        backgroundColor = isDark ? const Color(0xFFDC2626) : AppColors.payableRed;
+        foregroundColor = Colors.white;
         break;
       case AdaptiveButtonType.secondary:
-        backgroundColor = AppColors.borderLight;
-        foregroundColor = AppColors.textPrimaryLight;
+        backgroundColor = isIos
+            ? (isDark ? CupertinoColors.systemGrey5 : AppColors.borderLight)
+            : colorScheme.surfaceContainerHighest;
+        foregroundColor = isIos
+            ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
+            : colorScheme.onSurface;
         break;
       case AdaptiveButtonType.text:
         backgroundColor = Colors.transparent;
-        foregroundColor = AppColors.primaryBlue;
+        foregroundColor = isIos ? AppColors.primaryBlue : colorScheme.primary;
         break;
     }
 

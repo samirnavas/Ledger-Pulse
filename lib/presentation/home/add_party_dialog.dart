@@ -7,6 +7,7 @@ import '../../core/constants/colors.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
+import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../data/models/party_model.dart';
 import '../providers/ledger_providers.dart';
 
@@ -163,6 +164,8 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
   @override
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark ||
+        CupertinoTheme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: EdgeInsets.only(
@@ -172,7 +175,11 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
       decoration: BoxDecoration(
-        color: isIos ? CupertinoColors.systemBackground : AppColors.surfaceWhite,
+        color: isIos
+            ? (isDark
+                ? CupertinoColors.systemBackground.darkColor
+                : CupertinoColors.systemBackground)
+            : Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SingleChildScrollView(
@@ -186,7 +193,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.borderLight,
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.4 : 0.7),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -196,10 +203,10 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
               children: [
                 Text(
                   'Add New ${_type.displayName}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimaryLight,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 IconButton(
@@ -221,10 +228,11 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryBlueLight.withValues(alpha: 0.35),
+                  color: Theme.of(context).colorScheme.primary.withValues(
+                      alpha: isDark ? 0.2 : 0.1),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                     width: 1.2,
                   ),
                 ),
@@ -236,15 +244,15 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                           ? CupertinoIcons.person_crop_circle_badge_plus
                           : Icons.contacts_rounded,
                       size: 20,
-                      color: AppColors.primaryBlueDark,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'Import from Contacts',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.primaryBlueDark,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ],
@@ -253,43 +261,25 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Party Type Toggle
-            Row(
-              children: [
-                Expanded(
-                  child: ChoiceChip(
-                    label: const Center(child: Text('Customer')),
-                    selected: _type == PartyType.customer,
-                    selectedColor: AppColors.primaryBlueLight,
-                    onSelected: (val) {
-                      if (val) {
-                        HapticFeedback.lightImpact();
-                        setState(() {
-                          _type = PartyType.customer;
-                          _isReceivable = true;
-                        });
-                      }
-                    },
-                  ),
+            // Party Type Toggle / Slider
+            AdaptiveSegmentedControl<PartyType>(
+              groupValue: _type,
+              children: const {
+                PartyType.customer: Text(
+                  'Customer',
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ChoiceChip(
-                    label: const Center(child: Text('Supplier')),
-                    selected: _type == PartyType.supplier,
-                    selectedColor: AppColors.primaryBlueLight,
-                    onSelected: (val) {
-                      if (val) {
-                        HapticFeedback.lightImpact();
-                        setState(() {
-                          _type = PartyType.supplier;
-                          _isReceivable = false;
-                        });
-                      }
-                    },
-                  ),
+                PartyType.supplier: Text(
+                  'Supplier',
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-              ],
+              },
+              onValueChanged: (val) {
+                setState(() {
+                  _type = val;
+                  _isReceivable = val == PartyType.customer;
+                });
+              },
             ),
 
             const SizedBox(height: 16),
@@ -297,6 +287,10 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
             // Name
             TextField(
               controller: _nameController,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Contact / Business Name',
                 prefixIcon: Icon(Icons.person_outline, size: 20),
@@ -308,6 +302,10 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Phone Number',
                 prefixIcon: Icon(Icons.phone_outlined, size: 20),
@@ -320,6 +318,10 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
             TextField(
               controller: _balanceController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
               decoration: InputDecoration(
                 labelText: 'Opening Balance (₹) Optional',
                 prefixIcon: const Icon(Icons.currency_rupee, size: 20),
@@ -327,9 +329,37 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                 suffixIcon: DropdownButtonHideUnderline(
                   child: DropdownButton<bool>(
                     value: _isReceivable,
-                    items: const [
-                      DropdownMenuItem(value: true, child: Text("You'll Get (+)")),
-                      DropdownMenuItem(value: false, child: Text("You'll Give (-)")),
+                    dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: true,
+                        child: Text(
+                          "You'll Get (+)",
+                          style: TextStyle(
+                            color: isDark
+                                ? const Color(0xFF4ADE80)
+                                : AppColors.receivableGreen,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: false,
+                        child: Text(
+                          "You'll Give (-)",
+                          style: TextStyle(
+                            color: isDark
+                                ? const Color(0xFFF87171)
+                                : AppColors.payableRed,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ],
                     onChanged: (val) {
                       if (val != null) setState(() => _isReceivable = val);
@@ -366,3 +396,4 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
     );
   }
 }
+

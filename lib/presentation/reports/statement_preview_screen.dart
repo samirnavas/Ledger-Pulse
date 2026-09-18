@@ -19,6 +19,7 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
+import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../providers/ledger_providers.dart';
@@ -427,40 +428,21 @@ class _StatementPreviewScreenState
                     child: Column(
                       children: [
                         // Filter Segmented Toggle
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ChoiceChip(
-                                label: const Center(child: Text(AppStrings.allTime)),
-                                selected:
-                                    _selectedPeriod == StatementPeriod.allTime,
-                                selectedColor: AppColors.primaryBlueLight,
-                                onSelected: (val) {
-                                  if (val) {
-                                    HapticFeedback.lightImpact();
-                                    setState(() => _selectedPeriod =
-                                        StatementPeriod.allTime);
-                                  }
-                                },
-                              ),
+                        AdaptiveSegmentedControl<StatementPeriod>(
+                          groupValue: _selectedPeriod,
+                          children: const {
+                            StatementPeriod.allTime: Text(
+                              AppStrings.allTime,
+                              style: TextStyle(fontWeight: FontWeight.w600),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: ChoiceChip(
-                                label: const Center(child: Text(AppStrings.last30Days)),
-                                selected:
-                                    _selectedPeriod == StatementPeriod.thirtyDays,
-                                selectedColor: AppColors.primaryBlueLight,
-                                onSelected: (val) {
-                                  if (val) {
-                                    HapticFeedback.lightImpact();
-                                    setState(() => _selectedPeriod =
-                                        StatementPeriod.thirtyDays);
-                                  }
-                                },
-                              ),
+                            StatementPeriod.thirtyDays: Text(
+                              AppStrings.last30Days,
+                              style: TextStyle(fontWeight: FontWeight.w600),
                             ),
-                          ],
+                          },
+                          onValueChanged: (val) {
+                            setState(() => _selectedPeriod = val);
+                          },
                         ),
                         const SizedBox(height: 12),
 
@@ -556,10 +538,15 @@ class _StatementPreviewScreenState
                             : Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: AppColors.surfaceWhite,
+                                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                                   borderRadius: BorderRadius.circular(18),
                                   border: Border.all(
-                                      color: AppColors.borderLight, width: 1),
+                                    color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                                        alpha: Theme.of(context).brightness == Brightness.dark
+                                            ? 0.35
+                                            : 0.5),
+                                    width: 1,
+                                  ),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -753,9 +740,15 @@ class _StatementPreviewScreenState
                     decoration: BoxDecoration(
                       color: isIos
                           ? CupertinoColors.systemBackground
-                          : AppColors.surfaceWhite,
-                      border: const Border(
-                        top: BorderSide(color: AppColors.borderLight, width: 1),
+                          : Theme.of(context).colorScheme.surfaceContainer,
+                      border: Border(
+                        top: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                              alpha: Theme.of(context).brightness == Brightness.dark
+                                  ? 0.35
+                                  : 0.5),
+                          width: 1,
+                        ),
                       ),
                     ),
                     child: Row(

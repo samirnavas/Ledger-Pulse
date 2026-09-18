@@ -39,8 +39,8 @@ class LedgerPulseApp extends ConsumerWidget {
         return MaterialApp(
           title: AppStrings.appName,
           debugShowCheckedModeBanner: false,
-          theme: AndroidTheme.getTheme(dynamicColorScheme: lightDynamic),
-          darkTheme: AndroidTheme.getTheme(dynamicColorScheme: darkDynamic),
+          theme: AndroidTheme.getLight(lightDynamic),
+          darkTheme: AndroidTheme.getDark(darkDynamic),
           themeMode: ThemeMode.system,
           home: const SplashScreen(),
         );

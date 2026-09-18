@@ -145,15 +145,15 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Text('🇮🇳', style: TextStyle(fontSize: 20)),
-                        SizedBox(width: 8),
+                      children: [
+                        const Text('🇮🇳', style: TextStyle(fontSize: 20)),
+                        const SizedBox(width: 8),
                         Text(
                           AppStrings.countryCode,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimaryLight,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                       ],
@@ -166,11 +166,11 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
                       autofocus: true,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.2,
-                        color: AppColors.textPrimaryLight,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                       decoration: const InputDecoration(
                         hintText: AppStrings.phonePlaceholder,

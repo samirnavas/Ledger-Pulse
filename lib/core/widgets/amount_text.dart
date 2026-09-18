@@ -29,15 +29,20 @@ class AmountText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     Color textColor;
     if (overrideColor != null) {
       textColor = overrideColor!;
     } else if (amountInCents == 0) {
-      textColor = AppColors.textSecondaryLight;
+      textColor = Theme.of(context).colorScheme.onSurfaceVariant;
     } else if (isReceivablePositive) {
-      textColor = amountInCents > 0 ? AppColors.receivableGreen : AppColors.payableRed;
+      textColor = amountInCents > 0
+          ? (isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen)
+          : (isDark ? const Color(0xFFF87171) : AppColors.payableRed);
     } else {
-      textColor = amountInCents > 0 ? AppColors.payableRed : AppColors.receivableGreen;
+      textColor = amountInCents > 0
+          ? (isDark ? const Color(0xFFF87171) : AppColors.payableRed)
+          : (isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen);
     }
 
     TextStyle style;

@@ -334,10 +334,12 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           color: isAction
               ? (isIos
                   ? CupertinoColors.systemGrey5
-                  : AppColors.surfaceCardM3)
+                  : Theme.of(context).colorScheme.surfaceContainerHighest)
               : (isIos
-                  ? CupertinoColors.white
-                  : AppColors.surfaceWhite),
+                  ? (Theme.of(context).brightness == Brightness.dark
+                      ? CupertinoColors.systemGrey6
+                      : CupertinoColors.white)
+                  : Theme.of(context).colorScheme.surfaceContainerLow),
           borderRadius: BorderRadius.circular(isIos ? 14 : 16),
           child: InkWell(
             onTap: onTap,
@@ -347,15 +349,13 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
               child: icon != null
                   ? Icon(icon,
                       size: 24,
-                      color: isAction
-                          ? AppColors.textPrimaryLight
-                          : AppColors.textPrimaryLight)
+                      color: Theme.of(context).colorScheme.onSurface)
                   : Text(
                       label,
                       style: TextStyle(
                         fontSize: label == '00' ? 20 : 23,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimaryLight,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
             ),
@@ -373,20 +373,23 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           margin: const EdgeInsets.symmetric(horizontal: 3),
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.primaryBlueLight.withValues(alpha: 0.3),
+            color: Theme.of(context).colorScheme.primary.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? 0.2
+                    : 0.1),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppColors.primaryBlue.withValues(alpha: 0.25),
+              color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
           child: Center(
             child: Text(
               '+₹$amount',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: AppColors.primaryBlueDark,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
@@ -511,7 +514,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
               decoration: BoxDecoration(
                 color: isIos
                     ? CupertinoColors.systemGrey5
-                    : AppColors.surfaceCardM3,
+                    : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(14),
               ),
               padding: const EdgeInsets.all(4),
@@ -549,7 +552,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                               fontWeight: FontWeight.w700,
                               color: isGave
                                   ? Colors.white
-                                  : AppColors.textSecondaryLight,
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -588,7 +591,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                               fontWeight: FontWeight.w700,
                               color: !isGave
                                   ? Colors.white
-                                  : AppColors.textSecondaryLight,
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -605,13 +608,18 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isIos
-                    ? CupertinoColors.white
-                    : AppColors.surfaceWhite,
+                    ? (Theme.of(context).brightness == Brightness.dark
+                        ? CupertinoColors.systemBackground.darkColor
+                        : CupertinoColors.white)
+                    : Theme.of(context).colorScheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: _errorMessage != null
                       ? AppColors.payableRed
-                      : themeColor.withValues(alpha: 0.3),
+                      : themeColor.withValues(
+                          alpha: Theme.of(context).brightness == Brightness.dark
+                              ? 0.4
+                              : 0.3),
                   width: 1.5,
                 ),
                 boxShadow: [
@@ -790,26 +798,37 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                 height: 40,
                 decoration: BoxDecoration(
                   color: isIos
-                      ? CupertinoColors.white
-                      : AppColors.surfaceWhite,
+                      ? (Theme.of(context).brightness == Brightness.dark
+                          ? CupertinoColors.systemBackground.darkColor
+                          : CupertinoColors.white)
+                      : Theme.of(context).colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.borderLight, width: 1),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                        alpha: Theme.of(context).brightness == Brightness.dark
+                            ? 0.35
+                            : 0.5),
+                    width: 1,
+                  ),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: TextField(
                   controller: _noteController,
                   autofocus: true,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: const InputDecoration(
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  decoration: InputDecoration(
                     hintText: 'Enter optional note (e.g. Bill #104)...',
                     hintStyle: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textMutedLight,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
                     focusedBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
                     isDense: true,
                   ),
                 ),

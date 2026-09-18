@@ -106,34 +106,40 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                     textAlign: TextAlign.center,
                     maxLength: 1,
                     autofocus: index == 0,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimaryLight,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                     decoration: InputDecoration(
                       counterText: '',
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
                       contentPadding: EdgeInsets.zero,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: AppColors.borderLight,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                              alpha: Theme.of(context).brightness == Brightness.dark
+                                  ? 0.35
+                                  : 0.5),
                           width: 1.5,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: AppColors.borderLight,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                              alpha: Theme.of(context).brightness == Brightness.dark
+                                  ? 0.35
+                                  : 0.5),
                           width: 1.5,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                          color: AppColors.primaryBlue,
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
                           width: 2,
                         ),
                       ),

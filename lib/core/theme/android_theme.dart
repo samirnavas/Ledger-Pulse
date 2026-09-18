@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import '../constants/colors.dart';
 
 class AndroidTheme {
-  static ThemeData getTheme({ColorScheme? dynamicColorScheme}) {
-    // If Material You dynamic color scheme is provided from Android system, use it
+  static ThemeData getTheme({
+    ColorScheme? dynamicColorScheme,
+    Brightness brightness = Brightness.light,
+  }) {
+    // If Material You dynamic color scheme is provided from Android system, use it;
+    // otherwise generate a cohesive Material 3 ColorScheme from seed.
     final ColorScheme scheme = dynamicColorScheme ??
         ColorScheme.fromSeed(
           seedColor: AppColors.primaryBlue,
-          primary: AppColors.primaryBlue,
-          surface: AppColors.surfaceLight,
-          onSurface: AppColors.textPrimaryLight,
-          error: AppColors.payableRed,
+          brightness: brightness,
         );
+
+    final isDark = scheme.brightness == Brightness.dark;
 
     return ThemeData(
       useMaterial3: true,
@@ -34,29 +37,66 @@ class AndroidTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: const BorderSide(color: AppColors.borderLight, width: 1),
+          side: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+            width: 1,
+          ),
         ),
         color: scheme.surfaceContainerLow,
         margin: EdgeInsets.zero,
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: scheme.primary,
-        foregroundColor: scheme.onPrimary,
+        backgroundColor: scheme.primaryContainer,
+        foregroundColor: scheme.onPrimaryContainer,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24), // M3 expressive radius
         ),
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: scheme.surfaceContainer,
+        indicatorColor: scheme.secondaryContainer,
+        elevation: 0,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurface,
+            );
+          }
+          return TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: scheme.onSurfaceVariant,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return IconThemeData(
+              size: 24,
+              color: scheme.onSecondaryContainer,
+            );
+          }
+          return IconThemeData(
+            size: 24,
+            color: scheme.onSurfaceVariant,
+          );
+        }),
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        fillColor: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.3 : 0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: const BorderSide(color: AppColors.borderLight, width: 1),
+          borderSide: BorderSide(
+            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+            width: 1,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
@@ -107,6 +147,13 @@ class AndroidTheme {
     );
   }
 
-  static ThemeData get lightTheme => getTheme();
+  static ThemeData getLight([ColorScheme? dynamicLight]) =>
+      getTheme(dynamicColorScheme: dynamicLight, brightness: Brightness.light);
+
+  static ThemeData getDark([ColorScheme? dynamicDark]) =>
+      getTheme(dynamicColorScheme: dynamicDark, brightness: Brightness.dark);
+
+  static ThemeData get lightTheme => getLight();
+  static ThemeData get darkTheme => getDark();
 }
 

@@ -133,8 +133,8 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                               ? Icons.trending_up_rounded
                               : Icons.schedule_rounded,
                       color: isSelected
-                          ? AppColors.primaryBlue
-                          : AppColors.textSecondaryLight,
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     title: Text(
                       option.label,
@@ -142,13 +142,13 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                         fontWeight:
                             isSelected ? FontWeight.w700 : FontWeight.w500,
                         color: isSelected
-                            ? AppColors.primaryBlue
-                            : AppColors.textPrimaryLight,
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     trailing: isSelected
-                        ? const Icon(Icons.check_rounded,
-                            color: AppColors.primaryBlue)
+                        ? Icon(Icons.check_rounded,
+                            color: Theme.of(context).colorScheme.primary)
                         : null,
                     onTap: () {
                       HapticFeedback.lightImpact();
@@ -207,6 +207,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                             Expanded(
                               child: TextField(
                                 controller: _searchController,
+                                onTapOutside: (event) => FocusManager.instance.primaryFocus?.unfocus(),
                                 onChanged: (val) {
                                   ref
                                       .read(partySearchQueryProvider.notifier)
@@ -249,31 +250,46 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                           color:
                               Theme.of(context).colorScheme.surfaceContainerLow,
                           borderRadius: BorderRadius.circular(24),
-                          border:
-                              Border.all(color: AppColors.borderLight, width: 1),
+                          border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outlineVariant
+                                .withValues(
+                                    alpha: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? 0.35
+                                        : 0.5),
+                            width: 1,
+                          ),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Row(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.search_rounded,
                               size: 20,
-                              color: AppColors.textMutedLight,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: TextField(
                                 controller: _searchController,
+                                onTapOutside: (event) =>
+                                    FocusManager.instance.primaryFocus?.unfocus(),
                                 onChanged: (val) {
                                   ref
                                       .read(partySearchQueryProvider.notifier)
                                       .setQuery(val);
                                 },
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                   hintText: AppStrings.searchHint,
                                   hintStyle: TextStyle(
                                     fontSize: 14,
-                                    color: AppColors.textMutedLight,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
                                   ),
                                   border: InputBorder.none,
                                   enabledBorder: InputBorder.none,
@@ -291,10 +307,12 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                                       .read(partySearchQueryProvider.notifier)
                                       .setQuery('');
                                 },
-                                child: const Icon(
+                                child: Icon(
                                   Icons.close_rounded,
                                   size: 18,
-                                  color: AppColors.textMutedLight,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                               ),
                           ],
@@ -320,7 +338,9 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                           size: 20,
                           color: currentSort != PartySortOption.mostRecent
                               ? AppColors.primaryBlue
-                              : AppColors.textPrimaryLight,
+                              : (Theme.of(context).brightness == Brightness.dark
+                                  ? AppColors.textPrimaryDark
+                                  : AppColors.textPrimaryLight),
                         ),
                       )
                     : Container(
@@ -330,15 +350,24 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                           color:
                               Theme.of(context).colorScheme.surfaceContainerLow,
                           borderRadius: BorderRadius.circular(24),
-                          border:
-                              Border.all(color: AppColors.borderLight, width: 1),
+                          border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outlineVariant
+                                .withValues(
+                                    alpha: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? 0.35
+                                        : 0.5),
+                            width: 1,
+                          ),
                         ),
                         child: Icon(
                           Icons.sort_rounded,
                           size: 22,
                           color: currentSort != PartySortOption.mostRecent
-                              ? AppColors.primaryBlue
-                              : AppColors.textPrimaryLight,
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
               ),
@@ -432,7 +461,11 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                             const SizedBox(height: 3),
                             Text(
                               'Updated ${DateFormatter.formatRelative(party.lastUpdated)}',
-                              style: AppTypography.labelSmall,
+                              style: AppTypography.labelSmall.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
                             ),
                           ],
                         ),
@@ -453,11 +486,24 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: party.netBalanceInCents > 0
-                                  ? AppColors.receivableGreenLight
+                                  ? (Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? AppColors.receivableGreen
+                                          .withValues(alpha: 0.2)
+                                      : AppColors.receivableGreenLight)
                                   : party.netBalanceInCents < 0
-                                      ? AppColors.payableRedLight
-                                      : AppColors.borderLight
-                                          .withValues(alpha: 0.5),
+                                      ? (Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? AppColors.payableRed
+                                              .withValues(alpha: 0.2)
+                                          : AppColors.payableRedLight)
+                                      : (Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Theme.of(context)
+                                              .colorScheme
+                                              .surfaceContainerHighest
+                                          : AppColors.borderLight
+                                              .withValues(alpha: 0.5)),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -470,10 +516,18 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 color: party.netBalanceInCents > 0
-                                    ? AppColors.receivableGreenDark
+                                    ? (Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? const Color(0xFF4ADE80)
+                                        : AppColors.receivableGreenDark)
                                     : party.netBalanceInCents < 0
-                                        ? AppColors.payableRedDark
-                                        : AppColors.textSecondaryLight,
+                                        ? (Theme.of(context).brightness ==
+                                                Brightness.dark
+                                            ? const Color(0xFFF87171)
+                                            : AppColors.payableRedDark)
+                                        : Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant,
                               ),
                             ),
                           ),
@@ -486,7 +540,9 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                             ? CupertinoIcons.chevron_forward
                             : Icons.chevron_right,
                         size: 18,
-                        color: AppColors.textMutedLight,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant,
                       ),
                     ],
                   );
@@ -523,7 +579,14 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                             .surfaceContainerLow,
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: AppColors.borderLight,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .outlineVariant
+                              .withValues(
+                                  alpha: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? 0.35
+                                      : 0.5),
                           width: 1,
                         ),
                       ),

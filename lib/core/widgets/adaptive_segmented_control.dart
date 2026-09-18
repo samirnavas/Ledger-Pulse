@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../constants/colors.dart';
 import '../theme/adaptive_theme.dart';
 
 class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
@@ -19,6 +18,8 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark ||
+        CupertinoTheme.of(context).brightness == Brightness.dark;
 
     if (isIos) {
       return SizedBox(
@@ -40,11 +41,16 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
               onValueChanged(val);
             }
           },
-          backgroundColor: CupertinoColors.systemGrey5,
-          thumbColor: CupertinoColors.white,
+          backgroundColor: isDark
+              ? CupertinoColors.systemGrey6.darkColor
+              : CupertinoColors.systemGrey5,
+          thumbColor: isDark
+              ? const Color(0xFF334155)
+              : CupertinoColors.white,
         ),
       );
     } else {
+      final scheme = Theme.of(context).colorScheme;
       // Material Design 3 SegmentedButton
       return SizedBox(
         width: double.infinity,
@@ -65,20 +71,26 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
           style: ButtonStyle(
             shape: WidgetStateProperty.all(
               RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
+            side: WidgetStateProperty.resolveWith((states) {
+              return BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+                width: 1,
+              );
+            }),
             backgroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
-                return AppColors.primaryBlueLight;
+                return scheme.primaryContainer;
               }
-              return Colors.transparent;
+              return scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.3 : 0.4);
             }),
             foregroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
-                return AppColors.primaryBlueDark;
+                return scheme.onPrimaryContainer;
               }
-              return AppColors.textSecondaryLight;
+              return scheme.onSurfaceVariant;
             }),
           ),
         ),
@@ -86,4 +98,5 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
     }
   }
 }
+
 

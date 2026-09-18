@@ -71,7 +71,7 @@ class DashboardScreen extends ConsumerWidget {
           icon: Icon(
             isIos ? CupertinoIcons.info_circle : Icons.info_outline_rounded,
             size: 20,
-            color: AppColors.textSecondaryLight,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           onPressed: () {
             HapticFeedback.lightImpact();
@@ -119,11 +119,11 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'v1.0.0 • Material You Ready',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondaryLight,
+                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -131,7 +131,7 @@ class DashboardScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceCardM3,
+                        color: Theme.of(ctx).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Column(
@@ -173,7 +173,7 @@ class DashboardScreen extends ConsumerWidget {
           icon: Icon(
             isIos ? CupertinoIcons.square_arrow_right : Icons.logout_rounded,
             size: 20,
-            color: AppColors.textSecondaryLight,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
           onPressed: () => _handleLogout(context, ref),
         ),
@@ -212,7 +212,7 @@ class DashboardScreen extends ConsumerWidget {
               loading: () => Container(
                 height: 90,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceWhite,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Center(child: CupertinoActivityIndicator()),
@@ -220,6 +220,7 @@ class DashboardScreen extends ConsumerWidget {
               error: (err, _) => Text('Error loading metrics: $err'),
               data: (summary) {
                 final (totalReceivable, totalPayable) = summary;
+                final isDark = Theme.of(context).brightness == Brightness.dark;
 
                 final Widget getCardContent = Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -229,20 +230,24 @@ class DashboardScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: AppColors.receivableGreenLight,
+                            color: isDark
+                                ? AppColors.receivableGreen.withValues(alpha: 0.2)
+                                : AppColors.receivableGreenLight,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.arrow_downward_rounded,
                             size: 14,
-                            color: AppColors.receivableGreen,
+                            color: isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           AppStrings.youWillGet,
                           style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.receivableGreenDark,
+                            color: isDark
+                                ? const Color(0xFF4ADE80)
+                                : AppColors.receivableGreenDark,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -252,7 +257,7 @@ class DashboardScreen extends ConsumerWidget {
                     AmountText(
                       amountInCents: totalReceivable,
                       variant: AmountVariant.large,
-                      overrideColor: AppColors.receivableGreen,
+                      overrideColor: isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen,
                     ),
                   ],
                 );
@@ -265,20 +270,24 @@ class DashboardScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.all(4),
                           decoration: BoxDecoration(
-                            color: AppColors.payableRedLight,
+                            color: isDark
+                                ? AppColors.payableRed.withValues(alpha: 0.2)
+                                : AppColors.payableRedLight,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.arrow_upward_rounded,
                             size: 14,
-                            color: AppColors.payableRed,
+                            color: isDark ? const Color(0xFFF87171) : AppColors.payableRed,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           AppStrings.youWillGive,
                           style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.payableRedDark,
+                            color: isDark
+                                ? const Color(0xFFF87171)
+                                : AppColors.payableRedDark,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -288,7 +297,7 @@ class DashboardScreen extends ConsumerWidget {
                     AmountText(
                       amountInCents: totalPayable,
                       variant: AmountVariant.large,
-                      overrideColor: AppColors.payableRed,
+                      overrideColor: isDark ? const Color(0xFFF87171) : AppColors.payableRed,
                     ),
                   ],
                 );
@@ -308,7 +317,7 @@ class DashboardScreen extends ConsumerWidget {
                                 color: Theme.of(context).colorScheme.surfaceContainerLow,
                                 borderRadius: BorderRadius.circular(24),
                                 border: Border.all(
-                                  color: AppColors.receivableGreen.withValues(alpha: 0.2),
+                                  color: AppColors.receivableGreen.withValues(alpha: isDark ? 0.35 : 0.2),
                                   width: 1.5,
                                 ),
                               ),
@@ -330,7 +339,7 @@ class DashboardScreen extends ConsumerWidget {
                                 color: Theme.of(context).colorScheme.surfaceContainerLow,
                                 borderRadius: BorderRadius.circular(24),
                                 border: Border.all(
-                                  color: AppColors.payableRed.withValues(alpha: 0.2),
+                                  color: AppColors.payableRed.withValues(alpha: isDark ? 0.35 : 0.2),
                                   width: 1.5,
                                 ),
                               ),

@@ -147,6 +147,7 @@ class PartyLedgerScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final partyAsync = ref.watch(partyDetailProvider(partyId));
     final entriesAsync = ref.watch(partyLedgerEntriesProvider(partyId));
@@ -194,9 +195,15 @@ class PartyLedgerScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: isIos
                   ? CupertinoColors.systemBackground
-                  : AppColors.surfaceWhite,
-              border: const Border(
-                top: BorderSide(color: AppColors.borderLight, width: 1),
+                  : Theme.of(context).colorScheme.surfaceContainer,
+              border: Border(
+                top: BorderSide(
+                  color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                      alpha: Theme.of(context).brightness == Brightness.dark
+                          ? 0.35
+                          : 0.5),
+                  width: 1,
+                ),
               ),
               boxShadow: [
                 BoxShadow(
@@ -268,10 +275,16 @@ class PartyLedgerScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: isIos
-                      ? CupertinoColors.white
-                      : AppColors.surfaceWhite,
-                  border: const Border(
-                    bottom: BorderSide(color: AppColors.borderLight, width: 1),
+                      ? (isDark
+                          ? CupertinoColors.systemBackground.darkColor
+                          : CupertinoColors.white)
+                      : Theme.of(context).colorScheme.surfaceContainerLow,
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                          alpha: isDark ? 0.35 : 0.5),
+                      width: 1,
+                    ),
                   ),
                 ),
                 child: Row(
@@ -287,6 +300,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                             party.phoneNumber,
                             style: AppTypography.bodyMedium.copyWith(
                               fontWeight: FontWeight.w500,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -297,7 +311,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.primaryBlueLight.withValues(alpha: 0.5),
+                              color: Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
@@ -308,15 +322,15 @@ class PartyLedgerScreen extends ConsumerWidget {
                                       ? CupertinoIcons.phone_fill
                                       : Icons.call_rounded,
                                   size: 13,
-                                  color: AppColors.primaryBlue,
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                                 const SizedBox(width: 4),
-                                const Text(
+                                Text(
                                   AppStrings.callParty,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.primaryBlue,
+                                    color: Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
                               ],
@@ -341,10 +355,14 @@ class PartyLedgerScreen extends ConsumerWidget {
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.5,
                             color: party.netBalanceInCents > 0
-                                ? AppColors.receivableGreenDark
+                                ? (isDark
+                                    ? const Color(0xFF4ADE80)
+                                    : AppColors.receivableGreenDark)
                                 : party.netBalanceInCents < 0
-                                    ? AppColors.payableRedDark
-                                    : AppColors.textSecondaryLight,
+                                    ? (isDark
+                                        ? const Color(0xFFF87171)
+                                        : AppColors.payableRedDark)
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -463,10 +481,13 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
                 margin: const EdgeInsets.symmetric(vertical: 4),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceWhite,
+                  color: Theme.of(context).colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.borderLight,
+                    color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                        alpha: Theme.of(context).brightness == Brightness.dark
+                            ? 0.35
+                            : 0.5),
                     width: 1,
                   ),
                   boxShadow: [
@@ -491,15 +512,15 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 12, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceCardM3,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       DateFormatter.formatRelative(entry.date),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondaryLight,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -564,10 +585,10 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
             children: [
               Text(
                 entry.note ?? (isGave ? 'You Gave' : 'You Got'),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimaryLight,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -577,7 +598,9 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
                 children: [
                   Text(
                     DateFormatter.formatTime(entry.date),
-                    style: AppTypography.labelSmall,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   if (entry.receiptPhotoUrl != null) ...[
                     const SizedBox(width: 6),
