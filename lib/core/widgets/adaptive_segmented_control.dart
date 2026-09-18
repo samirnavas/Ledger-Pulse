@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants/colors.dart';
 import '../theme/adaptive_theme.dart';
 
@@ -35,6 +36,7 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
           ),
           onValueChanged: (val) {
             if (val != null) {
+              HapticFeedback.lightImpact();
               onValueChanged(val);
             }
           },
@@ -56,13 +58,14 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
           selected: {groupValue},
           onSelectionChanged: (newSelection) {
             if (newSelection.isNotEmpty) {
+              HapticFeedback.lightImpact();
               onValueChanged(newSelection.first);
             }
           },
           style: ButtonStyle(
             shape: WidgetStateProperty.all(
               RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(24),
               ),
             ),
             backgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -83,3 +86,4 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
     }
   }
 }
+

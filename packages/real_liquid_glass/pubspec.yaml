@@ -1,0 +1,11 @@
+name: real_liquid_glass
+description: "Authentic real liquid glass package for Flutter iOS and cross-platform UI."
+version: 0.3.0
+
+environment:
+  sdk: ">=3.11.4 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter

@@ -59,6 +59,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSContactsUsageDescription</key>
+	<string>Ledger Pulse needs access to your contacts to easily import party names and phone numbers.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ledger Pulse needs access to your camera to capture receipts and bills.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ledger Pulse needs access to your photo library to attach receipt images to ledger entries.</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

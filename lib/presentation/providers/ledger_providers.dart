@@ -1,12 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/local/local_asset_ledger_repository.dart';
+import '../../data/local/database.dart';
+import '../../data/local/drift_ledger_repository.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
 
-// Single repository instance backed directly by in-app bundled assets & local state
+// Singleton Drift AppDatabase provider
+final appDatabaseProvider = Provider<AppDatabase>((ref) {
+  final db = AppDatabase();
+  ref.onDispose(() {
+    db.close();
+  });
+  return db;
+});
+
+// Single repository instance backed directly by local SQLite (Drift)
 final ledgerRepositoryProvider = Provider<ILedgerRepository>((ref) {
-  final repo = LocalAssetLedgerRepository();
+  final db = ref.watch(appDatabaseProvider);
+  final repo = DriftLedgerRepository(db: db);
   ref.onDispose(() {
     repo.dispose();
   });
@@ -49,21 +60,76 @@ final partySearchQueryProvider =
   PartySearchQueryNotifier.new,
 );
 
+// Sorting options for party list
+enum PartySortOption {
+  mostRecent,
+  highestReceivable,
+  alphabetical;
+
+  String get label {
+    switch (this) {
+      case PartySortOption.mostRecent:
+        return 'Most Recent';
+      case PartySortOption.highestReceivable:
+        return 'Highest Receivable';
+      case PartySortOption.alphabetical:
+        return 'Alphabetical';
+    }
+  }
+}
+
+class PartySortOptionNotifier extends Notifier<PartySortOption> {
+  @override
+  PartySortOption build() => PartySortOption.mostRecent;
+
+  void setSort(PartySortOption option) {
+    state = option;
+  }
+}
+
+final partySortOptionProvider =
+    NotifierProvider<PartySortOptionNotifier, PartySortOption>(
+  PartySortOptionNotifier.new,
+);
+
 // Parties list provider, auto-refreshes when repo emits update
 final partyListProvider = FutureProvider<List<Party>>((ref) async {
   ref.watch(ledgerUpdatesStreamProvider);
   final repo = ref.watch(ledgerRepositoryProvider);
   final filter = ref.watch(selectedPartyTypeFilterProvider);
   final query = ref.watch(partySearchQueryProvider).toLowerCase().trim();
+  final sortOption = ref.watch(partySortOptionProvider);
 
-  final parties = await repo.getParties(filter: filter);
-  if (query.isEmpty) {
-    return parties;
+  final rawParties = await repo.getParties(filter: filter);
+  var filteredParties = rawParties;
+  if (query.isNotEmpty) {
+    final cleanDigits = query.replaceAll(RegExp(r'\D'), '');
+    filteredParties = rawParties.where((p) {
+      final nameMatches = p.name.toLowerCase().contains(query);
+      final phoneDigits = p.phoneNumber.replaceAll(RegExp(r'\D'), '');
+      final phoneMatches = p.phoneNumber.toLowerCase().contains(query) ||
+          (cleanDigits.isNotEmpty && phoneDigits.contains(cleanDigits));
+      return nameMatches || phoneMatches;
+    }).toList();
   }
-  return parties.where((p) {
-    return p.name.toLowerCase().contains(query) ||
-        p.phoneNumber.replaceAll(RegExp(r'\D'), '').contains(query);
-  }).toList();
+
+  final sortedParties = List<Party>.from(filteredParties);
+  switch (sortOption) {
+    case PartySortOption.alphabetical:
+      sortedParties.sort((a, b) =>
+          a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+      break;
+    case PartySortOption.highestReceivable:
+      sortedParties.sort((a, b) =>
+          b.netBalanceInCents.compareTo(a.netBalanceInCents));
+      break;
+    case PartySortOption.mostRecent:
+      sortedParties.sort((a, b) =>
+          b.lastUpdated.compareTo(a.lastUpdated));
+      break;
+  }
+
+  return sortedParties;
 });
 
 // Business summary (Total Receivable, Total Payable)
@@ -82,12 +148,32 @@ final partyDetailProvider =
   return repo.getPartyById(partyId);
 });
 
-// Ledger entries with running balance for a specific party
+// Ledger entries with running balance computed line-by-line chronologically
 final partyLedgerEntriesProvider =
     FutureProvider.family<List<LedgerEntry>, String>((ref, partyId) async {
   ref.watch(ledgerUpdatesStreamProvider);
   final repo = ref.watch(ledgerRepositoryProvider);
-  return repo.getEntriesForParty(partyId);
+  final rawEntries = await repo.getEntriesForParty(partyId);
+
+  // Sort ascending by date to compute cumulative running balance chronologically
+  final sortedEntries = List<LedgerEntry>.from(rawEntries)
+    ..sort((a, b) => a.date.compareTo(b.date));
+
+  int runningBalance = 0;
+  final entriesWithBalance = <LedgerEntry>[];
+  for (final entry in sortedEntries) {
+    if (entry.type == EntryType.gave) {
+      runningBalance += entry.amountInCents;
+    } else {
+      runningBalance -= entry.amountInCents;
+    }
+    entriesWithBalance.add(
+      entry.copyWith(runningBalanceInCents: runningBalance),
+    );
+  }
+
+  // Return reverse chronological order (newest first) for ledger stream display
+  return entriesWithBalance.reversed.toList();
 });
 
 // Controller for mutations (add party, add entry, delete entry)

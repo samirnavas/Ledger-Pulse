@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
@@ -201,6 +202,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
             // Demo Hint Chip
             GestureDetector(
               onTap: () {
+                HapticFeedback.lightImpact();
                 _phoneController.text = '98765 43210';
                 setState(() => _errorMessage = null);
               },

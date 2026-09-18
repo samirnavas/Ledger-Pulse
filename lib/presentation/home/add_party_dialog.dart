@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/theme/adaptive_theme.dart';
@@ -42,6 +44,86 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
     _phoneController.dispose();
     _balanceController.dispose();
     super.dispose();
+  }
+
+  Future<void> _importFromContacts() async {
+    HapticFeedback.lightImpact();
+    try {
+      final status =
+          await FlutterContacts.permissions.request(PermissionType.read);
+      if (status != PermissionStatus.granted &&
+          status != PermissionStatus.limited) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Contacts permission denied. Please allow contacts access in Settings.'),
+              backgroundColor: AppColors.payableRed,
+            ),
+          );
+        }
+        return;
+      }
+
+      final contact = await FlutterContacts.native.showPicker(
+        properties: {ContactProperty.name, ContactProperty.phone},
+      );
+      if (contact != null) {
+        Contact? fullContact = contact;
+        if (contact.phones.isEmpty && contact.id != null) {
+          fullContact = await FlutterContacts.get(
+            contact.id!,
+            properties: {ContactProperty.name, ContactProperty.phone},
+          );
+        }
+
+        String name = fullContact?.displayName ?? contact.displayName ?? '';
+        if (name.isEmpty && fullContact?.name != null) {
+          final n = fullContact!.name!;
+          name = [n.first, n.middle, n.last]
+              .where((s) => s != null && s.isNotEmpty)
+              .join(' ');
+        }
+        String phone = '';
+        if (fullContact?.phones.isNotEmpty == true) {
+          phone = fullContact!.phones.first.number;
+        } else if (contact.phones.isNotEmpty) {
+          phone = contact.phones.first.number;
+        }
+
+        // Strip non-standard characters while keeping leading plus
+        phone = phone.replaceAll(RegExp(r'[^\d+]'), '');
+
+        setState(() {
+          if (name.isNotEmpty) {
+            _nameController.text = name;
+          }
+          if (phone.isNotEmpty) {
+            _phoneController.text = phone;
+          }
+          _error = null;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Imported "$name" from contacts!'),
+              backgroundColor: AppColors.primaryBlue,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to import contact: $e'),
+            backgroundColor: AppColors.payableRed,
+          ),
+        );
+      }
+    }
   }
 
   void _submit() async {
@@ -122,9 +204,52 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, size: 20),
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    Navigator.of(context).pop();
+                  },
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+
+            // Prominent "Import from Contacts" Action Button
+            InkWell(
+              onTap: _importFromContacts,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryBlueLight.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.primaryBlue.withValues(alpha: 0.3),
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isIos
+                          ? CupertinoIcons.person_crop_circle_badge_plus
+                          : Icons.contacts_rounded,
+                      size: 20,
+                      color: AppColors.primaryBlueDark,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Import from Contacts',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryBlueDark,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -138,6 +263,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                     selectedColor: AppColors.primaryBlueLight,
                     onSelected: (val) {
                       if (val) {
+                        HapticFeedback.lightImpact();
                         setState(() {
                           _type = PartyType.customer;
                           _isReceivable = true;
@@ -154,6 +280,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                     selectedColor: AppColors.primaryBlueLight,
                     onSelected: (val) {
                       if (val) {
+                        HapticFeedback.lightImpact();
                         setState(() {
                           _type = PartyType.supplier;
                           _isReceivable = false;

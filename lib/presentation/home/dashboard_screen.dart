@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
@@ -8,6 +9,7 @@ import '../../core/theme/adaptive_theme.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../core/widgets/amount_text.dart';
+import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/party_model.dart';
 import '../auth/phone_input_screen.dart';
 import '../providers/auth_providers.dart';
@@ -19,6 +21,7 @@ class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   void _showAddPartySheet(BuildContext context, PartyType initialType) {
+    HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -28,6 +31,7 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   void _handleLogout(BuildContext context, WidgetRef ref) async {
+    HapticFeedback.lightImpact();
     await ref.read(authControllerProvider.notifier).logout();
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -66,6 +70,7 @@ class DashboardScreen extends ConsumerWidget {
             color: AppColors.textSecondaryLight,
           ),
           onPressed: () {
+            HapticFeedback.lightImpact();
             showDialog(
               context: context,
               builder: (ctx) => AlertDialog(
@@ -203,125 +208,121 @@ class DashboardScreen extends ConsumerWidget {
               data: (summary) {
                 final (totalReceivable, totalPayable) = summary;
 
+                final Widget getCardContent = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: AppColors.receivableGreenLight,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_downward_rounded,
+                            size: 14,
+                            color: AppColors.receivableGreen,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          AppStrings.youWillGet,
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.receivableGreenDark,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    AmountText(
+                      amountInCents: totalReceivable,
+                      variant: AmountVariant.large,
+                      overrideColor: AppColors.receivableGreen,
+                    ),
+                  ],
+                );
+
+                final Widget giveCardContent = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: AppColors.payableRedLight,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_upward_rounded,
+                            size: 14,
+                            color: AppColors.payableRed,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          AppStrings.youWillGive,
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.payableRedDark,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    AmountText(
+                      amountInCents: totalPayable,
+                      variant: AmountVariant.large,
+                      overrideColor: AppColors.payableRed,
+                    ),
+                  ],
+                );
+
                 return Row(
                   children: [
                     // You'll Get Card (Green)
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isIos
-                              ? CupertinoColors.white
-                              : AppColors.surfaceWhite,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.receivableGreen.withValues(alpha: 0.2),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.receivableGreen.withValues(alpha: 0.04),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.receivableGreenLight,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.arrow_downward_rounded,
-                                    size: 14,
-                                    color: AppColors.receivableGreen,
-                                  ),
+                      child: isIos
+                          ? LiquidGlassCard(
+                              padding: const EdgeInsets.all(16),
+                              child: getCardContent,
+                            )
+                          : Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: AppColors.receivableGreen.withValues(alpha: 0.2),
+                                  width: 1.5,
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  AppStrings.youWillGet,
-                                  style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.receivableGreenDark,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
+                              ),
+                              child: getCardContent,
                             ),
-                            const SizedBox(height: 8),
-                            AmountText(
-                              amountInCents: totalReceivable,
-                              variant: AmountVariant.large,
-                              overrideColor: AppColors.receivableGreen,
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                     const SizedBox(width: 12),
 
                     // You'll Give Card (Red)
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: isIos
-                              ? CupertinoColors.white
-                              : AppColors.surfaceWhite,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: AppColors.payableRed.withValues(alpha: 0.2),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.payableRed.withValues(alpha: 0.04),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.payableRedLight,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Icon(
-                                    Icons.arrow_upward_rounded,
-                                    size: 14,
-                                    color: AppColors.payableRed,
-                                  ),
+                      child: isIos
+                          ? LiquidGlassCard(
+                              padding: const EdgeInsets.all(16),
+                              child: giveCardContent,
+                            )
+                          : Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: AppColors.payableRed.withValues(alpha: 0.2),
+                                  width: 1.5,
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  AppStrings.youWillGive,
-                                  style: AppTypography.labelSmall.copyWith(
-                                    color: AppColors.payableRedDark,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
+                              ),
+                              child: giveCardContent,
                             ),
-                            const SizedBox(height: 8),
-                            AmountText(
-                              amountInCents: totalPayable,
-                              variant: AmountVariant.large,
-                              overrideColor: AppColors.payableRed,
-                            ),
-                          ],
-                        ),
-                      ),
                     ),
                   ],
                 );
@@ -350,41 +351,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
 
-          // 3. Search Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-              height: 44,
-              decoration: BoxDecoration(
-                color: isIos ? CupertinoColors.white : AppColors.surfaceWhite,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.borderLight, width: 1),
-              ),
-              child: TextField(
-                onChanged: (val) {
-                  ref.read(partySearchQueryProvider.notifier).setQuery(val);
-                },
-                decoration: InputDecoration(
-                  hintText: AppStrings.searchHint,
-                  hintStyle: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textMutedLight,
-                  ),
-                  prefixIcon: Icon(
-                    isIos ? CupertinoIcons.search : Icons.search_rounded,
-                    size: 18,
-                    color: AppColors.textMutedLight,
-                  ),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                ),
-              ),
-            ),
-          ),
-
-          // 4. Party List
+          // 3. Sticky Party List with search & sort
           const Expanded(
             child: PartyListTab(),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../constants/colors.dart';
 import '../theme/adaptive_theme.dart';
 
@@ -58,6 +59,13 @@ class AdaptiveButton extends StatelessWidget {
         break;
     }
 
+    final VoidCallback? effectiveOnPressed = onPressed == null || isLoading
+        ? null
+        : () {
+            HapticFeedback.lightImpact();
+            onPressed!();
+          };
+
     final Widget content = isLoading
         ? SizedBox(
             height: 20,
@@ -76,7 +84,7 @@ class AdaptiveButton extends StatelessWidget {
         padding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         color: type == AdaptiveButtonType.text ? null : backgroundColor,
         borderRadius: BorderRadius.circular(14),
-        onPressed: isLoading ? null : onPressed,
+        onPressed: effectiveOnPressed,
         child: DefaultTextStyle(
           style: TextStyle(
             color: foregroundColor,
@@ -100,26 +108,26 @@ class AdaptiveButton extends StatelessWidget {
       Widget m3Button;
       if (type == AdaptiveButtonType.text) {
         m3Button = TextButton(
-          onPressed: isLoading ? null : onPressed,
+          onPressed: effectiveOnPressed,
           style: TextButton.styleFrom(
             foregroundColor: foregroundColor,
             padding: padding,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
             ),
           ),
           child: content,
         );
       } else {
         m3Button = FilledButton(
-          onPressed: isLoading ? null : onPressed,
+          onPressed: effectiveOnPressed,
           style: FilledButton.styleFrom(
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             elevation: 0,
             padding: padding,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20), // M3 expressive radius
+              borderRadius: BorderRadius.circular(24), // M3 expressive radius
             ),
           ),
           child: content,
@@ -137,3 +145,4 @@ class AdaptiveButton extends StatelessWidget {
     }
   }
 }
+

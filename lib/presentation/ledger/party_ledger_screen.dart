@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
@@ -12,6 +14,8 @@ import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
+import 'package:real_liquid_glass/real_liquid_glass.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/ledger_providers.dart';
 import '../reports/statement_preview_screen.dart';
 import 'add_entry_bottom_sheet.dart';
@@ -24,8 +28,31 @@ class PartyLedgerScreen extends ConsumerWidget {
     required this.partyId,
   });
 
+  Future<void> _makePhoneCall(BuildContext context, String phoneNumber) async {
+    HapticFeedback.lightImpact();
+    final cleanNumber = phoneNumber.replaceAll(RegExp(r'\s+'), '');
+    final uri = Uri.parse('tel:$cleanNumber');
+    final uriWithSlashes = Uri.parse('tel://$cleanNumber');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else if (await canLaunchUrl(uriWithSlashes)) {
+        await launchUrl(uriWithSlashes);
+      } else {
+        await launchUrl(uriWithSlashes);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not place call to $phoneNumber: $e')),
+        );
+      }
+    }
+  }
+
   void _openAddEntrySheet(
       BuildContext context, Party party, EntryType entryType) {
+    HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -39,6 +66,7 @@ class PartyLedgerScreen extends ConsumerWidget {
   }
 
   void _showReceiptDialog(BuildContext context, LedgerEntry entry) {
+    HapticFeedback.lightImpact();
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -65,19 +93,33 @@ class PartyLedgerScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.network(
-                  entry.receiptPhotoUrl!,
-                  height: 240,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, _, _) => Container(
-                    height: 180,
-                    color: AppColors.surfaceCardM3,
-                    child: const Center(
-                      child: Text('Receipt Preview (Offline Mock)'),
-                    ),
-                  ),
-                ),
+                child: entry.receiptPhotoUrl!.startsWith('http')
+                    ? Image.network(
+                        entry.receiptPhotoUrl!,
+                        height: 240,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, _, _) => Container(
+                          height: 180,
+                          color: AppColors.surfaceCardM3,
+                          child: const Center(
+                            child: Text('Receipt Preview (Offline Mock)'),
+                          ),
+                        ),
+                      )
+                    : Image.file(
+                        File(entry.receiptPhotoUrl!),
+                        height: 240,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, _, _) => Container(
+                          height: 180,
+                          color: AppColors.surfaceCardM3,
+                          child: const Center(
+                            child: Text('Receipt Preview (Local File)'),
+                          ),
+                        ),
+                      ),
               ),
               const SizedBox(height: 14),
               if (entry.note != null) ...[
@@ -130,6 +172,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                 size: 20,
               ),
               onPressed: () {
+                HapticFeedback.lightImpact();
                 Navigator.of(context).push(
                   isIos
                       ? CupertinoPageRoute(
@@ -237,22 +280,18 @@ class PartyLedgerScreen extends ConsumerWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          party.phoneNumber,
-                          style: AppTypography.bodyMedium.copyWith(
-                            fontWeight: FontWeight.w500,
+                        GestureDetector(
+                          onTap: () => _makePhoneCall(context, party.phoneNumber),
+                          child: Text(
+                            party.phoneNumber,
+                            style: AppTypography.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 6),
                         GestureDetector(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Calling ${party.phoneNumber}...'),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
-                          },
+                          onTap: () => _makePhoneCall(context, party.phoneNumber),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
@@ -406,92 +445,262 @@ class PartyLedgerScreen extends ConsumerWidget {
                             ],
 
                             // Ledger Entry Row
-                            Container(
-                              margin: const EdgeInsets.symmetric(vertical: 4),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isIos
-                                    ? CupertinoColors.white
-                                    : AppColors.surfaceWhite,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: AppColors.borderLight,
-                                  width: 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.015),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  // Entry Type Badge Tag ("GAVE" / "GOT")
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: color.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Text(
-                                      isGave ? 'GAVE' : 'GOT',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w800,
-                                        color: color,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-
-                                  // Note & Timestamp & Optional Bill Icon
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                            isIos
+                                ? LiquidGlassContainer(
+                                    margin:
+                                        const EdgeInsets.symmetric(vertical: 4),
+                                    padding: const EdgeInsets.all(14),
+                                    borderRadius: 16,
+                                    child: Row(
                                       children: [
-                                        Text(
-                                          entry.note ?? (isGave ? 'You Gave' : 'You Got'),
-                                          style: const TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.textPrimaryLight,
+                                        // Entry Type Badge Tag ("GAVE" / "GOT")
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: color.withValues(alpha: 0.12),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Row(
-                                          children: [
-                                            Text(
-                                              DateFormatter.formatTime(entry.date),
-                                              style: AppTypography.labelSmall,
+                                          child: Text(
+                                            isGave ? 'GAVE' : 'GOT',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w800,
+                                              color: color,
                                             ),
-                                            if (entry.receiptPhotoUrl != null) ...[
-                                              const SizedBox(width: 6),
-                                              GestureDetector(
-                                                onTap: () => _showReceiptDialog(
-                                                    context, entry),
-                                                child: Row(
-                                                  children: const [
-                                                    Icon(
-                                                      Icons.receipt_rounded,
-                                                      size: 14,
-                                                      color: AppColors.primaryBlue,
-                                                    ),
-                                                    SizedBox(width: 2),
-                                                    Text(
-                                                      'Bill',
-                                                      style: TextStyle(
-                                                        fontSize: 11,
-                                                        color: AppColors.primaryBlue,
-                                                        fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+
+                                        // Note & Timestamp & Optional Bill Icon
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                entry.note ??
+                                                    (isGave
+                                                        ? 'You Gave'
+                                                        : 'You Got'),
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      AppColors.textPrimaryLight,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    DateFormatter.formatTime(
+                                                        entry.date),
+                                                    style:
+                                                        AppTypography.labelSmall,
+                                                  ),
+                                                  if (entry.receiptPhotoUrl !=
+                                                      null) ...[
+                                                    const SizedBox(width: 6),
+                                                    GestureDetector(
+                                                      onTap: () =>
+                                                          _showReceiptDialog(
+                                                              context, entry),
+                                                      child: Row(
+                                                        children: const [
+                                                          Icon(
+                                                            Icons.receipt_rounded,
+                                                            size: 14,
+                                                            color: AppColors
+                                                                .primaryBlue,
+                                                          ),
+                                                          SizedBox(width: 2),
+                                                          Text(
+                                                            'Bill',
+                                                            style: TextStyle(
+                                                              fontSize: 11,
+                                                              color: AppColors
+                                                                  .primaryBlue,
+                                                              fontWeight:
+                                                                  FontWeight.w600,
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
                                                     ),
                                                   ],
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // Amount & Running Balance Indicator
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              CurrencyFormatter.format(
+                                                  entry.amountInCents),
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w800,
+                                                color: color,
+                                              ),
+                                            ),
+                                            if (entry.runningBalanceInCents !=
+                                                null) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Bal: ${CurrencyFormatter.format(entry.runningBalanceInCents!)}',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: AppColors
+                                                      .textSecondaryLight,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : Container(
+                                    margin:
+                                        const EdgeInsets.symmetric(vertical: 4),
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surfaceWhite,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: AppColors.borderLight,
+                                        width: 1,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.015),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // Entry Type Badge Tag ("GAVE" / "GOT")
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: color.withValues(alpha: 0.12),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            isGave ? 'GAVE' : 'GOT',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w800,
+                                              color: color,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+
+                                        // Note & Timestamp & Optional Bill Icon
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                entry.note ??
+                                                    (isGave
+                                                        ? 'You Gave'
+                                                        : 'You Got'),
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color:
+                                                      AppColors.textPrimaryLight,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    DateFormatter.formatTime(
+                                                        entry.date),
+                                                    style:
+                                                        AppTypography.labelSmall,
+                                                  ),
+                                                  if (entry.receiptPhotoUrl !=
+                                                      null) ...[
+                                                    const SizedBox(width: 6),
+                                                    GestureDetector(
+                                                      onTap: () =>
+                                                          _showReceiptDialog(
+                                                              context, entry),
+                                                      child: Row(
+                                                        children: const [
+                                                          Icon(
+                                                            Icons.receipt_rounded,
+                                                            size: 14,
+                                                            color: AppColors
+                                                                .primaryBlue,
+                                                          ),
+                                                          SizedBox(width: 2),
+                                                          Text(
+                                                            'Bill',
+                                                            style: TextStyle(
+                                                              fontSize: 11,
+                                                              color: AppColors
+                                                                  .primaryBlue,
+                                                              fontWeight:
+                                                                  FontWeight.w600,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // Amount & Running Balance Indicator
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              CurrencyFormatter.format(
+                                                  entry.amountInCents),
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w800,
+                                                color: color,
+                                              ),
+                                            ),
+                                            if (entry.runningBalanceInCents !=
+                                                null) ...[
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'Bal: ${CurrencyFormatter.format(entry.runningBalanceInCents!)}',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: AppColors
+                                                      .textSecondaryLight,
                                                 ),
                                               ),
                                             ],
@@ -500,35 +709,6 @@ class PartyLedgerScreen extends ConsumerWidget {
                                       ],
                                     ),
                                   ),
-
-                                  // Amount & Running Balance Indicator
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        CurrencyFormatter.format(entry.amountInCents),
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                          color: color,
-                                        ),
-                                      ),
-                                      if (entry.runningBalanceInCents != null) ...[
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Bal: ${CurrencyFormatter.format(entry.runningBalanceInCents!)}',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                            color: AppColors.textSecondaryLight,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
                         );
                       },

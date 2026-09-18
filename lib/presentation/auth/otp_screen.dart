@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
@@ -39,6 +40,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   String get _enteredOtp => _controllers.map((c) => c.text).join();
 
   void _autoFillMockOtp() {
+    HapticFeedback.lightImpact();
     const mockCode = '123456';
     for (int i = 0; i < 6; i++) {
       _controllers[i].text = mockCode[i];

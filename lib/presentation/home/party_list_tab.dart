@@ -1,7 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:real_liquid_glass/real_liquid_glass.dart';
 import '../../core/constants/colors.dart';
+import '../../core/constants/strings.dart';
 import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/date_formatter.dart';
@@ -9,8 +12,29 @@ import '../../core/widgets/amount_text.dart';
 import '../ledger/party_ledger_screen.dart';
 import '../providers/ledger_providers.dart';
 
-class PartyListTab extends ConsumerWidget {
+class PartyListTab extends ConsumerStatefulWidget {
   const PartyListTab({super.key});
+
+  @override
+  ConsumerState<PartyListTab> createState() => _PartyListTabState();
+}
+
+class _PartyListTabState extends ConsumerState<PartyListTab> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(
+      text: ref.read(partySearchQueryProvider),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Color _getAvatarColor(String name) {
     final colors = [
@@ -31,193 +55,508 @@ class PartyListTab extends ConsumerWidget {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final partiesAsync = ref.watch(partyListProvider);
+  void _showSortOptions(BuildContext context, PartySortOption currentSort) {
+    HapticFeedback.lightImpact();
     final isIos = AdaptiveThemeHelper.isIos(context);
 
-    return partiesAsync.when(
-      loading: () => Center(
-        child: isIos
-            ? const CupertinoActivityIndicator()
-            : const CircularProgressIndicator(),
-      ),
-      error: (err, stack) => Center(
-        child: Text('Error loading parties: $err'),
-      ),
-      data: (parties) {
-        if (parties.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32.0),
-              child: Column(
+    if (isIos) {
+      showCupertinoModalPopup(
+        context: context,
+        builder: (context) => CupertinoActionSheet(
+          title: const Text('Sort Parties By'),
+          actions: PartySortOption.values.map((option) {
+            final isSelected = option == currentSort;
+            return CupertinoActionSheetAction(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                ref.read(partySortOptionProvider.notifier).setSort(option);
+                Navigator.of(context).pop();
+              },
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.people_outline_rounded,
-                    size: 64,
-                    color: AppColors.textMutedLight.withValues(alpha: 0.5),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No parties found',
+                  if (isSelected) ...[
+                    const Icon(CupertinoIcons.checkmark_alt, size: 18),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    option.label,
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondaryLight,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Add a new customer or supplier to start tracking transactions.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textMutedLight,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
                 ],
               ),
-            ),
-          );
-        }
-
-        return ListView.separated(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          itemCount: parties.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final party = parties[index];
-            final avatarBg = _getAvatarColor(party.name);
-            final initials = _getInitials(party.name);
-
-            return InkWell(
-              onTap: () {
-                Navigator.of(context).push(
-                  isIos
-                      ? CupertinoPageRoute(
-                          builder: (context) =>
-                              PartyLedgerScreen(partyId: party.id),
-                        )
-                      : MaterialPageRoute(
-                          builder: (context) =>
-                              PartyLedgerScreen(partyId: party.id),
-                        ),
-                );
-              },
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: isIos
-                      ? CupertinoColors.white
-                      : AppColors.surfaceWhite,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppColors.borderLight,
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
+            );
+          }).toList(),
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (context) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text(
+                    'Sort Parties By',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
-                  ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    // Avatar
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: avatarBg.withValues(alpha: 0.15),
-                      child: Text(
-                        initials,
-                        style: TextStyle(
-                          color: avatarBg,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
+                ...PartySortOption.values.map((option) {
+                  final isSelected = option == currentSort;
+                  return ListTile(
+                    leading: Icon(
+                      option == PartySortOption.alphabetical
+                          ? Icons.sort_by_alpha_rounded
+                          : option == PartySortOption.highestReceivable
+                              ? Icons.trending_up_rounded
+                              : Icons.schedule_rounded,
+                      color: isSelected
+                          ? AppColors.primaryBlue
+                          : AppColors.textSecondaryLight,
+                    ),
+                    title: Text(
+                      option.label,
+                      style: TextStyle(
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected
+                            ? AppColors.primaryBlue
+                            : AppColors.textPrimaryLight,
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_rounded,
+                            color: AppColors.primaryBlue)
+                        : null,
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      ref.read(partySortOptionProvider.notifier).setSort(option);
+                      Navigator.of(context).pop();
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+  }
 
-                    // Party Name & Date
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+  @override
+  Widget build(BuildContext context) {
+    final partiesAsync = ref.watch(partyListProvider);
+    final currentSort = ref.watch(partySortOptionProvider);
+    final currentQuery = ref.watch(partySearchQueryProvider);
+    final isIos = AdaptiveThemeHelper.isIos(context);
+
+    // Keep controller in sync if query changed from elsewhere
+    if (_searchController.text != currentQuery) {
+      _searchController.value = TextEditingValue(
+        text: currentQuery,
+        selection: TextSelection.collapsed(offset: currentQuery.length),
+      );
+    }
+
+    return Column(
+      children: [
+        // 1. Sticky Search Bar & Sort Action Row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              // Search Input Field
+              Expanded(
+                child: isIos
+                    ? LiquidGlassContainer(
+                        height: 44,
+                        borderRadius: 14,
+                        blur: 20,
+                        border: 1.0,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              CupertinoIcons.search,
+                              size: 18,
+                              color: AppColors.textMutedLight,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                onChanged: (val) {
+                                  ref
+                                      .read(partySearchQueryProvider.notifier)
+                                      .setQuery(val);
+                                },
+                                decoration: const InputDecoration(
+                                  hintText: AppStrings.searchHint,
+                                  hintStyle: TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textMutedLight,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            if (currentQuery.isNotEmpty)
+                              GestureDetector(
+                                onTap: () {
+                                  _searchController.clear();
+                                  ref
+                                      .read(partySearchQueryProvider.notifier)
+                                      .setQuery('');
+                                },
+                                child: const Icon(
+                                  CupertinoIcons.clear_circled_solid,
+                                  size: 16,
+                                  color: AppColors.textMutedLight,
+                                ),
+                              ),
+                          ],
+                        ),
+                      )
+                    : Container(
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color:
+                              Theme.of(context).colorScheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(24),
+                          border:
+                              Border.all(color: AppColors.borderLight, width: 1),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.search_rounded,
+                              size: 20,
+                              color: AppColors.textMutedLight,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchController,
+                                onChanged: (val) {
+                                  ref
+                                      .read(partySearchQueryProvider.notifier)
+                                      .setQuery(val);
+                                },
+                                decoration: const InputDecoration(
+                                  hintText: AppStrings.searchHint,
+                                  hintStyle: TextStyle(
+                                    fontSize: 14,
+                                    color: AppColors.textMutedLight,
+                                  ),
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            if (currentQuery.isNotEmpty)
+                              GestureDetector(
+                                onTap: () {
+                                  _searchController.clear();
+                                  ref
+                                      .read(partySearchQueryProvider.notifier)
+                                      .setQuery('');
+                                },
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  size: 18,
+                                  color: AppColors.textMutedLight,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+              ),
+
+              const SizedBox(width: 10),
+
+              // Sort Action Button
+              InkWell(
+                onTap: () => _showSortOptions(context, currentSort),
+                borderRadius: BorderRadius.circular(isIos ? 14 : 24),
+                child: isIos
+                    ? LiquidGlassContainer(
+                        height: 44,
+                        width: 44,
+                        borderRadius: 14,
+                        blur: 20,
+                        border: 1.0,
+                        child: Icon(
+                          CupertinoIcons.sort_down,
+                          size: 20,
+                          color: currentSort != PartySortOption.mostRecent
+                              ? AppColors.primaryBlue
+                              : AppColors.textPrimaryLight,
+                        ),
+                      )
+                    : Container(
+                        height: 46,
+                        width: 46,
+                        decoration: BoxDecoration(
+                          color:
+                              Theme.of(context).colorScheme.surfaceContainerLow,
+                          borderRadius: BorderRadius.circular(24),
+                          border:
+                              Border.all(color: AppColors.borderLight, width: 1),
+                        ),
+                        child: Icon(
+                          Icons.sort_rounded,
+                          size: 22,
+                          color: currentSort != PartySortOption.mostRecent
+                              ? AppColors.primaryBlue
+                              : AppColors.textPrimaryLight,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+
+        // 2. Party List View
+        Expanded(
+          child: partiesAsync.when(
+            loading: () => Center(
+              child: isIos
+                  ? const CupertinoActivityIndicator()
+                  : const CircularProgressIndicator(),
+            ),
+            error: (err, stack) => Center(
+              child: Text('Error loading parties: $err'),
+            ),
+            data: (parties) {
+              if (parties.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          currentQuery.isNotEmpty
+                              ? Icons.search_off_rounded
+                              : Icons.people_outline_rounded,
+                          size: 64,
+                          color: AppColors.textMutedLight.withValues(alpha: 0.5),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          currentQuery.isNotEmpty
+                              ? 'No matches for "$currentQuery"'
+                              : 'No parties found',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondaryLight,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          currentQuery.isNotEmpty
+                              ? 'Try searching by a different name or phone number.'
+                              : 'Add a new customer or supplier to start tracking transactions.',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textMutedLight,
+                          ),
+                        ),
+                        if (currentQuery.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          TextButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              ref
+                                  .read(partySearchQueryProvider.notifier)
+                                  .setQuery('');
+                            },
+                            child: const Text('Clear Search'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              return ListView.separated(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 6),
+                itemCount: parties.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final party = parties[index];
+                  final avatarBg = _getAvatarColor(party.name);
+                  final initials = _getInitials(party.name);
+
+                  final Widget rowContent = Row(
+                    children: [
+                      // Avatar
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: avatarBg.withValues(alpha: 0.15),
+                        child: Text(
+                          initials,
+                          style: TextStyle(
+                            color: avatarBg,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+
+                      // Party Name & Date
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              party.name,
+                              style: AppTypography.titleMedium,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Updated ${DateFormatter.formatRelative(party.lastUpdated)}',
+                              style: AppTypography.labelSmall,
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Net Balance & Status Tag
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text(
-                            party.name,
-                            style: AppTypography.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          AmountText(
+                            amountInCents: party.netBalanceInCents,
+                            variant: AmountVariant.medium,
+                            absolute: true,
                           ),
                           const SizedBox(height: 3),
-                          Text(
-                            'Updated ${DateFormatter.formatRelative(party.lastUpdated)}',
-                            style: AppTypography.labelSmall,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: party.netBalanceInCents > 0
+                                  ? AppColors.receivableGreenLight
+                                  : party.netBalanceInCents < 0
+                                      ? AppColors.payableRedLight
+                                      : AppColors.borderLight
+                                          .withValues(alpha: 0.5),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              party.netBalanceInCents > 0
+                                  ? "YOU'LL GET"
+                                  : party.netBalanceInCents < 0
+                                      ? "YOU'LL GIVE"
+                                      : 'SETTLED',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: party.netBalanceInCents > 0
+                                    ? AppColors.receivableGreenDark
+                                    : party.netBalanceInCents < 0
+                                        ? AppColors.payableRedDark
+                                        : AppColors.textSecondaryLight,
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                    ),
 
-                    // Net Balance & Status Tag
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        AmountText(
-                          amountInCents: party.netBalanceInCents,
-                          variant: AmountVariant.medium,
-                          absolute: true,
-                        ),
-                        const SizedBox(height: 3),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: party.netBalanceInCents > 0
-                                ? AppColors.receivableGreenLight
-                                : party.netBalanceInCents < 0
-                                    ? AppColors.payableRedLight
-                                    : AppColors.borderLight.withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            party.netBalanceInCents > 0
-                                ? "YOU'LL GET"
-                                : party.netBalanceInCents < 0
-                                    ? "YOU'LL GIVE"
-                                    : 'SETTLED',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: party.netBalanceInCents > 0
-                                  ? AppColors.receivableGreenDark
-                                  : party.netBalanceInCents < 0
-                                      ? AppColors.payableRedDark
-                                      : AppColors.textSecondaryLight,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        isIos
+                            ? CupertinoIcons.chevron_forward
+                            : Icons.chevron_right,
+                        size: 18,
+                        color: AppColors.textMutedLight,
+                      ),
+                    ],
+                  );
 
-                    const SizedBox(width: 4),
-                    Icon(
+                  void openLedger() {
+                    HapticFeedback.lightImpact();
+                    Navigator.of(context).push(
                       isIos
-                          ? CupertinoIcons.chevron_forward
-                          : Icons.chevron_right,
-                      size: 18,
-                      color: AppColors.textMutedLight,
+                          ? CupertinoPageRoute(
+                              builder: (context) =>
+                                  PartyLedgerScreen(partyId: party.id),
+                            )
+                          : MaterialPageRoute(
+                              builder: (context) =>
+                                  PartyLedgerScreen(partyId: party.id),
+                            ),
+                    );
+                  }
+
+                  if (isIos) {
+                    return LiquidGlassContainer(
+                      borderRadius: 16,
+                      blur: 20,
+                      padding: const EdgeInsets.all(14),
+                      onTap: openLedger,
+                      child: rowContent,
+                    );
+                  }
+
+                  return InkWell(
+                    onTap: openLedger,
+                    borderRadius: BorderRadius.circular(24),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: AppColors.borderLight,
+                          width: 1,
+                        ),
+                      ),
+                      child: rowContent,
                     ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
