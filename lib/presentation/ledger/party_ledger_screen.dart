@@ -71,10 +71,10 @@ class PartyLedgerScreen extends ConsumerWidget {
 
   void _showReceiptDialog(BuildContext context, LedgerEntry entry) {
     HapticFeedback.lightImpact();
-    showDialog(
+              showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -86,7 +86,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                 children: [
                   const Text(
                     'Bill / Receipt',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.2),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close, size: 20),
@@ -96,7 +96,7 @@ class PartyLedgerScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
               ClipRRect(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(18),
                 child: entry.receiptPhotoUrl!.startsWith('http')
                     ? Image.network(
                         entry.receiptPhotoUrl!,
@@ -129,7 +129,7 @@ class PartyLedgerScreen extends ConsumerWidget {
               if (entry.note != null) ...[
                 Text(
                   'Note: ${entry.note}',
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 6),
               ],
@@ -231,7 +231,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                           AppStrings.youGave,
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             color: Colors.white,
                           ),
                         ),
@@ -256,7 +256,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                           AppStrings.youGot,
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             color: Colors.white,
                           ),
                         ),
@@ -299,7 +299,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                           child: Text(
                             party.phoneNumber,
                             style: AppTypography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                               color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
@@ -309,10 +309,10 @@ class PartyLedgerScreen extends ConsumerWidget {
                           onTap: () => _makePhoneCall(context, party.phoneNumber),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                                horizontal: 12, vertical: 5),
                             decoration: BoxDecoration(
                               color: Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.1),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -324,12 +324,12 @@ class PartyLedgerScreen extends ConsumerWidget {
                                   size: 13,
                                   color: Theme.of(context).colorScheme.primary,
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 5),
                                 Text(
                                   AppStrings.callParty,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w800,
                                     color: Theme.of(context).colorScheme.primary,
                                   ),
                                 ),
@@ -352,7 +352,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                                   : 'SETTLED',
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             letterSpacing: 0.5,
                             color: party.netBalanceInCents > 0
                                 ? (isDark
@@ -479,10 +479,10 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
               )
             : Container(
                 margin: const EdgeInsets.symmetric(vertical: 4),
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: Theme.of(context).colorScheme.outlineVariant.withValues(
                         alpha: Theme.of(context).brightness == Brightness.dark
@@ -492,8 +492,8 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.015),
-                      blurRadius: 4,
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
                   ],
@@ -510,16 +510,16 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 4),
+                        horizontal: 14, vertical: 5),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
                       DateFormatter.formatRelative(entry.date),
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),

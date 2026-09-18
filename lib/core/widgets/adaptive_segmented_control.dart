@@ -70,9 +70,7 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
           },
           style: ButtonStyle(
             shape: WidgetStateProperty.all(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
+              const StadiumBorder(),
             ),
             side: WidgetStateProperty.resolveWith((states) {
               return BorderSide(
@@ -84,13 +82,21 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
               if (states.contains(WidgetState.selected)) {
                 return scheme.primaryContainer;
               }
-              return scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.3 : 0.4);
+              return scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.35 : 0.5);
             }),
             foregroundColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
                 return scheme.onPrimaryContainer;
               }
               return scheme.onSurfaceVariant;
+            }),
+            textStyle: WidgetStateProperty.resolveWith((states) {
+              return TextStyle(
+                fontSize: 14,
+                fontWeight: states.contains(WidgetState.selected)
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+              );
             }),
           ),
         ),

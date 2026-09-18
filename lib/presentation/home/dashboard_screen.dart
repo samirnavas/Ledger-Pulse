@@ -65,108 +65,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             child: const Icon(CupertinoIcons.add, size: 22),
           ),
-        // About / App Info button
-        IconButton(
-          tooltip: 'About LedgerPulse',
-          icon: Icon(
-            isIos ? CupertinoIcons.info_circle : Icons.info_outline_rounded,
-            size: 20,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            showDialog(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 68,
-                      height: 68,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.asset(
-                          'assets/icons/app_icon.png',
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const Icon(
-                            Icons.account_balance_wallet_rounded,
-                            size: 40,
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      AppStrings.appName,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'v1.0.0 • Material You Ready',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(ctx).colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(ctx).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.palette_outlined, size: 16, color: AppColors.primaryBlue),
-                              SizedBox(width: 6),
-                              Text('Material You Dynamic Theming: Active', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                          SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(Icons.android_rounded, size: 16, color: AppColors.receivableGreen),
-                              SizedBox(width: 6),
-                              Text('Monochrome Themed Icon: Enabled', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+
         // Logout button
         IconButton(
           tooltip: 'Logout',
@@ -178,7 +77,7 @@ class DashboardScreen extends ConsumerWidget {
           onPressed: () => _handleLogout(context, ref),
         ),
       ],
-      // Android M3 Floating Action Button
+      // Android M3 Expressive Floating Action Button
       floatingActionButton: isIos
           ? null
           : FloatingActionButton.extended(
@@ -186,12 +85,15 @@ class DashboardScreen extends ConsumerWidget {
                 context,
                 activeFilter ?? PartyType.customer,
               ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
               icon: const Icon(Icons.person_add_rounded),
               label: Text(
                 activeFilter == PartyType.supplier
                     ? AppStrings.addSupplier
                     : AppStrings.addCustomer,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
               ),
             ),
       bottomNavigationBar: AdaptiveBottomNav(
@@ -213,7 +115,7 @@ class DashboardScreen extends ConsumerWidget {
                 height: 90,
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(28),
                 ),
                 child: const Center(child: CupertinoActivityIndicator()),
               ),
@@ -228,12 +130,12 @@ class DashboardScreen extends ConsumerWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(5),
                           decoration: BoxDecoration(
                             color: isDark
                                 ? AppColors.receivableGreen.withValues(alpha: 0.2)
                                 : AppColors.receivableGreenLight,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
                             Icons.arrow_downward_rounded,
@@ -241,19 +143,19 @@ class DashboardScreen extends ConsumerWidget {
                             color: isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Text(
                           AppStrings.youWillGet,
                           style: AppTypography.labelSmall.copyWith(
                             color: isDark
                                 ? const Color(0xFF4ADE80)
                                 : AppColors.receivableGreenDark,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     AmountText(
                       amountInCents: totalReceivable,
                       variant: AmountVariant.large,
@@ -268,12 +170,12 @@ class DashboardScreen extends ConsumerWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(5),
                           decoration: BoxDecoration(
                             color: isDark
                                 ? AppColors.payableRed.withValues(alpha: 0.2)
                                 : AppColors.payableRedLight,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
                             Icons.arrow_upward_rounded,
@@ -281,19 +183,19 @@ class DashboardScreen extends ConsumerWidget {
                             color: isDark ? const Color(0xFFF87171) : AppColors.payableRed,
                           ),
                         ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         Text(
                           AppStrings.youWillGive,
                           style: AppTypography.labelSmall.copyWith(
                             color: isDark
                                 ? const Color(0xFFF87171)
                                 : AppColors.payableRedDark,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     AmountText(
                       amountInCents: totalPayable,
                       variant: AmountVariant.large,
@@ -315,7 +217,7 @@ class DashboardScreen extends ConsumerWidget {
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: Theme.of(context).colorScheme.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(28),
                                 border: Border.all(
                                   color: AppColors.receivableGreen.withValues(alpha: isDark ? 0.35 : 0.2),
                                   width: 1.5,
@@ -337,7 +239,7 @@ class DashboardScreen extends ConsumerWidget {
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: Theme.of(context).colorScheme.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(28),
                                 border: Border.all(
                                   color: AppColors.payableRed.withValues(alpha: isDark ? 0.35 : 0.2),
                                   width: 1.5,

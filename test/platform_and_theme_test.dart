@@ -15,14 +15,14 @@ import 'package:shimmer/shimmer.dart';
 
 void main() {
   group('AndroidTheme M3 Expressive Tests', () {
-    test('AndroidTheme has 0 card elevation and 24px border radius', () {
+    test('AndroidTheme has 0 card elevation and 28px border radius', () {
       final theme = AndroidTheme.getTheme();
 
       expect(theme.useMaterial3, isTrue);
       expect(theme.cardTheme.elevation, equals(0));
 
       final shape = theme.cardTheme.shape as RoundedRectangleBorder;
-      expect(shape.borderRadius, equals(BorderRadius.circular(24)));
+      expect(shape.borderRadius, equals(BorderRadius.circular(28)));
       expect(theme.cardTheme.color, equals(theme.colorScheme.surfaceContainerLow));
       expect(theme.floatingActionButtonTheme.elevation, equals(0));
 

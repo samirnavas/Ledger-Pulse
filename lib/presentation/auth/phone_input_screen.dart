@@ -68,10 +68,10 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
           children: [
             // App Branding Icon
             Container(
-              width: 64,
-              height: 64,
+              width: 68,
+              height: 68,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.08),
@@ -81,7 +81,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(22),
                 child: Image.asset(
                   'assets/icons/app_icon.png',
                   fit: BoxFit.cover,
@@ -90,7 +90,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                     child: const Icon(
                       Icons.account_balance_wallet_rounded,
                       color: Colors.white,
-                      size: 32,
+                      size: 36,
                     ),
                   ),
                 ),
@@ -113,12 +113,15 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
             // Phone Input Field with Country Badge
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(24),
                 border: Border.all(
                   color: _errorMessage != null
                       ? AppColors.payableRed
-                      : AppColors.borderLight,
+                      : Theme.of(context).colorScheme.outlineVariant.withValues(
+                          alpha: Theme.of(context).brightness == Brightness.dark
+                              ? 0.35
+                              : 0.5),
                   width: 1.5,
                 ),
                 boxShadow: [
@@ -134,11 +137,14 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                   // Country Code Badge
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 16),
-                    decoration: const BoxDecoration(
+                        horizontal: 16, vertical: 16),
+                    decoration: BoxDecoration(
                       border: Border(
                         right: BorderSide(
-                          color: AppColors.borderLight,
+                          color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                              alpha: Theme.of(context).brightness == Brightness.dark
+                                  ? 0.35
+                                  : 0.5),
                           width: 1,
                         ),
                       ),
@@ -152,7 +158,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                           AppStrings.countryCode,
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
@@ -168,7 +174,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                       autofocus: true,
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
@@ -209,22 +215,22 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                 setState(() => _errorMessage = null);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryBlueLight.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(10),
+                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.bolt, size: 16, color: AppColors.primaryBlue),
-                    SizedBox(width: 4),
+                    Icon(Icons.bolt, size: 16, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                    const SizedBox(width: 6),
                     Text(
                       'Use demo: 98765 43210',
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primaryBlue,
+                        fontWeight: FontWeight.w700,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
                     ),
                   ],

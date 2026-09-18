@@ -103,58 +103,75 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
     } else {
       showModalBottomSheet(
         context: context,
+        showDragHandle: true,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
         builder: (context) => SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Text(
                     'Sort Parties By',
                     style: TextStyle(
                       fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
                 ...PartySortOption.values.map((option) {
                   final isSelected = option == currentSort;
-                  return ListTile(
-                    leading: Icon(
-                      option == PartySortOption.alphabetical
-                          ? Icons.sort_by_alpha_rounded
-                          : option == PartySortOption.highestReceivable
-                              ? Icons.trending_up_rounded
-                              : Icons.schedule_rounded,
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 2),
+                    decoration: BoxDecoration(
                       color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ? Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.6)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    title: Text(
-                      option.label,
-                      style: TextStyle(
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.onSurface,
+                    child: ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
+                      leading: Icon(
+                        option == PartySortOption.alphabetical
+                            ? Icons.sort_by_alpha_rounded
+                            : option == PartySortOption.highestReceivable
+                                ? Icons.trending_up_rounded
+                                : Icons.schedule_rounded,
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.onPrimaryContainer
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      title: Text(
+                        option.label,
+                        style: TextStyle(
+                          fontWeight:
+                              isSelected ? FontWeight.w800 : FontWeight.w500,
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                              : Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? Icon(Icons.check_circle_rounded,
+                              color: Theme.of(context).colorScheme.primary)
+                          : null,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        ref.read(partySortOptionProvider.notifier).setSort(option);
+                        Navigator.of(context).pop();
+                      },
                     ),
-                    trailing: isSelected
-                        ? Icon(Icons.check_rounded,
-                            color: Theme.of(context).colorScheme.primary)
-                        : null,
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      ref.read(partySortOptionProvider.notifier).setSort(option);
-                      Navigator.of(context).pop();
-                    },
                   );
                 }),
               ],
@@ -245,11 +262,10 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                         ),
                       )
                     : Container(
-                        height: 46,
+                        height: 48,
                         decoration: BoxDecoration(
-                          color:
-                              Theme.of(context).colorScheme.surfaceContainerLow,
-                          borderRadius: BorderRadius.circular(24),
+                          color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(28),
                           border: Border.all(
                             color: Theme.of(context)
                                 .colorScheme
@@ -262,17 +278,17 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                             width: 1,
                           ),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Row(
                           children: [
                             Icon(
                               Icons.search_rounded,
-                              size: 20,
+                              size: 22,
                               color: Theme.of(context)
                                   .colorScheme
                                   .onSurfaceVariant,
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: TextField(
                                 controller: _searchController,
@@ -309,7 +325,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                                 },
                                 child: Icon(
                                   Icons.close_rounded,
-                                  size: 18,
+                                  size: 20,
                                   color: Theme.of(context)
                                       .colorScheme
                                       .onSurfaceVariant,
@@ -344,11 +360,10 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                         ),
                       )
                     : Container(
-                        height: 46,
-                        width: 46,
+                        height: 48,
+                        width: 48,
                         decoration: BoxDecoration(
-                          color:
-                              Theme.of(context).colorScheme.surfaceContainerLow,
+                          color: Theme.of(context).colorScheme.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
                             color: Theme.of(context)
@@ -471,67 +486,11 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                         ),
                       ),
 
-                      // Net Balance & Status Tag
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          AmountText(
-                            amountInCents: party.netBalanceInCents,
-                            variant: AmountVariant.medium,
-                            absolute: true,
-                          ),
-                          const SizedBox(height: 3),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: party.netBalanceInCents > 0
-                                  ? (Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? AppColors.receivableGreen
-                                          .withValues(alpha: 0.2)
-                                      : AppColors.receivableGreenLight)
-                                  : party.netBalanceInCents < 0
-                                      ? (Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? AppColors.payableRed
-                                              .withValues(alpha: 0.2)
-                                          : AppColors.payableRedLight)
-                                      : (Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .surfaceContainerHighest
-                                          : AppColors.borderLight
-                                              .withValues(alpha: 0.5)),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              party.netBalanceInCents > 0
-                                  ? "YOU'LL GET"
-                                  : party.netBalanceInCents < 0
-                                      ? "YOU'LL GIVE"
-                                      : 'SETTLED',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: party.netBalanceInCents > 0
-                                    ? (Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? const Color(0xFF4ADE80)
-                                        : AppColors.receivableGreenDark)
-                                    : party.netBalanceInCents < 0
-                                        ? (Theme.of(context).brightness ==
-                                                Brightness.dark
-                                            ? const Color(0xFFF87171)
-                                            : AppColors.payableRedDark)
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                        ],
+                      // Net Balance
+                      AmountText(
+                        amountInCents: party.netBalanceInCents,
+                        variant: AmountVariant.medium,
+                        absolute: true,
                       ),
 
                       const SizedBox(width: 4),

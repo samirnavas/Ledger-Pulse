@@ -117,7 +117,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                       fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
                       contentPadding: EdgeInsets.zero,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
                           color: Theme.of(context).colorScheme.outlineVariant.withValues(
                               alpha: Theme.of(context).brightness == Brightness.dark
@@ -127,7 +127,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
                           color: Theme.of(context).colorScheme.outlineVariant.withValues(
                               alpha: Theme.of(context).brightness == Brightness.dark
@@ -137,10 +137,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
                           color: Theme.of(context).colorScheme.primary,
-                          width: 2,
+                          width: 2.5,
                         ),
                       ),
                     ),
@@ -166,24 +166,24 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 style: const TextStyle(
                   color: AppColors.payableRed,
                   fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
 
             const SizedBox(height: 24),
 
-            // Helper button / Auto-fill chip
+            // Helper button / Auto-fill chip with M3 Expressive pill shape
             GestureDetector(
               onTap: _autoFillMockOtp,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppColors.primaryBlueLight.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.primaryBlue.withValues(alpha: 0.2),
-                    width: 1,
+                    color: AppColors.primaryBlue.withValues(alpha: 0.25),
+                    width: 1.5,
                   ),
                 ),
                 child: Row(
@@ -195,7 +195,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                       '${AppStrings.otpHelper} (Tap to Auto-fill)',
                       style: TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
                         color: AppColors.primaryBlueDark,
                       ),
                     ),

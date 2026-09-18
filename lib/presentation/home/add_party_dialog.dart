@@ -5,7 +5,6 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/theme/adaptive_theme.dart';
-import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../data/models/party_model.dart';
@@ -26,9 +25,7 @@ class AddPartyDialog extends ConsumerStatefulWidget {
 class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
-  final _balanceController = TextEditingController();
   late PartyType _type;
-  bool _isReceivable = true;
   String? _error;
   bool _isSubmitting = false;
 
@@ -36,14 +33,12 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
   void initState() {
     super.initState();
     _type = widget.initialType;
-    _isReceivable = _type == PartyType.customer;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _balanceController.dispose();
     super.dispose();
   }
 
@@ -145,15 +140,11 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
       _isSubmitting = true;
     });
 
-    final enteredBalanceCents = CurrencyFormatter.parseToCents(_balanceController.text);
-    // If party is supplier and balance is owed, balance is negative; or if user chose "I owe"
-    final initialBalance = _isReceivable ? enteredBalanceCents : -enteredBalanceCents;
-
     await ref.read(ledgerActionControllerProvider).addParty(
           name: name,
           phoneNumber: phone.startsWith('+') ? phone : '+91 $phone',
           type: _type,
-          initialBalanceInCents: initialBalance,
+          initialBalanceInCents: 0,
         );
 
     if (mounted) {
@@ -180,24 +171,13 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                 ? CupertinoColors.systemBackground.darkColor
                 : CupertinoColors.systemBackground)
             : Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.4 : 0.7),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -205,7 +185,8 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                   'Add New ${_type.displayName}',
                   style: TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
                     color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
@@ -223,14 +204,14 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
             // Prominent "Import from Contacts" Action Button
             InkWell(
               onTap: _importFromContacts,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(24),
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primary.withValues(
                       alpha: isDark ? 0.2 : 0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                     width: 1.2,
@@ -251,7 +232,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                       'Import from Contacts',
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w800,
                         color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
@@ -277,7 +258,6 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
               onValueChanged: (val) {
                 setState(() {
                   _type = val;
-                  _isReceivable = val == PartyType.customer;
                 });
               },
             ),
@@ -310,62 +290,6 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                 labelText: 'Phone Number',
                 prefixIcon: Icon(Icons.phone_outlined, size: 20),
                 hintText: '9876543210',
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Opening Balance (optional)
-            TextField(
-              controller: _balanceController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w600,
-              ),
-              decoration: InputDecoration(
-                labelText: 'Opening Balance (₹) Optional',
-                prefixIcon: const Icon(Icons.currency_rupee, size: 20),
-                hintText: '0.00',
-                suffixIcon: DropdownButtonHideUnderline(
-                  child: DropdownButton<bool>(
-                    value: _isReceivable,
-                    dropdownColor: Theme.of(context).colorScheme.surfaceContainerLow,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: true,
-                        child: Text(
-                          "You'll Get (+)",
-                          style: TextStyle(
-                            color: isDark
-                                ? const Color(0xFF4ADE80)
-                                : AppColors.receivableGreen,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: false,
-                        child: Text(
-                          "You'll Give (-)",
-                          style: TextStyle(
-                            color: isDark
-                                ? const Color(0xFFF87171)
-                                : AppColors.payableRed,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => _isReceivable = val);
-                    },
-                  ),
-                ),
               ),
             ),
 

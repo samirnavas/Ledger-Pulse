@@ -131,7 +131,7 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
           onPressed: effectiveOnPressed,
           style: TextButton.styleFrom(
             foregroundColor: foregroundColor,
-            padding: widget.padding,
+            padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
             ),
@@ -144,10 +144,10 @@ class _AdaptiveButtonState extends State<AdaptiveButton> {
           style: FilledButton.styleFrom(
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
-            elevation: 0,
-            padding: widget.padding,
+            elevation: widget.type == AdaptiveButtonType.secondary ? 0 : 1,
+            padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24), // M3 expressive radius
+              borderRadius: BorderRadius.circular(28), // M3 Expressive Pill Radius
             ),
           ),
           child: content,

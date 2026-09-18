@@ -536,10 +536,10 @@ class _StatementPreviewScreenState
                                 ),
                               )
                             : Container(
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(18),
                                 decoration: BoxDecoration(
                                   color: Theme.of(context).colorScheme.surfaceContainerLow,
-                                  borderRadius: BorderRadius.circular(18),
+                                  borderRadius: BorderRadius.circular(28),
                                   border: Border.all(
                                     color: Theme.of(context).colorScheme.outlineVariant.withValues(
                                         alpha: Theme.of(context).brightness == Brightness.dark
