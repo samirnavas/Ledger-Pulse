@@ -1,0 +1,172 @@
+{
+  "parties": [
+    {
+      "id": "party_1789636190399",
+      "name": "qwerty",
+      "phoneNumber": "+91 184682685",
+      "type": "customer",
+      "netBalanceInCents": 15000,
+      "lastUpdated": "2026-09-17T09:09:54.853Z"
+    },
+    {
+      "id": "party_1",
+      "name": "Rahul Sharma",
+      "phoneNumber": "+91 98765 43210",
+      "type": "customer",
+      "netBalanceInCents": 450000,
+      "lastUpdated": "2026-09-17T11:29:40.000Z"
+    },
+    {
+      "id": "party_2",
+      "name": "Ananya Patel",
+      "phoneNumber": "+91 98111 22334",
+      "type": "customer",
+      "netBalanceInCents": 0,
+      "lastUpdated": "2026-09-15T14:29:40.000Z"
+    },
+    {
+      "id": "party_3",
+      "name": "Metro Wholesale Traders",
+      "phoneNumber": "+91 99223 34455",
+      "type": "supplier",
+      "netBalanceInCents": -1280000,
+      "lastUpdated": "2026-09-16T14:29:40.000Z"
+    },
+    {
+      "id": "party_4",
+      "name": "Apex Logistics",
+      "phoneNumber": "+91 97654 32190",
+      "type": "supplier",
+      "netBalanceInCents": -120000,
+      "lastUpdated": "2026-09-13T14:29:40.000Z"
+    }
+  ],
+  "entries": [
+    {
+      "id": "entry_1_1",
+      "partyId": "party_1",
+      "amountInCents": 600000,
+      "type": "gave",
+      "date": "2026-09-03T12:29:40.000Z",
+      "note": "Grocery consignment #104",
+      "receiptPhotoUrl": "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400"
+    },
+    {
+      "id": "entry_1_2",
+      "partyId": "party_1",
+      "amountInCents": 250000,
+      "type": "got",
+      "date": "2026-09-10T10:29:40.000Z",
+      "note": "UPI Payment received (PhonePe)",
+      "receiptPhotoUrl": null
+    },
+    {
+      "id": "entry_1_3",
+      "partyId": "party_1",
+      "amountInCents": 200000,
+      "type": "gave",
+      "date": "2026-09-14T13:29:40.000Z",
+      "note": "Added 2 sacks of Basmati rice",
+      "receiptPhotoUrl": null
+    },
+    {
+      "id": "entry_1_4",
+      "partyId": "party_1",
+      "amountInCents": 100000,
+      "type": "got",
+      "date": "2026-09-17T11:29:40.000Z",
+      "note": "Cash payment on delivery",
+      "receiptPhotoUrl": null
+    },
+    {
+      "id": "entry_2_1",
+      "partyId": "party_2",
+      "amountInCents": 320000,
+      "type": "gave",
+      "date": "2026-09-12T09:29:40.000Z",
+      "note": "Organic spices & tea pack",
+      "receiptPhotoUrl": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400"
+    },
+    {
+      "id": "entry_2_2",
+      "partyId": "party_2",
+      "amountInCents": 320000,
+      "type": "got",
+      "date": "2026-09-15T12:29:40.000Z",
+      "note": "Settled via Google Pay",
+      "receiptPhotoUrl": null
+    },
+    {
+      "id": "entry_3_1",
+      "partyId": "party_3",
+      "amountInCents": 2000000,
+      "type": "got",
+      "date": "2026-08-27T08:29:40.000Z",
+      "note": "Inventory restock Invoice #8892",
+      "receiptPhotoUrl": "https://images.unsplash.com/photo-1554224154-26032ffc0d07?w=400"
+    },
+    {
+      "id": "entry_3_2",
+      "partyId": "party_3",
+      "amountInCents": 1000000,
+      "type": "gave",
+      "date": "2026-09-03T11:29:40.000Z",
+      "note": "HDFC Cheque #304921",
+      "receiptPhotoUrl": null
+    },
+    {
+      "id": "entry_3_3",
+      "partyId": "party_3",
+      "amountInCents": 780000,
+      "type": "got",
+      "date": "2026-09-10T12:29:40.000Z",
+      "note": "Cooking oil carton pack",
+      "receiptPhotoUrl": null
+    },
+    {
+      "id": "entry_3_4",
+      "partyId": "party_3",
+      "amountInCents": 500000,
+      "type": "gave",
+      "date": "2026-09-16T10:29:40.000Z",
+      "note": "NEFT Online Transfer",
+      "receiptPhotoUrl": null
+    },
+    {
+      "id": "entry_4_1",
+      "partyId": "party_4",
+      "amountInCents": 320000,
+      "type": "got",
+      "date": "2026-09-07T11:29:40.000Z",
+      "note": "Interstate freight delivery #442",
+      "receiptPhotoUrl": null
+    },
+    {
+      "id": "entry_4_2",
+      "partyId": "party_4",
+      "amountInCents": 200000,
+      "type": "gave",
+      "date": "2026-09-13T13:29:40.000Z",
+      "note": "Cash advance against receipt",
+      "receiptPhotoUrl": null
+    },
+    {
+      "id": "entry_1789636194160",
+      "partyId": "party_1789636190399",
+      "amountInCents": 20000,
+      "type": "gave",
+      "date": "2026-09-17T14:39:52.416692",
+      "note": null,
+      "receiptPhotoUrl": null
+    },
+    {
+      "id": "entry_1789636196901",
+      "partyId": "party_1789636190399",
+      "amountInCents": 5000,
+      "type": "got",
+      "date": "2026-09-17T14:39:54.853854",
+      "note": null,
+      "receiptPhotoUrl": null
+    }
+  ]
+}

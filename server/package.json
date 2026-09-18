@@ -1,0 +1,12 @@
+{
+  "name": "ledger-pulse-server",
+  "version": "1.0.0",
+  "description": "Local JSON-backed REST API server for LedgerPulse",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["ledger", "bookkeeping", "server"],
+  "author": "",
+  "license": "MIT"
+}
