@@ -7,8 +7,12 @@ import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
+import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/amount_text.dart';
+import '../../core/widgets/empty_state_view.dart';
+import '../../core/widgets/skeleton_list_tile.dart';
+import '../../data/models/party_model.dart';
 import '../ledger/party_ledger_screen.dart';
 import '../providers/ledger_providers.dart';
 
@@ -345,66 +349,45 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
         // 2. Party List View
         Expanded(
           child: partiesAsync.when(
-            loading: () => Center(
-              child: isIos
-                  ? const CupertinoActivityIndicator()
-                  : const CircularProgressIndicator(),
+            loading: () => ListView.separated(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 6),
+              itemCount: 6,
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              itemBuilder: (context, index) => const SkeletonListTile(),
             ),
             error: (err, stack) => Center(
               child: Text('Error loading parties: $err'),
             ),
             data: (parties) {
               if (parties.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          currentQuery.isNotEmpty
-                              ? Icons.search_off_rounded
-                              : Icons.people_outline_rounded,
-                          size: 64,
-                          color: AppColors.textMutedLight.withValues(alpha: 0.5),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          currentQuery.isNotEmpty
-                              ? 'No matches for "$currentQuery"'
-                              : 'No parties found',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondaryLight,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          currentQuery.isNotEmpty
-                              ? 'Try searching by a different name or phone number.'
-                              : 'Add a new customer or supplier to start tracking transactions.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textMutedLight,
-                          ),
-                        ),
-                        if (currentQuery.isNotEmpty) ...[
-                          const SizedBox(height: 16),
-                          TextButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              ref
-                                  .read(partySearchQueryProvider.notifier)
-                                  .setQuery('');
-                            },
-                            child: const Text('Clear Search'),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+                final filter = ref.watch(selectedPartyTypeFilterProvider);
+                final tabName = filter == PartyType.supplier ? 'Suppliers' : 'Customers';
+
+                return EmptyStateView(
+                  lottieAsset: 'assets/animations/empty_ledger.json',
+                  fallbackIcon: currentQuery.isNotEmpty
+                      ? Icons.search_off_rounded
+                      : (filter == PartyType.supplier
+                          ? Icons.local_shipping_outlined
+                          : Icons.people_outline_rounded),
+                  title: currentQuery.isNotEmpty
+                      ? 'No matches for "$currentQuery"'
+                      : 'No $tabName Found',
+                  subtitle: currentQuery.isNotEmpty
+                      ? 'Try searching by a different name or phone number.'
+                      : 'Add a new ${filter == PartyType.supplier ? 'supplier' : 'customer'} to start tracking transactions.',
+                  actionButton: currentQuery.isNotEmpty
+                      ? TextButton(
+                          onPressed: () {
+                            _searchController.clear();
+                            ref
+                                .read(partySearchQueryProvider.notifier)
+                                .setQuery('');
+                          },
+                          child: const Text('Clear Search'),
+                        )
+                      : null,
                 );
               }
 
@@ -511,15 +494,11 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                   void openLedger() {
                     HapticFeedback.lightImpact();
                     Navigator.of(context).push(
-                      isIos
-                          ? CupertinoPageRoute(
-                              builder: (context) =>
-                                  PartyLedgerScreen(partyId: party.id),
-                            )
-                          : MaterialPageRoute(
-                              builder: (context) =>
-                                  PartyLedgerScreen(partyId: party.id),
-                            ),
+                      createAdaptivePageRoute(
+                        builder: (context) =>
+                            PartyLedgerScreen(partyId: party.id),
+                        transitionType: SharedAxisTransitionType.horizontal,
+                      ),
                     );
                   }
 

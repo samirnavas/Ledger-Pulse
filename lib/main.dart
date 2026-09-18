@@ -7,9 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/constants/strings.dart';
 import 'core/theme/android_theme.dart';
 import 'core/theme/ios_theme.dart';
-import 'presentation/auth/phone_input_screen.dart';
-import 'presentation/home/dashboard_screen.dart';
-import 'presentation/providers/auth_providers.dart';
+import 'presentation/splash/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,18 +23,14 @@ class LedgerPulseApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authControllerProvider);
     final isIos = !kIsWeb && Platform.isIOS;
-    final homeWidget = authState.isAuthenticated
-        ? const DashboardScreen()
-        : const PhoneInputScreen();
 
     if (isIos) {
       return CupertinoApp(
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
         theme: IosTheme.lightTheme,
-        home: homeWidget,
+        home: const SplashScreen(),
       );
     }
 
@@ -48,7 +42,7 @@ class LedgerPulseApp extends ConsumerWidget {
           theme: AndroidTheme.getTheme(dynamicColorScheme: lightDynamic),
           darkTheme: AndroidTheme.getTheme(dynamicColorScheme: darkDynamic),
           themeMode: ThemeMode.system,
-          home: homeWidget,
+          home: const SplashScreen(),
         );
       },
     );

@@ -378,8 +378,20 @@ class _StatementPreviewScreenState
     final partyAsync = ref.watch(partyDetailProvider(widget.partyId));
     final entriesAsync = ref.watch(partyLedgerEntriesProvider(widget.partyId));
 
-    return AdaptiveScaffold(
-      title: AppStrings.statementPreview,
+    return PopScope(
+      canPop: !_isExporting,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isExporting) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please wait while export is processing.'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+      },
+      child: AdaptiveScaffold(
+        title: AppStrings.statementPreview,
       body: partyAsync.when(
         loading: () => const Center(child: CupertinoActivityIndicator()),
         error: (err, _) => Center(child: Text('Error: $err')),
@@ -830,6 +842,7 @@ class _StatementPreviewScreenState
             },
           );
         },
+      ),
       ),
     );
   }

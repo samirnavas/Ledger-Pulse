@@ -6,8 +6,9 @@ import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
+import '../../core/utils/adaptive_page_route.dart';
+import '../../core/widgets/adaptive_bottom_nav.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
-import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/party_model.dart';
@@ -35,7 +36,10 @@ class DashboardScreen extends ConsumerWidget {
     await ref.read(authControllerProvider.notifier).logout();
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const PhoneInputScreen()),
+        createAdaptivePageRoute(
+          builder: (context) => const PhoneInputScreen(),
+          transitionType: SharedAxisTransitionType.scaled,
+        ),
         (route) => false,
       );
     }
@@ -190,6 +194,15 @@ class DashboardScreen extends ConsumerWidget {
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
+      bottomNavigationBar: AdaptiveBottomNav(
+        currentIndex: activeFilter == PartyType.supplier ? 1 : 0,
+        onTap: (index) {
+          HapticFeedback.lightImpact();
+          ref.read(selectedPartyTypeFilterProvider.notifier).setFilter(
+                index == 1 ? PartyType.supplier : PartyType.customer,
+              );
+        },
+      ),
       body: Column(
         children: [
           // 1. Top Business Metric Cards
@@ -330,30 +343,23 @@ class DashboardScreen extends ConsumerWidget {
             ),
           ),
 
-          // 2. Adaptive Segmented Control (Customers vs Suppliers)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: AdaptiveSegmentedControl<PartyType>(
-              groupValue: activeFilter ?? PartyType.customer,
-              children: const {
-                PartyType.customer: Text(
-                  AppStrings.customersTab,
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                PartyType.supplier: Text(
-                  AppStrings.suppliersTab,
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
+          // 2. Sticky Party List with search & sort animated with SharedAxisTransition
+          Expanded(
+            child: PageTransitionSwitcher(
+              duration: const Duration(milliseconds: 250),
+              transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
+                return SharedAxisTransition(
+                  animation: primaryAnimation,
+                  secondaryAnimation: secondaryAnimation,
+                  transitionType: SharedAxisTransitionType.horizontal,
+                  child: child,
+                );
               },
-              onValueChanged: (type) {
-                ref.read(selectedPartyTypeFilterProvider.notifier).setFilter(type);
-              },
+              child: KeyedSubtree(
+                key: ValueKey<PartyType?>(activeFilter),
+                child: const PartyListTab(),
+              ),
             ),
-          ),
-
-          // 3. Sticky Party List with search & sort
-          const Expanded(
-            child: PartyListTab(),
           ),
         ],
       ),

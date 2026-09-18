@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/constants/typography.dart';
+import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../home/dashboard_screen.dart';
@@ -57,7 +58,10 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
     if (success && mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        createAdaptivePageRoute(
+          builder: (context) => const DashboardScreen(),
+          transitionType: SharedAxisTransitionType.scaled,
+        ),
         (route) => false,
       );
     }
@@ -67,7 +71,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
 
-    return AdaptiveScaffold(
+    return PopScope(
+      canPop: true,
+      child: AdaptiveScaffold(
       title: AppStrings.otpScreenTitle,
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -220,6 +226,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -15,7 +15,7 @@ class FakeAuthController extends AuthController {
 }
 
 void main() {
-  testWidgets('LedgerPulseApp renders Dashboard with metrics and parties',
+  testWidgets('LedgerPulseApp starts with SplashScreen and transitions to Dashboard',
       (WidgetTester tester) async {
     final mockRepo = MockLedgerRepository();
     addTearDown(mockRepo.dispose);
@@ -32,11 +32,15 @@ void main() {
       ),
     );
 
-    // Initial pump
+    // Verify initial splash screen is shown
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text(AppStrings.appName), findsOneWidget);
+    expect(find.text('Smart Digital Ledger & Bookkeeping'), findsOneWidget);
 
-    // Verify top metric cards are visible
+    // Complete splash animation sequence & transition
+    await tester.pumpAndSettle();
+
+    // Verify top metric cards are visible on Dashboard
     expect(find.text(AppStrings.youWillGet), findsOneWidget);
     expect(find.text(AppStrings.youWillGive), findsOneWidget);
 
@@ -46,5 +50,34 @@ void main() {
 
     // Verify search bar
     expect(find.text(AppStrings.searchHint), findsOneWidget);
+  });
+
+  testWidgets('LedgerPulseApp transitions from SplashScreen to PhoneInput when unauthenticated',
+      (WidgetTester tester) async {
+    final mockRepo = MockLedgerRepository();
+    addTearDown(mockRepo.dispose);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authControllerProvider.overrideWith(
+              () => FakeAuthController(const AuthState(isAuthenticated: false))),
+          ledgerUpdatesStreamProvider.overrideWith((ref) => Stream.value(null)),
+          ledgerRepositoryProvider.overrideWithValue(mockRepo),
+        ],
+        child: const LedgerPulseApp(),
+      ),
+    );
+
+    // Splash is shown
+    await tester.pump();
+    expect(find.text(AppStrings.appName), findsOneWidget);
+
+    // Wait for splash animation sequence
+    await tester.pumpAndSettle();
+
+    // Phone input screen is visible
+    expect(find.text(AppStrings.enterPhoneTitle), findsOneWidget);
+    expect(find.text(AppStrings.getOtpButton), findsOneWidget);
   });
 }

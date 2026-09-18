@@ -12,7 +12,7 @@ enum AdaptiveButtonType {
   text,
 }
 
-class AdaptiveButton extends StatelessWidget {
+class AdaptiveButton extends StatefulWidget {
   final VoidCallback? onPressed;
   final Widget child;
   final AdaptiveButtonType type;
@@ -33,13 +33,20 @@ class AdaptiveButton extends StatelessWidget {
   });
 
   @override
+  State<AdaptiveButton> createState() => _AdaptiveButtonState();
+}
+
+class _AdaptiveButtonState extends State<AdaptiveButton> {
+  bool _isPressed = false;
+
+  @override
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
 
     Color backgroundColor;
     Color foregroundColor = Colors.white;
 
-    switch (type) {
+    switch (widget.type) {
       case AdaptiveButtonType.primary:
         backgroundColor = AppColors.primaryBlue;
         break;
@@ -59,14 +66,14 @@ class AdaptiveButton extends StatelessWidget {
         break;
     }
 
-    final VoidCallback? effectiveOnPressed = onPressed == null || isLoading
+    final VoidCallback? effectiveOnPressed = widget.onPressed == null || widget.isLoading
         ? null
         : () {
             HapticFeedback.lightImpact();
-            onPressed!();
+            widget.onPressed!();
           };
 
-    final Widget content = isLoading
+    final Widget content = widget.isLoading
         ? SizedBox(
             height: 20,
             width: 20,
@@ -77,12 +84,14 @@ class AdaptiveButton extends StatelessWidget {
                     color: foregroundColor,
                   ),
           )
-        : child;
+        : widget.child;
+
+    Widget buttonWidget;
 
     if (isIos) {
       final button = CupertinoButton(
-        padding: padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        color: type == AdaptiveButtonType.text ? null : backgroundColor,
+        padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        color: widget.type == AdaptiveButtonType.text ? null : backgroundColor,
         borderRadius: BorderRadius.circular(14),
         onPressed: effectiveOnPressed,
         child: DefaultTextStyle(
@@ -95,23 +104,24 @@ class AdaptiveButton extends StatelessWidget {
         ),
       );
 
-      if (isFullWidth) {
-        return SizedBox(
+      if (widget.isFullWidth) {
+        buttonWidget = SizedBox(
           width: double.infinity,
-          height: height,
+          height: widget.height,
           child: button,
         );
+      } else {
+        buttonWidget = button;
       }
-      return button;
     } else {
       // Material Design 3 Expressive
       Widget m3Button;
-      if (type == AdaptiveButtonType.text) {
+      if (widget.type == AdaptiveButtonType.text) {
         m3Button = TextButton(
           onPressed: effectiveOnPressed,
           style: TextButton.styleFrom(
             foregroundColor: foregroundColor,
-            padding: padding,
+            padding: widget.padding,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
             ),
@@ -125,7 +135,7 @@ class AdaptiveButton extends StatelessWidget {
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             elevation: 0,
-            padding: padding,
+            padding: widget.padding,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24), // M3 expressive radius
             ),
@@ -134,15 +144,41 @@ class AdaptiveButton extends StatelessWidget {
         );
       }
 
-      if (isFullWidth) {
-        return SizedBox(
+      if (widget.isFullWidth) {
+        buttonWidget = SizedBox(
           width: double.infinity,
-          height: height,
+          height: widget.height,
           child: m3Button,
         );
+      } else {
+        buttonWidget = m3Button;
       }
-      return m3Button;
     }
+
+    return AnimatedScale(
+      scale: _isPressed ? 0.95 : 1.0,
+      duration: const Duration(milliseconds: 120),
+      curve: Curves.easeOutCubic,
+      child: Listener(
+        onPointerDown: (_) {
+          if (widget.onPressed != null && !widget.isLoading) {
+            HapticFeedback.lightImpact();
+            setState(() => _isPressed = true);
+          }
+        },
+        onPointerUp: (_) {
+          if (_isPressed) {
+            setState(() => _isPressed = false);
+          }
+        },
+        onPointerCancel: (_) {
+          if (_isPressed) {
+            setState(() => _isPressed = false);
+          }
+        },
+        child: buttonWidget,
+      ),
+    );
   }
 }
 

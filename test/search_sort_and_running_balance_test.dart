@@ -153,5 +153,49 @@ void main() {
 
       expect(find.textContaining('Bal:'), findsWidgets);
     });
+
+    testWidgets('PartyLedgerScreen animates newly added ledger entry gracefully',
+        (WidgetTester tester) async {
+      final repo = MockLedgerRepository();
+      addTearDown(repo.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ledgerRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: PartyLedgerScreen(partyId: 'party_1'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Add a new entry to repo for party_1
+      await repo.addEntry(
+        LedgerEntry(
+          id: 'entry_animated_new',
+          partyId: 'party_1',
+          amountInCents: 125000,
+          type: EntryType.got,
+          date: DateTime.now(),
+          note: 'Animated Cash Received',
+        ),
+      );
+
+      await tester.pump();
+      // Pump frame of entrance animation (within 300ms)
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(find.text('Animated Cash Received'), findsOneWidget);
+
+      // Advance clock past entrance animation and highlight fade
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(find.text('Animated Cash Received'), findsOneWidget);
+    });
   });
 }

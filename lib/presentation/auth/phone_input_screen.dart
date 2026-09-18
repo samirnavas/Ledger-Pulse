@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/constants/typography.dart';
+import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../providers/auth_providers.dart';
@@ -46,8 +47,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
 
     if (success && mounted) {
       Navigator.of(context).push(
-        MaterialPageRoute(
+        createAdaptivePageRoute(
           builder: (context) => OtpScreen(phoneNumber: '+91 $rawNumber'),
+          transitionType: SharedAxisTransitionType.horizontal,
         ),
       );
     }

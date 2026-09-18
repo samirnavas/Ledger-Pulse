@@ -138,3 +138,7 @@ class LiquidGlassBottomBar extends StatelessWidget {
     );
   }
 }
+
+/// RealLiquidGlass widget alias for LiquidGlassContainer
+typedef RealLiquidGlass = LiquidGlassContainer;
+
