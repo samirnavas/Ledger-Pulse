@@ -15,10 +15,12 @@ import '../providers/ledger_providers.dart';
 
 class AddPartyDialog extends ConsumerStatefulWidget {
   final PartyType initialType;
+  final Party? partyToEdit;
 
   const AddPartyDialog({
     super.key,
     required this.initialType,
+    this.partyToEdit,
   });
 
   @override
@@ -32,14 +34,33 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
   String? _error;
   bool _isSubmitting = false;
 
-  bool get _isClean =>
-      _nameController.text.trim().isEmpty &&
-      _phoneController.text.trim().isEmpty;
+  bool get _isClean {
+    if (widget.partyToEdit != null) {
+      final rawPhone = widget.partyToEdit!.phoneNumber
+          .replaceFirst('+91 ', '')
+          .replaceFirst('+91', '')
+          .trim();
+      return _nameController.text.trim() == widget.partyToEdit!.name.trim() &&
+          _phoneController.text.trim() == rawPhone &&
+          _type == widget.partyToEdit!.type;
+    }
+    return _nameController.text.trim().isEmpty &&
+        _phoneController.text.trim().isEmpty;
+  }
 
   @override
   void initState() {
     super.initState();
-    _type = widget.initialType;
+    if (widget.partyToEdit != null) {
+      _nameController.text = widget.partyToEdit!.name;
+      _phoneController.text = widget.partyToEdit!.phoneNumber
+          .replaceFirst('+91 ', '')
+          .replaceFirst('+91', '')
+          .trim();
+      _type = widget.partyToEdit!.type;
+    } else {
+      _type = widget.initialType;
+    }
     _nameController.addListener(_onFieldChanged);
     _phoneController.addListener(_onFieldChanged);
   }
@@ -157,15 +178,34 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
       _isSubmitting = true;
     });
 
-    await ref.read(ledgerActionControllerProvider).addParty(
+    try {
+      if (widget.partyToEdit != null) {
+        final updatedParty = widget.partyToEdit!.copyWith(
           name: name,
           phoneNumber: phone.startsWith('+') ? phone : '+91 $phone',
           type: _type,
-          initialBalanceInCents: 0,
+          lastUpdated: DateTime.now(),
         );
+        await ref.read(ledgerActionControllerProvider).updateParty(updatedParty);
+      } else {
+        await ref.read(ledgerActionControllerProvider).addParty(
+              name: name,
+              phoneNumber: phone.startsWith('+') ? phone : '+91 $phone',
+              type: _type,
+              initialBalanceInCents: 0,
+            );
+      }
 
-    if (mounted) {
-      Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -225,7 +265,9 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
 
                   // Header Title
                   Text(
-                    'Add New ${_type.displayName}',
+                    widget.partyToEdit != null
+                        ? 'Edit ${_type.displayName}'
+                        : 'Add New ${_type.displayName}',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -249,6 +291,18 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                       ),
                     },
                     onValueChanged: (val) {
+                      if (widget.partyToEdit != null &&
+                          widget.partyToEdit!.netBalanceInCents != 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Cannot change type for a party with an active balance.',
+                            ),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        return;
+                      }
                       setState(() {
                         _type = val;
                       });
@@ -354,7 +408,11 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                     onPressed: _submit,
                     isFullWidth: true,
                     isLoading: _isSubmitting,
-                    child: const Text('Save & Open Ledger'),
+                    child: Text(
+                      widget.partyToEdit != null
+                          ? 'Save Changes'
+                          : 'Save & Open Ledger',
+                    ),
                   ),
                 ],
               ),

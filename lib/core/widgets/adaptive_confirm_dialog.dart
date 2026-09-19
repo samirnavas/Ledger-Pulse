@@ -8,25 +8,46 @@ import '../theme/adaptive_theme.dart';
 ///
 /// Returns `true` if the user chooses to discard, and `false` or `null` otherwise.
 Future<bool> showDiscardChangesDialog(BuildContext context) async {
+  return showAdaptiveConfirmDialog(
+    context: context,
+    title: 'Discard unsaved changes?',
+    message: 'You have unsaved changes that will be lost if you leave.',
+    confirmLabel: 'Discard',
+    cancelLabel: 'Keep Editing',
+    isDestructive: true,
+  );
+}
+
+/// Displays a generic platform-adaptive confirmation dialog.
+Future<bool> showAdaptiveConfirmDialog({
+  required BuildContext context,
+  required String title,
+  required String message,
+  String confirmLabel = 'Confirm',
+  String cancelLabel = 'Cancel',
+  bool isDestructive = false,
+}) async {
   final isIos = AdaptiveThemeHelper.isIos(context);
 
   if (isIos) {
     final result = await showCupertinoDialog<bool>(
       context: context,
       builder: (context) => CupertinoAlertDialog(
-        title: const Text('Discard unsaved changes?'),
-        content: const Text(
-          'You have unsaved changes that will be lost if you leave.',
+        title: Text(title),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Text(message),
         ),
         actions: [
           CupertinoDialogAction(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Keep Editing'),
+            child: Text(cancelLabel),
           ),
           CupertinoDialogAction(
-            isDestructiveAction: true,
+            isDestructiveAction: isDestructive,
+            isDefaultAction: !isDestructive,
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Discard'),
+            child: Text(confirmLabel),
           ),
         ],
       ),
@@ -39,12 +60,12 @@ Future<bool> showDiscardChangesDialog(BuildContext context) async {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
         ),
-        title: const Text(
-          'Discard unsaved changes?',
-          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
         ),
         content: Text(
-          'You have unsaved changes that will be lost if you leave.',
+          message,
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 14,
@@ -53,23 +74,25 @@ Future<bool> showDiscardChangesDialog(BuildContext context) async {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(
-              'Keep Editing',
-              style: TextStyle(fontWeight: FontWeight.w600),
+            child: Text(
+              cancelLabel,
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.payableRed,
+              backgroundColor: isDestructive
+                  ? AppColors.payableRed
+                  : Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text(
-              'Discard',
-              style: TextStyle(fontWeight: FontWeight.w700),
+            child: Text(
+              confirmLabel,
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -78,3 +101,68 @@ Future<bool> showDiscardChangesDialog(BuildContext context) async {
     return result ?? false;
   }
 }
+
+/// Displays an informational alert dialog with an OK button.
+Future<void> showAdaptiveInfoDialog({
+  required BuildContext context,
+  required String title,
+  required String message,
+  String buttonLabel = 'OK',
+}) async {
+  final isIos = AdaptiveThemeHelper.isIos(context);
+
+  if (isIos) {
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: Text(message),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(buttonLabel),
+          ),
+        ],
+      ),
+    );
+  } else {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(28),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 19),
+        ),
+        content: Text(
+          message,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          FilledButton(
+            style: FilledButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              buttonLabel,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

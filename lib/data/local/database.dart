@@ -17,6 +17,7 @@ class Parties extends Table {
   TextColumn get type => textEnum<PartyType>()();
   IntColumn get netBalanceInCents => integer().withDefault(const Constant(0))();
   DateTimeColumn get lastUpdated => dateTime()();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -56,7 +57,35 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (Migrator m) async {
+          await m.createAll();
+        },
+        onUpgrade: (Migrator m, int from, int to) async {
+          if (from < 2) {
+            try {
+              await m.addColumn(parties, parties.isDeleted);
+            } catch (_) {}
+            try {
+              await m.addColumn(ledgerEntries, ledgerEntries.isVoided);
+            } catch (_) {}
+          }
+        },
+        beforeOpen: (details) async {
+          await customStatement('PRAGMA foreign_keys = ON');
+          try {
+            await customStatement(
+                'ALTER TABLE parties ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;');
+          } catch (_) {}
+          try {
+            await customStatement(
+                'ALTER TABLE ledger_entries ADD COLUMN is_voided INTEGER NOT NULL DEFAULT 0;');
+          } catch (_) {}
+        },
+      );
 }
 
 LazyDatabase _openConnection() {

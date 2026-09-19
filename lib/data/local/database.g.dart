@@ -70,6 +70,21 @@ class $PartiesTable extends Parties
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -78,6 +93,7 @@ class $PartiesTable extends Parties
     type,
     netBalanceInCents,
     lastUpdated,
+    isDeleted,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -135,6 +151,12 @@ class $PartiesTable extends Parties
     } else if (isInserting) {
       context.missing(_lastUpdatedMeta);
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
     return context;
   }
 
@@ -170,6 +192,10 @@ class $PartiesTable extends Parties
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_updated'],
       )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
     );
   }
 
@@ -189,6 +215,7 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
   final PartyType type;
   final int netBalanceInCents;
   final DateTime lastUpdated;
+  final bool isDeleted;
   const PartyTableData({
     required this.id,
     required this.name,
@@ -196,6 +223,7 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
     required this.type,
     required this.netBalanceInCents,
     required this.lastUpdated,
+    required this.isDeleted,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -208,6 +236,7 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
     }
     map['net_balance_in_cents'] = Variable<int>(netBalanceInCents);
     map['last_updated'] = Variable<DateTime>(lastUpdated);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     return map;
   }
 
@@ -219,6 +248,7 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
       type: Value(type),
       netBalanceInCents: Value(netBalanceInCents),
       lastUpdated: Value(lastUpdated),
+      isDeleted: Value(isDeleted),
     );
   }
 
@@ -236,6 +266,7 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
       ),
       netBalanceInCents: serializer.fromJson<int>(json['netBalanceInCents']),
       lastUpdated: serializer.fromJson<DateTime>(json['lastUpdated']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
     );
   }
   @override
@@ -250,6 +281,7 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
       ),
       'netBalanceInCents': serializer.toJson<int>(netBalanceInCents),
       'lastUpdated': serializer.toJson<DateTime>(lastUpdated),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
     };
   }
 
@@ -260,6 +292,7 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
     PartyType? type,
     int? netBalanceInCents,
     DateTime? lastUpdated,
+    bool? isDeleted,
   }) => PartyTableData(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -267,6 +300,7 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
     type: type ?? this.type,
     netBalanceInCents: netBalanceInCents ?? this.netBalanceInCents,
     lastUpdated: lastUpdated ?? this.lastUpdated,
+    isDeleted: isDeleted ?? this.isDeleted,
   );
   PartyTableData copyWithCompanion(PartiesCompanion data) {
     return PartyTableData(
@@ -282,6 +316,7 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
       lastUpdated: data.lastUpdated.present
           ? data.lastUpdated.value
           : this.lastUpdated,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
     );
   }
 
@@ -293,14 +328,22 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
           ..write('phoneNumber: $phoneNumber, ')
           ..write('type: $type, ')
           ..write('netBalanceInCents: $netBalanceInCents, ')
-          ..write('lastUpdated: $lastUpdated')
+          ..write('lastUpdated: $lastUpdated, ')
+          ..write('isDeleted: $isDeleted')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, phoneNumber, type, netBalanceInCents, lastUpdated);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    phoneNumber,
+    type,
+    netBalanceInCents,
+    lastUpdated,
+    isDeleted,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -310,7 +353,8 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
           other.phoneNumber == this.phoneNumber &&
           other.type == this.type &&
           other.netBalanceInCents == this.netBalanceInCents &&
-          other.lastUpdated == this.lastUpdated);
+          other.lastUpdated == this.lastUpdated &&
+          other.isDeleted == this.isDeleted);
 }
 
 class PartiesCompanion extends UpdateCompanion<PartyTableData> {
@@ -320,6 +364,7 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
   final Value<PartyType> type;
   final Value<int> netBalanceInCents;
   final Value<DateTime> lastUpdated;
+  final Value<bool> isDeleted;
   final Value<int> rowid;
   const PartiesCompanion({
     this.id = const Value.absent(),
@@ -328,6 +373,7 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
     this.type = const Value.absent(),
     this.netBalanceInCents = const Value.absent(),
     this.lastUpdated = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PartiesCompanion.insert({
@@ -337,6 +383,7 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
     required PartyType type,
     this.netBalanceInCents = const Value.absent(),
     required DateTime lastUpdated,
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -350,6 +397,7 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
     Expression<String>? type,
     Expression<int>? netBalanceInCents,
     Expression<DateTime>? lastUpdated,
+    Expression<bool>? isDeleted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -359,6 +407,7 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
       if (type != null) 'type': type,
       if (netBalanceInCents != null) 'net_balance_in_cents': netBalanceInCents,
       if (lastUpdated != null) 'last_updated': lastUpdated,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -370,6 +419,7 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
     Value<PartyType>? type,
     Value<int>? netBalanceInCents,
     Value<DateTime>? lastUpdated,
+    Value<bool>? isDeleted,
     Value<int>? rowid,
   }) {
     return PartiesCompanion(
@@ -379,6 +429,7 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
       type: type ?? this.type,
       netBalanceInCents: netBalanceInCents ?? this.netBalanceInCents,
       lastUpdated: lastUpdated ?? this.lastUpdated,
+      isDeleted: isDeleted ?? this.isDeleted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -406,6 +457,9 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
     if (lastUpdated.present) {
       map['last_updated'] = Variable<DateTime>(lastUpdated.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -421,6 +475,7 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
           ..write('type: $type, ')
           ..write('netBalanceInCents: $netBalanceInCents, ')
           ..write('lastUpdated: $lastUpdated, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1574,6 +1629,7 @@ typedef $$PartiesTableCreateCompanionBuilder =
       required PartyType type,
       Value<int> netBalanceInCents,
       required DateTime lastUpdated,
+      Value<bool> isDeleted,
       Value<int> rowid,
     });
 typedef $$PartiesTableUpdateCompanionBuilder =
@@ -1584,6 +1640,7 @@ typedef $$PartiesTableUpdateCompanionBuilder =
       Value<PartyType> type,
       Value<int> netBalanceInCents,
       Value<DateTime> lastUpdated,
+      Value<bool> isDeleted,
       Value<int> rowid,
     });
 
@@ -1647,6 +1704,11 @@ class $$PartiesTableFilterComposer
 
   ColumnFilters<DateTime> get lastUpdated => $composableBuilder(
     column: $table.lastUpdated,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1714,6 +1776,11 @@ class $$PartiesTableOrderingComposer
     column: $table.lastUpdated,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PartiesTableAnnotationComposer
@@ -1748,6 +1815,9 @@ class $$PartiesTableAnnotationComposer
     column: $table.lastUpdated,
     builder: (column) => column,
   );
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
   Expression<T> ledgerEntriesRefs<T extends Object>(
     Expression<T> Function($$LedgerEntriesTableAnnotationComposer a) f,
@@ -1809,6 +1879,7 @@ class $$PartiesTableTableManager
                 Value<PartyType> type = const Value.absent(),
                 Value<int> netBalanceInCents = const Value.absent(),
                 Value<DateTime> lastUpdated = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PartiesCompanion(
                 id: id,
@@ -1817,6 +1888,7 @@ class $$PartiesTableTableManager
                 type: type,
                 netBalanceInCents: netBalanceInCents,
                 lastUpdated: lastUpdated,
+                isDeleted: isDeleted,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1827,6 +1899,7 @@ class $$PartiesTableTableManager
                 required PartyType type,
                 Value<int> netBalanceInCents = const Value.absent(),
                 required DateTime lastUpdated,
+                Value<bool> isDeleted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PartiesCompanion.insert(
                 id: id,
@@ -1835,6 +1908,7 @@ class $$PartiesTableTableManager
                 type: type,
                 netBalanceInCents: netBalanceInCents,
                 lastUpdated: lastUpdated,
+                isDeleted: isDeleted,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -121,6 +121,43 @@ class ApiLedgerRepository implements ILedgerRepository {
   }
 
   @override
+  Future<void> updateParty(Party party) async {
+    final response = await _executeWithFallback((baseUrl) {
+      return _client.put(
+        Uri.parse('$baseUrl/api/parties/${party.id}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(party.toMap()),
+      );
+    });
+
+    if (response.statusCode == 200) {
+      _updateStreamController.add(null);
+    } else {
+      throw Exception(
+        'Failed to update party (Status: ${response.statusCode}): ${response.body}',
+      );
+    }
+  }
+
+  @override
+  Future<void> deleteParty(String partyId) async {
+    final response = await _executeWithFallback((baseUrl) {
+      return _client.delete(
+        Uri.parse('$baseUrl/api/parties/$partyId'),
+        headers: {'Accept': 'application/json'},
+      );
+    });
+
+    if (response.statusCode == 200) {
+      _updateStreamController.add(null);
+    } else {
+      throw Exception(
+        'Failed to delete party (Status: ${response.statusCode}): ${response.body}',
+      );
+    }
+  }
+
+  @override
   Future<List<LedgerEntry>> getEntriesForParty(String partyId) async {
     final response = await _executeWithFallback((baseUrl) {
       return _client.get(
@@ -156,6 +193,25 @@ class ApiLedgerRepository implements ILedgerRepository {
     } else {
       throw Exception(
         'Failed to add entry (Status: ${response.statusCode}): ${response.body}',
+      );
+    }
+  }
+
+  @override
+  Future<void> updateEntry(LedgerEntry entry) async {
+    final response = await _executeWithFallback((baseUrl) {
+      return _client.put(
+        Uri.parse('$baseUrl/api/entries/${entry.id}'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(entry.toMap()),
+      );
+    });
+
+    if (response.statusCode == 200) {
+      _updateStreamController.add(null);
+    } else {
+      throw Exception(
+        'Failed to update entry (Status: ${response.statusCode}): ${response.body}',
       );
     }
   }

@@ -12,6 +12,7 @@ import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
+import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
@@ -20,6 +21,7 @@ import '../../core/widgets/skeleton_list_tile.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../home/add_party_dialog.dart';
 import '../providers/ledger_providers.dart';
 import '../reports/statement_preview_screen.dart';
 import 'add_entry_bottom_sheet.dart';
@@ -58,6 +60,236 @@ class PartyLedgerScreen extends ConsumerWidget {
     }
   }
 
+  void _openEditParty(BuildContext context, Party party) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddPartyDialog(
+        initialType: party.type,
+        partyToEdit: party,
+      ),
+    );
+  }
+
+  Future<void> _handleDeleteParty(
+    BuildContext context,
+    WidgetRef ref,
+    Party party,
+  ) async {
+    // 1. Safety Check: Verify if party.netBalanceInCents != 0
+    if (party.netBalanceInCents != 0) {
+      final formattedBalance = CurrencyFormatter.format(
+        party.netBalanceInCents,
+        absolute: true,
+      );
+      await showAdaptiveInfoDialog(
+        context: context,
+        title: 'Cannot Delete Party',
+        message:
+            'Cannot delete a party with an outstanding balance of $formattedBalance. Settle the dues first.',
+        buttonLabel: 'OK',
+      );
+      return;
+    }
+
+    // 2. Open Adaptive Confirmation Dialog for 0-balance party
+    final shouldDelete = await showAdaptiveConfirmDialog(
+      context: context,
+      title: 'Delete Party?',
+      message:
+          'Are you sure you want to delete ${party.name}? All transaction records for this party will be archived.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      isDestructive: true,
+    );
+
+    if (shouldDelete && context.mounted) {
+      try {
+        await ref.read(ledgerActionControllerProvider).deleteParty(party.id);
+        if (context.mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${party.name} deleted and archived.'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              backgroundColor: Theme.of(context).colorScheme.inverseSurface,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete party: $e'),
+              backgroundColor: AppColors.payableRed,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showPartyContextMenu(
+    BuildContext context,
+    WidgetRef ref,
+    Party party,
+  ) {
+    HapticFeedback.mediumImpact();
+    final isIos = AdaptiveThemeHelper.isIos(context);
+
+    if (isIos) {
+      showCupertinoModalPopup(
+        context: context,
+        builder: (ctx) => CupertinoActionSheet(
+          title: Text(party.name),
+          message: Text(party.phoneNumber),
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _openEditParty(context, party);
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.pencil, size: 20),
+                  SizedBox(width: 8),
+                  Text('Edit Details'),
+                ],
+              ),
+            ),
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _handleDeleteParty(context, ref, party);
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.trash, size: 20),
+                  SizedBox(width: 8),
+                  Text('Delete Party'),
+                ],
+              ),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ),
+      );
+    } else {
+      final colorScheme = Theme.of(context).colorScheme;
+      showModalBottomSheet(
+        context: context,
+        showDragHandle: true,
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        party.name,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        party.phoneNumber,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.edit_outlined),
+                        title: const Text(
+                          'Edit Details',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(16)),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _openEditParty(context, party);
+                        },
+                      ),
+                      Divider(
+                        height: 1,
+                        thickness: 0.5,
+                        indent: 56,
+                        endIndent: 16,
+                        color:
+                            colorScheme.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                      ListTile(
+                        leading: Icon(
+                          Icons.delete_outline,
+                          color: colorScheme.error,
+                        ),
+                        title: Text(
+                          'Delete Party',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.error,
+                          ),
+                        ),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(16)),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _handleDeleteParty(context, ref, party);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
   void _openAddEntrySheet(
     BuildContext context,
     Party party,
@@ -75,6 +307,511 @@ class PartyLedgerScreen extends ConsumerWidget {
         partyName: party.name,
         initialType: entryType,
       ),
+    );
+  }
+
+  void _openEditEntrySheet(
+    BuildContext context,
+    Party party,
+    LedgerEntry entry,
+  ) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.3),
+      builder: (context) => AddEntryBottomSheet(
+        partyId: party.id,
+        partyName: party.name,
+        initialType: entry.type,
+        entryToEdit: entry,
+      ),
+    );
+  }
+
+  Future<void> _handleVoidEntry(
+    BuildContext context,
+    WidgetRef ref,
+    LedgerEntry entry,
+    Party party,
+  ) async {
+    HapticFeedback.lightImpact();
+    final confirmed = await showAdaptiveConfirmDialog(
+      context: context,
+      title: 'Void Transaction?',
+      message:
+          'Void this entry? A reversing entry will be added to balance the ledger.',
+      confirmLabel: 'Void Entry',
+      cancelLabel: 'Cancel',
+      isDestructive: true,
+    );
+
+    if (confirmed && context.mounted) {
+      HapticFeedback.mediumImpact();
+      await ref
+          .read(ledgerActionControllerProvider)
+          .deleteEntry(entry.id, party.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Transaction voided. Reversing entry recorded.'),
+            backgroundColor: AppColors.payableRed,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showTransactionDetailSheet(
+    BuildContext context,
+    WidgetRef ref,
+    LedgerEntry entry,
+    Party party,
+  ) {
+    HapticFeedback.lightImpact();
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isGave = entry.type == EntryType.gave;
+    final color = isGave ? AppColors.payableRed : AppColors.receivableGreen;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: isIos
+          ? (isDark
+              ? CupertinoColors.systemBackground.darkColor
+              : CupertinoColors.systemGroupedBackground)
+          : Theme.of(context).colorScheme.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      barrierColor: Colors.black.withValues(alpha: 0.35),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Theme.of(sheetContext)
+                          .colorScheme
+                          .onSurfaceVariant
+                          .withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          isIos
+                              ? CupertinoIcons.doc_text
+                              : Icons.receipt_long_rounded,
+                          size: 20,
+                          color: Theme.of(sheetContext).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Transaction Voucher',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        isIos
+                            ? CupertinoIcons.xmark_circle_fill
+                            : Icons.close_rounded,
+                        size: 20,
+                      ),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Voucher Summary Card
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: isIos
+                        ? (isDark
+                            ? CupertinoColors.systemGrey6
+                            : CupertinoColors.white)
+                        : Theme.of(sheetContext).colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Theme.of(sheetContext)
+                          .colorScheme
+                          .outlineVariant
+                          .withValues(alpha: isDark ? 0.3 : 0.5),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isGave
+                                      ? Icons.arrow_upward_rounded
+                                      : Icons.arrow_downward_rounded,
+                                  size: 14,
+                                  color: color,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isGave ? 'YOU GAVE' : 'YOU GOT',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (entry.isVoided)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.payableRed
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: AppColors.payableRed
+                                      .withValues(alpha: 0.3),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: const Text(
+                                'VOIDED',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.payableRed,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            )
+                          else
+                            Text(
+                              DateFormatter.formatRelative(entry.date),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(sheetContext)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        '${isGave ? "-" : "+"} ${CurrencyFormatter.format(entry.amountInCents)}',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          color: entry.isVoided
+                              ? color.withValues(alpha: 0.45)
+                              : color,
+                          decoration:
+                              entry.isVoided ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Divider(
+                        height: 1,
+                        thickness: 0.5,
+                        color: Theme.of(sheetContext)
+                            .colorScheme
+                            .outlineVariant
+                            .withValues(alpha: 0.35),
+                      ),
+                      const SizedBox(height: 14),
+                      _buildVoucherRow(
+                        context: sheetContext,
+                        label: 'Party',
+                        value: '${party.name} (${party.phoneNumber})',
+                        icon: Icons.person_outline_rounded,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildVoucherRow(
+                        context: sheetContext,
+                        label: 'Date & Time',
+                        value: DateFormatter.formatFull(entry.date),
+                        icon: Icons.access_time_rounded,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildVoucherRow(
+                        context: sheetContext,
+                        label: 'Note',
+                        value:
+                            entry.note != null && entry.note!.trim().isNotEmpty
+                                ? entry.note!
+                                : 'No note provided',
+                        icon: Icons.notes_rounded,
+                      ),
+                      if (entry.runningBalanceInCents != null) ...[
+                        const SizedBox(height: 10),
+                        _buildVoucherRow(
+                          context: sheetContext,
+                          label: 'Running Balance',
+                          value: CurrencyFormatter.format(
+                            entry.runningBalanceInCents!,
+                          ),
+                          icon: Icons.account_balance_wallet_outlined,
+                        ),
+                      ],
+                      if (entry.receiptPhotoUrl != null) ...[
+                        const SizedBox(height: 14),
+                        InkWell(
+                          onTap: () {
+                            Navigator.of(sheetContext).pop();
+                            _showReceiptDialog(context, entry);
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(sheetContext)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Theme.of(sheetContext)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.receipt_long_rounded,
+                                  size: 20,
+                                  color: Theme.of(sheetContext)
+                                      .colorScheme
+                                      .primary,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Attached Bill Receipt',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: Theme.of(sheetContext)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Tap to view receipt image preview',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Theme.of(sheetContext)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 18,
+                                  color: Theme.of(sheetContext)
+                                      .colorScheme
+                                      .primary,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Action Buttons
+                if (!entry.isVoided)
+                  Row(
+                    children: [
+                      // Edit Note / Details button
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.of(sheetContext).pop();
+                            _openEditEntrySheet(context, party, entry);
+                          },
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          label: const Text(
+                            'Edit Note / Details',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Delete / Void Entry button
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          onPressed: () {
+                            Navigator.of(sheetContext).pop();
+                            _handleVoidEntry(context, ref, entry, party);
+                          },
+                          icon: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: AppColors.payableRed,
+                          ),
+                          label: const Text(
+                            'Delete / Void Entry',
+                            style: TextStyle(
+                              color: AppColors.payableRed,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.payableRed.withValues(
+                              alpha: isDark ? 0.2 : 0.12,
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.payableRed.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.payableRed.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          size: 16,
+                          color: AppColors.payableRed,
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          'This transaction is voided and archived.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.payableRed,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildVoucherRow({
+    required BuildContext context,
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
     );
   }
 
@@ -208,6 +945,15 @@ class PartyLedgerScreen extends ConsumerWidget {
                   ),
                 );
               },
+            ),
+            // Party Context Menu (Edit & Delete)
+            IconButton(
+              tooltip: 'Party Options',
+              icon: Icon(
+                isIos ? CupertinoIcons.ellipsis : Icons.more_vert_rounded,
+                size: 20,
+              ),
+              onPressed: () => _showPartyContextMenu(context, ref, party),
             ),
           ],
           // Persistent Bottom Action Bar: Side-by-side [ - You Gave ] & [ + You Got ]
@@ -559,6 +1305,13 @@ class PartyLedgerScreen extends ConsumerWidget {
                             entries: entries,
                             isIos: isIos,
                             onShowReceipt: _showReceiptDialog,
+                            onOpenVoucher: (ctx, entry) =>
+                                _showTransactionDetailSheet(
+                              ctx,
+                              ref,
+                              entry,
+                              party,
+                            ),
                           ),
                         ),
                       ],
@@ -578,11 +1331,13 @@ class _AnimatedPartyLedgerList extends StatefulWidget {
   final List<LedgerEntry> entries;
   final bool isIos;
   final void Function(BuildContext, LedgerEntry) onShowReceipt;
+  final void Function(BuildContext, LedgerEntry) onOpenVoucher;
 
   const _AnimatedPartyLedgerList({
     required this.entries,
     required this.isIos,
     required this.onShowReceipt,
+    required this.onOpenVoucher,
   });
 
   @override
@@ -632,9 +1387,23 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
             DateFormatter.formatRelative(widget.entries[index - 1].date) !=
                 DateFormatter.formatRelative(entry.date);
 
-        final Widget plainRowContent = Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: _buildRowContent(context, entry, isGave, color),
+        final Widget plainRowContent = Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              widget.onOpenVoucher(context, entry);
+            },
+            onLongPress: () {
+              HapticFeedback.lightImpact();
+              widget.onOpenVoucher(context, entry);
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: _buildRowContent(context, entry, isGave, color),
+            ),
+          ),
         );
 
         Widget rowWidget = Column(
@@ -703,6 +1472,9 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
     bool isGave,
     Color color,
   ) {
+    final effectiveColor =
+        entry.isVoided ? color.withValues(alpha: 0.45) : color;
+
     return Row(
       children: [
         // Note & Timestamp & Optional Bill Icon
@@ -710,15 +1482,51 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                entry.note ?? (isGave ? 'You Gave' : 'You Got'),
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurface,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      entry.note ?? (isGave ? 'You Gave' : 'You Got'),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: entry.isVoided
+                            ? Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.45)
+                            : Theme.of(context).colorScheme.onSurface,
+                        decoration: entry.isVoided
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (entry.isVoided) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 1.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.payableRed.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'VOID',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.payableRed,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 3),
               Row(
@@ -802,7 +1610,9 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
-                color: color,
+                color: effectiveColor,
+                decoration:
+                    entry.isVoided ? TextDecoration.lineThrough : null,
               ),
             ),
             if (entry.runningBalanceInCents != null) ...[

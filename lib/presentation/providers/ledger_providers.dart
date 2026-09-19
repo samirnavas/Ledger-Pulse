@@ -109,8 +109,12 @@ final partySortOptionProvider =
 
 // Parties list provider, auto-refreshes when repo emits update
 final partyListProvider = FutureProvider<List<Party>>((ref) async {
-  ref.watch(ledgerUpdatesStreamProvider);
   final repo = ref.watch(ledgerRepositoryProvider);
+  final sub = repo.repositoryUpdatesStream.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(sub.cancel);
+
   final filter = ref.watch(selectedPartyTypeFilterProvider);
   final query = ref.watch(partySearchQueryProvider).toLowerCase().trim();
   final sortOption = ref.watch(partySortOptionProvider);
@@ -150,24 +154,36 @@ final partyListProvider = FutureProvider<List<Party>>((ref) async {
 // Business summary (Total Receivable, Total Payable)
 final businessSummaryProvider =
     FutureProvider<(int totalReceivable, int totalPayable)>((ref) async {
-  ref.watch(ledgerUpdatesStreamProvider);
   final repo = ref.watch(ledgerRepositoryProvider);
+  final sub = repo.repositoryUpdatesStream.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(sub.cancel);
+
   return repo.getBusinessSummary();
 });
 
 // Live party details by ID
 final partyDetailProvider =
     FutureProvider.family<Party, String>((ref, partyId) async {
-  ref.watch(ledgerUpdatesStreamProvider);
   final repo = ref.watch(ledgerRepositoryProvider);
+  final sub = repo.repositoryUpdatesStream.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(sub.cancel);
+
   return repo.getPartyById(partyId);
 });
 
 // Ledger entries with running balance computed line-by-line chronologically
 final partyLedgerEntriesProvider =
     FutureProvider.family<List<LedgerEntry>, String>((ref, partyId) async {
-  ref.watch(ledgerUpdatesStreamProvider);
   final repo = ref.watch(ledgerRepositoryProvider);
+  final sub = repo.repositoryUpdatesStream.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(sub.cancel);
+
   final rawEntries = await repo.getEntriesForParty(partyId);
 
   // Sort ascending by date to compute cumulative running balance chronologically
@@ -191,11 +207,29 @@ final partyLedgerEntriesProvider =
   return entriesWithBalance.reversed.toList();
 });
 
-// Controller for mutations (add party, add entry, delete entry)
+// Standard Aliases for domain & presentation layer consistency
+final partiesProvider = partyListProvider;
+final partyByIdProvider = partyDetailProvider;
+final ledgerEntriesProvider = partyLedgerEntriesProvider;
+
+// Controller for mutations (add/update/delete party, add/update/delete entry)
 class LedgerActionController {
+  final Ref _ref;
   final ILedgerRepository _repo;
 
-  LedgerActionController(this._repo);
+  LedgerActionController(this._ref, this._repo);
+
+  void _invalidateProviders({String? partyId}) {
+    _ref.invalidate(partiesProvider);
+    _ref.invalidate(partyListProvider);
+    _ref.invalidate(businessSummaryProvider);
+    if (partyId != null) {
+      _ref.invalidate(partyByIdProvider(partyId));
+      _ref.invalidate(partyDetailProvider(partyId));
+      _ref.invalidate(ledgerEntriesProvider(partyId));
+      _ref.invalidate(partyLedgerEntriesProvider(partyId));
+    }
+  }
 
   Future<void> addParty({
     required String name,
@@ -226,6 +260,18 @@ class LedgerActionController {
       );
       await _repo.addEntry(entry);
     }
+
+    _invalidateProviders(partyId: partyId);
+  }
+
+  Future<void> updateParty(Party party) async {
+    await _repo.updateParty(party);
+    _invalidateProviders(partyId: party.id);
+  }
+
+  Future<void> deleteParty(String partyId) async {
+    await _repo.deleteParty(partyId);
+    _invalidateProviders(partyId: partyId);
   }
 
   Future<void> addEntry({
@@ -246,14 +292,21 @@ class LedgerActionController {
       receiptPhotoUrl: receiptPhotoUrl,
     );
     await _repo.addEntry(entry);
+    _invalidateProviders(partyId: partyId);
   }
 
-  Future<void> deleteEntry(String entryId) async {
+  Future<void> updateEntry(LedgerEntry entry) async {
+    await _repo.updateEntry(entry);
+    _invalidateProviders(partyId: entry.partyId);
+  }
+
+  Future<void> deleteEntry(String entryId, [String? partyId]) async {
     await _repo.deleteEntry(entryId);
+    _invalidateProviders(partyId: partyId);
   }
 }
 
 final ledgerActionControllerProvider = Provider<LedgerActionController>((ref) {
   final repo = ref.watch(ledgerRepositoryProvider);
-  return LedgerActionController(repo);
+  return LedgerActionController(ref, repo);
 });

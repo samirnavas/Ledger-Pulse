@@ -8,13 +8,16 @@ import '../../core/constants/strings.dart';
 import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
+import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
 import '../../data/models/party_model.dart';
 import '../ledger/party_ledger_screen.dart';
 import '../providers/ledger_providers.dart';
+import 'add_party_dialog.dart';
 
 class PartyListTab extends ConsumerStatefulWidget {
   const PartyListTab({super.key});
@@ -196,6 +199,226 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                     ),
                   );
                 }),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _openEditParty(Party party) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddPartyDialog(
+        initialType: party.type,
+        partyToEdit: party,
+      ),
+    );
+  }
+
+  Future<void> _handleDeleteParty(Party party) async {
+    // 1. Safety Check: Verify if party.netBalanceInCents != 0
+    if (party.netBalanceInCents != 0) {
+      final formattedBalance = CurrencyFormatter.format(
+        party.netBalanceInCents,
+        absolute: true,
+      );
+      await showAdaptiveInfoDialog(
+        context: context,
+        title: 'Cannot Delete Party',
+        message:
+            'Cannot delete a party with an outstanding balance of $formattedBalance. Settle the dues first.',
+        buttonLabel: 'OK',
+      );
+      return;
+    }
+
+    // 2. Open Adaptive Confirmation Dialog for 0-balance party
+    final shouldDelete = await showAdaptiveConfirmDialog(
+      context: context,
+      title: 'Delete Party?',
+      message:
+          'Are you sure you want to delete ${party.name}? All transaction records for this party will be archived.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      isDestructive: true,
+    );
+
+    if (shouldDelete && mounted) {
+      try {
+        await ref.read(ledgerActionControllerProvider).deleteParty(party.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${party.name} deleted and archived.'),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              backgroundColor: Theme.of(context).colorScheme.inverseSurface,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete party: $e'),
+              backgroundColor: AppColors.payableRed,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showPartyContextMenu(BuildContext context, Party party) {
+    HapticFeedback.mediumImpact();
+    final isIos = AdaptiveThemeHelper.isIos(context);
+
+    if (isIos) {
+      showCupertinoModalPopup(
+        context: context,
+        builder: (ctx) => CupertinoActionSheet(
+          title: Text(party.name),
+          message: Text(party.phoneNumber),
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _openEditParty(party);
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.pencil, size: 20),
+                  SizedBox(width: 8),
+                  Text('Edit Details'),
+                ],
+              ),
+            ),
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                _handleDeleteParty(party);
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.trash, size: 20),
+                  SizedBox(width: 8),
+                  Text('Delete Party'),
+                ],
+              ),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+        ),
+      );
+    } else {
+      final colorScheme = Theme.of(context).colorScheme;
+      showModalBottomSheet(
+        context: context,
+        showDragHandle: true,
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        builder: (ctx) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        party.name,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        party.phoneNumber,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.edit_outlined),
+                        title: const Text(
+                          'Edit Details',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(16)),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _openEditParty(party);
+                        },
+                      ),
+                      Divider(
+                        height: 1,
+                        thickness: 0.5,
+                        indent: 56,
+                        endIndent: 16,
+                        color:
+                            colorScheme.outlineVariant.withValues(alpha: 0.4),
+                      ),
+                      ListTile(
+                        leading: Icon(
+                          Icons.delete_outline,
+                          color: colorScheme.error,
+                        ),
+                        title: Text(
+                          'Delete Party',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.error,
+                          ),
+                        ),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(16)),
+                        ),
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _handleDeleteParty(party);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -534,14 +757,25 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                       ),
 
                       const SizedBox(width: 4),
-                      Icon(
-                        isIos
-                            ? CupertinoIcons.chevron_forward
-                            : Icons.chevron_right,
-                        size: 18,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant,
+
+                      // 3-dot Context Menu Button
+                      IconButton(
+                        icon: Icon(
+                          isIos
+                              ? CupertinoIcons.ellipsis_circle
+                              : Icons.more_vert_rounded,
+                          size: 20,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints:
+                            const BoxConstraints(minWidth: 32, minHeight: 32),
+                        splashRadius: 20,
+                        tooltip: 'Party Options',
+                        onPressed: () =>
+                            _showPartyContextMenu(context, party),
                       ),
                     ],
                   );
@@ -559,9 +793,11 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
 
                   return InkWell(
                     onTap: openLedger,
+                    onLongPress: () =>
+                        _showPartyContextMenu(context, party),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                          horizontal: 16, vertical: 10),
                       child: rowContent,
                     ),
                   );

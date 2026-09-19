@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../domain/exceptions/ledger_exceptions.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
 import '../models/party_model.dart';
 import '../models/transaction_model.dart';
@@ -48,6 +49,38 @@ class MockLedgerRepository implements ILedgerRepository {
   }
 
   @override
+  Future<void> updateParty(Party party) async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    final index = _parties.indexWhere((p) => p.id == party.id);
+    if (index == -1) {
+      throw Exception('Party not found with id: ${party.id}');
+    }
+    _parties[index] = _parties[index].copyWith(
+      name: party.name,
+      phoneNumber: party.phoneNumber,
+      type: party.type,
+      lastUpdated: DateTime.now(),
+    );
+    _updateStreamController.add(null);
+  }
+
+  @override
+  Future<void> deleteParty(String partyId) async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    final index = _parties.indexWhere((p) => p.id == partyId);
+    if (index == -1) return;
+
+    if (_parties[index].netBalanceInCents != 0) {
+      throw const ActiveBalanceException('Cannot delete a party with an active balance.');
+    }
+
+    _parties.removeAt(index);
+    _entries.removeWhere((e) => e.partyId == partyId);
+    _updateStreamController.add(null);
+  }
+
+
+  @override
   Future<List<LedgerEntry>> getEntriesForParty(String partyId) async {
     await Future.delayed(const Duration(milliseconds: 150));
     // Filter entries for this party
@@ -83,6 +116,19 @@ class MockLedgerRepository implements ILedgerRepository {
     // Recalculate party net balance
     _recalculatePartyBalance(entry.partyId);
 
+    _updateStreamController.add(null);
+  }
+
+  @override
+  Future<void> updateEntry(LedgerEntry entry) async {
+    await Future.delayed(const Duration(milliseconds: 150));
+    final index = _entries.indexWhere((e) => e.id == entry.id);
+    if (index == -1) {
+      throw Exception('Ledger entry not found with id: ${entry.id}');
+    }
+
+    _entries[index] = entry;
+    _recalculatePartyBalance(entry.partyId);
     _updateStreamController.add(null);
   }
 

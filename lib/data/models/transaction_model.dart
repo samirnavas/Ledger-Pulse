@@ -30,6 +30,7 @@ class LedgerEntry {
   final String? note;
   final String? receiptPhotoUrl;
   final int? runningBalanceInCents; // Computed for display
+  final bool isVoided;
 
   const LedgerEntry({
     required this.id,
@@ -40,6 +41,7 @@ class LedgerEntry {
     this.note,
     this.receiptPhotoUrl,
     this.runningBalanceInCents,
+    this.isVoided = false,
   });
 
   LedgerEntry copyWith({
@@ -51,6 +53,7 @@ class LedgerEntry {
     String? note,
     String? receiptPhotoUrl,
     int? runningBalanceInCents,
+    bool? isVoided,
   }) {
     return LedgerEntry(
       id: id ?? this.id,
@@ -61,6 +64,7 @@ class LedgerEntry {
       note: note ?? this.note,
       receiptPhotoUrl: receiptPhotoUrl ?? this.receiptPhotoUrl,
       runningBalanceInCents: runningBalanceInCents ?? this.runningBalanceInCents,
+      isVoided: isVoided ?? this.isVoided,
     );
   }
 
@@ -74,6 +78,7 @@ class LedgerEntry {
       'note': note,
       'receiptPhotoUrl': receiptPhotoUrl,
       'runningBalanceInCents': runningBalanceInCents,
+      'isVoided': isVoided,
     };
   }
 
@@ -87,6 +92,7 @@ class LedgerEntry {
       note: map['note'] as String?,
       receiptPhotoUrl: map['receiptPhotoUrl'] as String?,
       runningBalanceInCents: map['runningBalanceInCents'] as int?,
+      isVoided: (map['isVoided'] as bool?) ?? false,
     );
   }
 
@@ -100,7 +106,8 @@ class LedgerEntry {
         other.type == type &&
         other.date == date &&
         other.note == note &&
-        other.receiptPhotoUrl == receiptPhotoUrl;
+        other.receiptPhotoUrl == receiptPhotoUrl &&
+        other.isVoided == isVoided;
   }
 
   @override
@@ -112,5 +119,6 @@ class LedgerEntry {
         date,
         note,
         receiptPhotoUrl,
+        isVoided,
       );
 }

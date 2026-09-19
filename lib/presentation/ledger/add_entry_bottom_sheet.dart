@@ -19,12 +19,14 @@ class AddEntryBottomSheet extends ConsumerStatefulWidget {
   final String partyId;
   final String partyName;
   final EntryType initialType;
+  final LedgerEntry? entryToEdit;
 
   const AddEntryBottomSheet({
     super.key,
     required this.partyId,
     required this.partyName,
     required this.initialType,
+    this.entryToEdit,
   });
 
   @override
@@ -42,15 +44,35 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
   String? _errorMessage;
   bool _showNoteField = false;
 
-  bool get _isClean =>
-      (_amountString == '0' || _amountString.isEmpty) &&
-      _noteController.text.trim().isEmpty &&
-      _receiptUrl == null;
+  bool get _isClean {
+    if (widget.entryToEdit != null) {
+      final initialAmt = (widget.entryToEdit!.amountInCents ~/ 100).toString();
+      final initialNote = widget.entryToEdit!.note ?? '';
+      return _amountString == initialAmt &&
+          _noteController.text.trim() == initialNote.trim() &&
+          _selectedDate == widget.entryToEdit!.date &&
+          _entryType == widget.entryToEdit!.type &&
+          _receiptUrl == widget.entryToEdit!.receiptPhotoUrl;
+    }
+    return (_amountString == '0' || _amountString.isEmpty) &&
+        _noteController.text.trim().isEmpty &&
+        _receiptUrl == null;
+  }
 
   @override
   void initState() {
     super.initState();
-    _entryType = widget.initialType;
+    if (widget.entryToEdit != null) {
+      final entry = widget.entryToEdit!;
+      _entryType = entry.type;
+      _amountString = (entry.amountInCents ~/ 100).toString();
+      _noteController.text = entry.note ?? '';
+      _selectedDate = entry.date;
+      _receiptUrl = entry.receiptPhotoUrl;
+      _showNoteField = entry.note != null && entry.note!.trim().isNotEmpty;
+    } else {
+      _entryType = widget.initialType;
+    }
     _noteController.addListener(_onNoteChanged);
   }
 
@@ -321,30 +343,58 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
       _isSubmitting = true;
     });
 
-    await ref.read(ledgerActionControllerProvider).addEntry(
-          partyId: widget.partyId,
-          amountInCents: amountCents,
-          type: _entryType,
-          date: _selectedDate,
-          note: _noteController.text.trim().isEmpty
-              ? null
-              : _noteController.text.trim(),
-          receiptPhotoUrl: _receiptUrl,
-        );
-
-    if (mounted) {
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Saved ${_entryType == EntryType.gave ? "You Gave" : "You Got"} ${CurrencyFormatter.format(amountCents)}',
-          ),
-          backgroundColor: _entryType == EntryType.gave
-              ? AppColors.payableRed
-              : AppColors.receivableGreen,
-          duration: const Duration(seconds: 2),
-        ),
+    if (widget.entryToEdit != null) {
+      final updated = widget.entryToEdit!.copyWith(
+        amountInCents: amountCents,
+        type: _entryType,
+        date: _selectedDate,
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
+        receiptPhotoUrl: _receiptUrl,
       );
+      await ref.read(ledgerActionControllerProvider).updateEntry(updated);
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Updated ${_entryType == EntryType.gave ? "You Gave" : "You Got"} ${CurrencyFormatter.format(amountCents)}',
+            ),
+            backgroundColor: _entryType == EntryType.gave
+                ? AppColors.payableRed
+                : AppColors.receivableGreen,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } else {
+      await ref.read(ledgerActionControllerProvider).addEntry(
+            partyId: widget.partyId,
+            amountInCents: amountCents,
+            type: _entryType,
+            date: _selectedDate,
+            note: _noteController.text.trim().isEmpty
+                ? null
+                : _noteController.text.trim(),
+            receiptPhotoUrl: _receiptUrl,
+          );
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Saved ${_entryType == EntryType.gave ? "You Gave" : "You Got"} ${CurrencyFormatter.format(amountCents)}',
+            ),
+            backgroundColor: _entryType == EntryType.gave
+                ? AppColors.payableRed
+                : AppColors.receivableGreen,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -571,15 +621,19 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
-                                    isGave
-                                        ? Icons.arrow_upward_rounded
-                                        : Icons.arrow_downward_rounded,
+                                    widget.entryToEdit != null
+                                        ? Icons.edit_outlined
+                                        : (isGave
+                                            ? Icons.arrow_upward_rounded
+                                            : Icons.arrow_downward_rounded),
                                     size: 15,
                                     color: themeColor,
                                   ),
                                   const SizedBox(width: 4),
                                   Text(
-                                    isGave ? 'YOU GAVE' : 'YOU GOT',
+                                    widget.entryToEdit != null
+                                        ? 'EDIT ENTRY'
+                                        : (isGave ? 'YOU GAVE' : 'YOU GOT'),
                                     style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
@@ -1049,7 +1103,9 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Save ${_entryType == EntryType.gave ? "You Gave" : "You Got"} Entry',
+                          widget.entryToEdit != null
+                              ? 'Update ${_entryType == EntryType.gave ? "You Gave" : "You Got"} Entry'
+                              : 'Save ${_entryType == EntryType.gave ? "You Gave" : "You Got"} Entry',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,

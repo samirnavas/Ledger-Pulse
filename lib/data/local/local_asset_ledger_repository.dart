@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import '../../domain/exceptions/ledger_exceptions.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
 import '../mock/mock_seed_data.dart';
 import '../models/party_model.dart';
@@ -91,6 +92,37 @@ class LocalAssetLedgerRepository implements ILedgerRepository {
   }
 
   @override
+  Future<void> updateParty(Party party) async {
+    await _ensureInitialized();
+    final index = _parties.indexWhere((p) => p.id == party.id);
+    if (index == -1) {
+      throw Exception('Party not found with id: ${party.id}');
+    }
+    _parties[index] = _parties[index].copyWith(
+      name: party.name,
+      phoneNumber: party.phoneNumber,
+      type: party.type,
+      lastUpdated: DateTime.now(),
+    );
+    _updateStreamController.add(null);
+  }
+
+  @override
+  Future<void> deleteParty(String partyId) async {
+    await _ensureInitialized();
+    final index = _parties.indexWhere((p) => p.id == partyId);
+    if (index == -1) return;
+
+    if (_parties[index].netBalanceInCents != 0) {
+      throw const ActiveBalanceException('Cannot delete a party with an active balance.');
+    }
+
+    _parties.removeAt(index);
+    _entries.removeWhere((e) => e.partyId == partyId);
+    _updateStreamController.add(null);
+  }
+
+  @override
   Future<List<LedgerEntry>> getEntriesForParty(String partyId) async {
     await _ensureInitialized();
     final partyEntries = _entries.where((e) => e.partyId == partyId).toList();
@@ -121,6 +153,19 @@ class LocalAssetLedgerRepository implements ILedgerRepository {
   Future<void> addEntry(LedgerEntry entry) async {
     await _ensureInitialized();
     _entries.add(entry);
+    _recalculatePartyBalance(entry.partyId);
+    _updateStreamController.add(null);
+  }
+
+  @override
+  Future<void> updateEntry(LedgerEntry entry) async {
+    await _ensureInitialized();
+    final index = _entries.indexWhere((e) => e.id == entry.id);
+    if (index == -1) {
+      throw Exception('Ledger entry not found with id: ${entry.id}');
+    }
+
+    _entries[index] = entry;
     _recalculatePartyBalance(entry.partyId);
     _updateStreamController.add(null);
   }
