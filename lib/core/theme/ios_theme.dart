@@ -6,7 +6,7 @@ class IosTheme {
     return const CupertinoThemeData(
       brightness: Brightness.light,
       primaryColor: AppColors.primaryBlue,
-      scaffoldBackgroundColor: AppColors.cupertinoSystemBackground,
+      scaffoldBackgroundColor: Color(0xFFF1F5F9),
       barBackgroundColor: AppColors.cupertinoBarBackground,
       textTheme: CupertinoTextThemeData(
         primaryColor: AppColors.textPrimaryLight,

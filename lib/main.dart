@@ -36,11 +36,23 @@ class LedgerPulseApp extends ConsumerWidget {
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        const Color fallbackSeed = Color(0xFF006C4C);
+        final lightScheme = lightDynamic ??
+            ColorScheme.fromSeed(
+              seedColor: fallbackSeed,
+              brightness: Brightness.light,
+            );
+        final darkScheme = darkDynamic ??
+            ColorScheme.fromSeed(
+              seedColor: fallbackSeed,
+              brightness: Brightness.dark,
+            );
+
         return MaterialApp(
           title: AppStrings.appName,
           debugShowCheckedModeBanner: false,
-          theme: AndroidTheme.getLight(lightDynamic),
-          darkTheme: AndroidTheme.getDark(darkDynamic),
+          theme: AndroidTheme.getLight(lightScheme),
+          darkTheme: AndroidTheme.getDark(darkScheme),
           themeMode: ThemeMode.system,
           home: const SplashScreen(),
         );

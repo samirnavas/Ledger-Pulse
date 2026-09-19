@@ -36,8 +36,8 @@ class AdaptiveScaffold extends StatelessWidget {
       return CupertinoPageScaffold(
         backgroundColor: backgroundColor ??
             (isDark
-                ? CupertinoColors.systemBackground.darkColor
-                : CupertinoColors.systemBackground),
+                ? const Color(0xFF0F172A)
+                : const Color(0xFFF1F5F9)),
         navigationBar: CupertinoNavigationBar(
           backgroundColor: isDark
               ? const Color(0xCC0F172A)
@@ -78,17 +78,17 @@ class AdaptiveScaffold extends StatelessWidget {
               isDark ? Brightness.light : Brightness.dark,
           statusBarBrightness:
               isDark ? Brightness.dark : Brightness.light,
-          systemNavigationBarColor: scheme.surface,
+          systemNavigationBarColor: scheme.surfaceContainerLow,
           systemNavigationBarIconBrightness:
               isDark ? Brightness.light : Brightness.dark,
         ),
         child: Scaffold(
-          backgroundColor: backgroundColor ?? scheme.surface,
+          backgroundColor: backgroundColor ?? scheme.surfaceContainerLow,
           appBar: AppBar(
             title: titleWidget ?? (title != null ? Text(title!) : null),
             actions: actions,
             bottom: bottomAppBar,
-            backgroundColor: scheme.surface,
+            backgroundColor: scheme.surfaceContainerLow,
             foregroundColor: scheme.onSurface,
             surfaceTintColor: Colors.transparent,
             elevation: 0,

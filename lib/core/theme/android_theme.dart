@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../constants/colors.dart';
 import '../constants/typography.dart';
 
 class AndroidTheme {
+  static const Color fallbackSeed = Color(0xFF006C4C);
+
   static ThemeData getTheme({
     ColorScheme? dynamicColorScheme,
     Brightness brightness = Brightness.light,
@@ -11,50 +12,82 @@ class AndroidTheme {
     // otherwise generate a cohesive Material 3 Expressive ColorScheme from seed.
     final ColorScheme scheme = dynamicColorScheme ??
         ColorScheme.fromSeed(
-          seedColor: AppColors.primaryBlue,
+          seedColor: fallbackSeed,
           brightness: brightness,
         );
 
     final isDark = scheme.brightness == Brightness.dark;
 
+    // Apply a distinct chromatic tint derived from the theme seed / primary color
+    // to give pages and surfaces a signature tinted canvas instead of flat white or plain dark grey.
+    final tintedSurfaceLowest = Color.alphaBlend(
+      scheme.primary.withValues(alpha: isDark ? 0.05 : 0.025),
+      scheme.surfaceContainerLowest,
+    );
+    final tintedScaffoldBg = Color.alphaBlend(
+      scheme.primary.withValues(alpha: isDark ? 0.09 : 0.05),
+      scheme.surfaceContainerLow,
+    );
+    final tintedSurfaceContainer = Color.alphaBlend(
+      scheme.primary.withValues(alpha: isDark ? 0.12 : 0.075),
+      scheme.surfaceContainer,
+    );
+    final tintedSurfaceContainerHigh = Color.alphaBlend(
+      scheme.primary.withValues(alpha: isDark ? 0.16 : 0.10),
+      scheme.surfaceContainerHigh,
+    );
+    final tintedSurfaceContainerHighest = Color.alphaBlend(
+      scheme.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+      scheme.surfaceContainerHighest,
+    );
+
+    final effectiveScheme = scheme.copyWith(
+      surfaceContainerLowest: tintedSurfaceLowest,
+      surfaceContainerLow: tintedScaffoldBg,
+      surfaceContainer: tintedSurfaceContainer,
+      surfaceContainerHigh: tintedSurfaceContainerHigh,
+      surfaceContainerHighest: tintedSurfaceContainerHighest,
+      surface: tintedScaffoldBg,
+    );
+
     return ThemeData(
       useMaterial3: true,
-      brightness: scheme.brightness,
-      colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
+      brightness: effectiveScheme.brightness,
+      colorScheme: effectiveScheme,
+      scaffoldBackgroundColor: effectiveScheme.surfaceContainerLow,
       
       // Expressive TextTheme
       textTheme: TextTheme(
-        displayLarge: AppTypography.displayLarge.copyWith(color: scheme.onSurface),
-        displayMedium: AppTypography.displayMedium.copyWith(color: scheme.onSurface),
-        displaySmall: AppTypography.displaySmall.copyWith(color: scheme.onSurface),
-        headlineLarge: AppTypography.headlineLarge.copyWith(color: scheme.onSurface),
-        headlineMedium: AppTypography.headlineMedium.copyWith(color: scheme.onSurface),
-        headlineSmall: AppTypography.headlineSmall.copyWith(color: scheme.onSurface),
-        titleLarge: AppTypography.titleLarge.copyWith(color: scheme.onSurface),
-        titleMedium: AppTypography.titleMedium.copyWith(color: scheme.onSurface),
-        titleSmall: AppTypography.titleSmall.copyWith(color: scheme.onSurface),
-        bodyLarge: AppTypography.bodyLarge.copyWith(color: scheme.onSurface),
-        bodyMedium: AppTypography.bodyMedium.copyWith(color: scheme.onSurface),
-        bodySmall: AppTypography.bodySmall.copyWith(color: scheme.onSurfaceVariant),
-        labelLarge: AppTypography.labelLarge.copyWith(color: scheme.onSurface),
-        labelMedium: AppTypography.labelMedium.copyWith(color: scheme.onSurfaceVariant),
-        labelSmall: AppTypography.labelSmall.copyWith(color: scheme.onSurfaceVariant),
+        displayLarge: AppTypography.displayLarge.copyWith(color: effectiveScheme.onSurface),
+        displayMedium: AppTypography.displayMedium.copyWith(color: effectiveScheme.onSurface),
+        displaySmall: AppTypography.displaySmall.copyWith(color: effectiveScheme.onSurface),
+        headlineLarge: AppTypography.headlineLarge.copyWith(color: effectiveScheme.onSurface),
+        headlineMedium: AppTypography.headlineMedium.copyWith(color: effectiveScheme.onSurface),
+        headlineSmall: AppTypography.headlineSmall.copyWith(color: effectiveScheme.onSurface),
+        titleLarge: AppTypography.titleLarge.copyWith(color: effectiveScheme.onSurface),
+        titleMedium: AppTypography.titleMedium.copyWith(color: effectiveScheme.onSurface),
+        titleSmall: AppTypography.titleSmall.copyWith(color: effectiveScheme.onSurface),
+        bodyLarge: AppTypography.bodyLarge.copyWith(color: effectiveScheme.onSurface),
+        bodyMedium: AppTypography.bodyMedium.copyWith(color: effectiveScheme.onSurface),
+        bodySmall: AppTypography.bodySmall.copyWith(color: effectiveScheme.onSurfaceVariant),
+        labelLarge: AppTypography.labelLarge.copyWith(color: effectiveScheme.onSurface),
+        labelMedium: AppTypography.labelMedium.copyWith(color: effectiveScheme.onSurfaceVariant),
+        labelSmall: AppTypography.labelSmall.copyWith(color: effectiveScheme.onSurfaceVariant),
       ),
 
       // App Bar: Expressive M3 with surface scroll elevation
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
-        foregroundColor: scheme.onSurface,
+        backgroundColor: effectiveScheme.surfaceContainerLow,
+        foregroundColor: effectiveScheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: 2,
-        surfaceTintColor: scheme.surfaceTint,
+        surfaceTintColor: Colors.transparent,
         centerTitle: false,
         titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.3,
-          color: scheme.onSurface,
+          color: effectiveScheme.onSurface,
         ),
       ),
 
@@ -64,18 +97,18 @@ class AndroidTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
           side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+            color: effectiveScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
             width: 1,
           ),
         ),
-        color: scheme.surfaceContainerLow,
+        color: effectiveScheme.surfaceContainer,
         margin: EdgeInsets.zero,
       ),
 
       // Floating Action Button: Expressive Rounded Squircle (20dp) with M3E Elevation
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.onPrimaryContainer,
+        backgroundColor: effectiveScheme.primaryContainer,
+        foregroundColor: effectiveScheme.onPrimaryContainer,
         elevation: 2,
         focusElevation: 4,
         hoverElevation: 4,
@@ -88,8 +121,8 @@ class AndroidTheme {
       // Navigation Bar: Expressive 80dp Pill Indicator
       navigationBarTheme: NavigationBarThemeData(
         height: 80,
-        backgroundColor: scheme.surfaceContainer,
-        indicatorColor: scheme.secondaryContainer,
+        backgroundColor: effectiveScheme.surfaceContainerHigh,
+        indicatorColor: effectiveScheme.secondaryContainer,
         indicatorShape: const StadiumBorder(),
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
@@ -98,26 +131,26 @@ class AndroidTheme {
               fontSize: 12,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.2,
-              color: scheme.onSurface,
+              color: effectiveScheme.onSurface,
             );
           }
           return TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
-            color: scheme.onSurfaceVariant,
+            color: effectiveScheme.onSurfaceVariant,
           );
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return IconThemeData(
               size: 24,
-              color: scheme.onSecondaryContainer,
+              color: effectiveScheme.onSecondaryContainer,
             );
           }
           return IconThemeData(
             size: 24,
-            color: scheme.onSurfaceVariant,
+            color: effectiveScheme.onSurfaceVariant,
           );
         }),
       ),
@@ -125,7 +158,7 @@ class AndroidTheme {
       // Input Decoration: Expressive Rounded Inputs (24dp)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.35 : 0.5),
+        fillColor: effectiveScheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.35 : 0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
           borderSide: BorderSide.none,
@@ -133,28 +166,28 @@ class AndroidTheme {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
           borderSide: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+            color: effectiveScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
             width: 1,
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide(color: scheme.primary, width: 2),
+          borderSide: BorderSide(color: effectiveScheme.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24),
-          borderSide: BorderSide(color: scheme.error, width: 1.5),
+          borderSide: BorderSide(color: effectiveScheme.error, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         labelStyle: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: scheme.onSurfaceVariant,
+          color: effectiveScheme.onSurfaceVariant,
         ),
         floatingLabelStyle: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w700,
-          color: scheme.primary,
+          color: effectiveScheme.primary,
         ),
       ),
 
@@ -170,14 +203,14 @@ class AndroidTheme {
 
       // Dialog: Expressive 28dp Shape
       dialogTheme: DialogThemeData(
-        backgroundColor: scheme.surfaceContainerLow,
+        backgroundColor: effectiveScheme.surfaceContainerHighest,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
         ),
         titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: scheme.onSurface,
+          color: effectiveScheme.onSurface,
         ),
       ),
 
@@ -185,8 +218,8 @@ class AndroidTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 1,
-          backgroundColor: scheme.surfaceContainerLow,
-          foregroundColor: scheme.primary,
+          backgroundColor: effectiveScheme.surfaceContainerLow,
+          foregroundColor: effectiveScheme.primary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
@@ -197,8 +230,8 @@ class AndroidTheme {
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           elevation: 0,
-          backgroundColor: scheme.primary,
-          foregroundColor: scheme.onPrimary,
+          backgroundColor: effectiveScheme.primary,
+          foregroundColor: effectiveScheme.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
@@ -209,7 +242,7 @@ class AndroidTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           side: BorderSide(
-            color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+            color: effectiveScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
             width: 1,
           ),
           shape: RoundedRectangleBorder(
@@ -241,25 +274,25 @@ class AndroidTheme {
       // Search Bar Theme: Expressive Pill Shape
       searchBarTheme: SearchBarThemeData(
         elevation: WidgetStateProperty.all(0),
-        backgroundColor: WidgetStateProperty.all(scheme.surfaceContainerHigh),
+        backgroundColor: WidgetStateProperty.all(effectiveScheme.surfaceContainerHigh),
         shape: WidgetStateProperty.all(const StadiumBorder()),
         hintStyle: WidgetStateProperty.all(
-          TextStyle(color: scheme.onSurfaceVariant, fontSize: 14),
+          TextStyle(color: effectiveScheme.onSurfaceVariant, fontSize: 14),
         ),
       ),
 
       // Chip Theme: Expressive Stadium Shape
       chipTheme: ChipThemeData(
         shape: const StadiumBorder(),
-        backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+        backgroundColor: effectiveScheme.surfaceContainerHighest.withValues(alpha: 0.4),
         side: BorderSide(
-          color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+          color: effectiveScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
           width: 1,
         ),
         labelStyle: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: scheme.onSurface,
+          color: effectiveScheme.onSurface,
         ),
       ),
 
@@ -273,7 +306,7 @@ class AndroidTheme {
 
       // Divider Theme
       dividerTheme: DividerThemeData(
-        color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+        color: effectiveScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
         thickness: 1,
         space: 1,
       ),

@@ -8,8 +8,10 @@ import '../../core/theme/adaptive_theme.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
+import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../data/models/party_model.dart';
 import '../providers/ledger_providers.dart';
+
 
 class AddPartyDialog extends ConsumerStatefulWidget {
   final PartyType initialType;
@@ -177,7 +179,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
         ? (isDark
             ? CupertinoColors.systemBackground.darkColor
             : CupertinoColors.systemBackground)
-        : Theme.of(context).colorScheme.surface;
+        : Theme.of(context).colorScheme.surfaceContainerHighest;
 
     return PopScope(
       canPop: _isClean,
@@ -189,9 +191,13 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
         }
       },
       child: DraggableScrollableSheet(
-        initialChildSize: 0.44,
+        initialChildSize: 0.42,
         minChildSize: 0.25,
-        maxChildSize: 0.50,
+        maxChildSize: 0.88,
+        snap: true,
+        snapSizes: const [0.42, 0.88],
+        snapAnimationDuration: const Duration(milliseconds: 250),
+        shouldCloseOnMinExtent: true,
         expand: false,
         builder: (context, scrollController) {
           return Container(
@@ -203,7 +209,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
             padding: EdgeInsets.only(
               left: 20,
               right: 20,
-              top: 12,
+              top: 8,
               bottom: MediaQuery.of(context).viewInsets.bottom + 24,
             ),
             child: SingleChildScrollView(
@@ -213,19 +219,8 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Top Drag Handle
-                  Center(
-                    child: Container(
-                      height: 4.0,
-                      width: 32.0,
-                      margin: const EdgeInsets.only(bottom: 16.0),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant
-                            .withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(2.0),
-                      ),
-                    ),
+                  const ModalDragHandle(
+                    margin: EdgeInsets.only(bottom: 12.0),
                   ),
 
                   // Header Title
@@ -283,6 +278,25 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                         ),
                         onPressed: _importFromContacts,
                       ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      filled: true,
+                      fillColor:
+                          Theme.of(context).colorScheme.surfaceContainerLowest,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -295,10 +309,29 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                       color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.w500,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Phone Number',
-                      prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
                       hintText: '9876543210',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
+                      filled: true,
+                      fillColor:
+                          Theme.of(context).colorScheme.surfaceContainerLowest,
                     ),
                   ),
 

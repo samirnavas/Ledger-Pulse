@@ -10,8 +10,10 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
+import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../data/models/transaction_model.dart';
 import '../providers/ledger_providers.dart';
+
 
 class AddEntryBottomSheet extends ConsumerStatefulWidget {
   final String partyId;
@@ -239,12 +241,16 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     } else {
       showModalBottomSheet(
         context: context,
+        showDragHandle: true,
+        enableDrag: true,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+        barrierColor: Colors.black.withValues(alpha: 0.35),
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         builder: (context) => SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,73 +357,139 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
   }) {
     final isIos = AdaptiveThemeHelper.isIos(context);
 
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        height: 52,
-        child: Material(
-          color: isAction
-              ? (isIos
-                  ? CupertinoColors.systemGrey5
-                  : Theme.of(context).colorScheme.surfaceContainerHighest)
-              : (isIos
-                  ? (Theme.of(context).brightness == Brightness.dark
-                      ? CupertinoColors.systemGrey6
-                      : CupertinoColors.white)
-                  : Theme.of(context).colorScheme.surfaceContainerLow),
-          borderRadius: BorderRadius.circular(isIos ? 14 : 20),
-          child: InkWell(
-            onTap: onTap,
-            onLongPress: onLongPress,
-            borderRadius: BorderRadius.circular(isIos ? 14 : 20),
-            child: Center(
-              child: icon != null
-                  ? Icon(icon,
-                      size: 24,
-                      color: Theme.of(context).colorScheme.onSurface)
-                  : Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: label == '00' ? 20 : 24,
-                        fontWeight: FontWeight.w800,
-                        color: Theme.of(context).colorScheme.onSurface,
+    if (isIos) {
+      return Expanded(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          height: 52,
+          child: Material(
+            color: isAction
+                ? CupertinoColors.systemGrey5
+                : (Theme.of(context).brightness == Brightness.dark
+                    ? CupertinoColors.systemGrey6
+                    : CupertinoColors.white),
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              onTap: onTap,
+              onLongPress: onLongPress,
+              borderRadius: BorderRadius.circular(14),
+              child: Center(
+                child: icon != null
+                    ? Icon(icon,
+                        size: 24,
+                        color: Theme.of(context).colorScheme.onSurface)
+                    : Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: label == '00' ? 20 : 24,
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
-                    ),
+              ),
             ),
           ),
+        ),
+      );
+    }
+
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: FilledButton.tonal(
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          onLongPress: onLongPress != null
+              ? () {
+                  HapticFeedback.mediumImpact();
+                  onLongPress();
+                }
+              : null,
+          style: ButtonStyle(
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(vertical: 18),
+            ),
+          ),
+          child: icon != null
+              ? Icon(icon, size: 24)
+              : Text(
+                  label,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: label == '00' ? 20 : null,
+                      ),
+                ),
         ),
       ),
     );
   }
 
   Widget _buildQuickPresetChip(int amount) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _addQuickPreset(amount),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          padding: const EdgeInsets.symmetric(vertical: 9),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withValues(
-                alpha: Theme.of(context).brightness == Brightness.dark
-                    ? 0.2
-                    : 0.1),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
-              width: 1.2,
+    final isIos = AdaptiveThemeHelper.isIos(context);
+
+    if (isIos) {
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => _addQuickPreset(amount),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withValues(
+                  alpha: Theme.of(context).brightness == Brightness.dark
+                      ? 0.2
+                      : 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color:
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
+                width: 1.2,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                '+₹$amount',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
             ),
           ),
-          child: Center(
+        ),
+      );
+    }
+
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: ActionChip(
+          onPressed: () => _addQuickPreset(amount),
+          label: Center(
             child: Text(
               '+₹$amount',
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
                 color: Theme.of(context).colorScheme.primary,
               ),
             ),
+          ),
+          side: BorderSide(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
+          backgroundColor:
+              Theme.of(context).colorScheme.surfaceContainerHigh,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
@@ -437,7 +509,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
         ? (Theme.of(context).brightness == Brightness.dark
             ? CupertinoColors.systemGroupedBackground.darkColor
             : CupertinoColors.systemGroupedBackground)
-        : Theme.of(context).colorScheme.surface;
+        : Theme.of(context).colorScheme.surfaceContainerHighest;
 
     return PopScope(
       canPop: _isClean,
@@ -450,8 +522,12 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
       },
       child: DraggableScrollableSheet(
         initialChildSize: 0.55,
-        minChildSize: 0.3,
+        minChildSize: 0.25,
         maxChildSize: 0.95,
+        snap: true,
+        snapSizes: const [0.55, 0.95],
+        snapAnimationDuration: const Duration(milliseconds: 250),
+        shouldCloseOnMinExtent: true,
         expand: false,
         builder: (context, scrollController) {
           return Container(
@@ -463,7 +539,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
             padding: EdgeInsets.only(
               left: 16,
               right: 16,
-              top: 12,
+              top: 8,
               bottom: MediaQuery.of(context).viewInsets.bottom + 16,
             ),
             child: SingleChildScrollView(
@@ -473,19 +549,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Top Drag Handle
-                  Center(
-                    child: Container(
-                      height: 4.0,
-                      width: 32.0,
-                      margin: const EdgeInsets.only(bottom: 12.0),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant
-                            .withValues(alpha: 0.4),
-                        borderRadius: BorderRadius.circular(2.0),
-                      ),
-                    ),
+                  const ModalDragHandle(
+                    margin: EdgeInsets.only(bottom: 8.0),
                   ),
 
                   // Top Header: Type Indicator & Party Name & Close Button
@@ -662,7 +727,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                               : CupertinoColors.white)
                           : Theme.of(context)
                               .colorScheme
-                              .surfaceContainerLow,
+                              .surfaceContainer,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: _errorMessage != null
@@ -862,7 +927,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                                 : CupertinoColors.white)
                             : Theme.of(context)
                                 .colorScheme
-                                .surfaceContainerLow,
+                                .surfaceContainer,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: Theme.of(context)

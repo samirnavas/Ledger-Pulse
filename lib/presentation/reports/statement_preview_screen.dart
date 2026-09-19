@@ -8,7 +8,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:real_liquid_glass/real_liquid_glass.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/colors.dart';
@@ -23,6 +22,7 @@ import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../providers/ledger_providers.dart';
+import 'pdf_export_modal.dart';
 
 enum StatementPeriod {
   thirtyDays,
@@ -283,13 +283,16 @@ class _StatementPreviewScreenState
       final file = File('${tempDir.path}/$fileName');
       await file.writeAsBytes(pdfBytes);
 
-      final xFile = XFile(file.path, mimeType: 'application/pdf', name: fileName);
-      // ignore: deprecated_member_use
-      await Share.shareXFiles(
-        [xFile],
-        text: 'Ledger Statement for ${party.name} (${_selectedPeriod.label})',
-        subject: 'Statement - ${party.name}',
-      );
+      if (mounted) {
+        await PdfExportModal.show(
+          context: context,
+          pdfBytes: pdfBytes,
+          file: file,
+          fileName: fileName,
+          partyName: party.name,
+          periodLabel: _selectedPeriod.label,
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,8 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import '../constants/colors.dart';
-import '../theme/adaptive_theme.dart';
 
 /// A reusable skeleton shimmer widget matching the PartyListTile layout
 /// with an avatar circle, two text lines, and a trailing amount chip.
@@ -11,28 +9,16 @@ class SkeletonListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
-    final baseColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final baseColor =
+        isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
     final highlightColor =
         isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC);
-    final containerBg =
-        isDark ? AppColors.surfaceCardDark : AppColors.surfaceWhite;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isIos
-            ? containerBg.withValues(alpha: 0.6)
-            : Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(isIos ? 16 : 24),
-        border: Border.all(
-          color: AppColors.borderLight.withValues(alpha: isDark ? 0.2 : 0.6),
-          width: 1,
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Shimmer.fromColors(
         baseColor: baseColor,
         highlightColor: highlightColor,
@@ -57,16 +43,16 @@ class SkeletonListTile extends StatelessWidget {
                 children: [
                   Container(
                     width: 130,
-                    height: 14,
+                    height: 15,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(6),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Container(
-                    width: 80,
-                    height: 10,
+                    width: 90,
+                    height: 11,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(5),
@@ -76,37 +62,22 @@ class SkeletonListTile extends StatelessWidget {
               ),
             ),
 
-            // Trailing Net Balance & Status Tag
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 64,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  width: 52,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 4),
+            // Trailing Net Balance
             Container(
-              width: 14,
-              height: 14,
+              width: 64,
+              height: 16,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(3),
               ),
             ),
           ],
@@ -122,45 +93,21 @@ class SkeletonLedgerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
-    final baseColor = isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+    final baseColor =
+        isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
     final highlightColor =
         isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC);
-    final containerBg =
-        isDark ? AppColors.surfaceCardDark : AppColors.surfaceWhite;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isIos
-            ? containerBg.withValues(alpha: 0.6)
-            : Theme.of(context).colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(isIos ? 16 : 24),
-        border: Border.all(
-          color: AppColors.borderLight.withValues(alpha: isDark ? 0.2 : 0.6),
-          width: 1,
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Shimmer.fromColors(
         baseColor: baseColor,
         highlightColor: highlightColor,
         child: Row(
           children: [
-            // Entry Type Badge ("GAVE" / "GOT" placeholder)
-            Container(
-              width: 44,
-              height: 26,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            const SizedBox(width: 12),
-
             // Note & Timestamp
             Expanded(
               child: Column(
@@ -168,7 +115,7 @@ class SkeletonLedgerTile extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 120,
+                    width: 130,
                     height: 14,
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -177,8 +124,8 @@ class SkeletonLedgerTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Container(
-                    width: 60,
-                    height: 10,
+                    width: 70,
+                    height: 11,
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(5),
@@ -194,16 +141,16 @@ class SkeletonLedgerTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 58,
-                  height: 14,
+                  width: 64,
+                  height: 15,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(6),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Container(
-                  width: 72,
+                  width: 54,
                   height: 10,
                   decoration: BoxDecoration(
                     color: Colors.white,

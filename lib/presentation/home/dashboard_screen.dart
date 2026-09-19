@@ -12,8 +12,7 @@ import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/party_model.dart';
-import '../auth/phone_input_screen.dart';
-import '../providers/auth_providers.dart';
+import '../profile/profile_screen.dart';
 import '../providers/ledger_providers.dart';
 import 'add_party_dialog.dart';
 import 'party_list_tab.dart';
@@ -33,18 +32,13 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  void _handleLogout(BuildContext context, WidgetRef ref) async {
+  void _openProfile(BuildContext context) {
     HapticFeedback.lightImpact();
-    await ref.read(authControllerProvider.notifier).logout();
-    if (context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        createAdaptivePageRoute(
-          builder: (context) => const PhoneInputScreen(),
-          transitionType: SharedAxisTransitionType.scaled,
-        ),
-        (route) => false,
-      );
-    }
+    Navigator.of(context).push(
+      createAdaptivePageRoute(
+        builder: (context) => const ProfileScreen(),
+      ),
+    );
   }
 
   @override
@@ -66,7 +60,21 @@ class DashboardScreen extends ConsumerWidget {
         ref.read(isPartySearchActiveProvider.notifier).setActive(false);
       },
       child: AdaptiveScaffold(
-        title: AppStrings.appName,
+        titleWidget: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: Image.asset(
+                'assets/icons/app_icon.png',
+                height: 28,
+                width: 28,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(AppStrings.appName),
+          ],
+        ),
       actions: [
         // iOS Add Party Action in navigation bar
         if (isIos)
@@ -79,15 +87,15 @@ class DashboardScreen extends ConsumerWidget {
             child: const Icon(CupertinoIcons.add, size: 22),
           ),
 
-        // Logout button
+        // Profile button
         IconButton(
-          tooltip: 'Logout',
+          tooltip: 'Profile',
           icon: Icon(
-            isIos ? CupertinoIcons.square_arrow_right : Icons.logout_rounded,
-            size: 20,
+            isIos ? CupertinoIcons.person_crop_circle : Icons.account_circle_outlined,
+            size: 22,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          onPressed: () => _handleLogout(context, ref),
+          onPressed: () => _openProfile(context),
         ),
       ],
       // Android M3 Expressive Floating Action Button
@@ -135,7 +143,7 @@ class DashboardScreen extends ConsumerWidget {
                 loading: () => Container(
                   height: 90,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerLow,
+                    color: Theme.of(context).colorScheme.surfaceContainer,
                     borderRadius: BorderRadius.circular(28),
                   ),
                   child: const Center(child: CupertinoActivityIndicator()),
@@ -237,7 +245,7 @@ class DashboardScreen extends ConsumerWidget {
                             : Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                                  color: Theme.of(context).colorScheme.surfaceContainer,
                                   borderRadius: BorderRadius.circular(28),
                                   border: Border.all(
                                     color: AppColors.receivableGreen.withValues(alpha: isDark ? 0.35 : 0.2),
@@ -259,7 +267,7 @@ class DashboardScreen extends ConsumerWidget {
                             : Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surfaceContainerLow,
+                                  color: Theme.of(context).colorScheme.surfaceContainer,
                                   borderRadius: BorderRadius.circular(28),
                                   border: Border.all(
                                     color: AppColors.payableRed.withValues(alpha: isDark ? 0.35 : 0.2),
@@ -277,23 +285,9 @@ class DashboardScreen extends ConsumerWidget {
             secondChild: const SizedBox(width: double.infinity, height: 0),
           ),
 
-          // 2. Sticky Party List with search & sort animated with SharedAxisTransition
-          Expanded(
-            child: PageTransitionSwitcher(
-              duration: const Duration(milliseconds: 250),
-              transitionBuilder: (child, primaryAnimation, secondaryAnimation) {
-                return SharedAxisTransition(
-                  animation: primaryAnimation,
-                  secondaryAnimation: secondaryAnimation,
-                  transitionType: SharedAxisTransitionType.horizontal,
-                  child: child,
-                );
-              },
-              child: KeyedSubtree(
-                key: ValueKey<PartyType?>(activeFilter),
-                child: const PartyListTab(),
-              ),
-            ),
+          // 2. Sticky Party List with search & sort
+          const Expanded(
+            child: PartyListTab(),
           ),
         ],
       ),

@@ -14,6 +14,7 @@ import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/amount_text.dart';
+import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
 import '../../data/models/party_model.dart';
@@ -26,10 +27,14 @@ import 'add_entry_bottom_sheet.dart';
 class PartyLedgerScreen extends ConsumerWidget {
   final String partyId;
 
-  const PartyLedgerScreen({
-    super.key,
-    required this.partyId,
-  });
+  const PartyLedgerScreen({super.key, required this.partyId});
+
+  String _getInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return 'P';
+    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
 
   Future<void> _makePhoneCall(BuildContext context, String phoneNumber) async {
     HapticFeedback.lightImpact();
@@ -54,7 +59,10 @@ class PartyLedgerScreen extends ConsumerWidget {
   }
 
   void _openAddEntrySheet(
-      BuildContext context, Party party, EntryType entryType) {
+    BuildContext context,
+    Party party,
+    EntryType entryType,
+  ) {
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
@@ -72,12 +80,18 @@ class PartyLedgerScreen extends ConsumerWidget {
 
   void _showReceiptDialog(BuildContext context, LedgerEntry entry) {
     HapticFeedback.lightImpact();
-              showDialog(
+    final isIos = AdaptiveThemeHelper.isIos(context);
+
+    showAdaptiveDraggableModal(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
+      initialChildSize: 0.65,
+      minChildSize: 0.3,
+      maxChildSize: 0.92,
+      snapSizes: const [0.65, 0.92],
+      builder: (context, scrollController) {
+        return SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,10 +101,17 @@ class PartyLedgerScreen extends ConsumerWidget {
                 children: [
                   const Text(
                     'Bill / Receipt',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: -0.2),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                    ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 20),
+                    icon: Icon(
+                      isIos ? CupertinoIcons.xmark_circle_fill : Icons.close_rounded,
+                      size: 22,
+                    ),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
@@ -101,7 +122,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                 child: entry.receiptPhotoUrl!.startsWith('http')
                     ? Image.network(
                         entry.receiptPhotoUrl!,
-                        height: 240,
+                        height: 280,
                         width: double.infinity,
                         fit: BoxFit.cover,
                         errorBuilder: (context, _, _) => Container(
@@ -114,7 +135,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                       )
                     : Image.file(
                         File(entry.receiptPhotoUrl!),
-                        height: 240,
+                        height: 280,
                         width: double.infinity,
                         fit: BoxFit.cover,
                         errorBuilder: (context, _, _) => Container(
@@ -126,11 +147,11 @@ class PartyLedgerScreen extends ConsumerWidget {
                         ),
                       ),
               ),
-              const SizedBox(height: 14),
-              if (entry.note != null) ...[
+              const SizedBox(height: 16),
+              if (entry.note != null && entry.note!.trim().isNotEmpty) ...[
                 Text(
                   'Note: ${entry.note}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                 ),
                 const SizedBox(height: 6),
               ],
@@ -140,8 +161,8 @@ class PartyLedgerScreen extends ConsumerWidget {
               ),
             ],
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -157,8 +178,7 @@ class PartyLedgerScreen extends ConsumerWidget {
       loading: () => AdaptiveScaffold(
         title: 'Party Ledger',
         body: ListView.builder(
-          padding: const EdgeInsets.symmetric(
-              horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           itemCount: 6,
           itemBuilder: (context, index) => const SkeletonLedgerTile(),
         ),
@@ -192,17 +212,19 @@ class PartyLedgerScreen extends ConsumerWidget {
           ],
           // Persistent Bottom Action Bar: Side-by-side [ - You Gave ] & [ + You Got ]
           bottomNavigationBar: Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
             decoration: BoxDecoration(
               color: isIos
                   ? CupertinoColors.systemBackground
-                  : Theme.of(context).colorScheme.surfaceContainer,
+                  : Theme.of(context).colorScheme.surfaceContainerHigh,
               border: Border(
                 top: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                      alpha: Theme.of(context).brightness == Brightness.dark
-                          ? 0.35
-                          : 0.5),
+                  color: Theme.of(context).colorScheme.outlineVariant
+                      .withValues(
+                        alpha: Theme.of(context).brightness == Brightness.dark
+                            ? 0.35
+                            : 0.5,
+                      ),
                   width: 1,
                 ),
               ),
@@ -226,7 +248,11 @@ class PartyLedgerScreen extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
-                        Icon(Icons.arrow_upward_rounded, size: 20, color: Colors.white),
+                        Icon(
+                          Icons.arrow_upward_rounded,
+                          size: 20,
+                          color: Colors.white,
+                        ),
                         SizedBox(width: 8),
                         Text(
                           AppStrings.youGave,
@@ -251,7 +277,11 @@ class PartyLedgerScreen extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
-                        Icon(Icons.arrow_downward_rounded, size: 20, color: Colors.white),
+                        Icon(
+                          Icons.arrow_downward_rounded,
+                          size: 20,
+                          color: Colors.white,
+                        ),
                         SizedBox(width: 8),
                         Text(
                           AppStrings.youGot,
@@ -273,17 +303,20 @@ class PartyLedgerScreen extends ConsumerWidget {
               // 1. Top Sticky Header: Contact info, Quick Call, and Net Balance
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: isIos
                       ? (isDark
-                          ? CupertinoColors.systemBackground.darkColor
-                          : CupertinoColors.white)
+                            ? CupertinoColors.systemBackground.darkColor
+                            : CupertinoColors.white)
                       : Theme.of(context).colorScheme.surfaceContainerLow,
                   border: Border(
                     bottom: BorderSide(
-                      color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                          alpha: isDark ? 0.35 : 0.5),
+                      color: Theme.of(context).colorScheme.outlineVariant
+                          .withValues(alpha: isDark ? 0.35 : 0.5),
                       width: 1,
                     ),
                   ),
@@ -291,52 +324,91 @@ class PartyLedgerScreen extends ConsumerWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Phone & Quick Call Action
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
                       children: [
-                        GestureDetector(
-                          onTap: () => _makePhoneCall(context, party.phoneNumber),
-                          child: Text(
-                            party.phoneNumber,
-                            style: AppTypography.bodyMedium.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        GestureDetector(
-                          onTap: () => _makePhoneCall(context, party.phoneNumber),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 5),
+                        if (!isIos) ...[
+                          Container(
+                            width: 48,
+                            height: 48,
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary.withValues(alpha: isDark ? 0.2 : 0.1),
-                              borderRadius: BorderRadius.circular(20),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  isIos
-                                      ? CupertinoIcons.phone_fill
-                                      : Icons.call_rounded,
-                                  size: 13,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  AppStrings.callParty,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    color: Theme.of(context).colorScheme.primary,
+                            alignment: Alignment.center,
+                            child: Text(
+                              _getInitials(party.name),
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onPrimaryContainer,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                ),
-                              ],
                             ),
                           ),
+                          const SizedBox(width: 12),
+                        ],
+                        // Phone & Quick Call Action
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            GestureDetector(
+                              onTap: () =>
+                                  _makePhoneCall(context, party.phoneNumber),
+                              child: Text(
+                                party.phoneNumber,
+                                style: AppTypography.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () =>
+                                  _makePhoneCall(context, party.phoneNumber),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary
+                                      .withValues(alpha: isDark ? 0.2 : 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      isIos
+                                          ? CupertinoIcons.phone_fill
+                                          : Icons.call_rounded,
+                                      size: 13,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      AppStrings.callParty,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -349,21 +421,23 @@ class PartyLedgerScreen extends ConsumerWidget {
                           party.netBalanceInCents > 0
                               ? "YOU'LL GET"
                               : party.netBalanceInCents < 0
-                                  ? "YOU'LL GIVE"
-                                  : 'SETTLED',
+                              ? "YOU'LL GIVE"
+                              : 'SETTLED',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.5,
                             color: party.netBalanceInCents > 0
                                 ? (isDark
-                                    ? const Color(0xFF4ADE80)
-                                    : AppColors.receivableGreenDark)
+                                      ? const Color(0xFF4ADE80)
+                                      : AppColors.receivableGreenDark)
                                 : party.netBalanceInCents < 0
-                                    ? (isDark
-                                        ? const Color(0xFFF87171)
-                                        : AppColors.payableRedDark)
-                                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                                ? (isDark
+                                      ? const Color(0xFFF87171)
+                                      : AppColors.payableRedDark)
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -383,10 +457,11 @@ class PartyLedgerScreen extends ConsumerWidget {
                 child: entriesAsync.when(
                   loading: () => ListView.builder(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     itemCount: 6,
-                    itemBuilder: (context, index) =>
-                        const SkeletonLedgerTile(),
+                    itemBuilder: (context, index) => const SkeletonLedgerTile(),
                   ),
                   error: (err, _) => Center(child: Text('Error: $err')),
                   data: (entries) {
@@ -412,19 +487,22 @@ class PartyLedgerScreen extends ConsumerWidget {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                   letterSpacing: 0.5,
                                 ),
                               ),
                               const Spacer(),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.payableRed
-                                      .withValues(alpha: 0.12),
+                                  color: AppColors.payableRed.withValues(
+                                    alpha: 0.12,
+                                  ),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Text(
@@ -440,10 +518,13 @@ class PartyLedgerScreen extends ConsumerWidget {
                               const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.receivableGreen
-                                      .withValues(alpha: 0.12),
+                                  color: AppColors.receivableGreen.withValues(
+                                    alpha: 0.12,
+                                  ),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Text(
@@ -464,14 +545,14 @@ class PartyLedgerScreen extends ConsumerWidget {
                           thickness: 0.5,
                           indent: 16,
                           endIndent: 16,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outlineVariant
+                          color: Theme.of(context).colorScheme.outlineVariant
                               .withValues(
-                                  alpha: Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? 0.2
-                                      : 0.35),
+                                alpha:
+                                    Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? 0.2
+                                    : 0.35,
+                              ),
                         ),
                         Expanded(
                           child: _AnimatedPartyLedgerList(
@@ -546,7 +627,8 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
         final isNew = _newlyAddedEntryIds.contains(entry.id);
 
         // Check if group header should be shown (grouping by date)
-        final showHeader = index == 0 ||
+        final showHeader =
+            index == 0 ||
             DateFormatter.formatRelative(widget.entries[index - 1].date) !=
                 DateFormatter.formatRelative(entry.date);
 
@@ -592,7 +674,8 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
               indent: 16,
               endIndent: 16,
               color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                  alpha: isDark ? 0.2 : 0.35),
+                alpha: isDark ? 0.2 : 0.35,
+              ),
             ),
           ],
         );
@@ -615,7 +698,11 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
   }
 
   Widget _buildRowContent(
-      BuildContext context, LedgerEntry entry, bool isGave, Color color) {
+    BuildContext context,
+    LedgerEntry entry,
+    bool isGave,
+    Color color,
+  ) {
     return Row(
       children: [
         // Note & Timestamp & Optional Bill Icon
@@ -643,26 +730,60 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
                     ),
                   ),
                   if (entry.receiptPhotoUrl != null) ...[
-                    const SizedBox(width: 6),
-                    GestureDetector(
-                      onTap: () => widget.onShowReceipt(context, entry),
-                      child: Row(
-                        children: const [
-                          Icon(
-                            Icons.receipt_rounded,
-                            size: 14,
-                            color: AppColors.primaryBlue,
+                    const SizedBox(width: 8),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          widget.onShowReceipt(context, entry);
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        child: Ink(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
                           ),
-                          SizedBox(width: 2),
-                          Text(
-                            'Bill',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.primaryBlue,
-                              fontWeight: FontWeight.w600,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withValues(alpha: 0.25),
+                              width: 0.8,
                             ),
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.receipt_long_rounded,
+                                size: 13,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Bill',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Icon(
+                                Icons.open_in_new_rounded,
+                                size: 11,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -763,16 +884,18 @@ class _HighlightedLedgerCardState extends State<_HighlightedLedgerCard>
             color: widget.highlightColor.withValues(alpha: flashAlpha),
             border: flashAlpha > 0.05
                 ? Border.all(
-                    color: widget.highlightColor
-                        .withValues(alpha: flashAlpha * 1.5),
+                    color: widget.highlightColor.withValues(
+                      alpha: flashAlpha * 1.5,
+                    ),
                     width: 1.5,
                   )
                 : null,
             boxShadow: flashAlpha > 0.05
                 ? [
                     BoxShadow(
-                      color: widget.highlightColor
-                          .withValues(alpha: flashAlpha * 0.4),
+                      color: widget.highlightColor.withValues(
+                        alpha: flashAlpha * 0.4,
+                      ),
                       blurRadius: 10,
                       spreadRadius: 1,
                     ),

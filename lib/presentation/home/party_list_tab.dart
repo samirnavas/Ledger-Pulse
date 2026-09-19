@@ -123,7 +123,9 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
       showModalBottomSheet(
         context: context,
         showDragHandle: true,
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
+        enableDrag: true,
+        isScrollControlled: true,
+        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
         barrierColor: Colors.black.withValues(alpha: 0.35),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -231,7 +233,10 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                         height: 44,
                         borderRadius: 14,
                         blur: 20,
-                        border: 1.0,
+                        border: 1.2,
+                        borderColor: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white.withValues(alpha: 0.22)
+                            : Colors.black.withValues(alpha: 0.15),
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Row(
                           children: [
@@ -277,73 +282,61 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                           ],
                         ),
                       )
-                    : Container(
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(
+                    : SearchBar(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        elevation: const WidgetStatePropertyAll(0),
+                        backgroundColor: WidgetStatePropertyAll(
+                          Theme.of(context).colorScheme.surfaceContainerHigh,
+                        ),
+                        side: WidgetStatePropertyAll(
+                          BorderSide(
                             color: Theme.of(context)
                                 .colorScheme
                                 .outlineVariant
-                                .withValues(
-                                    alpha: Theme.of(context).brightness ==
-                                            Brightness.dark
-                                        ? 0.35
-                                        : 0.5),
-                            width: 1,
+                                .withValues(alpha: 0.6),
+                            width: 1.0,
                           ),
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.search_rounded,
-                              size: 22,
+                        shape: WidgetStatePropertyAll(
+                          RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            side: BorderSide(
                               color: Theme.of(context)
                                   .colorScheme
-                                  .onSurfaceVariant,
+                                  .outlineVariant
+                                  .withValues(alpha: 0.6),
+                              width: 1.0,
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                controller: _searchController,
-                                focusNode: _searchFocusNode,
-                                onTapOutside: (event) =>
-                                    FocusManager.instance.primaryFocus?.unfocus(),
-                                onChanged: (val) {
-                                  ref
-                                      .read(partySearchQueryProvider.notifier)
-                                      .setQuery(val);
-                                },
-                                decoration: InputDecoration(
-                                  hintText: AppStrings.searchHint,
-                                  hintStyle: TextStyle(
-                                    fontSize: 14,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
-                                  ),
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                  isDense: true,
-                                  ),
-                              ),
+                          ),
+                        ),
+                        leading: const Icon(Icons.search),
+                        hintText: AppStrings.searchHint,
+                        hintStyle: WidgetStatePropertyAll(
+                          TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: [
+                          if (currentQuery.isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: _clearSearch,
                             ),
-                            if (currentQuery.isNotEmpty)
-                              GestureDetector(
-                                onTap: _clearSearch,
-                                child: Icon(
-                                  Icons.close_rounded,
-                                  size: 20,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                                ),
-                              ),
-                          ],
+                        ],
+                        onChanged: (val) {
+                          ref
+                              .read(partySearchQueryProvider.notifier)
+                              .setQuery(val);
+                        },
+                        onTapOutside: (event) =>
+                            FocusManager.instance.primaryFocus?.unfocus(),
+                        constraints: const BoxConstraints(
+                          minHeight: 48,
+                          maxHeight: 48,
                         ),
                       ),
               ),
@@ -402,53 +395,67 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
           ),
         ),
 
-        // 2. Party List View
+        // 2. Party List View (smooth list-only animated transition)
         Expanded(
-          child: partiesAsync.when(
-            loading: () => ListView.separated(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 6),
-              itemCount: 6,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) => const SkeletonListTile(),
-            ),
-            error: (err, stack) => Center(
-              child: Text('Error loading parties: $err'),
-            ),
-            data: (parties) {
-              if (parties.isEmpty) {
-                final filter = ref.watch(selectedPartyTypeFilterProvider);
-                final tabName = filter == PartyType.supplier ? 'Suppliers' : 'Customers';
-
-                return EmptyStateView(
-                  lottieAsset: 'assets/animations/empty_ledger.json',
-                  fallbackIcon: currentQuery.isNotEmpty
-                      ? Icons.search_off_rounded
-                      : (filter == PartyType.supplier
-                          ? Icons.local_shipping_outlined
-                          : Icons.people_outline_rounded),
-                  title: currentQuery.isNotEmpty
-                      ? 'No matches for "$currentQuery"'
-                      : 'No $tabName Found',
-                  subtitle: currentQuery.isNotEmpty
-                      ? 'Try searching by a different name or phone number.'
-                      : 'Add a new ${filter == PartyType.supplier ? 'supplier' : 'customer'} to start tracking transactions.',
-                );
-              }
-
-              final isDark = Theme.of(context).brightness == Brightness.dark;
-
-              return ListView.separated(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                itemCount: parties.length,
-                separatorBuilder: (_, _) => Divider(
-                  height: 1,
-                  thickness: 0.5,
-                  indent: 76,
-                  endIndent: 16,
-                  color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                      alpha: isDark ? 0.2 : 0.35),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: KeyedSubtree(
+              key: ValueKey<PartyType?>(ref.watch(selectedPartyTypeFilterProvider)),
+              child: partiesAsync.when(
+                loading: () => ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  itemCount: 6,
+                  separatorBuilder: (_, _) => Divider(
+                    height: 1,
+                    thickness: 0.5,
+                    indent: 76,
+                    endIndent: 16,
+                    color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                        alpha: Theme.of(context).brightness == Brightness.dark
+                            ? 0.2
+                            : 0.35),
+                  ),
+                  itemBuilder: (context, index) => const SkeletonListTile(),
                 ),
+                error: (err, stack) => Center(
+                  child: Text('Error loading parties: $err'),
+                ),
+                data: (parties) {
+                  if (parties.isEmpty) {
+                    final filter = ref.watch(selectedPartyTypeFilterProvider);
+                    final tabName = filter == PartyType.supplier ? 'Suppliers' : 'Customers';
+
+                    return EmptyStateView(
+                      lottieAsset: 'assets/animations/empty_ledger.json',
+                      fallbackIcon: currentQuery.isNotEmpty
+                          ? Icons.search_off_rounded
+                          : (filter == PartyType.supplier
+                              ? Icons.local_shipping_outlined
+                              : Icons.people_outline_rounded),
+                      title: currentQuery.isNotEmpty
+                          ? 'No matches for "$currentQuery"'
+                          : 'No $tabName Found',
+                      subtitle: currentQuery.isNotEmpty
+                          ? 'Try searching by a different name or phone number.'
+                          : 'Add a new ${filter == PartyType.supplier ? 'supplier' : 'customer'} to start tracking transactions.',
+                    );
+                  }
+
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+
+                  return ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: parties.length,
+                    separatorBuilder: (_, _) => Divider(
+                      height: 1,
+                      thickness: 0.5,
+                      indent: 76,
+                      endIndent: 16,
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                          alpha: isDark ? 0.2 : 0.35),
+                    ),
                 itemBuilder: (context, index) {
                   final party = parties[index];
                   final avatarBg = _getAvatarColor(party.name);
@@ -457,18 +464,42 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                   final Widget rowContent = Row(
                     children: [
                       // Avatar
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor: avatarBg.withValues(alpha: 0.15),
-                        child: Text(
-                          initials,
-                          style: TextStyle(
-                            color: avatarBg,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
+                      isIos
+                          ? CircleAvatar(
+                              radius: 22,
+                              backgroundColor: avatarBg.withValues(alpha: 0.15),
+                              child: Text(
+                                initials,
+                                style: TextStyle(
+                                  color: avatarBg,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primaryContainer,
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                initials,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimaryContainer,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                            ),
                       const SizedBox(width: 14),
 
                       // Party Name & Date
@@ -537,6 +568,8 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                 },
               );
             },
+          ),
+          ),
           ),
         ),
       ],

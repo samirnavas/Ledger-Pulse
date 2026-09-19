@@ -48,6 +48,7 @@ class AdaptiveBottomNav extends StatelessWidget {
 
     // Android Material 3 Expressive NavigationBar
     return NavigationBar(
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
       selectedIndex: currentIndex,
       onDestinationSelected: onTap,
       destinations: const [

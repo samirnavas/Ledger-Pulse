@@ -13,58 +13,43 @@ Route<T> createAdaptivePageRoute<T>({
   RouteSettings? settings,
   SharedAxisTransitionType transitionType = SharedAxisTransitionType.horizontal,
   bool useFadeThrough = false,
+  bool fullscreenDialog = false,
 }) {
+  if (useFadeThrough) {
+    return PageRouteBuilder<T>(
+      settings: settings,
+      pageBuilder: (context, animation, secondaryAnimation) => builder(context),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeThroughTransition(
+          animation: animation,
+          secondaryAnimation: secondaryAnimation,
+          child: child,
+        );
+      },
+    );
+  }
+
   return AdaptivePageRoute<T>(
     builder: builder,
     settings: settings,
     transitionType: transitionType,
     useFadeThrough: useFadeThrough,
+    fullscreenDialog: fullscreenDialog,
   );
 }
 
-class AdaptivePageRoute<T> extends PageRoute<T> {
-  final WidgetBuilder builder;
+class AdaptivePageRoute<T> extends MaterialPageRoute<T> {
   final SharedAxisTransitionType transitionType;
   final bool useFadeThrough;
 
   AdaptivePageRoute({
-    required this.builder,
+    required super.builder,
     super.settings,
     this.transitionType = SharedAxisTransitionType.horizontal,
     this.useFadeThrough = false,
+    super.fullscreenDialog = false,
+    super.maintainState = true,
   });
-
-  @override
-  Color? get barrierColor => null;
-
-  @override
-  String? get barrierLabel => null;
-
-  @override
-  bool get maintainState => true;
-
-  @override
-  Duration get transitionDuration => const Duration(milliseconds: 300);
-
-  @override
-  Duration get reverseTransitionDuration => const Duration(milliseconds: 250);
-
-  @override
-  bool canTransitionTo(TransitionRoute<dynamic> nextRoute) =>
-      nextRoute is PageRoute && nextRoute.opaque;
-
-  @override
-  bool canTransitionFrom(TransitionRoute<dynamic> previousRoute) =>
-      previousRoute is PageRoute && previousRoute.opaque;
-
-  @override
-  Widget buildPage(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-  ) {
-    return builder(context);
-  }
 
   @override
   Widget buildTransitions(
@@ -73,8 +58,15 @@ class AdaptivePageRoute<T> extends PageRoute<T> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final isIos = AdaptiveThemeHelper.isIos(context);
+    if (useFadeThrough) {
+      return FadeThroughTransition(
+        animation: animation,
+        secondaryAnimation: secondaryAnimation,
+        child: child,
+      );
+    }
 
+    final isIos = AdaptiveThemeHelper.isIos(context);
     if (isIos) {
       return const CupertinoPageTransitionsBuilder().buildTransitions<T>(
         this,
@@ -95,3 +87,4 @@ class AdaptivePageRoute<T> extends PageRoute<T> {
     );
   }
 }
+

@@ -15,6 +15,10 @@ import 'package:ledger_pulse/data/models/party_model.dart';
 import 'package:ledger_pulse/data/models/transaction_model.dart';
 import 'package:ledger_pulse/presentation/home/add_party_dialog.dart';
 import 'package:ledger_pulse/presentation/ledger/add_entry_bottom_sheet.dart';
+import 'package:ledger_pulse/data/mock/mock_ledger_repository.dart';
+import 'package:ledger_pulse/presentation/home/party_list_tab.dart';
+import 'package:ledger_pulse/presentation/ledger/party_ledger_screen.dart';
+import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 import 'package:real_liquid_glass/real_liquid_glass.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -28,7 +32,7 @@ void main() {
 
       final shape = theme.cardTheme.shape as RoundedRectangleBorder;
       expect(shape.borderRadius, equals(BorderRadius.circular(28)));
-      expect(theme.cardTheme.color, equals(theme.colorScheme.surfaceContainerLow));
+      expect(theme.cardTheme.color, equals(theme.colorScheme.surfaceContainer));
       expect(theme.floatingActionButtonTheme.elevation, equals(2));
 
       // Predictive back page transitions theme check
@@ -344,9 +348,11 @@ void main() {
 
       // Verify DraggableScrollableSheet configuration
       final sheet = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
-      expect(sheet.initialChildSize, equals(0.44));
+      expect(sheet.initialChildSize, equals(0.42));
       expect(sheet.minChildSize, equals(0.25));
-      expect(sheet.maxChildSize, equals(0.50));
+      expect(sheet.maxChildSize, equals(0.88));
+      expect(sheet.shouldCloseOnMinExtent, isTrue);
+      expect(sheet.snap, isTrue);
       expect(sheet.expand, isFalse);
 
       // Close cleanly when inputs are empty via back navigation / maybePop
@@ -456,8 +462,10 @@ void main() {
 
       final sheet = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
       expect(sheet.initialChildSize, equals(0.55));
-      expect(sheet.minChildSize, equals(0.3));
+      expect(sheet.minChildSize, equals(0.25));
       expect(sheet.maxChildSize, equals(0.95));
+      expect(sheet.shouldCloseOnMinExtent, isTrue);
+      expect(sheet.snap, isTrue);
       expect(sheet.expand, isFalse);
 
       // Close cleanly when clean
@@ -514,6 +522,121 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Alice'), findsNothing);
+    });
+  });
+
+  group('Native Material 3 Expressive Component Tests on Android', () {
+    testWidgets('PartyListTab renders M3 SearchBar and squircle avatars on Android', (WidgetTester tester) async {
+      final repo = MockLedgerRepository();
+      addTearDown(repo.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ledgerRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: MaterialApp(
+            theme: AndroidTheme.getTheme(),
+            home: const Scaffold(
+              body: PartyListTab(),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // 1. M3 SearchBar is present with elevation 0 and leading search icon
+      expect(find.byType(SearchBar), findsOneWidget);
+      final searchBar = tester.widget<SearchBar>(find.byType(SearchBar));
+      expect(searchBar.elevation?.resolve({}), equals(0));
+      expect(searchBar.leading, isA<Icon>());
+
+      // 2. Squircle avatars (Container with rounded rect decoration, not CircleAvatar)
+      expect(find.byType(CircleAvatar), findsNothing);
+      expect(find.text('RS'), findsOneWidget); // Rahul Sharma initials
+    });
+
+    testWidgets('AddEntryBottomSheet renders FilledButton.tonal keypad and ActionChips on Android', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AndroidTheme.getTheme(),
+            home: const Scaffold(
+              body: AddEntryBottomSheet(
+                partyId: 'p1',
+                partyName: 'Alice',
+                initialType: EntryType.gave,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Keypad buttons (12) + 1 Submit AdaptiveButton = 13 FilledButtons
+      expect(find.byType(FilledButton), findsNWidgets(13));
+
+      // Preset chips must be ActionChip
+      expect(find.byType(ActionChip), findsNWidgets(4)); // +₹100, +₹500, +₹1000, +₹5000
+    });
+
+    testWidgets('AddPartyDialog standardizes input fields with M3 OutlineInputBorder', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AndroidTheme.getTheme(),
+            home: const Scaffold(
+              body: AddPartyDialog(
+                initialType: PartyType.customer,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      final textFields = tester.widgetList<TextField>(find.byType(TextField)).toList();
+      expect(textFields.length, equals(2));
+
+      for (final tf in textFields) {
+        final decoration = tf.decoration;
+        expect(decoration?.filled, isTrue);
+        expect(decoration?.border, isA<OutlineInputBorder>());
+        expect(decoration?.enabledBorder, isA<OutlineInputBorder>());
+        expect(decoration?.focusedBorder, isA<OutlineInputBorder>());
+
+        final border = decoration?.border as OutlineInputBorder;
+        expect(border.borderRadius, equals(BorderRadius.circular(16)));
+      }
+    });
+
+    testWidgets('PartyLedgerScreen renders M3 Squircle avatar on Android', (WidgetTester tester) async {
+      final repo = MockLedgerRepository();
+      addTearDown(repo.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            ledgerRepositoryProvider.overrideWithValue(repo),
+          ],
+          child: MaterialApp(
+            theme: AndroidTheme.getTheme(),
+            home: const Scaffold(
+              body: PartyLedgerScreen(partyId: 'party_1'),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('RS'), findsOneWidget); // Rahul Sharma squircle avatar initials
     });
   });
 }
