@@ -20,6 +20,7 @@ class SkeletonListTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Shimmer.fromColors(
+        loop: 1,
         baseColor: baseColor,
         highlightColor: highlightColor,
         child: Row(
@@ -104,6 +105,7 @@ class SkeletonLedgerTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Shimmer.fromColors(
+        loop: 1,
         baseColor: baseColor,
         highlightColor: highlightColor,
         child: Row(

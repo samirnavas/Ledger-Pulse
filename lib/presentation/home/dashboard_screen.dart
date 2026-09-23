@@ -12,13 +12,144 @@ import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/party_model.dart';
+import '../integrations/ecommerce_sync_screen.dart';
+import '../integrations/third_party_import_screen.dart';
+import '../inventory/manufacturing_journal_screen.dart';
+import '../payments/cts2010_cheque_preview_screen.dart';
+import '../payroll/employee_list_screen.dart';
 import '../profile/profile_screen.dart';
 import '../providers/ledger_providers.dart';
+import '../reports/reporting_hub_screen.dart';
+import '../subscription/subscription_paywall_screen.dart';
 import 'add_party_dialog.dart';
+import 'company_switcher_sheet.dart';
+import 'dashboard_bi_hub_card.dart';
 import 'party_list_tab.dart';
+import 'sync_settings_sheet.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
+
+  void _showErpModulesModal(BuildContext context) {
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Ludgerpulse ERP Modules', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildModuleTile(
+              context: ctx,
+              icon: Icons.payments_rounded,
+              title: 'Payroll & Employee Salaries',
+              subtitle: 'Employee master, PF/ESI/PT deductions & PDF salary slips',
+              color: Colors.blue,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const EmployeeListScreen()));
+              },
+            ),
+            _buildModuleTile(
+              context: ctx,
+              icon: Icons.precision_manufacturing_rounded,
+              title: 'Manufacturing & BOM Journals',
+              subtitle: 'Bill of Materials, raw material deduction & production cost',
+              color: Colors.orange,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ManufacturingJournalScreen()));
+              },
+            ),
+            _buildModuleTile(
+              context: ctx,
+              icon: Icons.sync_alt_rounded,
+              title: 'Third-Party ERP & Excel Import',
+              subtitle: 'Import parties and stock from Tally, Zoho, QuickBooks & Excel',
+              color: Colors.teal,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ThirdPartyImportScreen()));
+              },
+            ),
+            _buildModuleTile(
+              context: ctx,
+              icon: Icons.shopping_cart_rounded,
+              title: 'Amazon & Flipkart Sync',
+              subtitle: 'Auto-sync marketplace orders into GST sales invoices',
+              color: Colors.amber.shade800,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const EcommerceSyncScreen()));
+              },
+            ),
+            _buildModuleTile(
+              context: ctx,
+              icon: Icons.print_rounded,
+              title: 'CTS-2010 Cheque Printing (Windows)',
+              subtitle: 'Pre-calibrated bank cheque printer with MICR zone protection',
+              color: Colors.purple,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const Cts2010ChequePreviewScreen()));
+              },
+            ),
+            _buildModuleTile(
+              context: ctx,
+              icon: Icons.star_rounded,
+              title: 'ERP Plans & Licensing Paywall',
+              subtitle: 'Manage Silver, Gold, Diamond tiers and lifetime licenses',
+              color: const Color(0xFF7C3AED),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()));
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _buildModuleTile({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color, size: 22),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+      onTap: onTap,
+    );
+  }
 
   void _showAddPartySheet(BuildContext context, PartyType initialType) {
     HapticFeedback.lightImpact();
@@ -75,7 +206,59 @@ class DashboardScreen extends ConsumerWidget {
             const Text(AppStrings.appName),
           ],
         ),
-      actions: [
+        actions: [
+          // Sync Center button
+        IconButton(
+          tooltip: 'Sync & Backup',
+          icon: Icon(
+            isIos ? CupertinoIcons.cloud_upload : Icons.sync_rounded,
+            size: 22,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          onPressed: () => SyncSettingsSheet.show(context),
+        ),
+
+        // Company Switcher button
+        IconButton(
+          tooltip: 'Switch Company',
+          icon: Icon(
+            isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded,
+            size: 22,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          onPressed: () => CompanySwitcherSheet.show(context),
+        ),
+
+        // Reports & Analytics Hub
+        IconButton(
+          tooltip: 'Reports & Analytics Hub',
+          icon: Icon(
+            isIos ? CupertinoIcons.chart_pie : Icons.insights_rounded,
+            size: 22,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.of(context).push(
+              createAdaptivePageRoute(builder: (context) => const ReportingHubScreen()),
+            );
+          },
+        ),
+
+        // ERP Modules Hub (Payroll, Manufacturing, Importers, Cheque Printing, Paywall)
+        IconButton(
+          tooltip: 'ERP Modules & Paywall',
+          icon: Icon(
+            isIos ? CupertinoIcons.square_grid_2x2 : Icons.apps_rounded,
+            size: 22,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            _showErpModulesModal(context);
+          },
+        ),
+
         // iOS Add Party Action in navigation bar
         if (isIos)
           CupertinoButton(
@@ -137,8 +320,11 @@ class DashboardScreen extends ConsumerWidget {
             crossFadeState: isSearchActive
                 ? CrossFadeState.showSecond
                 : CrossFadeState.showFirst,
-            firstChild: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            firstChild: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: summaryAsync.when(
                 loading: () => Container(
                   height: 90,
@@ -282,7 +468,10 @@ class DashboardScreen extends ConsumerWidget {
                 },
               ),
             ),
-            secondChild: const SizedBox(width: double.infinity, height: 0),
+            const DashboardBiHubCard(),
+          ],
+        ),
+        secondChild: const SizedBox(width: double.infinity, height: 0),
           ),
 
           // 2. Sticky Party List with search & sort

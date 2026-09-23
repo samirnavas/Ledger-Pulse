@@ -1,0 +1,35 @@
+<reports>
+  <report id="rpt_custom_high_value_parties" title="High Value Party Balances">
+    <description>Parties with active balances exceeding ₹10,000</description>
+    <query>
+      SELECT name AS CustomerName, phone_number AS Phone, type AS Type, (net_balance_in_cents / 100.0) AS BalanceInRupees
+      FROM parties
+      WHERE is_deleted = 0 AND ABS(net_balance_in_cents) >= 1000000
+      ORDER BY ABS(net_balance_in_cents) DESC;
+    </query>
+    <columns>
+      <column key="CustomerName" label="Customer / Vendor" />
+      <column key="Phone" label="Contact Number" />
+      <column key="Type" label="Party Type" />
+      <column key="BalanceInRupees" label="Outstanding Balance (₹)" isNumeric="true" isCurrency="true" />
+    </columns>
+  </report>
+
+  <report id="rpt_custom_inventory_turnover" title="Inventory Stock Valuation by Unit">
+    <description>Warehouse SKU stock counts and valuation in integer cents</description>
+    <query>
+      SELECT sku AS SKU, name AS ItemName, unit AS Unit, current_stock_quantity AS Quantity, (purchase_price_in_cents / 100.0) AS CostPrice, ((purchase_price_in_cents * current_stock_quantity) / 100.0) AS TotalValuation
+      FROM inventory_items
+      WHERE is_active = 1
+      ORDER BY TotalValuation DESC;
+    </query>
+    <columns>
+      <column key="SKU" label="SKU Code" />
+      <column key="ItemName" label="Item Description" />
+      <column key="Unit" label="UOM" />
+      <column key="Quantity" label="In-Stock Qty" isNumeric="true" />
+      <column key="CostPrice" label="Cost Rate (₹)" isNumeric="true" isCurrency="true" />
+      <column key="TotalValuation" label="Stock Value (₹)" isNumeric="true" isCurrency="true" />
+    </columns>
+  </report>
+</reports>

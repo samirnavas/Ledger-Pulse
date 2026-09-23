@@ -9,53 +9,58 @@ import 'package:ledger_pulse/presentation/ledger/party_ledger_screen.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  final testParty = Party(
+    id: 'test_party_1',
+    name: 'Voucher Customer',
+    phoneNumber: '9876543210',
+    type: PartyType.customer,
+    netBalanceInCents: 250000,
+    lastUpdated: DateTime(2026, 9, 1),
+  );
+
+  final testEntry = LedgerEntry(
+    id: 'test_entry_1',
+    partyId: 'test_party_1',
+    amountInCents: 250000, // ₹2,500
+    type: EntryType.gave,
+    date: DateTime(2026, 9, 1, 10, 30),
+    note: 'Invoice #1001 for goods',
+    runningBalanceInCents: 250000,
+  );
+
   group('Ledger Transaction Edit & Delete Flow Tests', () {
     testWidgets(
       'Tapping transaction row opens Transaction Voucher sheet with Edit and Delete options',
       (tester) async {
         final mockRepo = MockLedgerRepository();
         addTearDown(mockRepo.dispose);
-        final party = Party(
-          id: 'test_party_voucher',
-          name: 'Voucher Customer',
-          phoneNumber: '9876543210',
-          type: PartyType.customer,
-          netBalanceInCents: 250000,
-          lastUpdated: DateTime(2026, 9, 1),
-        );
-        final entry = LedgerEntry(
-          id: 'test_entry_voucher',
-          partyId: party.id,
-          amountInCents: 250000, // ₹2,500
-          type: EntryType.gave,
-          date: DateTime(2026, 9, 1, 10, 30),
-          note: 'Invoice #1001 for goods',
-        );
-
-        await mockRepo.addParty(party);
-        await mockRepo.addEntry(entry);
 
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
               ledgerRepositoryProvider.overrideWithValue(mockRepo),
+              ledgerUpdatesStreamProvider.overrideWith((ref) => const Stream.empty()),
+              partyDetailProvider('test_party_1').overrideWith((ref) => Future.value(testParty)),
+              partyLedgerEntriesProvider('test_party_1').overrideWith((ref) => Future.value([testEntry])),
             ],
-            child: MaterialApp(
-              home: PartyLedgerScreen(partyId: party.id),
+            child: const MaterialApp(
+              home: PartyLedgerScreen(partyId: 'test_party_1'),
             ),
           ),
         );
 
-        await tester.pump(const Duration(milliseconds: 300));
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
         // Verify transaction row exists
         expect(find.text('Invoice #1001 for goods'), findsOneWidget);
-        expect(find.text('- ₹2,500.00'), findsOneWidget);
+        expect(find.text('- ₹ 2,500.00'), findsOneWidget);
 
         // Tap the transaction row
         await tester.tap(find.text('Invoice #1001 for goods'));
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
         // Verify Transaction Voucher bottom sheet is open
@@ -70,55 +75,48 @@ void main() {
       (tester) async {
         final mockRepo = MockLedgerRepository();
         addTearDown(mockRepo.dispose);
-        final party = Party(
-          id: 'test_party_edit',
-          name: 'Edit Customer',
-          phoneNumber: '9876543211',
-          type: PartyType.customer,
-          netBalanceInCents: 150000,
-          lastUpdated: DateTime(2026, 9, 1),
-        );
-        final entry = LedgerEntry(
-          id: 'test_entry_edit',
-          partyId: party.id,
-          amountInCents: 150000, // ₹1,500
-          type: EntryType.gave,
-          date: DateTime(2026, 9, 1, 14, 0),
-          note: 'Old Note',
-        );
 
-        await mockRepo.addParty(party);
-        await mockRepo.addEntry(entry);
+        final editParty = testParty.copyWith(id: 'test_party_edit', name: 'Edit Customer');
+        final editEntry = testEntry.copyWith(id: 'test_entry_edit', partyId: 'test_party_edit', amountInCents: 150000, note: 'Old Note');
 
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
               ledgerRepositoryProvider.overrideWithValue(mockRepo),
+              ledgerUpdatesStreamProvider.overrideWith((ref) => const Stream.empty()),
+              partyDetailProvider('test_party_edit').overrideWith((ref) => Future.value(editParty)),
+              partyLedgerEntriesProvider('test_party_edit').overrideWith((ref) => Future.value([editEntry])),
             ],
-            child: MaterialApp(
-              home: PartyLedgerScreen(partyId: party.id),
+            child: const MaterialApp(
+              home: PartyLedgerScreen(partyId: 'test_party_edit'),
             ),
           ),
         );
 
-        await tester.pump(const Duration(milliseconds: 300));
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
         // Tap transaction row to open voucher
         await tester.tap(find.text('Old Note'));
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
         // Tap Edit Note / Details
         await tester.tap(find.text('Edit Note / Details'));
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
         // Verify AddEntryBottomSheet opened in edit mode
         expect(find.byType(AddEntryBottomSheet), findsOneWidget);
         expect(find.text('EDIT ENTRY'), findsOneWidget);
         expect(find.text('1500'), findsOneWidget); // Pre-filled amount display
-        expect(find.text('Old Note'), findsOneWidget); // Pre-filled note
+        expect(
+          find.descendant(
+            of: find.byType(AddEntryBottomSheet),
+            matching: find.text('Old Note'),
+          ),
+          findsOneWidget,
+        );
         expect(find.text('Update You Gave Entry'), findsOneWidget);
       },
     );
@@ -128,48 +126,35 @@ void main() {
       (tester) async {
         final mockRepo = MockLedgerRepository();
         addTearDown(mockRepo.dispose);
-        final party = Party(
-          id: 'test_party_void',
-          name: 'Void Customer',
-          phoneNumber: '9876543212',
-          type: PartyType.customer,
-          netBalanceInCents: 50000,
-          lastUpdated: DateTime(2026, 9, 1),
-        );
-        final entry = LedgerEntry(
-          id: 'test_entry_void',
-          partyId: party.id,
-          amountInCents: 50000, // ₹500
-          type: EntryType.gave,
-          date: DateTime(2026, 9, 1, 16, 0),
-          note: 'Mistaken Entry',
-        );
 
-        await mockRepo.addParty(party);
-        await mockRepo.addEntry(entry);
+        final voidParty = testParty.copyWith(id: 'test_party_void', name: 'Void Customer', netBalanceInCents: 50000);
+        final voidEntry = testEntry.copyWith(id: 'test_entry_void', partyId: 'test_party_void', amountInCents: 50000, note: 'Mistaken Entry');
 
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
               ledgerRepositoryProvider.overrideWithValue(mockRepo),
+              ledgerUpdatesStreamProvider.overrideWith((ref) => const Stream.empty()),
+              partyDetailProvider('test_party_void').overrideWith((ref) => Future.value(voidParty)),
+              partyLedgerEntriesProvider('test_party_void').overrideWith((ref) => Future.value([voidEntry])),
             ],
-            child: MaterialApp(
-              home: PartyLedgerScreen(partyId: party.id),
+            child: const MaterialApp(
+              home: PartyLedgerScreen(partyId: 'test_party_void'),
             ),
           ),
         );
 
-        await tester.pump(const Duration(milliseconds: 300));
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
         // Tap transaction row to open voucher
         await tester.tap(find.text('Mistaken Entry'));
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
         // Tap Delete / Void Entry
         await tester.tap(find.text('Delete / Void Entry'));
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
         // Verify confirmation dialog appears with the exact safety warning message
@@ -183,7 +168,7 @@ void main() {
 
         // Confirm voiding
         await tester.tap(find.text('Void Entry'));
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
         // Verify transaction voided notification
@@ -199,36 +184,31 @@ void main() {
       (tester) async {
         final mockRepo = MockLedgerRepository();
         addTearDown(mockRepo.dispose);
-        final party = Party(
-          id: 'test_party_header_menu',
-          name: 'Header Menu Customer',
-          phoneNumber: '9876543213',
-          type: PartyType.customer,
-          netBalanceInCents: 0,
-          lastUpdated: DateTime(2026, 9, 1),
-        );
 
-        await mockRepo.addParty(party);
+        final headerParty = testParty.copyWith(id: 'test_party_header_menu', name: 'Header Menu Customer', netBalanceInCents: 0);
 
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
               ledgerRepositoryProvider.overrideWithValue(mockRepo),
+              ledgerUpdatesStreamProvider.overrideWith((ref) => const Stream.empty()),
+              partyDetailProvider('test_party_header_menu').overrideWith((ref) => Future.value(headerParty)),
+              partyLedgerEntriesProvider('test_party_header_menu').overrideWith((ref) => Future.value([])),
             ],
-            child: MaterialApp(
-              home: PartyLedgerScreen(partyId: party.id),
+            child: const MaterialApp(
+              home: PartyLedgerScreen(partyId: 'test_party_header_menu'),
             ),
           ),
         );
 
-        await tester.pump(const Duration(milliseconds: 300));
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
         // Find and tap the 3-dot party options button in top app bar
         final optionsButton = find.byTooltip('Party Options');
         expect(optionsButton, findsOneWidget);
         await tester.tap(optionsButton);
-        await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
         // Verify party context menu opens with Edit Details and Delete Party

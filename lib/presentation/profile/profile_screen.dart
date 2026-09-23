@@ -10,8 +10,12 @@ import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/user_profile_model.dart';
 import '../auth/phone_input_screen.dart';
+import '../home/company_switcher_sheet.dart';
+import '../home/sync_settings_sheet.dart';
 import '../providers/auth_providers.dart';
 import '../providers/profile_provider.dart';
+import '../inventory/inventory_screen.dart';
+import '../reports/audit_log_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -238,6 +242,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             children: [
               // 1. Header Card with Avatar
               _buildHeaderCard(context, profile, isIos, isDark),
+
+              const SizedBox(height: 24),
+
+              // 1.5 ERP Foundation, Companies & Statutory Security
+              _buildSectionHeader(context, 'Enterprise & Security', Icons.admin_panel_settings_outlined, isIos),
+              const SizedBox(height: 12),
+              _buildActionTile(
+                context,
+                title: 'Active Company',
+                subtitle: profile.activeCompany.name,
+                icon: isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded,
+                isIos: isIos,
+                trailing: Chip(
+                  label: Text(
+                    profile.role.displayName,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                  visualDensity: VisualDensity.compact,
+                ),
+                onTap: () => CompanySwitcherSheet.show(context),
+              ),
+              const SizedBox(height: 10),
+              _buildActionTile(
+                context,
+                title: 'Sync & Backup Center',
+                subtitle: profile.activeCompany.isCloudSyncEnabled
+                    ? 'Supabase Cloud (PostgreSQL)'
+                    : (profile.activeCompany.isDropboxSyncEnabled ? 'Dropbox Storage Backup' : 'Local Only'),
+                icon: isIos ? CupertinoIcons.cloud_upload_fill : Icons.sync_rounded,
+                isIos: isIos,
+                onTap: () => SyncSettingsSheet.show(context),
+              ),
+              const SizedBox(height: 10),
+              _buildActionTile(
+                context,
+                title: 'Item Master & Inventory',
+                subtitle: 'SKU tracking, stock valuation & alerts',
+                icon: isIos ? CupertinoIcons.cube_box_fill : Icons.inventory_2_rounded,
+                isIos: isIos,
+                onTap: () {
+                  Navigator.of(context).push(
+                    createAdaptivePageRoute(
+                      builder: (context) => const InventoryScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _buildActionTile(
+                context,
+                title: 'Statutory Audit Trail',
+                subtitle: 'Tamper-evident SHA-256 mutation log',
+                icon: isIos ? CupertinoIcons.shield_lefthalf_fill : Icons.verified_user_rounded,
+                isIos: isIos,
+                onTap: () {
+                  Navigator.of(context).push(
+                    createAdaptivePageRoute(
+                      builder: (context) => const AuditLogScreen(),
+                    ),
+                  );
+                },
+              ),
 
               const SizedBox(height: 24),
 
@@ -556,6 +622,87 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+    );
+  }
+
+  Widget _buildActionTile(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isIos,
+    Widget? trailing,
+    required VoidCallback onTap,
+  }) {
+    if (isIos) {
+      return LiquidGlassCard(
+        borderRadius: 16,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.activeBlue.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: CupertinoColors.activeBlue, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                    ),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: CupertinoColors.secondaryLabel,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              ?trailing,
+              const SizedBox(width: 6),
+              const Icon(CupertinoIcons.chevron_forward, size: 16, color: CupertinoColors.systemGrey3),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+          foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+          child: Icon(icon, size: 20),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ?trailing,
+            const SizedBox(width: 4),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 14),
+          ],
+        ),
+        onTap: onTap,
       ),
     );
   }

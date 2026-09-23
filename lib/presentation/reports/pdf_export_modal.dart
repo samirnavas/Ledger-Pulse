@@ -5,19 +5,29 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/colors.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
+import '../../data/models/company_model.dart';
+import '../../data/models/gst_models.dart';
+import '../../data/models/party_model.dart';
+import '../../data/models/voucher_model.dart';
+import '../../data/services/payment_gateway_service.dart';
+import 'invoice_pdf_generator.dart';
 
-
-class PdfExportModal extends StatelessWidget {
+class PdfExportModal extends StatefulWidget {
   final Uint8List pdfBytes;
   final File file;
   final String fileName;
   final String partyName;
   final String periodLabel;
+  final String? partyPhone;
+  final VoucherModel? voucher;
+  final Company? company;
+  final Party? party;
 
   const PdfExportModal({
     super.key,
@@ -26,6 +36,10 @@ class PdfExportModal extends StatelessWidget {
     required this.fileName,
     required this.partyName,
     required this.periodLabel,
+    this.partyPhone,
+    this.voucher,
+    this.company,
+    this.party,
   });
 
   static Future<void> show({
@@ -35,6 +49,10 @@ class PdfExportModal extends StatelessWidget {
     required String fileName,
     required String partyName,
     required String periodLabel,
+    String? partyPhone,
+    VoucherModel? voucher,
+    Company? company,
+    Party? party,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -48,18 +66,159 @@ class PdfExportModal extends StatelessWidget {
         fileName: fileName,
         partyName: partyName,
         periodLabel: periodLabel,
+        partyPhone: partyPhone,
+        voucher: voucher,
+        company: company,
+        party: party,
       ),
     );
   }
 
-  Future<void> _sharePdf(BuildContext context) async {
+  @override
+  State<PdfExportModal> createState() => _PdfExportModalState();
+}
+
+class _PdfExportModalState extends State<PdfExportModal> {
+  late Uint8List _currentPdfBytes;
+  late File _currentFile;
+  InvoiceTemplateType _selectedTemplate = InvoiceTemplateType.gstStatutory;
+  InvoiceCustomization _customization = const InvoiceCustomization();
+  bool _isRegenerating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentPdfBytes = widget.pdfBytes;
+    _currentFile = widget.file;
+  }
+
+  bool get _isInvoiceMode => widget.voucher != null && widget.company != null && widget.party != null;
+
+  Future<void> _changeTemplate(InvoiceTemplateType template) async {
+    if (!_isInvoiceMode || _selectedTemplate == template) return;
     HapticFeedback.lightImpact();
-    final xFile = XFile(file.path, mimeType: 'application/pdf', name: fileName);
+    setState(() {
+      _selectedTemplate = template;
+      _isRegenerating = true;
+    });
+
+    try {
+      final newBytes = await InvoicePdfGenerator.generateInvoicePdf(
+        voucher: widget.voucher!,
+        company: widget.company!,
+        party: widget.party!,
+        templateType: template,
+        customization: _customization,
+      );
+
+      final tempDir = await getTemporaryDirectory();
+      final updatedFile = File('${tempDir.path}/${widget.fileName}');
+      await updatedFile.writeAsBytes(newBytes);
+
+      if (mounted) {
+        setState(() {
+          _currentPdfBytes = newBytes;
+          _currentFile = updatedFile;
+          _isRegenerating = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isRegenerating = false);
+      }
+    }
+  }
+
+  Future<void> _sharePdf() async {
+    HapticFeedback.lightImpact();
+    final xFile = XFile(_currentFile.path, mimeType: 'application/pdf', name: widget.fileName);
+    final subject = _isInvoiceMode
+        ? 'Invoice #${widget.voucher?.voucherNumber} from ${widget.company?.name}'
+        : 'Statement - ${widget.partyName}';
+    final shareText = _isInvoiceMode
+        ? 'Dear ${widget.partyName}, please find attached your Invoice #${widget.voucher?.voucherNumber} for ₹${(widget.voucher!.totalAmountInCents / 100.0).toStringAsFixed(2)}. Thank you for your business!'
+        : 'Ledger Statement for ${widget.partyName} (${widget.periodLabel})';
+
     // ignore: deprecated_member_use
     await Share.shareXFiles(
       [xFile],
-      text: 'Ledger Statement for $partyName ($periodLabel)',
-      subject: 'Statement - $partyName',
+      text: shareText,
+      subject: subject,
+    );
+  }
+
+  Future<void> _shareViaWhatsApp() async {
+    HapticFeedback.lightImpact();
+    final cleanPhone = (widget.partyPhone ?? widget.party?.phoneNumber ?? '')
+        .replaceAll(RegExp(r'[^0-9]'), '');
+    final invoiceNo = widget.voucher?.voucherNumber ?? 'N/A';
+    final amountStr = widget.voucher != null
+        ? '₹${(widget.voucher!.totalAmountInCents / 100.0).toStringAsFixed(2)}'
+        : '';
+    final message = _isInvoiceMode
+        ? 'Hello ${widget.partyName},\nYour invoice #$invoiceNo for $amountStr from ${widget.company?.name ?? "Ludgerpulse"} has been generated. Please find the attached copy.'
+        : 'Hello ${widget.partyName},\nPlease review your ledger statement for ${widget.periodLabel} attached.';
+
+    try {
+      final phonePrefix = cleanPhone.length == 10 ? '91$cleanPhone' : cleanPhone;
+      final uri = Uri.parse('whatsapp://send?phone=$phonePrefix&text=${Uri.encodeComponent(message)}');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        // Fallback to web link or native share
+        final webUri = Uri.parse('https://wa.me/$phonePrefix?text=${Uri.encodeComponent(message)}');
+        if (await canLaunchUrl(webUri)) {
+          await launchUrl(webUri, mode: LaunchMode.externalApplication);
+        } else {
+          await _sharePdf();
+        }
+      }
+    } catch (_) {
+      await _sharePdf();
+    }
+  }
+
+  Future<void> _shareViaSms() async {
+    HapticFeedback.lightImpact();
+    final cleanPhone = (widget.partyPhone ?? widget.party?.phoneNumber ?? '')
+        .replaceAll(RegExp(r'[^0-9]'), '');
+    final invoiceNo = widget.voucher?.voucherNumber ?? 'N/A';
+    final amountStr = widget.voucher != null
+        ? '₹${(widget.voucher!.totalAmountInCents / 100.0).toStringAsFixed(2)}'
+        : '';
+    final message = _isInvoiceMode
+        ? 'Invoice #$invoiceNo for $amountStr has been generated for ${widget.partyName} by ${widget.company?.name ?? "Ludgerpulse"}.'
+        : 'Statement for ${widget.partyName} (${widget.periodLabel}) is generated by ${widget.company?.name ?? "Ludgerpulse"}.';
+
+    final uri = Uri.parse('sms:$cleanPhone?body=${Uri.encodeComponent(message)}');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        await _sharePdf();
+      }
+    } catch (_) {
+      await _sharePdf();
+    }
+  }
+
+  Future<void> _sharePaymentLink() async {
+    if (!_isInvoiceMode) return;
+    HapticFeedback.lightImpact();
+    final linkPayload = PaymentGatewayService.createInvoicePaymentLink(
+      voucher: widget.voucher!,
+      company: widget.company!,
+      party: widget.party!,
+      provider: PaymentGatewayProvider.razorpay,
+    );
+
+    final msg =
+        'Dear ${widget.partyName}, please pay ₹${(widget.voucher!.totalAmountInCents / 100.0).toStringAsFixed(2)} for Invoice #${widget.voucher?.voucherNumber} online via UPI / Cards: ${linkPayload.paymentUrl}';
+
+    // ignore: deprecated_member_use
+    await Share.share(
+      msg,
+      subject: 'Online Payment Link for Invoice #${widget.voucher?.voucherNumber}',
     );
   }
 
@@ -79,9 +238,9 @@ class PdfExportModal extends StatelessWidget {
         targetDir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
       }
 
-      final savePath = '${targetDir?.path ?? (await getTemporaryDirectory()).path}/$fileName';
+      final savePath = '${targetDir?.path ?? (await getTemporaryDirectory()).path}/${widget.fileName}';
       final savedFile = File(savePath);
-      await savedFile.writeAsBytes(pdfBytes);
+      await savedFile.writeAsBytes(_currentPdfBytes);
 
       if (context.mounted) {
         final isDownloads = targetDir?.path.toLowerCase().contains('download') ?? false;
@@ -93,7 +252,7 @@ class PdfExportModal extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Saved to ${isDownloads ? 'Downloads' : 'Documents'}: $fileName',
+                    'Saved to ${isDownloads ? 'Downloads' : 'Documents'}: ${widget.fileName}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -119,6 +278,103 @@ class PdfExportModal extends StatelessWidget {
     }
   }
 
+  void _showBrandingConfigModal() {
+    final nameController = TextEditingController(text: _customization.authorizedSignatoryName);
+    final titleController = TextEditingController(text: _customization.authorizedSignatoryDesignation);
+    final bankController = TextEditingController(text: _customization.bankName);
+    final acctController = TextEditingController(text: _customization.bankAccountNumber);
+    final ifscController = TextEditingController(text: _customization.bankIfsc);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.4,
+        builder: (ctx, scroll) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: ListView(
+            controller: scroll,
+            children: [
+              const ModalDragHandle(margin: EdgeInsets.only(bottom: 12)),
+              Text(
+                'Customize Logo & Authorized Signature',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Signatory Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Signatory Designation',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bankController,
+                decoration: const InputDecoration(
+                  labelText: 'Bank Name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: acctController,
+                decoration: const InputDecoration(
+                  labelText: 'Bank Account Number',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ifscController,
+                decoration: const InputDecoration(
+                  labelText: 'Bank IFSC',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 20),
+              AdaptiveButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  setState(() {
+                    _customization = _customization.copyWith(
+                      authorizedSignatoryName: nameController.text.trim(),
+                      authorizedSignatoryDesignation: titleController.text.trim(),
+                      bankName: bankController.text.trim(),
+                      bankAccountNumber: acctController.text.trim(),
+                      bankIfsc: ifscController.text.trim(),
+                    );
+                  });
+                  _changeTemplate(_selectedTemplate);
+                },
+                child: const Text('Save & Apply to PDF'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
@@ -136,7 +392,7 @@ class PdfExportModal extends StatelessWidget {
       builder: (context, scrollController) {
         return Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
+            constraints: const BoxConstraints(maxWidth: 680),
             child: Container(
               decoration: BoxDecoration(
                 color: isIos
@@ -159,155 +415,263 @@ class PdfExportModal extends StatelessWidget {
 
                   // Header Bar
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 12, 12),
+                    padding: const EdgeInsets.fromLTRB(20, 10, 12, 10),
                     child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        Icons.picture_as_pdf_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Account Statement PDF',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$partyName • $periodLabel',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          child: Icon(
+                            Icons.picture_as_pdf_rounded,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 22,
                           ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        isIos ? CupertinoIcons.xmark_circle_fill : Icons.close_rounded,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ),
-
-              const Divider(height: 1, thickness: 1),
-
-              // PDF Preview Body
-              Expanded(
-                child: ClipRRect(
-                  child: Container(
-                    color: isDark ? const Color(0xFF121212) : const Color(0xFFF3F4F6),
-                    child: PdfPreview(
-                      build: (format) async => pdfBytes,
-                      allowPrinting: false,
-                      allowSharing: false,
-                      canChangePageFormat: false,
-                      canChangeOrientation: false,
-                      canDebug: false,
-                      maxPageWidth: 580,
-                      loadingWidget: const Center(
-                        child: CupertinoActivityIndicator(radius: 14),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const Divider(height: 1, thickness: 1),
-
-              // Action Buttons Bar (1. Share, 2. Download)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-                child: Row(
-                  children: [
-                    // 1. Share Button
-                    Expanded(
-                      child: AdaptiveButton(
-                        onPressed: () => _sharePdf(context),
-                        type: AdaptiveButtonType.secondary,
-                        height: 50,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              isIos ? CupertinoIcons.share : Icons.share_rounded,
-                              size: 19,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isInvoiceMode ? 'Tax Invoice Document' : 'Account Statement PDF',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${widget.partyName} • ${widget.periodLabel}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_isInvoiceMode)
+                          IconButton(
+                            tooltip: 'Customize Logo & Signature',
+                            icon: Icon(
+                              isIos ? CupertinoIcons.paintbrush : Icons.tune_rounded,
                               color: Theme.of(context).colorScheme.primary,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Share',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                          ],
+                            onPressed: _showBrandingConfigModal,
+                          ),
+                        IconButton(
+                          icon: Icon(
+                            isIos ? CupertinoIcons.xmark_circle_fill : Icons.close_rounded,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
                         ),
-                      ),
+                      ],
                     ),
+                  ),
 
-                    const SizedBox(width: 12),
-
-                    // 2. Download Button
-                    Expanded(
-                      child: AdaptiveButton(
-                        onPressed: () => _downloadPdf(context),
-                        type: AdaptiveButtonType.primary,
-                        height: 50,
+                  // Template Selector Bar (for invoices)
+                  if (_isInvoiceMode)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      color: isDark ? const Color(0xFF262626) : const Color(0xFFF3F4F6),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: InvoiceTemplateType.values.map((template) {
+                            final isSelected = _selectedTemplate == template;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: isIos
+                                  ? GestureDetector(
+                                      onTap: () => _changeTemplate(template),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? CupertinoColors.activeBlue : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: isSelected ? CupertinoColors.activeBlue : CupertinoColors.systemGrey3,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          template.displayName,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                            color: isSelected ? Colors.white : CupertinoColors.label,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  : ChoiceChip(
+                                      label: Text(template.displayName),
+                                      selected: isSelected,
+                                      onSelected: (_) => _changeTemplate(template),
+                                    ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ),
+
+                  const Divider(height: 1, thickness: 1),
+
+                  // PDF Preview Area
+                  Expanded(
+                    child: _isRegenerating
+                        ? const Center(child: CupertinoActivityIndicator(radius: 16))
+                        : ClipRRect(
+                            child: Container(
+                              color: isDark ? const Color(0xFF121212) : const Color(0xFFF3F4F6),
+                              child: PdfPreview(
+                                build: (format) async => _currentPdfBytes,
+                                allowPrinting: false,
+                                allowSharing: false,
+                                canChangePageFormat: false,
+                                canChangeOrientation: false,
+                                canDebug: false,
+                                maxPageWidth: 580,
+                                loadingWidget: const Center(
+                                  child: CupertinoActivityIndicator(radius: 14),
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+
+                  const Divider(height: 1, thickness: 1),
+
+                  // Action Buttons: WhatsApp, SMS, Share, Download
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+                    child: Column(
+                      children: [
+                        Row(
                           children: [
-                            Icon(
-                              isIos ? CupertinoIcons.arrow_down_to_line : Icons.download_rounded,
-                              size: 19,
-                              color: Colors.white,
+                            // WhatsApp
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF25D366),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                onPressed: _shareViaWhatsApp,
+                                icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                                label: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
                             ),
                             const SizedBox(width: 8),
-                            const Text(
-                              'Download',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+
+                            // SMS
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0284C7),
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                onPressed: _shareViaSms,
+                                icon: const Icon(Icons.sms_rounded, size: 18),
+                                label: const Text('SMS', style: TextStyle(fontWeight: FontWeight.bold)),
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  },
-);
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            // Native Share Sheet
+                            Expanded(
+                              child: AdaptiveButton(
+                                onPressed: _sharePdf,
+                                type: AdaptiveButtonType.secondary,
+                                height: 46,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      isIos ? CupertinoIcons.share : Icons.share_rounded,
+                                      size: 18,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Native Share',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
 
+                            // Download / Save File
+                            Expanded(
+                              child: AdaptiveButton(
+                                onPressed: () => _downloadPdf(context),
+                                type: AdaptiveButtonType.primary,
+                                height: 46,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      isIos ? CupertinoIcons.arrow_down_to_line : Icons.download_rounded,
+                                      size: 18,
+                                      color: Colors.white,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    const Text(
+                                      'Save File',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_isInvoiceMode) ...[
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                              onPressed: _sharePaymentLink,
+                              icon: const Icon(Icons.qr_code_2_rounded, size: 20),
+                              label: const Text('Share UPI / Razorpay Payment Link', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

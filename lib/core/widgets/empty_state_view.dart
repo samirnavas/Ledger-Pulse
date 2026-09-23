@@ -41,6 +41,7 @@ class EmptyStateView extends StatelessWidget {
         width: animationSize,
         height: animationSize,
         fit: BoxFit.contain,
+        repeat: false,
         errorBuilder: (context, error, stackTrace) {
           return _buildFallbackIcon(isDark);
         },

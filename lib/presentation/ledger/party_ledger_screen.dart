@@ -20,11 +20,13 @@ import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
+import '../../data/models/voucher_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../home/add_party_dialog.dart';
 import '../providers/ledger_providers.dart';
 import '../reports/statement_preview_screen.dart';
 import 'add_entry_bottom_sheet.dart';
+import 'voucher_creation_screen.dart';
 
 class PartyLedgerScreen extends ConsumerWidget {
   final String partyId;
@@ -928,6 +930,26 @@ class PartyLedgerScreen extends ConsumerWidget {
         return AdaptiveScaffold(
           title: party.name,
           actions: [
+            // Create Tax Invoice button
+            IconButton(
+              tooltip: 'New Tax Invoice',
+              icon: Icon(
+                isIos ? CupertinoIcons.doc_append : Icons.receipt_long_rounded,
+                size: 20,
+              ),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.of(context).push(
+                  createAdaptivePageRoute(
+                    builder: (context) => VoucherCreationScreen(
+                      initialParty: party,
+                      initialType: VoucherType.sales,
+                    ),
+                    transitionType: SharedAxisTransitionType.horizontal,
+                  ),
+                );
+              },
+            ),
             // Statement navigation icon
             IconButton(
               tooltip: 'Account Statement',

@@ -7,6 +7,8 @@ import 'package:ledger_pulse/presentation/home/party_list_tab.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('Party List Edit & Delete Flow Tests', () {
     testWidgets('3-dot menu or long press opens contextual menu with Edit and Delete options',
         (WidgetTester tester) async {
@@ -17,6 +19,7 @@ void main() {
         ProviderScope(
           overrides: [
             ledgerRepositoryProvider.overrideWithValue(repo),
+            ledgerUpdatesStreamProvider.overrideWith((ref) => const Stream.empty()),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -27,7 +30,7 @@ void main() {
       );
 
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 300));
 
       // Verify parties are rendered
       expect(find.text('Rahul Sharma'), findsOneWidget);
@@ -51,6 +54,7 @@ void main() {
         ProviderScope(
           overrides: [
             ledgerRepositoryProvider.overrideWithValue(repo),
+            ledgerUpdatesStreamProvider.overrideWith((ref) => const Stream.empty()),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -61,7 +65,7 @@ void main() {
       );
 
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 300));
 
       // Tap options and select "Edit Details"
       await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
@@ -87,6 +91,7 @@ void main() {
         ProviderScope(
           overrides: [
             ledgerRepositoryProvider.overrideWithValue(repo),
+            ledgerUpdatesStreamProvider.overrideWith((ref) => const Stream.empty()),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -97,7 +102,7 @@ void main() {
       );
 
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 300));
 
       // Rahul Sharma has active balance (₹4,500.00 = 450000 cents)
       await tester.tap(find.byIcon(Icons.more_vert_rounded).first);
@@ -115,6 +120,9 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('OK'), findsOneWidget);
+      await tester.tap(find.text('OK'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
     });
 
     testWidgets('Tapping Delete on 0-balance party confirms and deletes party',
@@ -122,7 +130,7 @@ void main() {
       final repo = MockLedgerRepository();
       addTearDown(repo.dispose);
 
-      // Add a settled 0-balance party
+      // Add a settled 0-balance party using runAsync for the delayed future
       final zeroParty = Party(
         id: 'party_zero_test',
         name: 'Zero Balance Customer',
@@ -131,12 +139,13 @@ void main() {
         netBalanceInCents: 0,
         lastUpdated: DateTime.now().add(const Duration(hours: 1)),
       );
-      await repo.addParty(zeroParty);
+      await tester.runAsync(() => repo.addParty(zeroParty));
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             ledgerRepositoryProvider.overrideWithValue(repo),
+            ledgerUpdatesStreamProvider.overrideWith((ref) => const Stream.empty()),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -147,7 +156,7 @@ void main() {
       );
 
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Zero Balance Customer'), findsOneWidget);
 
@@ -170,14 +179,18 @@ void main() {
       // Confirm deletion
       await tester.tap(find.text('Delete'));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
-      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
 
       // Verify SnackBar and party removal
       expect(find.text('Zero Balance Customer deleted and archived.'), findsOneWidget);
       expect(find.text('Zero Balance Customer'), findsNothing);
+
+      // Advance past SnackBar timer and dismissal animation
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(milliseconds: 400));
     });
   });
 }
+
 

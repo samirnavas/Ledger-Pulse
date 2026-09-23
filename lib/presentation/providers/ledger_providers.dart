@@ -4,6 +4,7 @@ import '../../data/local/drift_ledger_repository.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
+import 'profile_provider.dart';
 
 // Singleton Drift AppDatabase provider
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -17,7 +18,13 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 // Single repository instance backed directly by local SQLite (Drift)
 final ledgerRepositoryProvider = Provider<ILedgerRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
-  final repo = DriftLedgerRepository(db: db);
+  final profile = ref.watch(userProfileProvider);
+  final repo = DriftLedgerRepository(
+    db: db,
+    currentCompanyId: profile.activeCompanyId,
+    currentUserId: profile.id,
+    currentRole: profile.role,
+  );
   ref.onDispose(() {
     repo.dispose();
   });
