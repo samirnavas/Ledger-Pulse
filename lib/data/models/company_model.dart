@@ -15,6 +15,7 @@ class Company {
   final String? bankName;
   final String? bankAccountNumber;
   final String? bankIfsc;
+  final String? upiId;
   final bool isCloudSyncEnabled;
   final bool isDropboxSyncEnabled;
   final bool isActive;
@@ -38,6 +39,7 @@ class Company {
     this.bankName,
     this.bankAccountNumber,
     this.bankIfsc,
+    this.upiId,
     this.isCloudSyncEnabled = true,
     this.isDropboxSyncEnabled = false,
     this.isActive = true,
@@ -62,6 +64,7 @@ class Company {
     String? bankName,
     String? bankAccountNumber,
     String? bankIfsc,
+    String? upiId,
     bool? isCloudSyncEnabled,
     bool? isDropboxSyncEnabled,
     bool? isActive,
@@ -85,6 +88,7 @@ class Company {
       bankName: bankName ?? this.bankName,
       bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
       bankIfsc: bankIfsc ?? this.bankIfsc,
+      upiId: upiId ?? this.upiId,
       isCloudSyncEnabled: isCloudSyncEnabled ?? this.isCloudSyncEnabled,
       isDropboxSyncEnabled: isDropboxSyncEnabled ?? this.isDropboxSyncEnabled,
       isActive: isActive ?? this.isActive,
@@ -111,6 +115,7 @@ class Company {
       'bankName': bankName,
       'bankAccountNumber': bankAccountNumber,
       'bankIfsc': bankIfsc,
+      'upiId': upiId,
       'isCloudSyncEnabled': isCloudSyncEnabled ? 1 : 0,
       'isDropboxSyncEnabled': isDropboxSyncEnabled ? 1 : 0,
       'isActive': isActive ? 1 : 0,
@@ -137,6 +142,7 @@ class Company {
       bankName: map['bankName'] as String?,
       bankAccountNumber: map['bankAccountNumber'] as String?,
       bankIfsc: map['bankIfsc'] as String?,
+      upiId: map['upiId'] as String?,
       isCloudSyncEnabled: map['isCloudSyncEnabled'] == 1 || map['isCloudSyncEnabled'] == true,
       isDropboxSyncEnabled: map['isDropboxSyncEnabled'] == 1 || map['isDropboxSyncEnabled'] == true,
       isActive: map['isActive'] == null || map['isActive'] == 1 || map['isActive'] == true,

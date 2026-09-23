@@ -21,6 +21,7 @@ import '../profile/profile_screen.dart';
 import '../../data/models/subscription_tier_model.dart';
 import '../providers/ledger_providers.dart';
 import '../providers/subscription_providers.dart';
+import '../reports/receivables_payables_screen.dart';
 import '../reports/reporting_hub_screen.dart';
 import '../subscription/subscription_paywall_screen.dart';
 import 'add_party_dialog.dart';
@@ -56,6 +57,17 @@ class DashboardScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 12),
+            _buildModuleTile(
+              context: ctx,
+              icon: Icons.receipt_long_rounded,
+              title: 'Receivables & Payables Tracking',
+              subtitle: 'Aging buckets (0-30, 31-60, 90+ days), reminders & remittance advice',
+              color: AppColors.receivableGreen,
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ReceivablesPayablesScreen()));
+              },
+            ),
             _buildModuleTile(
               context: ctx,
               icon: Icons.payments_rounded,

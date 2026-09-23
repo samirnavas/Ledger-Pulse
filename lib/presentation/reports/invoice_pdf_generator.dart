@@ -34,7 +34,21 @@ class InvoicePdfGenerator {
         ? pw.ThemeData.withFont(base: regularFont, bold: boldFont)
         : pw.ThemeData.base();
 
-    final config = customization ?? const InvoiceCustomization();
+    final baseConfig = customization ?? const InvoiceCustomization();
+    final config = baseConfig.copyWith(
+      bankName: (company.bankName != null && company.bankName!.trim().isNotEmpty)
+          ? company.bankName
+          : baseConfig.bankName,
+      bankAccountNumber: (company.bankAccountNumber != null && company.bankAccountNumber!.trim().isNotEmpty)
+          ? company.bankAccountNumber
+          : baseConfig.bankAccountNumber,
+      bankIfsc: (company.bankIfsc != null && company.bankIfsc!.trim().isNotEmpty)
+          ? company.bankIfsc
+          : baseConfig.bankIfsc,
+      upiId: (company.upiId != null && company.upiId!.trim().isNotEmpty)
+          ? company.upiId
+          : baseConfig.upiId,
+    );
 
     switch (templateType) {
       case InvoiceTemplateType.modernExpressive:
@@ -682,6 +696,10 @@ class InvoicePdfGenerator {
                 ),
               ],
             ),
+            pw.SizedBox(height: 6),
+            pw.Text('UPI ID: ${config.upiId}', style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold)),
+            pw.Text('Bank: ${config.bankName} • A/C: ${config.bankAccountNumber}', style: const pw.TextStyle(fontSize: 6.5)),
+            pw.Text('IFSC: ${config.bankIfsc}', style: const pw.TextStyle(fontSize: 6.5)),
             pw.SizedBox(height: 8),
             pw.Text('Thank You for Your Business!', style: const pw.TextStyle(fontSize: 7)),
           ],

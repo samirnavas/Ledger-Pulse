@@ -36,7 +36,7 @@ enum SyncProviderType {
 }
 
 class SyncItem {
-  final int id;
+  final String id;
   final String companyId;
   final String entityType;
   final String entityId;
@@ -77,7 +77,7 @@ class SyncItem {
 
   factory SyncItem.fromMap(Map<String, dynamic> map) {
     return SyncItem(
-      id: map['id'] as int,
+      id: map['id'].toString(),
       companyId: (map['companyId'] as String?) ?? 'cmp_default',
       entityType: map['entityType'] as String,
       entityId: map['entityId'] as String,

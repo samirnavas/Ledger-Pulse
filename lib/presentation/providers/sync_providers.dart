@@ -32,10 +32,10 @@ class SyncNotifier extends Notifier<SyncStatus> {
 
   Future<SyncResult> triggerSync() async {
     state = SyncStatus.syncing;
-    final coordinator = ref.read(syncCoordinatorProvider);
+    final engine = ref.read(syncEngineProvider);
     final activeCompany = ref.read(activeCompanyProvider);
     
-    final result = await coordinator.triggerSync(activeCompany);
+    final result = await engine.syncAll(companyId: activeCompany.id);
     state = result.success ? SyncStatus.success : SyncStatus.error;
     
     // Refresh pending count and ledger updates

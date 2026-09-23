@@ -36,6 +36,24 @@ final ordersAndEstimatesProvider = FutureProvider<List<VoucherModel>>((ref) asyn
   return allVouchers.where((v) => v.type.isOrderOrEstimate).toList();
 });
 
+final draftAndHeldVouchersProvider = FutureProvider<List<VoucherModel>>((ref) async {
+  final repo = ref.watch(voucherRepositoryProvider);
+  final allVouchers = await repo.getVouchers();
+  return allVouchers
+      .where((v) => v.status == VoucherStatus.draft || v.status == VoucherStatus.onHold)
+      .toList();
+});
+
+final receivablesVouchersProvider = FutureProvider<List<VoucherModel>>((ref) async {
+  final repo = ref.watch(voucherRepositoryProvider);
+  return await repo.getVouchers(type: VoucherType.sales, status: VoucherStatus.posted);
+});
+
+final payablesVouchersProvider = FutureProvider<List<VoucherModel>>((ref) async {
+  final repo = ref.watch(voucherRepositoryProvider);
+  return await repo.getVouchers(type: VoucherType.purchase, status: VoucherStatus.posted);
+});
+
 class VoucherController extends Notifier<void> {
   @override
   void build() {}
@@ -45,6 +63,9 @@ class VoucherController extends Notifier<void> {
     final posted = await repo.createVoucher(voucher);
     ref.invalidate(vouchersListProvider);
     ref.invalidate(ordersAndEstimatesProvider);
+    ref.invalidate(draftAndHeldVouchersProvider);
+    ref.invalidate(receivablesVouchersProvider);
+    ref.invalidate(payablesVouchersProvider);
     ref.invalidate(partyListProvider);
     ref.invalidate(businessSummaryProvider);
     return posted;
@@ -55,6 +76,9 @@ class VoucherController extends Notifier<void> {
     final invoice = await repo.convertToInvoice(orderOrEstimateId);
     ref.invalidate(vouchersListProvider);
     ref.invalidate(ordersAndEstimatesProvider);
+    ref.invalidate(draftAndHeldVouchersProvider);
+    ref.invalidate(receivablesVouchersProvider);
+    ref.invalidate(payablesVouchersProvider);
     ref.invalidate(partyListProvider);
     ref.invalidate(businessSummaryProvider);
     return invoice;
@@ -65,6 +89,9 @@ class VoucherController extends Notifier<void> {
     await repo.voidVoucher(voucherId);
     ref.invalidate(vouchersListProvider);
     ref.invalidate(ordersAndEstimatesProvider);
+    ref.invalidate(draftAndHeldVouchersProvider);
+    ref.invalidate(receivablesVouchersProvider);
+    ref.invalidate(payablesVouchersProvider);
     ref.invalidate(partyListProvider);
     ref.invalidate(businessSummaryProvider);
   }

@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/mock/mock_auth_repository.dart';
+import '../../data/repositories/supabase_auth_repository.dart';
 import '../../domain/repositories/i_auth_repository.dart';
 
 final authRepositoryProvider = Provider<IAuthRepository>((ref) {
-  final repo = MockAuthRepository();
+  final repo = SupabaseAuthRepository();
   ref.onDispose(() {
     repo.dispose();
   });

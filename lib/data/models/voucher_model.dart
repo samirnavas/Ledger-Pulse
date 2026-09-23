@@ -44,6 +44,7 @@ enum VoucherType {
 
 enum VoucherStatus {
   draft,
+  onHold,
   posted,
   converted,
   voided;
@@ -52,6 +53,8 @@ enum VoucherStatus {
     switch (this) {
       case VoucherStatus.draft:
         return 'Draft';
+      case VoucherStatus.onHold:
+        return 'On Hold';
       case VoucherStatus.posted:
         return 'Posted';
       case VoucherStatus.converted:

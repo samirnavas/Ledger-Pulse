@@ -46,11 +46,11 @@ void main() {
       // 1. Insert pending outbox mutations
       await db.into(db.syncOutbox).insert(
             SyncOutboxCompanion.insert(
-              companyId: const Value(companyId),
-              entityType: 'party',
-              entityId: 'p_101',
-              action: 'upsert',
-              payload: jsonEncode({'id': 'p_101', 'name': 'Sync Client'}),
+              id: 'outbox_test_1',
+              targetTable: 'parties',
+              recordId: 'p_101',
+              mutationType: 'INSERT',
+              payload: jsonEncode({'id': 'p_101', 'name': 'Sync Client', 'companyId': companyId}),
             ),
           );
 
@@ -62,21 +62,21 @@ void main() {
       expect(pushResult.success, isTrue);
       expect(pushResult.itemsPushed, equals(1));
 
-      // 3. Confirm outbox item is marked synced
+      // 3. Confirm outbox item is removed from queue on success (Directive 4)
       final remainingPending = await coordinator.getPendingOutboxCount(companyId);
       expect(remainingPending, equals(0));
     });
 
-    test('Retry count increments and triggers dead-letter after 5 failed attempts', () async {
+    test('Outbox queue retains mutation upon failure for retry', () async {
       const companyId = 'cmp_retry_test';
 
       await db.into(db.syncOutbox).insert(
             SyncOutboxCompanion.insert(
-              companyId: const Value(companyId),
-              entityType: 'party',
-              entityId: 'p_retry',
-              action: 'upsert',
-              payload: jsonEncode({'id': 'p_retry'}),
+              id: 'outbox_test_retry',
+              targetTable: 'parties',
+              recordId: 'p_retry',
+              mutationType: 'INSERT',
+              payload: jsonEncode({'id': 'p_retry', 'companyId': companyId}),
             ),
           );
 
@@ -84,14 +84,11 @@ void main() {
       expect(items.length, equals(1));
       final itemId = items.first.id;
 
-      // Simulate 5 consecutive network errors
-      for (int i = 1; i <= 5; i++) {
-        await supabaseProvider.markItemFailed(itemId, 'Simulated Timeout Error $i');
-      }
+      // Simulate failure
+      await supabaseProvider.markItemFailed(itemId, 'Simulated Timeout Error');
 
-      final itemAfterFails = await (db.select(db.syncOutbox)..where((t) => t.id.equals(itemId))).getSingle();
-      expect(itemAfterFails.retryCount, equals(5));
-      expect(itemAfterFails.status, equals('dead_letter'));
+      final remaining = await coordinator.getPendingOutboxCount(companyId);
+      expect(remaining, equals(1));
     });
 
     test('Dropbox provider creates state snapshot and merges remote parties', () async {
@@ -106,6 +103,9 @@ void main() {
               phoneNumber: '+91 91111 22222',
               type: PartyType.customer,
               lastUpdated: DateTime.now(),
+              isDeleted: const Value(false),
+              updatedAt: Value(DateTime.now()),
+              syncStatus: const Value(SyncRecordStatus.pending),
             ),
           );
 

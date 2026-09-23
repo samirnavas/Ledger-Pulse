@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:uuid/uuid.dart';
 
+import '../../core/network/sync_engine.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
 import '../mock/mock_seed_data.dart';
@@ -11,6 +13,7 @@ import '../models/audit_log_model.dart';
 import '../models/company_model.dart';
 import '../models/party_model.dart';
 import '../models/rbac_model.dart';
+import '../models/sync_model.dart';
 import '../models/transaction_model.dart';
 import '../security/access_control_service.dart';
 import 'audit_service.dart';
@@ -18,8 +21,10 @@ import 'database.dart';
 
 class DriftLedgerRepository implements ILedgerRepository {
   final AppDatabase _db;
+  final SyncEngine _syncEngine;
   final String _assetPath;
   final AuditService _auditService;
+  final _uuid = const Uuid();
   final StreamController<void> _updateStreamController =
       StreamController<void>.broadcast();
 
@@ -27,15 +32,22 @@ class DriftLedgerRepository implements ILedgerRepository {
   String _currentUserId = 'usr_default';
   Role _currentRole = Role.admin;
 
+  final bool _autoSync;
+  bool _isDisposed = false;
+
   Future<void>? _initFuture;
 
   DriftLedgerRepository({
     AppDatabase? db,
+    SyncEngine? syncEngine,
+    bool autoSync = true,
     String assetPath = 'assets/data/data.json',
     String currentCompanyId = 'cmp_default',
     String currentUserId = 'usr_default',
     Role currentRole = Role.admin,
   })  : _db = db ?? AppDatabase(),
+        _syncEngine = syncEngine ?? SyncEngine(db: db ?? AppDatabase()),
+        _autoSync = autoSync,
         _assetPath = assetPath,
         _currentCompanyId = currentCompanyId,
         _currentUserId = currentUserId,
@@ -43,10 +55,20 @@ class DriftLedgerRepository implements ILedgerRepository {
         _auditService = AuditService(db ?? AppDatabase());
 
   AppDatabase get db => _db;
+  SyncEngine get syncEngine => _syncEngine;
   AuditService get auditService => _auditService;
   String get currentCompanyId => _currentCompanyId;
   String get currentUserId => _currentUserId;
   Role get currentRole => _currentRole;
+  bool get autoSync => _autoSync;
+
+  void _triggerBackgroundSync() {
+    if (_isDisposed || !_autoSync) return;
+    _syncEngine.pushQueue(companyId: _currentCompanyId).catchError((e) {
+      debugPrint('DriftLedgerRepository background sync error: $e');
+      return SyncResult(success: false, errorMessage: e.toString(), timestamp: DateTime.now());
+    });
+  }
 
   void setContext({
     String? companyId,
@@ -148,6 +170,12 @@ class DriftLedgerRepository implements ILedgerRepository {
               );
         }
       });
+      if (_autoSync) {
+        _syncEngine.syncAll(companyId: _currentCompanyId).catchError((e) {
+          debugPrint('DriftLedgerRepository initial sync notice: $e');
+          return SyncResult(success: false, errorMessage: e.toString(), timestamp: DateTime.now());
+        });
+      }
     } catch (e) {
       debugPrint('DriftLedgerRepository: error during initial seeding ($e)');
     }
@@ -274,27 +302,35 @@ class DriftLedgerRepository implements ILedgerRepository {
         : UserAction.createSupplierParty;
     AccessControlService.verifyPermission(_currentRole, action);
 
+    final partyId = party.id.trim().isEmpty ? _uuid.v4() : party.id;
+    final effectiveParty = party.id == partyId ? party : party.copyWith(id: partyId);
+
     await _db.transaction(() async {
       await _db.into(_db.parties).insertOnConflictUpdate(
             PartiesCompanion.insert(
-              id: party.id,
+              id: effectiveParty.id,
               companyId: Value(_currentCompanyId),
-              name: party.name,
-              phoneNumber: party.phoneNumber,
-              type: party.type,
-              netBalanceInCents: Value(party.netBalanceInCents),
-              lastUpdated: party.lastUpdated,
+              name: effectiveParty.name,
+              phoneNumber: effectiveParty.phoneNumber,
+              type: effectiveParty.type,
+              netBalanceInCents: Value(effectiveParty.netBalanceInCents),
+              lastUpdated: effectiveParty.lastUpdated,
               isDeleted: const Value(false),
+              updatedAt: Value(DateTime.now()),
+              syncStatus: const Value(SyncRecordStatus.pending),
             ),
           );
 
       await _db.into(_db.syncOutbox).insert(
             SyncOutboxCompanion.insert(
-              companyId: Value(_currentCompanyId),
-              entityType: 'party',
-              entityId: party.id,
-              action: 'upsert',
-              payload: jsonEncode(party.toMap()),
+              id: _uuid.v4(),
+              targetTable: 'parties',
+              recordId: effectiveParty.id,
+              mutationType: 'INSERT',
+              payload: jsonEncode({
+                ...effectiveParty.toMap(),
+                'companyId': _currentCompanyId,
+              }),
             ),
           );
 
@@ -302,13 +338,14 @@ class DriftLedgerRepository implements ILedgerRepository {
         companyId: _currentCompanyId,
         userId: _currentUserId,
         entityType: 'party',
-        entityId: party.id,
+        entityId: effectiveParty.id,
         action: AuditAction.insert,
-        newState: party.toMap(),
+        newState: effectiveParty.toMap(),
       );
     });
 
     _updateStreamController.add(null);
+    _triggerBackgroundSync();
   }
 
   @override
@@ -344,16 +381,21 @@ class DriftLedgerRepository implements ILedgerRepository {
           phoneNumber: Value(party.phoneNumber),
           type: Value(party.type),
           lastUpdated: Value(DateTime.now()),
+          updatedAt: Value(DateTime.now()),
+          syncStatus: const Value(SyncRecordStatus.pending),
         ),
       );
 
       await _db.into(_db.syncOutbox).insert(
         SyncOutboxCompanion.insert(
-          companyId: Value(_currentCompanyId),
-          entityType: 'party',
-          entityId: party.id,
-          action: 'update',
-          payload: jsonEncode(party.toMap()),
+          id: _uuid.v4(),
+          targetTable: 'parties',
+          recordId: party.id,
+          mutationType: 'UPDATE',
+          payload: jsonEncode({
+            ...party.toMap(),
+            'companyId': _currentCompanyId,
+          }),
         ),
       );
 
@@ -369,6 +411,7 @@ class DriftLedgerRepository implements ILedgerRepository {
     });
 
     _updateStreamController.add(null);
+    _triggerBackgroundSync();
   }
 
   @override
@@ -402,25 +445,30 @@ class DriftLedgerRepository implements ILedgerRepository {
     await _db.transaction(() async {
       // Soft-delete party to maintain referential integrity
       await (_db.update(_db.parties)..where((t) => t.id.equals(partyId) & t.companyId.equals(_currentCompanyId))).write(
-        const PartiesCompanion(
-          isDeleted: Value(true),
+        PartiesCompanion(
+          isDeleted: const Value(true),
+          updatedAt: Value(DateTime.now()),
+          syncStatus: const Value(SyncRecordStatus.pending),
         ),
       );
 
       // Void/archive associated entries
       await (_db.update(_db.ledgerEntries)..where((t) => t.partyId.equals(partyId) & t.companyId.equals(_currentCompanyId))).write(
-        const LedgerEntriesCompanion(
-          isVoided: Value(true),
+        LedgerEntriesCompanion(
+          isVoided: const Value(true),
+          isDeleted: const Value(true),
+          updatedAt: Value(DateTime.now()),
+          syncStatus: const Value(SyncRecordStatus.pending),
         ),
       );
 
       await _db.into(_db.syncOutbox).insert(
         SyncOutboxCompanion.insert(
-          companyId: Value(_currentCompanyId),
-          entityType: 'party',
-          entityId: partyId,
-          action: 'delete',
-          payload: jsonEncode({'id': partyId, 'isDeleted': true}),
+          id: _uuid.v4(),
+          targetTable: 'parties',
+          recordId: partyId,
+          mutationType: 'DELETE',
+          payload: jsonEncode({'id': partyId, 'isDeleted': true, 'companyId': _currentCompanyId}),
         ),
       );
 
@@ -436,6 +484,7 @@ class DriftLedgerRepository implements ILedgerRepository {
     });
 
     _updateStreamController.add(null);
+    _triggerBackgroundSync();
   }
 
   // --- Ledger Entries ---
@@ -493,29 +542,38 @@ class DriftLedgerRepository implements ILedgerRepository {
         : UserAction.createSupplierEntry;
     AccessControlService.verifyPermission(_currentRole, action);
 
+    final entryId = entry.id.trim().isEmpty ? _uuid.v4() : entry.id;
+    final effectiveEntry = entry.id == entryId ? entry : entry.copyWith(id: entryId);
+
     await _db.transaction(() async {
       await _db.into(_db.ledgerEntries).insertOnConflictUpdate(
             LedgerEntriesCompanion.insert(
-              id: entry.id,
+              id: effectiveEntry.id,
               companyId: Value(_currentCompanyId),
-              partyId: entry.partyId,
-              amountInCents: entry.amountInCents,
-              type: entry.type,
-              date: entry.date,
-              note: Value(entry.note),
-              receiptPhotoUrl: Value(entry.receiptPhotoUrl),
+              partyId: effectiveEntry.partyId,
+              amountInCents: effectiveEntry.amountInCents,
+              type: effectiveEntry.type,
+              date: effectiveEntry.date,
+              note: Value(effectiveEntry.note),
+              receiptPhotoUrl: Value(effectiveEntry.receiptPhotoUrl),
               isVoided: const Value(false),
-              createdAt: Value(entry.date),
+              createdAt: Value(effectiveEntry.date),
+              updatedAt: Value(DateTime.now()),
+              isDeleted: const Value(false),
+              syncStatus: const Value(SyncRecordStatus.pending),
             ),
           );
 
       await _db.into(_db.syncOutbox).insert(
             SyncOutboxCompanion.insert(
-              companyId: Value(_currentCompanyId),
-              entityType: 'ledger_entry',
-              entityId: entry.id,
-              action: 'insert',
-              payload: jsonEncode(entry.toMap()),
+              id: _uuid.v4(),
+              targetTable: 'ledger_entries',
+              recordId: effectiveEntry.id,
+              mutationType: 'INSERT',
+              payload: jsonEncode({
+                ...effectiveEntry.toMap(),
+                'companyId': _currentCompanyId,
+              }),
             ),
           );
 
@@ -523,15 +581,16 @@ class DriftLedgerRepository implements ILedgerRepository {
         companyId: _currentCompanyId,
         userId: _currentUserId,
         entityType: 'ledger_entry',
-        entityId: entry.id,
+        entityId: effectiveEntry.id,
         action: AuditAction.insert,
-        newState: entry.toMap(),
+        newState: effectiveEntry.toMap(),
       );
 
-      await _recalculatePartyBalanceInTx(entry.partyId);
+      await _recalculatePartyBalanceInTx(effectiveEntry.partyId);
     });
 
     _updateStreamController.add(null);
+    _triggerBackgroundSync();
   }
 
   @override
@@ -564,8 +623,10 @@ class DriftLedgerRepository implements ILedgerRepository {
       if (amountChanged || typeChanged) {
         // Immutable adjustment:
         await (_db.update(_db.ledgerEntries)..where((t) => t.id.equals(existing.id) & t.companyId.equals(_currentCompanyId))).write(
-          const LedgerEntriesCompanion(
-            isVoided: Value(true),
+          LedgerEntriesCompanion(
+            isVoided: const Value(true),
+            updatedAt: Value(DateTime.now()),
+            syncStatus: const Value(SyncRecordStatus.pending),
           ),
         );
 
@@ -573,7 +634,7 @@ class DriftLedgerRepository implements ILedgerRepository {
             ? EntryType.got
             : EntryType.gave;
         final timestamp = DateTime.now();
-        final offsetEntryId = 'entry_offset_${timestamp.millisecondsSinceEpoch}';
+        final offsetEntryId = _uuid.v4();
         final offsetNote = 'Reversal: Voided entry #${existing.id}';
 
         await _db.into(_db.ledgerEntries).insert(
@@ -587,10 +648,13 @@ class DriftLedgerRepository implements ILedgerRepository {
             note: Value(offsetNote),
             isVoided: const Value(false),
             createdAt: Value(timestamp),
+            updatedAt: Value(timestamp),
+            isDeleted: const Value(false),
+            syncStatus: const Value(SyncRecordStatus.pending),
           ),
         );
 
-        final newEntryId = 'entry_rev_${timestamp.millisecondsSinceEpoch + 1}';
+        final newEntryId = _uuid.v4();
         final replacementEntry = entry.copyWith(id: newEntryId);
 
         await _db.into(_db.ledgerEntries).insert(
@@ -605,27 +669,31 @@ class DriftLedgerRepository implements ILedgerRepository {
             receiptPhotoUrl: Value(replacementEntry.receiptPhotoUrl),
             isVoided: const Value(false),
             createdAt: Value(timestamp),
+            updatedAt: Value(timestamp),
+            isDeleted: const Value(false),
+            syncStatus: const Value(SyncRecordStatus.pending),
           ),
         );
 
         await _db.into(_db.syncOutbox).insert(
           SyncOutboxCompanion.insert(
-            companyId: Value(_currentCompanyId),
-            entityType: 'ledger_entry',
-            entityId: existing.id,
-            action: 'void',
-            payload: jsonEncode({'id': existing.id, 'isVoided': true}),
+            id: _uuid.v4(),
+            targetTable: 'ledger_entries',
+            recordId: existing.id,
+            mutationType: 'UPDATE',
+            payload: jsonEncode({'id': existing.id, 'isVoided': true, 'companyId': _currentCompanyId}),
           ),
         );
 
         await _db.into(_db.syncOutbox).insert(
           SyncOutboxCompanion.insert(
-            companyId: Value(_currentCompanyId),
-            entityType: 'ledger_entry',
-            entityId: offsetEntryId,
-            action: 'insert',
+            id: _uuid.v4(),
+            targetTable: 'ledger_entries',
+            recordId: offsetEntryId,
+            mutationType: 'INSERT',
             payload: jsonEncode({
               'id': offsetEntryId,
+              'companyId': _currentCompanyId,
               'partyId': existing.partyId,
               'amountInCents': existing.amountInCents,
               'type': offsettingType.name,
@@ -637,11 +705,14 @@ class DriftLedgerRepository implements ILedgerRepository {
 
         await _db.into(_db.syncOutbox).insert(
           SyncOutboxCompanion.insert(
-            companyId: Value(_currentCompanyId),
-            entityType: 'ledger_entry',
-            entityId: replacementEntry.id,
-            action: 'insert',
-            payload: jsonEncode(replacementEntry.toMap()),
+            id: _uuid.v4(),
+            targetTable: 'ledger_entries',
+            recordId: replacementEntry.id,
+            mutationType: 'INSERT',
+            payload: jsonEncode({
+              ...replacementEntry.toMap(),
+              'companyId': _currentCompanyId,
+            }),
           ),
         );
 
@@ -662,16 +733,21 @@ class DriftLedgerRepository implements ILedgerRepository {
             date: Value(entry.date),
             note: Value(entry.note),
             receiptPhotoUrl: Value(entry.receiptPhotoUrl),
+            updatedAt: Value(DateTime.now()),
+            syncStatus: const Value(SyncRecordStatus.pending),
           ),
         );
 
         await _db.into(_db.syncOutbox).insert(
           SyncOutboxCompanion.insert(
-            companyId: Value(_currentCompanyId),
-            entityType: 'ledger_entry',
-            entityId: entry.id,
-            action: 'update',
-            payload: jsonEncode(entry.toMap()),
+            id: _uuid.v4(),
+            targetTable: 'ledger_entries',
+            recordId: entry.id,
+            mutationType: 'UPDATE',
+            payload: jsonEncode({
+              ...entry.toMap(),
+              'companyId': _currentCompanyId,
+            }),
           ),
         );
 
@@ -690,6 +766,7 @@ class DriftLedgerRepository implements ILedgerRepository {
     });
 
     _updateStreamController.add(null);
+    _triggerBackgroundSync();
   }
 
   @override
@@ -709,7 +786,7 @@ class DriftLedgerRepository implements ILedgerRepository {
         ? EntryType.got
         : EntryType.gave;
     final timestamp = DateTime.now();
-    final offsetEntryId = 'entry_offset_${timestamp.millisecondsSinceEpoch}';
+    final offsetEntryId = _uuid.v4();
     final offsetNote = 'Offset: Voided entry #${original.id}'
         '${original.note != null && original.note!.isNotEmpty ? ' (${original.note})' : ''}';
 
@@ -733,8 +810,10 @@ class DriftLedgerRepository implements ILedgerRepository {
     await _db.transaction(() async {
       await (_db.update(_db.ledgerEntries)..where((t) => t.id.equals(entryId) & t.companyId.equals(_currentCompanyId)))
           .write(
-        const LedgerEntriesCompanion(
-          isVoided: Value(true),
+        LedgerEntriesCompanion(
+          isVoided: const Value(true),
+          updatedAt: Value(DateTime.now()),
+          syncStatus: const Value(SyncRecordStatus.pending),
         ),
       );
 
@@ -750,26 +829,32 @@ class DriftLedgerRepository implements ILedgerRepository {
               receiptPhotoUrl: Value(offsetEntry.receiptPhotoUrl),
               isVoided: const Value(false),
               createdAt: Value(offsetEntry.date),
+              updatedAt: Value(DateTime.now()),
+              isDeleted: const Value(false),
+              syncStatus: const Value(SyncRecordStatus.pending),
             ),
           );
 
       await _db.into(_db.syncOutbox).insert(
             SyncOutboxCompanion.insert(
-              companyId: Value(_currentCompanyId),
-              entityType: 'ledger_entry',
-              entityId: original.id,
-              action: 'void',
-              payload: jsonEncode({'id': original.id, 'isVoided': true}),
+              id: _uuid.v4(),
+              targetTable: 'ledger_entries',
+              recordId: original.id,
+              mutationType: 'UPDATE',
+              payload: jsonEncode({'id': original.id, 'isVoided': true, 'companyId': _currentCompanyId}),
             ),
           );
 
       await _db.into(_db.syncOutbox).insert(
             SyncOutboxCompanion.insert(
-              companyId: Value(_currentCompanyId),
-              entityType: 'ledger_entry',
-              entityId: offsetEntry.id,
-              action: 'insert',
-              payload: jsonEncode(offsetEntry.toMap()),
+              id: _uuid.v4(),
+              targetTable: 'ledger_entries',
+              recordId: offsetEntry.id,
+              mutationType: 'INSERT',
+              payload: jsonEncode({
+                ...offsetEntry.toMap(),
+                'companyId': _currentCompanyId,
+              }),
             ),
           );
 
@@ -787,6 +872,7 @@ class DriftLedgerRepository implements ILedgerRepository {
     });
 
     _updateStreamController.add(null);
+    _triggerBackgroundSync();
   }
 
   @override
@@ -838,17 +924,20 @@ class DriftLedgerRepository implements ILedgerRepository {
       PartiesCompanion(
         netBalanceInCents: Value(newBalance),
         lastUpdated: Value(latestDate),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value(SyncRecordStatus.pending),
       ),
     );
 
     await _db.into(_db.syncOutbox).insert(
           SyncOutboxCompanion.insert(
-            companyId: Value(_currentCompanyId),
-            entityType: 'party',
-            entityId: partyId,
-            action: 'update_balance',
+            id: _uuid.v4(),
+            targetTable: 'parties',
+            recordId: partyId,
+            mutationType: 'UPDATE',
             payload: jsonEncode({
               'partyId': partyId,
+              'companyId': _currentCompanyId,
               'netBalanceInCents': newBalance,
               'lastUpdated': latestDate.toIso8601String(),
             }),
@@ -857,6 +946,7 @@ class DriftLedgerRepository implements ILedgerRepository {
   }
 
   void dispose() {
+    _isDisposed = true;
     _updateStreamController.close();
   }
 }

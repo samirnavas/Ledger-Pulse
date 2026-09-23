@@ -5,4 +5,6 @@ abstract class IAuthRepository {
   Stream<bool> get authStateStream;
   bool get isAuthenticated;
   String? get currentPhoneNumber;
+  String? get currentUserId;
+  String? get currentSessionToken;
 }

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -219,21 +220,44 @@ class _PdfExportModalState extends State<PdfExportModal> {
     );
   }
 
-  Future<void> _sharePaymentLink() async {
-    _showPaymentGatewayModal(context);
-  }
-
   Future<void> _downloadPdf(BuildContext context) async {
     HapticFeedback.mediumImpact();
     try {
+      if (kIsWeb) {
+        await Printing.sharePdf(bytes: _currentPdfBytes, filename: widget.fileName);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Prepared download: ${widget.fileName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.receivableGreen,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+        return;
+      }
+
       Directory? targetDir;
 
-      if (Platform.isAndroid) {
+      if (!kIsWeb && Platform.isAndroid) {
         targetDir = Directory('/storage/emulated/0/Download');
         if (!await targetDir.exists()) {
           targetDir = await getExternalStorageDirectory();
         }
-      } else if (Platform.isIOS) {
+      } else if (!kIsWeb && Platform.isIOS) {
         targetDir = await getApplicationDocumentsDirectory();
       } else {
         targetDir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();

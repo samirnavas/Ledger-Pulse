@@ -4,13 +4,26 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'core/config/supabase_config.dart';
 import 'core/constants/strings.dart';
 import 'core/theme/android_theme.dart';
 import 'core/theme/ios_theme.dart';
 import 'presentation/splash/splash_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (SupabaseConfig.isConfigured) {
+    try {
+      await Supabase.initialize(
+        url: SupabaseConfig.url,
+        // ignore: deprecated_member_use
+        anonKey: SupabaseConfig.anonKey,
+      );
+    } catch (e) {
+      debugPrint('Supabase init notice: $e');
+    }
+  }
   runApp(
     const ProviderScope(
       child: LedgerPulseApp(),

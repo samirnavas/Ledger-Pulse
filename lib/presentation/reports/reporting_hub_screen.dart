@@ -17,6 +17,7 @@ import '../providers/ledger_providers.dart';
 import '../providers/reporting_providers.dart';
 import '../providers/voucher_providers.dart';
 import 'desktop_custom_report_studio.dart';
+import 'receivables_payables_screen.dart';
 import 'statement_preview_screen.dart';
 
 class ReportingHubScreen extends ConsumerStatefulWidget {
@@ -137,6 +138,20 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
 
     if (report.category == ReportCategory.gstCompliance) {
       _exportGstrJson(context, report);
+      return;
+    }
+
+    if (report.id == 'rpt_receivables_aging') {
+      Navigator.of(context).push(
+        createAdaptivePageRoute(builder: (ctx) => const ReceivablesPayablesScreen(initialIsPayables: false)),
+      );
+      return;
+    }
+
+    if (report.id == 'rpt_payables_aging') {
+      Navigator.of(context).push(
+        createAdaptivePageRoute(builder: (ctx) => const ReceivablesPayablesScreen(initialIsPayables: true)),
+      );
       return;
     }
 

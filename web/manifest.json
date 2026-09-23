@@ -1,11 +1,11 @@
 {
-    "name": "ledger_pulse",
-    "short_name": "ledger_pulse",
+    "name": "LPWeb - Ludgerpulse ERP",
+    "short_name": "LPWeb",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "LPWeb - Ludgerpulse ERP Cloud Companion Application",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

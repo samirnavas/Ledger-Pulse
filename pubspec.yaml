@@ -59,6 +59,9 @@ dependencies:
     path: packages/real_liquid_glass
   material_3_expressive:
     path: packages/material_3_expressive
+  supabase_flutter: ^2.17.2
+  uuid: ^4.6.0
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:

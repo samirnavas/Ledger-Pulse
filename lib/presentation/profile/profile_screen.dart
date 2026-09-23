@@ -34,6 +34,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late TextEditingController _addressController;
   late TextEditingController _gstinController;
   late TextEditingController _businessTypeController;
+  late TextEditingController _bankNameController;
+  late TextEditingController _bankAccountController;
+  late TextEditingController _bankIfscController;
+  late TextEditingController _upiIdController;
 
   bool _isEditing = false;
   bool _hasChanges = false;
@@ -49,6 +53,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _addressController = TextEditingController(text: profile.address);
     _gstinController = TextEditingController(text: profile.gstin);
     _businessTypeController = TextEditingController(text: profile.businessType);
+    _bankNameController = TextEditingController(text: profile.bankName ?? '');
+    _bankAccountController = TextEditingController(text: profile.bankAccountNumber ?? '');
+    _bankIfscController = TextEditingController(text: profile.bankIfsc ?? '');
+    _upiIdController = TextEditingController(text: profile.upiId ?? '');
 
     _nameController.addListener(_onFieldChanged);
     _businessNameController.addListener(_onFieldChanged);
@@ -57,6 +65,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _addressController.addListener(_onFieldChanged);
     _gstinController.addListener(_onFieldChanged);
     _businessTypeController.addListener(_onFieldChanged);
+    _bankNameController.addListener(_onFieldChanged);
+    _bankAccountController.addListener(_onFieldChanged);
+    _bankIfscController.addListener(_onFieldChanged);
+    _upiIdController.addListener(_onFieldChanged);
   }
 
   void _onFieldChanged() {
@@ -67,7 +79,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _emailController.text != current.email ||
         _addressController.text != current.address ||
         _gstinController.text != current.gstin ||
-        _businessTypeController.text != current.businessType;
+        _businessTypeController.text != current.businessType ||
+        _bankNameController.text != (current.bankName ?? '') ||
+        _bankAccountController.text != (current.bankAccountNumber ?? '') ||
+        _bankIfscController.text != (current.bankIfsc ?? '') ||
+        _upiIdController.text != (current.upiId ?? '');
 
     if (changed != _hasChanges) {
       setState(() {
@@ -85,13 +101,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _addressController.dispose();
     _gstinController.dispose();
     _businessTypeController.dispose();
+    _bankNameController.dispose();
+    _bankAccountController.dispose();
+    _bankIfscController.dispose();
+    _upiIdController.dispose();
     super.dispose();
   }
 
   void _saveProfile() {
     if (_formKey.currentState?.validate() ?? false) {
       HapticFeedback.mediumImpact();
-      final updatedProfile = UserProfile(
+      final current = ref.read(userProfileProvider);
+      final updatedProfile = current.copyWith(
         name: _nameController.text.trim(),
         businessName: _businessNameController.text.trim(),
         phoneNumber: _phoneController.text.trim(),
@@ -99,6 +120,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         address: _addressController.text.trim(),
         gstin: _gstinController.text.trim(),
         businessType: _businessTypeController.text.trim(),
+        bankName: _bankNameController.text.trim(),
+        bankAccountNumber: _bankAccountController.text.trim(),
+        bankIfsc: _bankIfscController.text.trim().toUpperCase(),
+        upiId: _upiIdController.text.trim(),
       );
 
       ref.read(userProfileProvider.notifier).updateProfile(updatedProfile);
@@ -114,7 +139,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             children: [
               Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
               SizedBox(width: 8),
-              Text('Profile updated successfully'),
+              Text('Profile and banking details updated successfully'),
             ],
           ),
           backgroundColor: AppColors.receivableGreen,
@@ -374,6 +399,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 label: 'Business Address',
                 icon: isIos ? CupertinoIcons.location : Icons.location_on_outlined,
                 maxLines: 2,
+                enabled: _isEditing,
+              ),
+
+              const SizedBox(height: 24),
+
+              // Banking & UPI Remittance Details Section (FR-VCH-09)
+              _buildSectionHeader(
+                context,
+                'Banking & Remittance (Invoice Payment)',
+                isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_outlined,
+                isIos,
+              ),
+              const SizedBox(height: 12),
+              _buildInputField(
+                context,
+                controller: _bankNameController,
+                label: 'Bank Name',
+                icon: isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded,
+                enabled: _isEditing,
+              ),
+              const SizedBox(height: 12),
+              _buildInputField(
+                context,
+                controller: _bankAccountController,
+                label: 'Account Number',
+                icon: isIos ? CupertinoIcons.number : Icons.credit_card_rounded,
+                keyboardType: TextInputType.number,
+                enabled: _isEditing,
+              ),
+              const SizedBox(height: 12),
+              _buildInputField(
+                context,
+                controller: _bankIfscController,
+                label: 'IFSC Code',
+                icon: isIos ? CupertinoIcons.barcode : Icons.qr_code_2_rounded,
+                enabled: _isEditing,
+              ),
+              const SizedBox(height: 12),
+              _buildInputField(
+                context,
+                controller: _upiIdController,
+                label: 'UPI ID / VPA (e.g. business@okhdfcbank)',
+                icon: isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded,
                 enabled: _isEditing,
               ),
 

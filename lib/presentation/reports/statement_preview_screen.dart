@@ -866,7 +866,7 @@ class _StatementPreviewScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Exported Excel CSV: ${file.path.split(Platform.pathSeparator).last}'),
+            content: Text('Exported Excel CSV: ${file.path.split(RegExp(r"[\\/]")).last}'),
             backgroundColor: AppColors.receivableGreen,
           ),
         );

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 import '../local/audit_service.dart';
 import '../local/database.dart';
 import '../models/audit_log_model.dart';
@@ -78,11 +79,14 @@ class VoucherPostingEngine {
       // 5. Sync Outbox
       await _db.into(_db.syncOutbox).insert(
             SyncOutboxCompanion.insert(
-              companyId: Value(voucher.companyId),
-              entityType: 'voucher',
-              entityId: voucher.id,
-              action: 'upsert',
-              payload: jsonEncode(voucher.toMap()),
+              id: const Uuid().v4(),
+              targetTable: 'vouchers',
+              recordId: voucher.id,
+              mutationType: 'INSERT',
+              payload: jsonEncode({
+                ...voucher.toMap(),
+                'companyId': voucher.companyId,
+              }),
             ),
           );
 

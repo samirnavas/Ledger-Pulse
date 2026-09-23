@@ -66,6 +66,10 @@ class UserProfile {
   String get address => activeCompany.address ?? '';
   String get gstin => activeCompany.gstin ?? '';
   String get businessType => 'Retail & Wholesale';
+  String? get bankName => activeCompany.bankName;
+  String? get bankAccountNumber => activeCompany.bankAccountNumber;
+  String? get bankIfsc => activeCompany.bankIfsc;
+  String? get upiId => activeCompany.upiId;
 
   Role roleForCompany(String companyId) {
     for (final cr in companyRoles) {
@@ -83,19 +87,33 @@ class UserProfile {
     String? address,
     String? gstin,
     String? businessType,
+    String? bankName,
+    String? bankAccountNumber,
+    String? bankIfsc,
+    String? upiId,
     List<Company>? companies,
     String? activeCompanyId,
     Role? role,
     List<UserCompanyRole>? companyRoles,
   }) {
     List<Company> updatedCompanies = companies ?? this.companies;
-    if (businessName != null || address != null || gstin != null) {
+    if (businessName != null ||
+        address != null ||
+        gstin != null ||
+        bankName != null ||
+        bankAccountNumber != null ||
+        bankIfsc != null ||
+        upiId != null) {
       final currentActive = activeCompany;
       final updatedActive = currentActive.copyWith(
         name: businessName ?? currentActive.name,
         legalName: businessName ?? currentActive.legalName,
         address: address ?? currentActive.address,
         gstin: gstin ?? currentActive.gstin,
+        bankName: bankName ?? currentActive.bankName,
+        bankAccountNumber: bankAccountNumber ?? currentActive.bankAccountNumber,
+        bankIfsc: bankIfsc ?? currentActive.bankIfsc,
+        upiId: upiId ?? currentActive.upiId,
         updatedAt: DateTime.now(),
       );
       if (updatedCompanies.isEmpty) {

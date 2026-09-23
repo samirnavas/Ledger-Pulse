@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:drift/drift.dart';
 import '../local/database.dart';
 import '../models/company_model.dart';
 import '../models/sync_model.dart';
@@ -49,10 +48,9 @@ class SyncCoordinator {
   }
 
   Future<int> getPendingOutboxCount(String companyId) async {
-    final query = db.select(db.syncOutbox)
-      ..where((t) => t.companyId.equals(companyId) & t.status.equals('pending'));
+    final query = db.select(db.syncOutbox);
     final rows = await query.get();
-    return rows.length;
+    return rows.where((t) => t.companyId == companyId).length;
   }
 
   void dispose() {

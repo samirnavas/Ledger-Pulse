@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:http/http.dart' as http;
+import '../../core/config/supabase_config.dart';
 import '../local/database.dart';
 import '../models/party_model.dart';
 import '../models/sync_model.dart';
@@ -14,10 +15,12 @@ class SupabaseSyncProvider extends SyncEngine {
 
   SupabaseSyncProvider({
     required AppDatabase db,
-    this.supabaseUrl = 'https://mock-supabase.ludgerpulse.internal',
-    this.supabaseAnonKey = 'mock-anon-key',
+    String? supabaseUrl,
+    String? supabaseAnonKey,
     http.Client? client,
-  })  : _client = client ?? http.Client(),
+  })  : supabaseUrl = supabaseUrl ?? SupabaseConfig.url,
+        supabaseAnonKey = supabaseAnonKey ?? SupabaseConfig.anonKey,
+        _client = client ?? http.Client(),
         super(db);
 
   @override

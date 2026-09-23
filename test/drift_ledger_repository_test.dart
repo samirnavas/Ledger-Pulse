@@ -15,7 +15,7 @@ void main() {
 
     setUp(() {
       db = AppDatabase(NativeDatabase.memory());
-      repo = DriftLedgerRepository(db: db);
+      repo = DriftLedgerRepository(db: db, autoSync: false);
     });
 
     tearDown(() async {
@@ -65,9 +65,9 @@ void main() {
       expect(
         outboxItems.any(
           (item) =>
-              item.entityType == 'party' &&
-              item.entityId == 'test_party_drift_1' &&
-              item.action == 'upsert',
+              item.targetTable == 'parties' &&
+              item.recordId == 'test_party_drift_1' &&
+              item.mutationType == 'INSERT',
         ),
         isTrue,
       );
@@ -176,23 +176,23 @@ void main() {
       party = await repo.getPartyById(partyId);
       expect(party.netBalanceInCents, 0);
 
-      // 4. Verify SyncOutbox has both 'void' action and 'insert' action
+      // 4. Verify SyncOutbox has both 'UPDATE' (void) action and 'INSERT' action
       final outboxList = await db.select(db.syncOutbox).get();
       expect(
         outboxList.any(
           (o) =>
-              o.entityType == 'ledger_entry' &&
-              o.entityId == originalEntryId &&
-              o.action == 'void',
+              o.targetTable == 'ledger_entries' &&
+              o.recordId == originalEntryId &&
+              o.mutationType == 'UPDATE',
         ),
         isTrue,
       );
       expect(
         outboxList.any(
           (o) =>
-              o.entityType == 'ledger_entry' &&
-              o.entityId == offsetRow.id &&
-              o.action == 'insert',
+              o.targetTable == 'ledger_entries' &&
+              o.recordId == offsetRow.id &&
+              o.mutationType == 'INSERT',
         ),
         isTrue,
       );

@@ -30,11 +30,13 @@ import '../reports/pdf_export_modal.dart';
 class VoucherCreationScreen extends ConsumerStatefulWidget {
   final Party? initialParty;
   final VoucherType initialType;
+  final VoucherModel? initialVoucher;
 
   const VoucherCreationScreen({
     super.key,
     this.initialParty,
     this.initialType = VoucherType.sales,
+    this.initialVoucher,
   });
 
   @override
@@ -73,36 +75,102 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
   String? _complianceErrorMessage;
   bool _isSaving = false;
 
+  // Drafting and Hold State (FR-VCH-04)
+  String? _editingVoucherId;
+  VoucherStatus _currentStatus = VoucherStatus.posted;
+
   @override
   void initState() {
     super.initState();
     _selectedType = widget.initialType;
     _selectedParty = widget.initialParty;
-    _voucherNumberController.text = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
 
-    if (_selectedParty != null) {
-      if (_selectedParty!.gstin != null && _selectedParty!.gstin!.isNotEmpty) {
-        _partyGstinController.text = _selectedParty!.gstin!;
+    if (widget.initialVoucher != null) {
+      _loadVoucher(widget.initialVoucher!);
+    } else {
+      _voucherNumberController.text = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+
+      if (_selectedParty != null) {
+        if (_selectedParty!.gstin != null && _selectedParty!.gstin!.isNotEmpty) {
+          _partyGstinController.text = _selectedParty!.gstin!;
+        }
+        if (_selectedParty!.stateCode != null && _selectedParty!.stateCode!.isNotEmpty) {
+          _placeOfSupplyController.text = _selectedParty!.stateCode!;
+        }
       }
-      if (_selectedParty!.stateCode != null && _selectedParty!.stateCode!.isNotEmpty) {
-        _placeOfSupplyController.text = _selectedParty!.stateCode!;
-      }
+
+      // Add a default sample item to immediately showcase the tax calculation engine
+      _items.add(
+        const VoucherItemModel(
+          itemId: 'item_sample_01',
+          itemName: 'Enterprise Cloud ERP Consulting',
+          sku: 'SRV-ERP-01',
+          hsnCode: '998313',
+          quantity: 1.0,
+          unit: 'HRS',
+          unitPriceInCents: 500000, // ₹5,000.00
+          taxRatePercent: 18.0,
+          totalInCents: 590000,
+        ),
+      );
     }
+  }
 
-    // Add a default sample item to immediately showcase the tax calculation engine
-    _items.add(
-      const VoucherItemModel(
-        itemId: 'item_sample_01',
-        itemName: 'Enterprise Cloud ERP Consulting',
-        sku: 'SRV-ERP-01',
-        hsnCode: '998313',
-        quantity: 1.0,
-        unit: 'HRS',
-        unitPriceInCents: 500000, // ₹5,000.00
-        taxRatePercent: 18.0,
-        totalInCents: 590000,
-      ),
-    );
+  void _loadVoucher(VoucherModel v) {
+    setState(() {
+      _editingVoucherId = v.id;
+      _selectedType = v.type;
+      _currentStatus = v.status;
+      _voucherDate = v.date;
+      _dueDate = v.dueDate;
+      _voucherNumberController.text = v.voucherNumber;
+      _placeOfSupplyController.text = v.placeOfSupplyStateCode ?? '29';
+      _narrationController.text = v.narration ?? '';
+      _discountController.text = (v.discountInCents / 100).toStringAsFixed(0);
+      _items.clear();
+      _items.addAll(v.items);
+      _isBillToShipToDifferent = v.isBillToShipToDifferent;
+      _shipToAddressController.text = v.shipToAddress ?? '';
+      _shipToGstinController.text = v.shipToGstin ?? 'URP';
+      _generatedEInvoice = v.irn != null
+          ? EInvoiceDetails(
+              irn: v.irn!,
+              signedQrCode: v.signedQrCode ?? '',
+              signedInvoice: '',
+              ackNumber: '',
+              ackDate: v.date,
+            )
+          : null;
+      _generatedEWayBill = v.eWayBillNumber != null
+          ? EWayBillDetails(
+              eWayBillNumber: v.eWayBillNumber!,
+              generatedDate: v.date,
+              validUptoDate: v.date.add(const Duration(days: 3)),
+              shipToGstinOrUrp: v.shipToGstin ?? 'URP',
+            )
+          : null;
+    });
+
+    if (v.partyId != null) {
+      final parties = ref.read(partyListProvider).value ?? [];
+      final match = parties.firstWhere(
+        (p) => p.id == v.partyId,
+        orElse: () => Party(
+          id: v.partyId!,
+          name: v.partyName ?? 'Party',
+          phoneNumber: '',
+          type: PartyType.customer,
+          netBalanceInCents: 0,
+          lastUpdated: DateTime.now(),
+        ),
+      );
+      setState(() {
+        _selectedParty = match;
+        if (match.gstin != null && match.gstin!.isNotEmpty) {
+          _partyGstinController.text = match.gstin!;
+        }
+      });
+    }
   }
 
   @override
@@ -255,9 +323,9 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
     }
   }
 
-  VoucherModel _buildVoucherModel(Company company, Party party, GstTaxBreakdown breakdown) {
+  VoucherModel _buildVoucherModel(Company company, Party party, GstTaxBreakdown breakdown, {VoucherStatus? status}) {
     return VoucherModel(
-      id: 'vch_${DateTime.now().millisecondsSinceEpoch}',
+      id: _editingVoucherId ?? 'vch_${DateTime.now().millisecondsSinceEpoch}',
       companyId: company.id,
       voucherNumber: _voucherNumberController.text.trim().isNotEmpty
           ? _voucherNumberController.text.trim()
@@ -267,7 +335,7 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
       dueDate: _dueDate,
       partyId: party.id,
       partyName: party.name,
-      status: VoucherStatus.posted,
+      status: status ?? _currentStatus,
       items: _items,
       subtotalInCents: breakdown.subtotalInCents,
       taxInCents: breakdown.totalTaxInCents,
@@ -322,10 +390,10 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
     }
   }
 
-  Future<void> _saveVoucher(Company company, Party party) async {
-    if (_items.isEmpty) {
+  Future<void> _saveVoucher(Company company, Party party, {VoucherStatus status = VoucherStatus.posted}) async {
+    if (_items.isEmpty && status == VoucherStatus.posted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one line item')),
+        const SnackBar(content: Text('Please add at least one line item before posting')),
       );
       return;
     }
@@ -335,15 +403,24 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
 
     try {
       final breakdown = _calculateBreakdown(company);
-      final voucher = _buildVoucherModel(company, party, breakdown);
+      final voucher = _buildVoucherModel(company, party, breakdown, status: status);
 
       await ref.read(voucherControllerProvider.notifier).createVoucher(voucher);
 
       if (mounted) {
+        final message = status == VoucherStatus.draft
+            ? 'Draft #${voucher.voucherNumber} saved successfully!'
+            : status == VoucherStatus.onHold
+                ? 'Bill #${voucher.voucherNumber} placed on hold!'
+                : 'Voucher #${voucher.voucherNumber} created & posted!';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Voucher #${voucher.voucherNumber} created & posted!'),
-            backgroundColor: AppColors.receivableGreen,
+            content: Text(message),
+            backgroundColor: status == VoucherStatus.posted
+                ? AppColors.receivableGreen
+                : status == VoucherStatus.onHold
+                    ? Colors.amber.shade800
+                    : Colors.blueGrey,
           ),
         );
         Navigator.of(context).pop(voucher);
@@ -356,6 +433,155 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
         );
       }
     }
+  }
+
+  void _showDraftsSheet(BuildContext context) {
+    final draftsAsync = ref.read(draftAndHeldVouchersProvider);
+    final isIos = AdaptiveThemeHelper.isIos(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.65,
+        maxChildSize: 0.9,
+        minChildSize: 0.35,
+        builder: (ctx, scroll) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ModalDragHandle(margin: const EdgeInsets.only(bottom: 12)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Draft & On-Hold Invoices',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      setState(() {
+                        _editingVoucherId = null;
+                        _currentStatus = VoucherStatus.posted;
+                        _voucherNumberController.text = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                        _items.clear();
+                      });
+                    },
+                    icon: const Icon(Icons.add_circle_outline, size: 16),
+                    label: const Text('Start Fresh'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: draftsAsync.when(
+                  data: (drafts) {
+                    if (drafts.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              isIos ? CupertinoIcons.tray : Icons.inbox_outlined,
+                              size: 48,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(height: 12),
+                            const Text('No drafts or held invoices found', style: TextStyle(color: Colors.grey)),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      controller: scroll,
+                      itemCount: drafts.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (ctx, index) {
+                        final d = drafts[index];
+                        final isOnHold = d.status == VoucherStatus.onHold;
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                          leading: CircleAvatar(
+                            backgroundColor: isOnHold
+                                ? Colors.amber.withValues(alpha: 0.2)
+                                : Colors.blueGrey.withValues(alpha: 0.2),
+                            child: Icon(
+                              isOnHold
+                                  ? (isIos ? CupertinoIcons.pause_fill : Icons.pause_circle_rounded)
+                                  : (isIos ? CupertinoIcons.doc_text : Icons.drafts_rounded),
+                              color: isOnHold ? Colors.amber.shade900 : Colors.blueGrey.shade800,
+                            ),
+                          ),
+                          title: Row(
+                            children: [
+                              Text('#${d.voucherNumber}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isOnHold ? Colors.amber.shade100 : Colors.blueGrey.shade100,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  isOnHold ? 'ON HOLD' : 'DRAFT',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: isOnHold ? Colors.amber.shade900 : Colors.blueGrey.shade900,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Text(
+                            '${d.partyName ?? "Customer"} • ${d.items.length} items • ${DateFormatter.formatShortDate(d.date)}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                CurrencyFormatter.format(d.totalAmountInCents),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                              const Text('Resume >', style: TextStyle(fontSize: 11, color: AppColors.primaryBlue)),
+                            ],
+                          ),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _loadVoucher(d);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Loaded ${isOnHold ? "held bill" : "draft"} #${d.voucherNumber}'),
+                                backgroundColor: AppColors.primaryBlue,
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Error loading drafts: $e')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showAddItemDialog() {
@@ -497,8 +723,28 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
     final breakdown = _calculateBreakdown(company);
 
     return AdaptiveScaffold(
-      title: 'New ${voucherTypeTitle(_selectedType)}',
+      title: _editingVoucherId != null
+          ? 'Edit ${_currentStatus == VoucherStatus.onHold ? "Held Bill" : "Draft"}'
+          : 'New ${voucherTypeTitle(_selectedType)}',
       actions: [
+        Consumer(
+          builder: (context, ref, _) {
+            final draftsAsync = ref.watch(draftAndHeldVouchersProvider);
+            final draftCount = draftsAsync.value?.length ?? 0;
+            return IconButton(
+              tooltip: 'Drafts & Held Bills ($draftCount)',
+              icon: Badge(
+                isLabelVisible: draftCount > 0,
+                label: Text('$draftCount'),
+                child: Icon(
+                  isIos ? CupertinoIcons.tray_full : Icons.folder_open_rounded,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              onPressed: () => _showDraftsSheet(context),
+            );
+          },
+        ),
         IconButton(
           tooltip: 'Preview PDF Document',
           icon: Icon(
@@ -513,6 +759,69 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_editingVoucherId != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _currentStatus == VoucherStatus.onHold
+                      ? Colors.amber.withValues(alpha: 0.15)
+                      : Colors.blueGrey.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _currentStatus == VoucherStatus.onHold
+                        ? Colors.amber.shade700
+                        : Colors.blueGrey.shade400,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _currentStatus == VoucherStatus.onHold
+                          ? (isIos ? CupertinoIcons.pause_circle_fill : Icons.pause_circle_rounded)
+                          : (isIos ? CupertinoIcons.doc_text_fill : Icons.drafts_rounded),
+                      color: _currentStatus == VoucherStatus.onHold
+                          ? Colors.amber.shade900
+                          : Colors.blueGrey.shade900,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Editing ${_currentStatus == VoucherStatus.onHold ? "Held Bill" : "Draft"}: #${_voucherNumberController.text}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: _currentStatus == VoucherStatus.onHold
+                              ? Colors.amber.shade900
+                              : Colors.blueGrey.shade900,
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _editingVoucherId = null;
+                          _currentStatus = VoucherStatus.posted;
+                          _voucherNumberController.text = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                        });
+                      },
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: Text(
+                          'Save as New',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryBlue,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             // 1. Voucher Type Segmented Control
             AdaptiveSegmentedControl<VoucherType>(
               groupValue: _selectedType,
@@ -984,6 +1293,47 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Draft / Hold Actions (FR-VCH-04)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isSaving ? null : () => _saveVoucher(company, activeParty, status: VoucherStatus.draft),
+                    icon: Icon(
+                      isIos ? CupertinoIcons.pencil_ellipsis_rectangle : Icons.drafts_outlined,
+                      size: 18,
+                    ),
+                    label: const Text('Save as Draft', style: TextStyle(fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isSaving ? null : () => _saveVoucher(company, activeParty, status: VoucherStatus.onHold),
+                    icon: Icon(
+                      isIos ? CupertinoIcons.pause_circle : Icons.pause_circle_outline_rounded,
+                      size: 18,
+                      color: Colors.amber.shade800,
+                    ),
+                    label: Text(
+                      'Hold Bill',
+                      style: TextStyle(fontWeight: FontWeight.w600, color: Colors.amber.shade900),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: Colors.amber.shade700.withValues(alpha: 0.6)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
             // 8. Main Action Buttons: Save & Generate Document
             Row(
               children: [
@@ -1005,7 +1355,7 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: AdaptiveButton(
-                    onPressed: _isSaving ? () {} : () => _saveVoucher(company, activeParty),
+                    onPressed: _isSaving ? () {} : () => _saveVoucher(company, activeParty, status: VoucherStatus.posted),
                     type: AdaptiveButtonType.primary,
                     height: 52,
                     child: _isSaving
