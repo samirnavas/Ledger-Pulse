@@ -23,20 +23,21 @@ import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
 import '../providers/subscription_providers.dart';
 import '../reports/receivables_payables_screen.dart';
-import '../reports/reporting_hub_screen.dart';
 import '../subscription/subscription_paywall_screen.dart';
 import 'add_party_dialog.dart';
-import 'company_switcher_sheet.dart';
 import 'dashboard_bi_hub_card.dart';
 import 'dashboard_sidebar_drawer.dart';
 import 'party_list_tab.dart';
-import 'sync_settings_sheet.dart';
 
 class DashboardTabNotifier extends Notifier<int> {
   @override
   int build() {
     final activeFilter = ref.watch(selectedPartyTypeFilterProvider);
     return activeFilter == PartyType.supplier ? 1 : 0;
+  }
+
+  void setTab(int index) {
+    state = index;
   }
 }
 
@@ -438,7 +439,7 @@ class DashboardScreen extends ConsumerWidget {
           currentIndex: tabIndex,
           onTap: (index) {
             HapticFeedback.lightImpact();
-            ref.read(dashboardTabProvider.notifier).state = index;
+            ref.read(dashboardTabProvider.notifier).setTab(index);
             if (index != 2) {
               ref.read(selectedPartyTypeFilterProvider.notifier).setFilter(
                     index == 1 ? PartyType.supplier : PartyType.customer,

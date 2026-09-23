@@ -166,13 +166,24 @@ class SyncEngine {
       for (final p in (remoteParties as List)) {
         final map = p as Map<String, dynamic>;
         final partyId = map['id'] as String;
-        final name = map['name'] as String? ?? '';
+        final remoteName = map['name'] as String? ?? '';
         final phone = map['phone_number'] as String? ?? '';
         final typeStr = map['type'] as String? ?? 'customer';
         final netBalance = (map['net_balance_in_cents'] as num?)?.toInt() ?? 0;
         final lastUpdatedStr = map['last_updated'] as String?;
         final isDeleted = map['is_deleted'] as bool? ?? false;
         final lastUpdated = lastUpdatedStr != null ? DateTime.parse(lastUpdatedStr) : DateTime.now();
+
+        // Preserve existing local name if remote name is empty/null
+        String name = remoteName;
+        if (name.trim().isEmpty) {
+          final existing = await (db.select(db.parties)
+                ..where((t) => t.id.equals(partyId) & t.companyId.equals(effectiveCompanyId)))
+              .getSingleOrNull();
+          if (existing != null && existing.name.trim().isNotEmpty) {
+            name = existing.name;
+          }
+        }
 
         await db.into(db.parties).insertOnConflictUpdate(
           PartiesCompanion(

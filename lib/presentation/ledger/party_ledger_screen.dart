@@ -34,8 +34,9 @@ class PartyLedgerScreen extends ConsumerWidget {
   const PartyLedgerScreen({super.key, required this.partyId});
 
   String _getInitials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return 'P';
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return 'P';
+    final parts = trimmed.split(RegExp(r'\s+'));
     if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
