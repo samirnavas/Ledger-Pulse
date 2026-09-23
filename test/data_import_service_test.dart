@@ -110,5 +110,60 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
       expect(result.importedParties[0].netBalanceInCents, equals(12000000));
       expect(result.importedParties[1].name, equals('Metro Retail Emporium'));
     });
+
+    test('parseBusyXml extracts debtors, creditors, GSTIN, and inventory items', () {
+      const busyXml = '''<BUSY_DATA>
+  <MASTER>
+    <ACCOUNT NAME="Apex Infotech Solutions">
+      <GROUP>Sundry Debtors</GROUP>
+      <GSTIN>29ABCDE1234F1ZH</GSTIN>
+      <MOBILE>9876543210</MOBILE>
+      <OP_BAL>150000.00</OP_BAL>
+      <OP_BAL_TYPE>D</OP_BAL_TYPE>
+    </ACCOUNT>
+    <ACCOUNT NAME="Karnataka Silicon Vendors">
+      <GROUP>Sundry Creditors</GROUP>
+      <GSTIN>29XYZDE9876K1Z2</GSTIN>
+      <MOBILE>9822055443</MOBILE>
+      <OP_BAL>45000.00</OP_BAL>
+      <OP_BAL_TYPE>C</OP_BAL_TYPE>
+    </ACCOUNT>
+    <ITEM NAME="Industrial Control Unit MK-4">
+      <MAIN_UNIT>PCS</MAIN_UNIT>
+      <OP_QTY>25.0</OP_QTY>
+      <PUR_PRICE>10000.00</PUR_PRICE>
+      <SALE_PRICE>12500.00</SALE_PRICE>
+      <HSN_CODE>8471</HSN_CODE>
+    </ITEM>
+  </MASTER>
+</BUSY_DATA>''';
+
+      final result = DataImportService.parseBusyXml(
+        xmlContent: busyXml,
+        companyId: companyId,
+      );
+
+      expect(result.importedParties.length, equals(2));
+      expect(result.importedItems.length, equals(1));
+
+      final debtor = result.importedParties.firstWhere((p) => p.name == 'Apex Infotech Solutions');
+      expect(debtor.type, equals(PartyType.customer));
+      expect(debtor.gstin, equals('29ABCDE1234F1ZH'));
+      expect(debtor.phoneNumber, equals('9876543210'));
+      expect(debtor.netBalanceInCents, equals(15000000));
+
+      final creditor = result.importedParties.firstWhere((p) => p.name == 'Karnataka Silicon Vendors');
+      expect(creditor.type, equals(PartyType.supplier));
+      expect(creditor.gstin, equals('29XYZDE9876K1Z2'));
+      expect(creditor.netBalanceInCents, equals(4500000));
+
+      final item = result.importedItems.first;
+      expect(item.name, equals('Industrial Control Unit MK-4'));
+      expect(item.unit, equals('PCS'));
+      expect(item.currentStockQuantity, equals(25.0));
+      expect(item.purchasePriceInCents, equals(1000000)); // ₹10,000
+      expect(item.sellingPriceInCents, equals(1250000));  // ₹12,500
+      expect(item.hsnCode, equals('8471'));
+    });
   });
 }

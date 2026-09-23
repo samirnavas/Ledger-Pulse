@@ -128,11 +128,24 @@ class Cts2010ChequePrinterService {
     ];
 
     if (n < 20) return units[n];
-    if (n < 100) return '${tens[n ~/ 10]} ${units[n % 10]}';
-    if (n < 1000) return '${units[n ~/ 100]} Hundred ${_convertToWords(n % 100)}';
-    if (n < 100000) return '${_convertToWords(n ~/ 1000)} Thousand ${_convertToWords(n % 1000)}';
-    if (n < 10000000) return '${_convertToWords(n ~/ 100000)} Lakh ${_convertToWords(n % 100000)}';
-    return '${_convertToWords(n ~/ 10000000)} Crore ${_convertToWords(n % 10000000)}';
+    if (n < 100) {
+      final rem = n % 10;
+      return rem == 0 ? tens[n ~/ 10] : '${tens[n ~/ 10]} ${units[rem]}';
+    }
+    if (n < 1000) {
+      final rem = n % 100;
+      return rem == 0 ? '${units[n ~/ 100]} Hundred' : '${units[n ~/ 100]} Hundred ${_convertToWords(rem)}';
+    }
+    if (n < 100000) {
+      final rem = n % 1000;
+      return rem == 0 ? '${_convertToWords(n ~/ 1000)} Thousand' : '${_convertToWords(n ~/ 1000)} Thousand ${_convertToWords(rem)}';
+    }
+    if (n < 10000000) {
+      final rem = n % 100000;
+      return rem == 0 ? '${_convertToWords(n ~/ 100000)} Lakh' : '${_convertToWords(n ~/ 100000)} Lakh ${_convertToWords(rem)}';
+    }
+    final rem = n % 10000000;
+    return rem == 0 ? '${_convertToWords(n ~/ 10000000)} Crore' : '${_convertToWords(n ~/ 10000000)} Crore ${_convertToWords(rem)}';
   }
 
   /// Generates print-ready CTS-2010 Cheque PDF

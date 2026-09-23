@@ -51,68 +51,114 @@ class _SubscriptionPaywallScreenState
   }
 
   void _showLicenseKeyDialog() {
-    final _ = AdaptiveThemeHelper.isIos(context);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Redeem License Key'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter your 16-character Ludgerpulse activation key (e.g. LP-DIA-XXXX-XXXX-XXXX):',
-              style: TextStyle(fontSize: 13),
+    final isIos = AdaptiveThemeHelper.isIos(context);
+
+    void onActivate(BuildContext ctx) {
+      final key = _licenseKeyController.text.trim();
+      if (key.isEmpty) return;
+      Navigator.pop(ctx);
+      final success = ref
+          .read(subscriptionStateProvider.notifier)
+          .activateLicenseKey(
+            licenseKey: key,
+            customerId: 'CUST-DEFAULT-01',
+          );
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('License Key Activated Successfully!'),
+            backgroundColor: AppColors.receivableGreen,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid License Key format. Please try again.'),
+            backgroundColor: AppColors.payableRed,
+          ),
+        );
+      }
+    }
+
+    if (isIos) {
+      showCupertinoDialog(
+        context: context,
+        builder: (ctx) => CupertinoAlertDialog(
+          title: const Text('Redeem License Key'),
+          content: Padding(
+            padding: const EdgeInsets.only(top: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Enter your 16-character Ludgerpulse activation key:',
+                  style: TextStyle(fontSize: 12),
+                ),
+                const SizedBox(height: 10),
+                CupertinoTextField(
+                  controller: _licenseKeyController,
+                  textCapitalization: TextCapitalization.characters,
+                  placeholder: 'LP-DIA-ABCD-EFGH-IJKL',
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  prefix: const Padding(
+                    padding: EdgeInsets.only(left: 6),
+                    child: Icon(CupertinoIcons.ticket, size: 18),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _licenseKeyController,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                hintText: 'LP-DIA-ABCD-EFGH-IJKL',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                prefixIcon: const Icon(Icons.vpn_key_rounded),
-              ),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              onPressed: () => onActivate(ctx),
+              child: const Text('Activate'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Redeem License Key'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Enter your 16-character Ludgerpulse activation key (e.g. LP-DIA-XXXX-XXXX-XXXX):',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _licenseKeyController,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'LP-DIA-ABCD-EFGH-IJKL',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  prefixIcon: const Icon(Icons.vpn_key_rounded),
+                ),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () {
-              final key = _licenseKeyController.text.trim();
-              if (key.isEmpty) return;
-              Navigator.pop(ctx);
-              final success = ref
-                  .read(subscriptionStateProvider.notifier)
-                  .activateLicenseKey(
-                    licenseKey: key,
-                    customerId: 'CUST-DEFAULT-01',
-                  );
-              if (success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('License Key Activated Successfully!'),
-                    backgroundColor: AppColors.receivableGreen,
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Invalid License Key format. Please try again.'),
-                    backgroundColor: AppColors.payableRed,
-                  ),
-                );
-              }
-            },
-            child: const Text('Activate'),
-          ),
-        ],
-      ),
-    );
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => onActivate(ctx),
+              child: const Text('Activate'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override

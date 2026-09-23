@@ -18,7 +18,9 @@ import '../inventory/manufacturing_journal_screen.dart';
 import '../payments/cts2010_cheque_preview_screen.dart';
 import '../payroll/employee_list_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../data/models/subscription_tier_model.dart';
 import '../providers/ledger_providers.dart';
+import '../providers/subscription_providers.dart';
 import '../reports/reporting_hub_screen.dart';
 import '../subscription/subscription_paywall_screen.dart';
 import 'add_party_dialog.dart';
@@ -172,9 +174,120 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
+  static Widget _buildSubscriptionAlertBanner(BuildContext context, bool isIos, bool isDark, LicenseState sub) {
+    if (!sub.isExpired && (!sub.isTrial || sub.daysRemaining > 3)) {
+      return const SizedBox.shrink();
+    }
+
+    final isExpired = sub.isExpired;
+    final title = isExpired
+        ? 'Subscription Expired'
+        : 'Trial Ending in ${sub.daysRemaining} Days';
+    final message = isExpired
+        ? 'Your access to advanced modules and sync is paused. Tap to renew now.'
+        : 'Upgrade to keep unlimited companies, payroll, and GST e-Way bills.';
+
+    final content = InkWell(
+      onTap: () {
+        HapticFeedback.mediumImpact();
+        Navigator.of(context).push(
+          createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()),
+        );
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (isExpired ? AppColors.payableRed : Colors.amber.shade700).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isExpired ? Icons.warning_rounded : Icons.timer_rounded,
+                color: isExpired ? AppColors.payableRed : Colors.amber.shade700,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      color: isExpired ? AppColors.payableRed : Colors.amber.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    message,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: (isExpired ? AppColors.payableRed : AppColors.primaryBlue),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                'UPGRADE',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (isIos) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+        child: LiquidGlassCard(
+          borderRadius: 16,
+          padding: EdgeInsets.zero,
+          child: content,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Card(
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: (isExpired ? AppColors.payableRed : Colors.amber.shade400).withValues(alpha: 0.6),
+          ),
+        ),
+        color: (isExpired ? AppColors.payableRed : Colors.amber).withValues(alpha: isDark ? 0.12 : 0.06),
+        child: content,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subscription = ref.watch(subscriptionStateProvider);
 
     final activeFilter = ref.watch(selectedPartyTypeFilterProvider);
     final summaryAsync = ref.watch(businessSummaryProvider);
@@ -311,6 +424,9 @@ class DashboardScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
+          // Subscription / Trial Expiration Alert Banner
+          _buildSubscriptionAlertBanner(context, isIos, isDark, subscription),
+
           // 1. Top Business Metric Cards (collapses smoothly when search is active)
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 250),

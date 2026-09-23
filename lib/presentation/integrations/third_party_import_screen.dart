@@ -85,6 +85,32 @@ VEND	Southern Power Corp	Indiranagar	9823098765
 INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
         break;
       case ImportSourceType.busyXml:
+        _contentController.text = '''<BUSY_DATA>
+  <MASTER>
+    <ACCOUNT NAME="Apex Infotech Solutions">
+      <GROUP>Sundry Debtors</GROUP>
+      <GSTIN>29ABCDE1234F1ZH</GSTIN>
+      <MOBILE>9876543210</MOBILE>
+      <OP_BAL>150000.00</OP_BAL>
+      <OP_BAL_TYPE>D</OP_BAL_TYPE>
+    </ACCOUNT>
+    <ACCOUNT NAME="Karnataka Silicon Vendors">
+      <GROUP>Sundry Creditors</GROUP>
+      <GSTIN>29XYZDE9876K1Z2</GSTIN>
+      <MOBILE>9822055443</MOBILE>
+      <OP_BAL>45000.00</OP_BAL>
+      <OP_BAL_TYPE>C</OP_BAL_TYPE>
+    </ACCOUNT>
+    <ITEM NAME="Industrial Control Unit MK-4">
+      <MAIN_UNIT>PCS</MAIN_UNIT>
+      <OP_QTY>25.0</OP_QTY>
+      <PUR_PRICE>10000.00</PUR_PRICE>
+      <SALE_PRICE>12500.00</SALE_PRICE>
+      <HSN_CODE>8471</HSN_CODE>
+    </ITEM>
+  </MASTER>
+</BUSY_DATA>''';
+        break;
       case ImportSourceType.excelCsv:
         _contentController.text = '''Customer Name,Phone,GSTIN,Opening Balance
 "Prime Global Technologies","9811022334","29AAECP1234H1Z1","120000"
@@ -106,8 +132,10 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
 
     switch (_selectedSource) {
       case ImportSourceType.tallyXml:
-      case ImportSourceType.busyXml:
         res = DataImportService.parseTallyXml(xmlContent: text, companyId: company.id);
+        break;
+      case ImportSourceType.busyXml:
+        res = DataImportService.parseBusyXml(xmlContent: text, companyId: company.id);
         break;
       case ImportSourceType.zohoCsv:
         res = DataImportService.parseZohoCsv(csvContent: text, companyId: company.id);

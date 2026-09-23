@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,12 +8,14 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
+import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../data/models/transaction_model.dart';
+import '../payments/cts2010_cheque_preview_screen.dart';
 import '../providers/ledger_providers.dart';
 
 
@@ -383,17 +387,54 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Saved ${_entryType == EntryType.gave ? "You Gave" : "You Got"} ${CurrencyFormatter.format(amountCents)}',
+
+        final isWindows = !kIsWeb && Platform.isWindows;
+        if (isWindows && _entryType == EntryType.gave) {
+          // Automatic trigger for Windows desktop CTS-2010 Cheque Printing
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Saved You Gave ${CurrencyFormatter.format(amountCents)} • Opening Cheque Print Preview...',
+              ),
+              backgroundColor: AppColors.payableRed,
+              duration: const Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'PRINT CHEQUE',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.of(context).push(
+                    createAdaptivePageRoute(
+                      builder: (_) => Cts2010ChequePreviewScreen(
+                        initialPayeeName: widget.partyName,
+                        initialAmountInCents: amountCents,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-            backgroundColor: _entryType == EntryType.gave
-                ? AppColors.payableRed
-                : AppColors.receivableGreen,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+          );
+          Navigator.of(context).push(
+            createAdaptivePageRoute(
+              builder: (_) => Cts2010ChequePreviewScreen(
+                initialPayeeName: widget.partyName,
+                initialAmountInCents: amountCents,
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Saved ${_entryType == EntryType.gave ? "You Gave" : "You Got"} ${CurrencyFormatter.format(amountCents)}',
+              ),
+              backgroundColor: _entryType == EntryType.gave
+                  ? AppColors.payableRed
+                  : AppColors.receivableGreen,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     }
   }

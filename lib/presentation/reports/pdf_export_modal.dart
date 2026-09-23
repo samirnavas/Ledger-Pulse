@@ -11,6 +11,7 @@ import '../../core/constants/colors.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
+import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/gst_models.dart';
 import '../../data/models/party_model.dart';
@@ -202,24 +203,24 @@ class _PdfExportModalState extends State<PdfExportModal> {
     }
   }
 
-  Future<void> _sharePaymentLink() async {
+  void _showPaymentGatewayModal(BuildContext context) {
     if (!_isInvoiceMode) return;
     HapticFeedback.lightImpact();
-    final linkPayload = PaymentGatewayService.createInvoicePaymentLink(
-      voucher: widget.voucher!,
-      company: widget.company!,
-      party: widget.party!,
-      provider: PaymentGatewayProvider.razorpay,
-    );
 
-    final msg =
-        'Dear ${widget.partyName}, please pay ₹${(widget.voucher!.totalAmountInCents / 100.0).toStringAsFixed(2)} for Invoice #${widget.voucher?.voucherNumber} online via UPI / Cards: ${linkPayload.paymentUrl}';
-
-    // ignore: deprecated_member_use
-    await Share.share(
-      msg,
-      subject: 'Online Payment Link for Invoice #${widget.voucher?.voucherNumber}',
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalCtx) => _PaymentGatewayDropInSheet(
+        voucher: widget.voucher!,
+        company: widget.company!,
+        party: widget.party!,
+      ),
     );
+  }
+
+  Future<void> _sharePaymentLink() async {
+    _showPaymentGatewayModal(context);
   }
 
   Future<void> _downloadPdf(BuildContext context) async {
@@ -657,9 +658,9 @@ class _PdfExportModalState extends State<PdfExportModal> {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                               ),
-                              onPressed: _sharePaymentLink,
-                              icon: const Icon(Icons.qr_code_2_rounded, size: 20),
-                              label: const Text('Share UPI / Razorpay Payment Link', style: TextStyle(fontWeight: FontWeight.bold)),
+                              onPressed: () => _showPaymentGatewayModal(context),
+                              icon: const Icon(Icons.payment_rounded, size: 20),
+                              label: const Text('Online Payment Gateways (Razorpay, Paytm, Cashfree, UPI, Stripe)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ),
                           ),
                         ],
@@ -672,6 +673,290 @@ class _PdfExportModalState extends State<PdfExportModal> {
           ),
         );
       },
+    );
+  }
+}
+
+class _PaymentGatewayDropInSheet extends StatefulWidget {
+  final VoucherModel voucher;
+  final Company company;
+  final Party party;
+
+  const _PaymentGatewayDropInSheet({
+    required this.voucher,
+    required this.company,
+    required this.party,
+  });
+
+  @override
+  State<_PaymentGatewayDropInSheet> createState() => _PaymentGatewayDropInSheetState();
+}
+
+class _PaymentGatewayDropInSheetState extends State<_PaymentGatewayDropInSheet> {
+  PaymentGatewayProvider _selectedProvider = PaymentGatewayProvider.bharatUpi;
+
+  PaymentLinkPayload get _linkPayload => PaymentGatewayService.createInvoicePaymentLink(
+        voucher: widget.voucher,
+        company: widget.company,
+        party: widget.party,
+        provider: _selectedProvider,
+      );
+
+  String get _formattedMessage =>
+      'Dear ${widget.party.name}, please pay ₹${(widget.voucher.totalAmountInCents / 100.0).toStringAsFixed(2)} for Invoice #${widget.voucher.voucherNumber} online via ${_selectedProvider.displayName}: ${_linkPayload.paymentUrl}';
+
+  Future<void> _shareWhatsApp() async {
+    HapticFeedback.lightImpact();
+    final cleanPhone = widget.party.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    final uri = Uri.parse('https://wa.me/$cleanPhone?text=${Uri.encodeComponent(_formattedMessage)}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      // ignore: deprecated_member_use
+      await Share.share(_formattedMessage);
+    }
+  }
+
+  Future<void> _shareSms() async {
+    HapticFeedback.lightImpact();
+    final cleanPhone = widget.party.phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    final uri = Uri.parse('sms:$cleanPhone?body=${Uri.encodeComponent(_formattedMessage)}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      // ignore: deprecated_member_use
+      await Share.share(_formattedMessage);
+    }
+  }
+
+  Future<void> _shareNative() async {
+    HapticFeedback.lightImpact();
+    // ignore: deprecated_member_use
+    await Share.share(
+      _formattedMessage,
+      subject: 'Payment Link for Invoice #${widget.voucher.voucherNumber}',
+    );
+  }
+
+  void _copyToClipboard() {
+    HapticFeedback.lightImpact();
+    Clipboard.setData(ClipboardData(text: _linkPayload.paymentUrl));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Payment link copied to clipboard!'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _simulatePaymentCallback() {
+    HapticFeedback.mediumImpact();
+    final txnId = 'pay_sim_${DateTime.now().millisecondsSinceEpoch}';
+    final callback = PaymentGatewayService.handlePaymentSuccessCallback(
+      company: widget.company,
+      invoiceVoucher: widget.voucher,
+      gatewayTransactionId: txnId,
+      paymentMode: _selectedProvider.displayName,
+    );
+
+    Navigator.of(context).pop();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Payment Verified (${callback.transactionId}) • Auto-created Receipt #${callback.generatedReceiptVoucher?.voucherNumber}',
+        ),
+        backgroundColor: AppColors.receivableGreen,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final payload = _linkPayload;
+    final amountRupees = (widget.voucher.totalAmountInCents / 100.0).toStringAsFixed(2);
+
+    final content = Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Online Payment Drop-in',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Invoice #${widget.voucher.voucherNumber} • ₹$amountRupees',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Provider Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: PaymentGatewayProvider.values.map((p) {
+                final isSelected = p == _selectedProvider;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    selected: isSelected,
+                    label: Text(p.displayName),
+                    onSelected: (_) {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedProvider = p);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Link Box
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark ? Colors.blueGrey.shade800 : Colors.blueGrey.shade200,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Direct Payment URL (${_selectedProvider.name.toUpperCase()})',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        payload.paymentUrl,
+                        style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Copy Link',
+                  icon: const Icon(Icons.copy_rounded, size: 20),
+                  onPressed: _copyToClipboard,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Sharing actions: WhatsApp, SMS, Native Share
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF25D366),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: _shareWhatsApp,
+                  icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                  label: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: _shareSms,
+                  icon: const Icon(Icons.sms_rounded, size: 18),
+                  label: const Text('SMS', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                tooltip: 'Native Share',
+                icon: Icon(isIos ? CupertinoIcons.share : Icons.share_rounded),
+                onPressed: _shareNative,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Simulate payment callback button
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            onPressed: _simulatePaymentCallback,
+            icon: const Icon(Icons.verified_rounded, color: AppColors.receivableGreen, size: 18),
+            label: const Text(
+              'Simulate Payment Webhook Confirmation',
+              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.receivableGreen),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (isIos) {
+      return LiquidGlassCard(
+        borderRadius: 24,
+        padding: EdgeInsets.zero,
+        child: content,
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(child: content),
     );
   }
 }

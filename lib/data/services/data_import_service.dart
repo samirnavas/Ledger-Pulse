@@ -266,6 +266,107 @@ class DataImportService {
     );
   }
 
+  /// Parses Busy Accounting XML export containing `<ACCOUNT>` and `<ITEM>` tags
+  static ImportParseResult parseBusyXml({
+    required String xmlContent,
+    required String companyId,
+  }) {
+    final parties = <Party>[];
+    final items = <InventoryItem>[];
+    final warnings = <String>[];
+
+    // 1. Parse Busy Accounts (Customers / Vendors)
+    final accountRegex = RegExp(r'<ACCOUNT(?:\s+NAME="([^"]+)")?[^>]*>(.*?)<\/ACCOUNT>', dotAll: true);
+    for (final match in accountRegex.allMatches(xmlContent)) {
+      final body = match.group(2) ?? '';
+      String name = match.group(1)?.trim() ?? '';
+      if (name.isEmpty) {
+        name = RegExp(r'<NAME>(.*?)<\/NAME>').firstMatch(body)?.group(1)?.trim() ??
+            RegExp(r'<PRINT_NAME>(.*?)<\/PRINT_NAME>').firstMatch(body)?.group(1)?.trim() ??
+            '';
+      }
+      if (name.isEmpty) continue;
+
+      final group = RegExp(r'<GROUP>(.*?)<\/GROUP>').firstMatch(body)?.group(1)?.trim().toLowerCase() ?? '';
+      final gstin = RegExp(r'<GSTIN>(.*?)<\/GSTIN>').firstMatch(body)?.group(1)?.trim() ??
+          RegExp(r'<PARTYGSTIN>(.*?)<\/PARTYGSTIN>').firstMatch(body)?.group(1)?.trim();
+      final phone = RegExp(r'<MOBILE>(.*?)<\/MOBILE>').firstMatch(body)?.group(1)?.trim() ??
+          RegExp(r'<PHONE>(.*?)<\/PHONE>').firstMatch(body)?.group(1)?.trim() ??
+          '9999999999';
+      final opBalStr = RegExp(r'<OP_BAL>(.*?)<\/OP_BAL>').firstMatch(body)?.group(1)?.trim() ??
+          RegExp(r'<OPENINGBALANCE>(.*?)<\/OPENINGBALANCE>').firstMatch(body)?.group(1)?.trim() ??
+          '0';
+      final opBal = double.tryParse(opBalStr) ?? 0.0;
+
+      PartyType pType = PartyType.customer;
+      if (group.contains('creditor') || group.contains('supplier') || group.contains('vendor') || group.contains('purchase')) {
+        pType = PartyType.supplier;
+      }
+
+      parties.add(
+        Party(
+          id: 'busy_pty_${DateTime.now().millisecondsSinceEpoch}_${parties.length}',
+          name: name,
+          phoneNumber: phone,
+          type: pType,
+          netBalanceInCents: (opBal * 100).round(),
+          gstin: (gstin != null && gstin.isNotEmpty) ? gstin : null,
+          lastUpdated: DateTime.now(),
+        ),
+      );
+    }
+
+    // 2. Parse Busy Items
+    final itemRegex = RegExp(r'<ITEM(?:\s+NAME="([^"]+)")?[^>]*>(.*?)<\/ITEM>', dotAll: true);
+    for (final match in itemRegex.allMatches(xmlContent)) {
+      final body = match.group(2) ?? '';
+      String name = match.group(1)?.trim() ?? '';
+      if (name.isEmpty) {
+        name = RegExp(r'<NAME>(.*?)<\/NAME>').firstMatch(body)?.group(1)?.trim() ??
+            RegExp(r'<PRINT_NAME>(.*?)<\/PRINT_NAME>').firstMatch(body)?.group(1)?.trim() ??
+            '';
+      }
+      if (name.isEmpty) continue;
+
+      final unit = RegExp(r'<MAIN_UNIT>(.*?)<\/MAIN_UNIT>').firstMatch(body)?.group(1)?.trim() ??
+          RegExp(r'<UNIT>(.*?)<\/UNIT>').firstMatch(body)?.group(1)?.trim() ??
+          'PCS';
+      final opQty = double.tryParse(RegExp(r'<OP_QTY>(.*?)<\/OP_QTY>').firstMatch(body)?.group(1)?.trim() ?? '0') ?? 0.0;
+      final purPrice = double.tryParse(RegExp(r'<PUR_PRICE>(.*?)<\/PUR_PRICE>').firstMatch(body)?.group(1)?.trim() ??
+          RegExp(r'<OP_RATE>(.*?)<\/OP_RATE>').firstMatch(body)?.group(1)?.trim() ?? '0') ?? 0.0;
+      final salePrice = double.tryParse(RegExp(r'<SALE_PRICE>(.*?)<\/SALE_PRICE>').firstMatch(body)?.group(1)?.trim() ?? '0') ?? (purPrice * 1.25);
+      final hsn = RegExp(r'<HSN_CODE>(.*?)<\/HSN_CODE>').firstMatch(body)?.group(1)?.trim() ??
+          RegExp(r'<HSNCODE>(.*?)<\/HSNCODE>').firstMatch(body)?.group(1)?.trim() ??
+          '8471';
+
+      items.add(
+        InventoryItem(
+          id: 'busy_itm_${DateTime.now().millisecondsSinceEpoch}_${items.length}',
+          companyId: companyId,
+          sku: 'SKU-${name.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '-').toUpperCase()}',
+          name: name,
+          hsnCode: hsn,
+          unit: unit,
+          currentStockQuantity: opQty,
+          purchasePriceInCents: (purPrice * 100).round(),
+          sellingPriceInCents: (salePrice * 100).round(),
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      );
+    }
+
+    if (parties.isEmpty && items.isEmpty) {
+      warnings.add('No <ACCOUNT> or <ITEM> records could be extracted from Busy XML.');
+    }
+
+    return ImportParseResult(
+      importedParties: parties,
+      importedItems: items,
+      warnings: warnings,
+    );
+  }
+
   /// Parses Generic Excel / CSV with intelligent header auto-mapping
   static ImportParseResult parseExcelCsvAutoMapped({
     required String csvContent,
