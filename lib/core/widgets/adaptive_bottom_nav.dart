@@ -40,6 +40,11 @@ class AdaptiveBottomNav extends StatelessWidget {
                 activeIcon: Icon(CupertinoIcons.archivebox_fill),
                 label: 'Suppliers',
               ),
+              BottomNavigationBarItem(
+                icon: Icon(CupertinoIcons.person_crop_circle),
+                activeIcon: Icon(CupertinoIcons.person_crop_circle_fill),
+                label: 'Profile',
+              ),
             ],
           ),
         ),
@@ -61,6 +66,11 @@ class AdaptiveBottomNav extends StatelessWidget {
           icon: Icon(Icons.local_shipping_outlined),
           selectedIcon: Icon(Icons.local_shipping),
           label: 'Suppliers',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.account_circle_outlined),
+          selectedIcon: Icon(Icons.account_circle),
+          label: 'Profile',
         ),
       ],
     );

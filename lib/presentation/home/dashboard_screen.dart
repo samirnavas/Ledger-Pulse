@@ -19,6 +19,7 @@ import '../payments/cts2010_cheque_preview_screen.dart';
 import '../payroll/employee_list_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../data/models/subscription_tier_model.dart';
+import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
 import '../providers/subscription_providers.dart';
 import '../reports/receivables_payables_screen.dart';
@@ -27,8 +28,19 @@ import '../subscription/subscription_paywall_screen.dart';
 import 'add_party_dialog.dart';
 import 'company_switcher_sheet.dart';
 import 'dashboard_bi_hub_card.dart';
+import 'dashboard_sidebar_drawer.dart';
 import 'party_list_tab.dart';
 import 'sync_settings_sheet.dart';
+
+class DashboardTabNotifier extends Notifier<int> {
+  @override
+  int build() {
+    final activeFilter = ref.watch(selectedPartyTypeFilterProvider);
+    return activeFilter == PartyType.supplier ? 1 : 0;
+  }
+}
+
+final dashboardTabProvider = NotifierProvider<DashboardTabNotifier, int>(DashboardTabNotifier.new);
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -177,14 +189,50 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  void _openProfile(BuildContext context) {
+  void _showBiHubModal(BuildContext context) {
     HapticFeedback.lightImpact();
-    Navigator.of(context).push(
-      createAdaptivePageRoute(
-        builder: (context) => const ProfileScreen(),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) {
+          return Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    child: const DashboardBiHubCard(),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
+
+
 
   static Widget _buildSubscriptionAlertBanner(BuildContext context, bool isIos, bool isDark, LicenseState sub) {
     if (!sub.isExpired && (!sub.isTrial || sub.daysRemaining > 3)) {
@@ -305,6 +353,8 @@ class DashboardScreen extends ConsumerWidget {
     final summaryAsync = ref.watch(businessSummaryProvider);
     final isSearchActive = ref.watch(isPartySearchActiveProvider) ||
         ref.watch(partySearchQueryProvider).isNotEmpty;
+    
+    final tabIndex = ref.watch(dashboardTabProvider);
 
     return PopScope(
       canPop: !isSearchActive,
@@ -316,127 +366,91 @@ class DashboardScreen extends ConsumerWidget {
         ref.read(isPartySearchActiveProvider.notifier).setActive(false);
       },
       child: AdaptiveScaffold(
+        drawer: DashboardSidebarDrawer(
+          onOpenErpModules: () => _showErpModulesModal(context),
+        ),
         titleWidget: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: Image.asset(
-                'assets/icons/app_icon.png',
-                height: 28,
-                width: 28,
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                Icons.business_rounded,
+                size: 20,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(width: 8),
-            const Text(AppStrings.appName),
+            Text(
+              ref.watch(activeCompanyProvider).name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
         actions: [
-          // Sync Center button
-        IconButton(
-          tooltip: 'Sync & Backup',
-          icon: Icon(
-            isIos ? CupertinoIcons.cloud_upload : Icons.sync_rounded,
-            size: 22,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          onPressed: () => SyncSettingsSheet.show(context),
-        ),
-
-        // Company Switcher button
-        IconButton(
-          tooltip: 'Switch Company',
-          icon: Icon(
-            isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded,
-            size: 22,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          onPressed: () => CompanySwitcherSheet.show(context),
-        ),
-
-        // Reports & Analytics Hub
-        IconButton(
-          tooltip: 'Reports & Analytics Hub',
-          icon: Icon(
-            isIos ? CupertinoIcons.chart_pie : Icons.insights_rounded,
-            size: 22,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            Navigator.of(context).push(
-              createAdaptivePageRoute(builder: (context) => const ReportingHubScreen()),
-            );
-          },
-        ),
-
-        // ERP Modules Hub (Payroll, Manufacturing, Importers, Cheque Printing, Paywall)
-        IconButton(
-          tooltip: 'ERP Modules & Paywall',
-          icon: Icon(
-            isIos ? CupertinoIcons.square_grid_2x2 : Icons.apps_rounded,
-            size: 22,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            _showErpModulesModal(context);
-          },
-        ),
-
-        // iOS Add Party Action in navigation bar
-        if (isIos)
-          CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            onPressed: () => _showAddPartySheet(
-              context,
-              activeFilter ?? PartyType.customer,
+          if (isIos)
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: () => _showBiHubModal(context),
+              child: const Icon(CupertinoIcons.chart_pie_fill, size: 22),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.analytics_rounded),
+              onPressed: () => _showBiHubModal(context),
             ),
-            child: const Icon(CupertinoIcons.add, size: 22),
-          ),
-
-        // Profile button
-        IconButton(
-          tooltip: 'Profile',
-          icon: Icon(
-            isIos ? CupertinoIcons.person_crop_circle : Icons.account_circle_outlined,
-            size: 22,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          onPressed: () => _openProfile(context),
-        ),
-      ],
-      // Android M3 Expressive Floating Action Button
-      floatingActionButton: isIos
-          ? null
-          : FloatingActionButton.extended(
+          if (isIos)
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
               onPressed: () => _showAddPartySheet(
                 context,
                 activeFilter ?? PartyType.customer,
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              icon: const Icon(Icons.person_add_rounded),
-              label: Text(
-                activeFilter == PartyType.supplier
-                    ? AppStrings.addSupplier
-                    : AppStrings.addCustomer,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-              ),
+              child: const Icon(CupertinoIcons.add, size: 22),
             ),
-      bottomNavigationBar: AdaptiveBottomNav(
-        currentIndex: activeFilter == PartyType.supplier ? 1 : 0,
-        onTap: (index) {
-          HapticFeedback.lightImpact();
-          ref.read(selectedPartyTypeFilterProvider.notifier).setFilter(
-                index == 1 ? PartyType.supplier : PartyType.customer,
-              );
-        },
-      ),
-      body: Column(
-        children: [
-          // Subscription / Trial Expiration Alert Banner
+        ],
+        // Android M3 Expressive Floating Action Button
+        floatingActionButton: isIos || tabIndex == 2
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: () => _showAddPartySheet(
+                  context,
+                  activeFilter ?? PartyType.customer,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                icon: const Icon(Icons.person_add_rounded),
+                label: Text(
+                  activeFilter == PartyType.supplier
+                      ? AppStrings.addSupplier
+                      : AppStrings.addCustomer,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+              ),
+        bottomNavigationBar: AdaptiveBottomNav(
+          currentIndex: tabIndex,
+          onTap: (index) {
+            HapticFeedback.lightImpact();
+            ref.read(dashboardTabProvider.notifier).state = index;
+            if (index != 2) {
+              ref.read(selectedPartyTypeFilterProvider.notifier).setFilter(
+                    index == 1 ? PartyType.supplier : PartyType.customer,
+                  );
+            }
+          },
+        ),
+      body: tabIndex == 2 
+          ? const ProfileScreen()
+          : Column(
+              children: [
+                // Subscription / Trial Expiration Alert Banner
           _buildSubscriptionAlertBanner(context, isIos, isDark, subscription),
 
           // 1. Top Business Metric Cards (collapses smoothly when search is active)
@@ -596,7 +610,7 @@ class DashboardScreen extends ConsumerWidget {
                 },
               ),
             ),
-            const DashboardBiHubCard(),
+
           ],
         ),
         secondChild: const SizedBox(width: double.infinity, height: 0),

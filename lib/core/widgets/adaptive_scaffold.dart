@@ -13,6 +13,8 @@ class AdaptiveScaffold extends StatelessWidget {
   final Widget? bottomNavigationBar;
   final Color? backgroundColor;
   final PreferredSizeWidget? bottomAppBar;
+  final Widget? leading;
+  final Widget? drawer;
 
   const AdaptiveScaffold({
     super.key,
@@ -24,6 +26,8 @@ class AdaptiveScaffold extends StatelessWidget {
     this.bottomNavigationBar,
     this.backgroundColor,
     this.bottomAppBar,
+    this.leading,
+    this.drawer,
   });
 
   @override
@@ -33,7 +37,7 @@ class AdaptiveScaffold extends StatelessWidget {
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
     if (isIos) {
-      return CupertinoPageScaffold(
+      final cupertinoScaffold = CupertinoPageScaffold(
         backgroundColor: backgroundColor ??
             (isDark
                 ? const Color(0xFF0F172A)
@@ -50,6 +54,15 @@ class AdaptiveScaffold extends StatelessWidget {
               width: 0.5,
             ),
           ),
+          leading: leading ?? (drawer != null
+              ? Builder(
+                  builder: (ctx) => CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () => Scaffold.of(ctx).openDrawer(),
+                    child: const Icon(CupertinoIcons.bars, size: 24),
+                  ),
+                )
+              : null),
           middle: titleWidget ?? (title != null ? Text(title!) : null),
           trailing: actions == null || actions!.isEmpty
               ? null
@@ -68,6 +81,15 @@ class AdaptiveScaffold extends StatelessWidget {
           ),
         ),
       );
+
+      if (drawer != null) {
+        return Scaffold(
+          drawer: drawer,
+          backgroundColor: Colors.transparent,
+          body: cupertinoScaffold,
+        );
+      }
+      return cupertinoScaffold;
     } else {
       // Android Material 3 Expressive
       final scheme = Theme.of(context).colorScheme;
@@ -85,6 +107,7 @@ class AdaptiveScaffold extends StatelessWidget {
         child: Scaffold(
           backgroundColor: backgroundColor ?? scheme.surfaceContainerLow,
           appBar: AppBar(
+            leading: leading,
             title: titleWidget ?? (title != null ? Text(title!) : null),
             actions: actions,
             bottom: bottomAppBar,
@@ -100,6 +123,7 @@ class AdaptiveScaffold extends StatelessWidget {
                   isDark ? Brightness.dark : Brightness.light,
             ),
           ),
+          drawer: drawer,
           body: body,
           floatingActionButton: floatingActionButton,
           bottomNavigationBar: bottomNavigationBar,
