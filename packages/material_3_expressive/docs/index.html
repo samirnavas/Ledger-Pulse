@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<!--
+  Golden patched index for the GitHub Pages web demo.
+  Copied to docs/index.html after every web release build — see
+  example-app-web-release-build.md at the repo root.
+
+  Contains:
+  1. CanvasKit bootstrap: flutter.js + loadEntrypoint (not flutter_bootstrap.js)
+  2. Inline splash screen markup, styles, and hideM3eSplash()
+-->
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/material_3_expressive/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Demonstrates how to use the material_3_expressive plugin.">
+  <meta name="theme-color" content="#6750A4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141218" media="(prefers-color-scheme: dark)">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="material_3_expressive_example">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>Material 3 Expressive</title>
+  <link rel="manifest" href="manifest.json">
+
+  <style>
+    :root {
+      color-scheme: light;
+      --m3e-surface: #fef7ff;
+      --m3e-on-surface: #1d1b20;
+      --m3e-on-surface-variant: #49454f;
+      --m3e-primary: #6750a4;
+      --m3e-secondary: #625b71;
+      --m3e-tertiary: #7d5260;
+      --m3e-shape-opacity: 0.16;
+      --m3e-loader-track: rgba(103, 80, 164, 0.2);
+      --m3e-title-accent-start: #6750a4;
+      --m3e-title-accent-mid: #7d5260;
+      --m3e-title-accent-end: #625b71;
+      --m3e-title-glow: rgba(103, 80, 164, 0.22);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+        --m3e-surface: #141218;
+        --m3e-on-surface: #e6e0e9;
+        --m3e-on-surface-variant: #cac4d0;
+        --m3e-primary: #d0bcff;
+        --m3e-secondary: #ccc2dc;
+        --m3e-tertiary: #efb8c8;
+        --m3e-shape-opacity: 0.2;
+        --m3e-loader-track: rgba(208, 188, 255, 0.22);
+        --m3e-title-accent-start: #d0bcff;
+        --m3e-title-accent-mid: #efb8c8;
+        --m3e-title-accent-end: #ccc2dc;
+        --m3e-title-glow: rgba(208, 188, 255, 0.28);
+      }
+    }
+
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      background: var(--m3e-surface);
+    }
+
+    #m3e-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 999999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: var(--m3e-surface);
+      color: var(--m3e-on-surface);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, "Helvetica Neue", Arial, sans-serif;
+      opacity: 1;
+      transition: opacity 300ms ease, background-color 200ms ease,
+        color 200ms ease;
+    }
+
+    #m3e-splash.m3e-splash--hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .m3e-splash__shapes {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .m3e-splash__shape {
+      position: absolute;
+      top: var(--sy, 50%);
+      left: var(--sx, 50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: var(--m3e-shape-opacity);
+      transform: translate(-50%, -50%);
+    }
+
+    .m3e-splash__shape svg {
+      width: 100%;
+      height: 100%;
+      animation: m3e-spin 22s linear infinite;
+    }
+
+    .m3e-splash__shape--soft-burst {
+      width: clamp(280px, 44vw, 500px);
+      height: clamp(280px, 44vw, 500px);
+      color: var(--m3e-primary);
+    }
+
+    .m3e-splash__shape--soft-burst svg {
+      animation-duration: 26s;
+    }
+
+    .m3e-splash__shape--pentagon {
+      width: clamp(260px, 40vw, 440px);
+      height: clamp(260px, 40vw, 440px);
+      color: var(--m3e-secondary);
+    }
+
+    .m3e-splash__shape--pentagon svg {
+      animation-duration: 20s;
+      animation-direction: reverse;
+    }
+
+    .m3e-splash__shape--pill {
+      width: clamp(340px, 50vw, 540px);
+      height: clamp(170px, 25vw, 270px);
+      color: var(--m3e-tertiary);
+    }
+
+    .m3e-splash__shape--pill svg {
+      animation-duration: 24s;
+    }
+
+    .m3e-splash__shape--cookie {
+      width: clamp(270px, 42vw, 460px);
+      height: clamp(270px, 42vw, 460px);
+      color: var(--m3e-primary);
+    }
+
+    .m3e-splash__shape--cookie svg {
+      animation-duration: 18s;
+      animation-direction: reverse;
+    }
+
+    .m3e-splash__shape--oval {
+      width: clamp(250px, 38vw, 420px);
+      height: clamp(320px, 46vw, 520px);
+      color: var(--m3e-secondary);
+    }
+
+    .m3e-splash__shape--oval svg {
+      animation-duration: 28s;
+    }
+
+    @keyframes m3e-spin {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .m3e-splash__shape svg {
+        animation: none;
+      }
+
+      .m3e-splash__loader {
+        animation: none;
+      }
+
+      .m3e-splash__title-emphasis {
+        animation: none;
+      }
+    }
+
+    .m3e-splash__content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(20px, 4vw, 32px);
+      padding: clamp(16px, 5vw, 32px);
+      text-align: center;
+      max-width: min(92vw, 640px);
+    }
+
+    .m3e-splash__title-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+
+    .m3e-splash__title {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.08em;
+      line-height: 1.05;
+    }
+
+    .m3e-splash__title-line {
+      font-size: clamp(0.9375rem, 3.6vw, 1.5rem);
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--m3e-on-surface-variant);
+    }
+
+    .m3e-splash__title-emphasis {
+      font-size: clamp(1.75rem, 8.5vw, 3.75rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(
+        115deg,
+        var(--m3e-title-accent-start) 0%,
+        var(--m3e-title-accent-mid) 52%,
+        var(--m3e-title-accent-end) 100%
+      );
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 2px 12px var(--m3e-title-glow));
+      animation: m3e-title-shimmer 6s ease-in-out infinite;
+    }
+
+    @keyframes m3e-title-shimmer {
+      0%,
+      100% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+    }
+
+    .m3e-splash__tagline {
+      margin: 0.5em 0 0;
+      font-size: clamp(0.875rem, 2.6vw, 1.0625rem);
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--m3e-on-surface-variant);
+    }
+
+    .m3e-splash__subtitle {
+      margin: 0;
+      font-size: clamp(0.8125rem, 2.5vw, 1rem);
+      font-weight: 400;
+      color: var(--m3e-on-surface-variant);
+    }
+
+    .m3e-splash__loader {
+      width: clamp(36px, 8vw, 48px);
+      height: clamp(36px, 8vw, 48px);
+      border-radius: 50%;
+      background: conic-gradient(
+        from 90deg,
+        var(--m3e-primary) 0deg,
+        var(--m3e-primary) 90deg,
+        var(--m3e-loader-track) 90deg,
+        var(--m3e-loader-track) 360deg
+      );
+      mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+      -webkit-mask: radial-gradient(
+        farthest-side,
+        transparent calc(100% - 4px),
+        #000 0
+      );
+      animation: m3e-loader-spin 1.2s linear infinite;
+    }
+
+    @keyframes m3e-loader-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="m3e-splash" role="status" aria-live="polite" aria-busy="true">
+    <div class="m3e-splash__shapes" aria-hidden="true">
+      <div class="m3e-splash__shape m3e-splash__shape--soft-burst" style="--sx: 16%; --sy: 18%;">
+        <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+          <path
+            d="M50 8 L62 28 L84 26 L68 42 L74 64 L50 54 L26 64 L32 42 L16 26 L38 28 Z"
+          />
+        </svg>
+      </div>
+      <div class="m3e-splash__shape m3e-splash__shape--pentagon" style="--sx: 84%; --sy: 22%;">
+        <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+          <path d="M50 10 L90 38 L74 88 L26 88 L10 38 Z" />
+        </svg>
+      </div>
+      <div class="m3e-splash__shape m3e-splash__shape--pill" style="--sx: 32%; --sy: 78%;">
+        <svg viewBox="0 0 140 72" fill="currentColor" aria-hidden="true">
+          <rect x="4" y="4" width="132" height="64" rx="32" ry="32" />
+        </svg>
+      </div>
+      <div class="m3e-splash__shape m3e-splash__shape--cookie" style="--sx: 74%; --sy: 72%;">
+        <svg viewBox="0 0 100 100" fill="currentColor" aria-hidden="true">
+          <path
+            d="M50 12 L78 22 L88 50 L78 78 L50 88 L22 78 L12 50 L22 22 Z"
+          />
+        </svg>
+      </div>
+      <div class="m3e-splash__shape m3e-splash__shape--oval" style="--sx: 12%; --sy: 58%;">
+        <svg viewBox="0 0 88 112" fill="currentColor" aria-hidden="true">
+          <ellipse cx="44" cy="56" rx="36" ry="48" />
+        </svg>
+      </div>
+    </div>
+    <div class="m3e-splash__content">
+      <div class="m3e-splash__title-group">
+        <h1 class="m3e-splash__title">
+          <span class="m3e-splash__title-line">Material 3</span>
+          <span class="m3e-splash__title-emphasis">Expressive</span>
+        </h1>
+        <p class="m3e-splash__tagline">Flutter Package Demo</p>
+      </div>
+      <p class="m3e-splash__subtitle">Loading gallery…</p>
+      <div class="m3e-splash__loader" aria-label="Loading"></div>
+    </div>
+  </div>
+
+  <script src="flutter.js" defer></script>
+  <script>
+    function hideM3eSplash() {
+      var splash = document.getElementById('m3e-splash');
+      if (!splash || splash.classList.contains('m3e-splash--hidden')) {
+        return;
+      }
+      splash.classList.add('m3e-splash--hidden');
+      splash.setAttribute('aria-busy', 'false');
+      splash.addEventListener(
+        'transitionend',
+        function() {
+          splash.remove();
+        },
+        { once: true }
+      );
+    }
+
+    window.addEventListener('load', function(ev) {
+      _flutter.loader.loadEntrypoint({
+        onEntrypointLoaded: async function(engineInitializer) {
+          try {
+            let appRunner = await engineInitializer.initializeEngine({
+              renderer: 'canvaskit'
+            });
+            await appRunner.runApp();
+          } finally {
+            hideM3eSplash();
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

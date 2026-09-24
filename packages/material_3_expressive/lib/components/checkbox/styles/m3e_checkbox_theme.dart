@@ -1,0 +1,178 @@
+import 'package:flutter/widgets.dart';
+
+import '../../../foundations/foundations.dart';
+
+/// Theme values for `M3ECheckbox`.
+@immutable
+class M3ECheckboxTheme extends M3EThemeExtension<M3ECheckboxTheme> {
+  /// M3ECheckboxTheme.
+  const M3ECheckboxTheme({
+    this.boxSize = 18,
+    this.hitSize = 40,
+    this.markSize = 16,
+    this.indeterminateWidth = 10,
+    this.indeterminateHeight = 2,
+    this.borderWidth = 2,
+    this.disabledOpacity = 0.38,
+    this.labelGap = 8,
+    this.checkIconPadding = const EdgeInsets.only(right: 1),
+    this.pulseSpring = M3EMotion.expressiveSpatialDefault,
+  });
+
+  /// defaults.
+
+  static const M3ECheckboxTheme defaults = M3ECheckboxTheme();
+
+  /// boxSize.
+
+  final double boxSize;
+
+  /// hitSize.
+  final double hitSize;
+
+  /// markSize.
+  final double markSize;
+
+  /// indeterminateWidth.
+  final double indeterminateWidth;
+
+  /// indeterminateHeight.
+  final double indeterminateHeight;
+
+  /// borderWidth.
+  final double borderWidth;
+
+  /// disabledOpacity.
+  final double disabledOpacity;
+
+  /// Gap between the control and an optional label beside the checkbox.
+  final double labelGap;
+
+  /// Optical offset for the built-in check icon (paint translation, not layout).
+  ///
+  /// `left`/`top` nudge the glyph right/down; `right`/`bottom` nudge left/up.
+  final EdgeInsetsGeometry checkIconPadding;
+
+  /// Scale pulse spring when the value changes.
+  final M3ESpring pulseSpring;
+
+  /// The borderRadius.
+
+  BorderRadius get borderRadius => M3EShapes.radiusExtraSmall;
+
+  static const Color _transparent = Color(0x00000000);
+
+  /// stateLayerColor.
+
+  Color stateLayerColor(
+    M3EColorScheme scheme, {
+    required bool active,
+    required bool error,
+  }) {
+    if (error) {
+      return scheme.error;
+    }
+    return active ? scheme.primary : scheme.onSurface;
+  }
+
+  /// fillColor.
+
+  Color fillColor(
+    M3EColorScheme scheme, {
+    required bool enabled,
+    required bool active,
+    required bool error,
+  }) {
+    if (!enabled) {
+      return active
+          ? M3EColorUtils.withOpacity(scheme.onSurface, disabledOpacity)
+          : _transparent;
+    }
+    if (!active) {
+      return _transparent;
+    }
+    return error ? scheme.error : scheme.primary;
+  }
+
+  /// borderColor.
+
+  Color borderColor(
+    M3EColorScheme scheme, {
+    required bool enabled,
+    required bool active,
+    required bool error,
+  }) {
+    if (!enabled) {
+      return M3EColorUtils.withOpacity(scheme.onSurface, disabledOpacity);
+    }
+    if (active) {
+      return error ? scheme.error : scheme.primary;
+    }
+    return error ? scheme.error : scheme.onSurfaceVariant;
+  }
+
+  /// markColor.
+
+  Color markColor(M3EColorScheme scheme, {required bool error}) =>
+      error ? scheme.onError : scheme.onPrimary;
+
+  @override
+  M3ECheckboxTheme copyWith({
+    double? boxSize,
+    double? hitSize,
+    double? markSize,
+    double? indeterminateWidth,
+    double? indeterminateHeight,
+    double? borderWidth,
+    double? disabledOpacity,
+    double? labelGap,
+    EdgeInsetsGeometry? checkIconPadding,
+    M3ESpring? pulseSpring,
+  }) {
+    return M3ECheckboxTheme(
+      boxSize: boxSize ?? this.boxSize,
+      hitSize: hitSize ?? this.hitSize,
+      markSize: markSize ?? this.markSize,
+      indeterminateWidth: indeterminateWidth ?? this.indeterminateWidth,
+      indeterminateHeight: indeterminateHeight ?? this.indeterminateHeight,
+      borderWidth: borderWidth ?? this.borderWidth,
+      disabledOpacity: disabledOpacity ?? this.disabledOpacity,
+      labelGap: labelGap ?? this.labelGap,
+      checkIconPadding: checkIconPadding ?? this.checkIconPadding,
+      pulseSpring: pulseSpring ?? this.pulseSpring,
+    );
+  }
+
+  @override
+  M3ECheckboxTheme lerp(M3ECheckboxTheme? other, double t) {
+    if (other is! M3ECheckboxTheme) {
+      return this;
+    }
+    return M3ECheckboxTheme(
+      boxSize: _lerpDouble(boxSize, other.boxSize, t)!,
+      hitSize: _lerpDouble(hitSize, other.hitSize, t)!,
+      markSize: _lerpDouble(markSize, other.markSize, t)!,
+      indeterminateWidth: _lerpDouble(
+        indeterminateWidth,
+        other.indeterminateWidth,
+        t,
+      )!,
+      indeterminateHeight: _lerpDouble(
+        indeterminateHeight,
+        other.indeterminateHeight,
+        t,
+      )!,
+      borderWidth: _lerpDouble(borderWidth, other.borderWidth, t)!,
+      disabledOpacity: _lerpDouble(disabledOpacity, other.disabledOpacity, t)!,
+      labelGap: _lerpDouble(labelGap, other.labelGap, t)!,
+      checkIconPadding: EdgeInsetsGeometry.lerp(
+        checkIconPadding,
+        other.checkIconPadding,
+        t,
+      )!,
+      pulseSpring: t < 0.5 ? pulseSpring : other.pulseSpring,
+    );
+  }
+
+  double? _lerpDouble(double a, double b, double t) => a + (b - a) * t;
+}

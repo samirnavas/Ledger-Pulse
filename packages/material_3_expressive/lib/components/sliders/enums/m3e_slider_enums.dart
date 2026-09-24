@@ -1,0 +1,31 @@
+import 'package:material_3_expressive/components/sliders/m3e_sliders.dart'
+    show M3ESlider;
+import 'package:material_3_expressive/material_3_expressive.dart'
+    show M3ESlider;
+
+/// Which track geometry an [M3ESlider] paints.
+enum M3ESliderTrackKind {
+  /// Active track from the start edge to the thumb.
+  standard,
+
+  /// Active track grows from the midpoint toward the thumb.
+  centered,
+}
+
+/// How the track interprets active fill extents.
+enum M3ESliderPaintMode {
+  /// Single thumb; active from start → thumb (or centered).
+  single,
+
+  /// Dual thumbs; active between start and end.
+  range,
+}
+
+/// Axis-relative resting edge for the relocating track [M3ESlider.icon].
+enum M3ESliderIconPosition {
+  /// Leading / bottom (depending on orientation and [M3ESlider.topToBottom]).
+  start,
+
+  /// Trailing / top (depending on orientation and [M3ESlider.topToBottom]).
+  end,
+}
