@@ -1,0 +1,46 @@
+workflows:
+  ios-simulator-build:
+    name: iOS Simulator Build
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install
+
+      - name: Build iOS for Simulator (no code signing)
+        script: |
+          flutter build ios --simulator --no-codesign
+
+    artifacts:
+      - build/ios/iphonesimulator/*.app
+
+  ios-debug-build:
+    name: iOS Debug Build (No Signing)
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install
+
+      - name: Build iOS Debug (no code signing)
+        script: |
+          flutter build ios --debug --no-codesign --simulator
+
+    artifacts:
+      - build/ios/iphonesimulator/*.app
