@@ -1,4 +1,5 @@
 import 'package:animations/animations.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../theme/adaptive_theme.dart';
 
@@ -68,7 +69,7 @@ class AdaptivePageRoute<T> extends MaterialPageRoute<T> {
 
     final isIos = AdaptiveThemeHelper.isIos(context);
     if (isIos) {
-      return const CupertinoPageTransitionsBuilder().buildTransitions<T>(
+      return CupertinoPageTransitionsBuilder().buildTransitions<T>(
         this,
         context,
         animation,
