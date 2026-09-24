@@ -26,6 +26,48 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>sms</string>
+		<string>whatsapp</string>
+		<string>https</string>
+		<string>http</string>
+		<string>upi</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.ledgerpulse.ledger_pulse</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>ledgerpulse</string>
+				<string>com.ledgerpulse.ledgerpulse</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSContactsUsageDescription</key>
+	<string>Ledger Pulse needs access to your contacts to quickly import customer and vendor details.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ledger Pulse needs access to your camera to scan invoices, bills, and capture physical receipts.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ledger Pulse needs access to your photo library to select receipt images for transactions.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Ledger Pulse needs permission to save generated financial statements, invoices, and receipts to your photo gallery.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Ledger Pulse uses Face ID / Touch ID to securely authenticate and protect your business financial books.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -59,12 +101,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSContactsUsageDescription</key>
-	<string>Ledger Pulse needs access to your contacts to easily import party names and phone numbers.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Ledger Pulse needs access to your camera to capture receipts and bills.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Ledger Pulse needs access to your photo library to attach receipt images to ledger entries.</string>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
