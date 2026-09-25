@@ -111,8 +111,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => Container(
                   color: AppColors.primaryBlueLight,
-                  child: const Icon(
-                    Icons.account_balance_wallet_rounded,
+                  child: Icon(
+                    isIos
+                        ? CupertinoIcons.money_dollar_circle_fill
+                        : Icons.account_balance_wallet_rounded,
                     size: 48,
                     color: AppColors.primaryBlue,
                   ),

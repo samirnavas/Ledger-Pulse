@@ -13,6 +13,7 @@ class LiquidGlassContainer extends StatelessWidget {
   final double border;
   final Color? borderColor;
   final Color? color;
+  final Color? glassColor;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final AlignmentGeometry alignment;
@@ -28,6 +29,7 @@ class LiquidGlassContainer extends StatelessWidget {
     this.border = 1.2,
     this.borderColor,
     this.color,
+    this.glassColor,
     this.padding,
     this.margin,
     this.alignment = Alignment.center,
@@ -40,15 +42,15 @@ class LiquidGlassContainer extends StatelessWidget {
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
     final defaultTintColor = isDark
-        ? CupertinoColors.systemGrey6.withValues(alpha: 0.45)
-        : Colors.white.withValues(alpha: 0.65);
+        ? const Color(0xFF1E293B).withValues(alpha: 0.55)
+        : Colors.white.withValues(alpha: 0.72);
 
-    final effectiveColor = color ?? defaultTintColor;
+    final effectiveColor = color ?? glassColor ?? defaultTintColor;
 
     final effectiveBorderColor = borderColor ??
         (isDark
-            ? Colors.white.withValues(alpha: 0.3)
-            : Colors.white.withValues(alpha: 0.6));
+            ? Colors.white.withValues(alpha: 0.18)
+            : Colors.white.withValues(alpha: 0.75));
 
     Widget content = Container(
       width: width,
@@ -58,10 +60,40 @@ class LiquidGlassContainer extends StatelessWidget {
       decoration: BoxDecoration(
         color: effectiveColor,
         borderRadius: BorderRadius.circular(borderRadius),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [
+                  Colors.white.withValues(alpha: 0.12),
+                  Colors.white.withValues(alpha: 0.02),
+                  const Color(0xFF0F172A).withValues(alpha: 0.40),
+                ]
+              : [
+                  Colors.white.withValues(alpha: 0.85),
+                  Colors.white.withValues(alpha: 0.55),
+                  const Color(0xFFF1F5F9).withValues(alpha: 0.35),
+                ],
+        ),
         border: Border.all(
           color: effectiveBorderColor,
           width: border,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+            spreadRadius: -2,
+          ),
+          BoxShadow(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.04)
+                : Colors.white.withValues(alpha: 0.45),
+            blurRadius: 4,
+            offset: const Offset(0, -1),
+          ),
+        ],
       ),
       child: child,
     );
@@ -69,6 +101,7 @@ class LiquidGlassContainer extends StatelessWidget {
     if (onTap != null) {
       content = GestureDetector(
         onTap: onTap,
+        behavior: HitTestBehavior.opaque,
         child: content,
       );
     }

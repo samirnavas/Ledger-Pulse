@@ -355,7 +355,7 @@ class _ReceivablesPayablesScreenState
 
     if (isIos) {
       return LiquidGlassCard(
-        borderRadius: 22,
+        borderRadius: 24,
         padding: EdgeInsets.zero,
         color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.75),
         borderColor: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
@@ -363,26 +363,22 @@ class _ReceivablesPayablesScreenState
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.6),
+    return Card(
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: content,
     );
   }
 
   Widget _buildSearchAndFilters(BuildContext context, {required bool isIos}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -394,17 +390,24 @@ class _ReceivablesPayablesScreenState
             prefixIcon: Icon(isIos ? CupertinoIcons.search : Icons.search_rounded),
             suffixIcon: _searchQuery.isNotEmpty
                 ? IconButton(
-                    icon: const Icon(Icons.clear, size: 18),
+                    icon: Icon(
+                      isIos ? CupertinoIcons.clear_circled_solid : Icons.clear,
+                      size: 18,
+                    ),
                     onPressed: () => _searchController.clear(),
                   )
                 : null,
             filled: true,
-            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+            fillColor: isIos
+                ? (isDark
+                    ? CupertinoColors.systemGrey6.darkColor
+                    : CupertinoColors.systemGrey6)
+                : Theme.of(context).colorScheme.surfaceContainerHighest,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(28),
               borderSide: BorderSide.none,
             ),
-            contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
         ),
         const SizedBox(height: 12),
@@ -423,7 +426,7 @@ class _ReceivablesPayablesScreenState
                   onSelected: (val) {
                     setState(() => _selectedBucket = bucket);
                   },
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: const StadiumBorder(),
                   selectedColor: Theme.of(context).colorScheme.primaryContainer,
                 ),
               );
@@ -566,7 +569,10 @@ class _ReceivablesPayablesScreenState
               // 3. View Full Invoice PDF
               IconButton(
                 tooltip: 'Preview Invoice PDF',
-                icon: const Icon(Icons.picture_as_pdf_outlined, size: 20),
+                icon: Icon(
+                  isIos ? CupertinoIcons.doc_text_viewfinder : Icons.picture_as_pdf_outlined,
+                  size: 20,
+                ),
                 onPressed: () => _previewInvoicePdf(context, voucher, party, company),
               ),
             ],
@@ -577,7 +583,7 @@ class _ReceivablesPayablesScreenState
 
     if (isIos) {
       return LiquidGlassCard(
-        borderRadius: 18,
+        borderRadius: 20,
         padding: EdgeInsets.zero,
         color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.75),
         borderColor: isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08),
@@ -585,12 +591,13 @@ class _ReceivablesPayablesScreenState
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+    return Card(
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
         ),
       ),
       child: cardContent,

@@ -478,7 +478,10 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                         _items.clear();
                       });
                     },
-                    icon: const Icon(Icons.add_circle_outline, size: 16),
+                    icon: Icon(
+                      isIos ? CupertinoIcons.plus_circle : Icons.add_circle_outline,
+                      size: 16,
+                    ),
                     label: const Text('Start Fresh'),
                   ),
                 ],
@@ -849,7 +852,10 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                           decoration: InputDecoration(
                             labelText: 'Document #',
                             isDense: true,
-                            prefixIcon: const Icon(Icons.tag_rounded, size: 20),
+                            prefixIcon: Icon(
+                              isIos ? CupertinoIcons.number : Icons.tag_rounded,
+                              size: 20,
+                            ),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
@@ -870,7 +876,10 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                             decoration: InputDecoration(
                               labelText: 'Date',
                               isDense: true,
-                              prefixIcon: const Icon(Icons.calendar_today_rounded, size: 18),
+                              prefixIcon: Icon(
+                                isIos ? CupertinoIcons.calendar : Icons.calendar_today_rounded,
+                                size: 18,
+                              ),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             child: Text(DateFormatter.formatShortDate(_voucherDate)),
@@ -891,7 +900,10 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                             labelText: 'Place of Supply (State Code)',
                             hintText: 'e.g. 29 (Karnataka), 27 (Maharashtra)',
                             isDense: true,
-                            prefixIcon: const Icon(Icons.location_on_rounded, size: 20),
+                            prefixIcon: Icon(
+                              isIos ? CupertinoIcons.location : Icons.location_on_rounded,
+                              size: 20,
+                            ),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           onChanged: (_) => setState(() {}),
@@ -973,7 +985,10 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                             labelText: 'Party GSTIN',
                             hintText: '15-digit alphanumeric',
                             isDense: true,
-                            prefixIcon: const Icon(Icons.verified_user_rounded, size: 20),
+                            prefixIcon: Icon(
+                              isIos ? CupertinoIcons.shield_lefthalf_fill : Icons.verified_user_rounded,
+                              size: 20,
+                            ),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           onChanged: (_) => setState(() {}),
@@ -1003,7 +1018,9 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                       child: Row(
                         children: [
                           Icon(
-                            _gstinValidationResult!.isValid ? Icons.check_circle : Icons.error,
+                            _gstinValidationResult!.isValid
+                                ? (isIos ? CupertinoIcons.checkmark_circle_fill : Icons.check_circle)
+                                : (isIos ? CupertinoIcons.exclamationmark_triangle_fill : Icons.error),
                             color: _gstinValidationResult!.isValid ? Colors.green : Colors.red,
                             size: 16,
                           ),
@@ -1090,7 +1107,10 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                       ),
                       IconButton(
                         tooltip: 'Add Line Item',
-                        icon: const Icon(Icons.add_circle_rounded, color: AppColors.primaryBlue),
+                        icon: Icon(
+                          isIos ? CupertinoIcons.plus_circle_fill : Icons.add_circle_rounded,
+                          color: AppColors.primaryBlue,
+                        ),
                         onPressed: _showAddItemDialog,
                       ),
                     ],
@@ -1119,7 +1139,11 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.remove_circle_outline, size: 18, color: Colors.red),
+                            icon: Icon(
+                              isIos ? CupertinoIcons.minus_circle : Icons.remove_circle_outline,
+                              size: 18,
+                              color: Colors.red,
+                            ),
                             onPressed: () => setState(() => _items.removeAt(index)),
                           ),
                         ],
@@ -1248,7 +1272,9 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
-                                      _generatedEInvoice != null ? Icons.check_circle : Icons.qr_code_2_rounded,
+                                      _generatedEInvoice != null
+                                          ? (isIos ? CupertinoIcons.checkmark_circle_fill : Icons.check_circle)
+                                          : (isIos ? CupertinoIcons.qrcode : Icons.qr_code_2_rounded),
                                       size: 18,
                                     ),
                                     const SizedBox(width: 6),
@@ -1274,7 +1300,9 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
-                                      _generatedEWayBill != null ? Icons.check_circle : Icons.local_shipping_rounded,
+                                      _generatedEWayBill != null
+                                          ? (isIos ? CupertinoIcons.checkmark_circle_fill : Icons.check_circle)
+                                          : (isIos ? CupertinoIcons.bus : Icons.local_shipping_rounded),
                                       size: 18,
                                     ),
                                     const SizedBox(width: 6),
@@ -1342,12 +1370,15 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                     onPressed: () => _previewAndExportPdf(company, activeParty),
                     type: AdaptiveButtonType.secondary,
                     height: 52,
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.visibility_rounded, size: 20),
-                        SizedBox(width: 8),
-                        Text('Preview PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        Icon(
+                          isIos ? CupertinoIcons.eye : Icons.visibility_rounded,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('Preview PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                       ],
                     ),
                   ),
@@ -1360,12 +1391,16 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
                     height: 52,
                     child: _isSaving
                         ? const CupertinoActivityIndicator(radius: 12, color: Colors.white)
-                        : const Row(
+                        : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.check_rounded, size: 20, color: Colors.white),
-                              SizedBox(width: 8),
-                              Text('Post Voucher', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+                              Icon(
+                                isIos ? CupertinoIcons.checkmark : Icons.check_rounded,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text('Post Voucher', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
                             ],
                           ),
                   ),

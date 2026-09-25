@@ -793,10 +793,16 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                           EmptyStateView(
                             lottieAsset: 'assets/animations/empty_ledger.json',
                             fallbackIcon: currentQuery.isNotEmpty
-                                ? Icons.search_off_rounded
+                                ? (isIos
+                                    ? CupertinoIcons.search
+                                    : Icons.search_off_rounded)
                                 : (filter == PartyType.supplier
-                                    ? Icons.local_shipping_outlined
-                                    : Icons.people_outline_rounded),
+                                    ? (isIos
+                                        ? CupertinoIcons.archivebox
+                                        : Icons.local_shipping_outlined)
+                                    : (isIos
+                                        ? CupertinoIcons.person_2
+                                        : Icons.people_outline_rounded)),
                             title: currentQuery.isNotEmpty
                                 ? 'No matches for "$currentQuery"'
                                 : 'No $tabName Found',

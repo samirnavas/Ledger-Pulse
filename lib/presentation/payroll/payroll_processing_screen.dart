@@ -255,12 +255,18 @@ class _PayrollProcessingScreenState
                       const SizedBox(width: 8),
                       IconButton(
                         tooltip: 'Print / Preview Slip',
-                        icon: const Icon(Icons.print_rounded, size: 20),
+                        icon: Icon(
+                          isIos ? CupertinoIcons.printer : Icons.print_rounded,
+                          size: 20,
+                        ),
                         onPressed: () => _viewAndPrintSlip(slip),
                       ),
                       IconButton(
                         tooltip: 'Share Slip PDF',
-                        icon: const Icon(Icons.share_rounded, size: 20),
+                        icon: Icon(
+                          isIos ? CupertinoIcons.share : Icons.share_rounded,
+                          size: 20,
+                        ),
                         onPressed: () => _shareSlip(slip),
                       ),
                     ],
@@ -270,16 +276,17 @@ class _PayrollProcessingScreenState
                 if (isIos) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: LiquidGlassCard(borderRadius: 14, padding: EdgeInsets.zero, child: tile),
+                    child: LiquidGlassCard(borderRadius: 18, padding: EdgeInsets.zero, child: tile),
                   );
                 }
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Card(
                     elevation: 0,
+                    color: Theme.of(context).colorScheme.surfaceContainer,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(24),
+                      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5)),
                     ),
                     child: tile,
                   ),
@@ -321,13 +328,14 @@ class _PayrollProcessingScreenState
     );
 
     if (isIos) {
-      return LiquidGlassCard(borderRadius: 16, padding: EdgeInsets.zero, child: content);
+      return LiquidGlassCard(borderRadius: 22, padding: EdgeInsets.zero, child: content);
     }
     return Card(
       elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5)),
       ),
       child: content,
     );

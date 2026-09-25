@@ -165,7 +165,10 @@ class _EcommerceSyncScreenState extends ConsumerState<EcommerceSyncScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.cloud_download_rounded, size: 20),
+                    Icon(
+                      isIos ? CupertinoIcons.cloud_download : Icons.cloud_download_rounded,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Fetch Live Orders from ${_selectedChannel == MarketplaceChannel.amazonIndia ? "Amazon India" : "Flipkart"}',
@@ -248,7 +251,20 @@ class _EcommerceSyncScreenState extends ConsumerState<EcommerceSyncScreen> {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: _isSyncing ? null : _commitImportVouchers,
-                  icon: _isSyncing ? const CupertinoActivityIndicator() : const Icon(Icons.check_circle_rounded, size: 20),
+                  icon: _isSyncing
+                      ? (isIos
+                          ? const CupertinoActivityIndicator()
+                          : const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            ))
+                      : Icon(
+                          isIos
+                              ? CupertinoIcons.checkmark_circle_fill
+                              : Icons.check_circle_rounded,
+                          size: 20,
+                        ),
                   label: Text('Post ${res.generatedVouchers.length} Invoices to Ledger & Inventory'),
                 ),
               ),

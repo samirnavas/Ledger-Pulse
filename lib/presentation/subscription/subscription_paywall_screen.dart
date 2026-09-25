@@ -292,7 +292,9 @@ class _SubscriptionPaywallScreenState
               shape: BoxShape.circle,
             ),
             child: Icon(
-              sub.isTrial ? Icons.timer_rounded : Icons.verified_rounded,
+              sub.isTrial
+                  ? (isIos ? CupertinoIcons.timer : Icons.timer_rounded)
+                  : (isIos ? CupertinoIcons.checkmark_seal_fill : Icons.verified_rounded),
               color: sub.isTrial ? Colors.amber.shade700 : AppColors.receivableGreen,
               size: 24,
             ),
@@ -412,7 +414,7 @@ class _SubscriptionPaywallScreenState
                 child: Row(
                   children: [
                     Icon(
-                      Icons.check_circle_rounded,
+                      isIos ? CupertinoIcons.checkmark_circle_fill : Icons.check_circle_rounded,
                       size: 16,
                       color: accentColor,
                     ),

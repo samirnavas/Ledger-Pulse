@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:real_liquid_glass/real_liquid_glass.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
@@ -453,30 +454,46 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
           height: 52,
-          child: Material(
-            color: isAction
-                ? CupertinoColors.systemGrey5
+          child: RealLiquidGlass(
+            borderRadius: 16,
+            glassColor: isAction
+                ? (Theme.of(context).brightness == Brightness.dark
+                    ? CupertinoColors.systemGrey5.darkColor
+                    : CupertinoColors.systemGrey5)
                 : (Theme.of(context).brightness == Brightness.dark
-                    ? CupertinoColors.systemGrey6
-                    : CupertinoColors.white),
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: onTap,
-              onLongPress: onLongPress,
-              borderRadius: BorderRadius.circular(14),
-              child: Center(
-                child: icon != null
-                    ? Icon(icon,
-                        size: 24,
-                        color: Theme.of(context).colorScheme.onSurface)
-                    : Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: label == '00' ? 20 : 24,
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurface,
+                    ? const Color(0xFF1E293B).withValues(alpha: 0.6)
+                    : CupertinoColors.white.withValues(alpha: 0.8)),
+            borderColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.12)
+                : Colors.black.withValues(alpha: 0.06),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  onTap();
+                },
+                onLongPress: onLongPress != null
+                    ? () {
+                        HapticFeedback.mediumImpact();
+                        onLongPress();
+                      }
+                    : null,
+                borderRadius: BorderRadius.circular(16),
+                child: Center(
+                  child: icon != null
+                      ? Icon(icon,
+                          size: 24,
+                          color: Theme.of(context).colorScheme.onSurface)
+                      : Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: label == '00' ? 20 : 24,
+                            fontWeight: FontWeight.w800,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                         ),
-                      ),
+                ),
               ),
             ),
           ),
@@ -503,7 +520,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
             style: ButtonStyle(
               shape: WidgetStatePropertyAll(
                 RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
               padding: const WidgetStatePropertyAll(
@@ -532,28 +549,27 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
       return Expanded(
         child: GestureDetector(
           onTap: () => _addQuickPreset(amount),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            padding: const EdgeInsets.symmetric(vertical: 9),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withValues(
-                  alpha: Theme.of(context).brightness == Brightness.dark
-                      ? 0.2
-                      : 0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color:
-                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.35),
-                width: 1.2,
-              ),
-            ),
-            child: Center(
-              child: Text(
-                '+₹$amount',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).colorScheme.primary,
+          child: RealLiquidGlass(
+            borderRadius: 22,
+            glassColor: Theme.of(context).colorScheme.primary.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? 0.18
+                    : 0.1),
+            borderColor: Theme.of(context).colorScheme.primary.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? 0.35
+                    : 0.25),
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              padding: const EdgeInsets.symmetric(vertical: 9),
+              child: Center(
+                child: Text(
+                  '+₹$amount',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
             ),
@@ -582,9 +598,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           ),
           backgroundColor:
               Theme.of(context).colorScheme.surfaceContainerHigh,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: const StadiumBorder(),
         ),
       ),
     );
@@ -680,10 +694,10 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                                 children: [
                                   Icon(
                                     widget.entryToEdit != null
-                                        ? Icons.edit_outlined
+                                        ? (isIos ? CupertinoIcons.pencil : Icons.edit_outlined)
                                         : (isGave
-                                            ? Icons.arrow_upward_rounded
-                                            : Icons.arrow_downward_rounded),
+                                            ? (isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded)
+                                            : (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded)),
                                     size: 15,
                                     color: themeColor,
                                   ),
@@ -715,7 +729,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close, size: 20),
+                        icon: Icon(isIos ? CupertinoIcons.xmark : Icons.close, size: 20),
                         onPressed: () {
                           HapticFeedback.lightImpact();
                           _handlePopAction();
@@ -936,8 +950,10 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                       // Date Chip
                       OutlinedButton.icon(
                         onPressed: _pickDate,
-                        icon: const Icon(Icons.calendar_today_rounded,
-                            size: 14),
+                        icon: Icon(
+                          isIos ? CupertinoIcons.calendar : Icons.calendar_today_rounded,
+                          size: 14,
+                        ),
                         label: Text(
                           DateFormatter.formatRelative(_selectedDate),
                           style: const TextStyle(fontSize: 12),
@@ -962,8 +978,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                         },
                         icon: Icon(
                           _showNoteField || _noteController.text.isNotEmpty
-                              ? Icons.edit_note_rounded
-                              : Icons.note_add_outlined,
+                              ? (isIos ? CupertinoIcons.pencil_ellipsis_rectangle : Icons.edit_note_rounded)
+                              : (isIos ? CupertinoIcons.doc_append : Icons.note_add_outlined),
                           size: 16,
                         ),
                         label: Text(
@@ -993,8 +1009,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                           onPressed: _showAttachmentOptions,
                           icon: Icon(
                             _receiptUrl != null
-                                ? Icons.check_circle_rounded
-                                : Icons.camera_alt_outlined,
+                                ? (isIos ? CupertinoIcons.checkmark_circle_fill : Icons.check_circle_rounded)
+                                : (isIos ? CupertinoIcons.camera : Icons.camera_alt_outlined),
                             size: 14,
                             color: _receiptUrl != null
                                 ? AppColors.primaryBlue
@@ -1128,7 +1144,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                               label: '0', onTap: () => _onKeypadTap('0')),
                           _buildKeypadButton(
                             label: '',
-                            icon: Icons.backspace_outlined,
+                            icon: isIos ? CupertinoIcons.delete_left : Icons.backspace_outlined,
                             onTap: () => _onKeypadTap('backspace'),
                             onLongPress: _onKeypadLongPressBackspace,
                             isAction: true,
@@ -1154,8 +1170,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                       children: [
                         Icon(
                           isGave
-                              ? Icons.arrow_upward_rounded
-                              : Icons.arrow_downward_rounded,
+                              ? (isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded)
+                              : (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded),
                           size: 20,
                           color: Colors.white,
                         ),

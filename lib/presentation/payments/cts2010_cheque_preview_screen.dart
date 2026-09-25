@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
+import '../../core/widgets/liquid_glass_card.dart';
 
 import '../../data/models/party_model.dart';
 import '../../data/models/voucher_model.dart';
@@ -103,7 +104,7 @@ class _Cts2010ChequePreviewScreenState
 
   @override
   Widget build(BuildContext context) {
-    final _ = AdaptiveThemeHelper.isIos(context);
+    final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return AdaptiveScaffold(
@@ -111,7 +112,7 @@ class _Cts2010ChequePreviewScreenState
       actions: [
         IconButton(
           tooltip: 'Direct Print Cheque',
-          icon: const Icon(Icons.print_rounded),
+          icon: Icon(isIos ? CupertinoIcons.printer : Icons.print_rounded),
           onPressed: _printCheque,
         ),
       ],
@@ -125,9 +126,17 @@ class _Cts2010ChequePreviewScreenState
               initialValue: _selectedBank,
               decoration: InputDecoration(
                 labelText: 'Select Bank Cheque Format',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.account_balance_rounded),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
+                prefixIcon: Icon(
+                  isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded,
+                ),
                 isDense: true,
+                filled: true,
+                fillColor: isIos
+                    ? (isDark
+                        ? CupertinoColors.systemGrey6.darkColor
+                        : CupertinoColors.systemGrey6)
+                    : Theme.of(context).colorScheme.surfaceContainerLowest,
               ),
               items: IndianBankChequeProfile.values.map((b) {
                 return DropdownMenuItem(
@@ -153,8 +162,16 @@ class _Cts2010ChequePreviewScreenState
                     controller: _payeeController,
                     decoration: InputDecoration(
                       labelText: 'Payee Name *',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
+                      prefixIcon: Icon(
+                        isIos ? CupertinoIcons.person : Icons.person_outline,
+                      ),
+                      filled: true,
+                      fillColor: isIos
+                          ? (isDark
+                              ? CupertinoColors.systemGrey6.darkColor
+                              : CupertinoColors.systemGrey6)
+                          : Theme.of(context).colorScheme.surfaceContainerLowest,
                     ),
                     onChanged: (_) => _regeneratePdf(),
                   ),
@@ -166,8 +183,16 @@ class _Cts2010ChequePreviewScreenState
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                       labelText: 'Amount (₹) *',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: const Icon(Icons.currency_rupee_rounded),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
+                      prefixIcon: Icon(
+                        isIos ? CupertinoIcons.money_dollar : Icons.currency_rupee_rounded,
+                      ),
+                      filled: true,
+                      fillColor: isIos
+                          ? (isDark
+                              ? CupertinoColors.systemGrey6.darkColor
+                              : CupertinoColors.systemGrey6)
+                          : Theme.of(context).colorScheme.surfaceContainerLowest,
                     ),
                     onChanged: (_) => _regeneratePdf(),
                   ),
@@ -182,6 +207,7 @@ class _Cts2010ChequePreviewScreenState
                 FilterChip(
                   label: const Text('A/C PAYEE ONLY'),
                   selected: _isAcPayeeOnly,
+                  shape: const StadiumBorder(),
                   onSelected: (val) {
                     setState(() => _isAcPayeeOnly = val);
                     _regeneratePdf();
@@ -195,27 +221,52 @@ class _Cts2010ChequePreviewScreenState
             const SizedBox(height: 14),
 
             // Interactive Cheque PDF Preview Box
-            Container(
-              height: 240,
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF9FAFB),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+            if (isIos)
+              LiquidGlassCard(
+                borderRadius: 24,
+                padding: EdgeInsets.zero,
+                child: SizedBox(
+                  height: 240,
+                  child: _isRendering || _pdfBytes == null
+                      ? const Center(child: CupertinoActivityIndicator(radius: 14))
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: PdfPreview(
+                            build: (format) async => _pdfBytes!,
+                            useActions: false,
+                            canChangeOrientation: false,
+                            canChangePageFormat: false,
+                            maxPageWidth: 600,
+                            loadingWidget: const Center(child: CupertinoActivityIndicator()),
+                          ),
+                        ),
+                ),
+              )
+            else
+              Card(
+                elevation: 0,
+                color: Theme.of(context).colorScheme.surfaceContainer,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(28),
+                  side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5)),
+                ),
+                child: SizedBox(
+                  height: 240,
+                  child: _isRendering || _pdfBytes == null
+                      ? const Center(child: CupertinoActivityIndicator(radius: 14))
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: PdfPreview(
+                            build: (format) async => _pdfBytes!,
+                            useActions: false,
+                            canChangeOrientation: false,
+                            canChangePageFormat: false,
+                            maxPageWidth: 600,
+                            loadingWidget: const Center(child: CupertinoActivityIndicator()),
+                          ),
+                        ),
+                ),
               ),
-              child: _isRendering || _pdfBytes == null
-                  ? const Center(child: CupertinoActivityIndicator(radius: 14))
-                  : ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: PdfPreview(
-                        build: (format) async => _pdfBytes!,
-                        useActions: false,
-                        canChangeOrientation: false,
-                        canChangePageFormat: false,
-                        maxPageWidth: 600,
-                        loadingWidget: const Center(child: CupertinoActivityIndicator()),
-                      ),
-                    ),
-            ),
             const SizedBox(height: 16),
 
             // Fine-tuning Calibration Slider
@@ -262,12 +313,15 @@ class _Cts2010ChequePreviewScreenState
               width: double.infinity,
               child: AdaptiveButton(
                 onPressed: _printCheque,
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.print_rounded, size: 20),
-                    SizedBox(width: 8),
-                    Text('Print CTS-2010 Cheque (Windows Spooler)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Icon(
+                      isIos ? CupertinoIcons.printer : Icons.print_rounded,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('Print CTS-2010 Cheque (Windows Spooler)', style: TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),

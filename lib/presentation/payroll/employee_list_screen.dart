@@ -143,7 +143,10 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('Add New Employee', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                  IconButton(
+                    icon: Icon(AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.xmark : Icons.close),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -282,9 +285,21 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                     onChanged: (v) => setState(() => _searchQuery = v),
                     decoration: InputDecoration(
                       hintText: 'Search by employee, code, or department...',
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      prefixIcon: Icon(
+                        isIos ? CupertinoIcons.search : Icons.search_rounded,
+                        size: 20,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: isIos
+                          ? (isDark
+                              ? CupertinoColors.systemGrey6.darkColor
+                              : CupertinoColors.systemGrey6)
+                          : Theme.of(context).colorScheme.surfaceContainerHighest,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       isDense: true,
                     ),
                   ),
@@ -292,8 +307,14 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                 const SizedBox(width: 10),
                 FilledButton.icon(
                   onPressed: _showAddEmployeeModal,
-                  icon: const Icon(Icons.person_add_rounded, size: 18),
-                  label: const Text('Add Employee'),
+                  style: FilledButton.styleFrom(
+                    shape: const StadiumBorder(),
+                  ),
+                  icon: Icon(
+                    isIos ? CupertinoIcons.person_add : Icons.person_add_rounded,
+                    size: 18,
+                  ),
+                  label: const Text('Add'),
                 ),
               ],
             ),
@@ -395,16 +416,17 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                       if (isIos) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
-                          child: LiquidGlassCard(borderRadius: 16, padding: EdgeInsets.zero, child: tile),
+                          child: LiquidGlassCard(borderRadius: 20, padding: EdgeInsets.zero, child: tile),
                         );
                       }
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: Card(
                           elevation: 0,
+                          color: Theme.of(context).colorScheme.surfaceContainer,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                            borderRadius: BorderRadius.circular(24),
+                            side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5)),
                           ),
                           child: tile,
                         ),

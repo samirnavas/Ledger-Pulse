@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -205,12 +206,12 @@ class _DesktopCustomReportStudioState
         if (_reportData != null) ...[
           IconButton(
             tooltip: 'Export to Excel (CSV)',
-            icon: const Icon(Icons.table_view_rounded),
+            icon: Icon(isIos ? CupertinoIcons.table : Icons.table_view_rounded),
             onPressed: _isExporting ? null : _exportCsv,
           ),
           IconButton(
             tooltip: 'Print / Save PDF',
-            icon: const Icon(Icons.print_rounded),
+            icon: Icon(isIos ? CupertinoIcons.printer : Icons.print_rounded),
             onPressed: _isExporting ? null : _printOrExportPdf,
           ),
         ],
@@ -247,9 +248,12 @@ class _DesktopCustomReportStudioState
                           )
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.play_arrow_rounded, color: Colors.white),
-                              SizedBox(width: 8),
+                            children: [
+                              Icon(
+                                isIos ? CupertinoIcons.play_arrow_solid : Icons.play_arrow_rounded,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 8),
                               Text(
                                 'Run Query',
                                 style: TextStyle(
@@ -278,8 +282,13 @@ class _DesktopCustomReportStudioState
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline_rounded,
-                        color: AppColors.payableRed, size: 20),
+                    Icon(
+                      isIos
+                          ? CupertinoIcons.exclamationmark_circle
+                          : Icons.error_outline_rounded,
+                      color: AppColors.payableRed,
+                      size: 20,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -309,7 +318,9 @@ class _DesktopCustomReportStudioState
       initialValue: _selectedTemplate,
       decoration: InputDecoration(
         labelText: 'Pre-built SQL Template',
-        prefixIcon: const Icon(Icons.description_rounded),
+        prefixIcon: Icon(
+          isIos ? CupertinoIcons.doc_text : Icons.description_rounded,
+        ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         isDense: true,
       ),
@@ -385,7 +396,9 @@ class _DesktopCustomReportStudioState
           controller: _titleController,
           decoration: InputDecoration(
             labelText: 'Report Title',
-            prefixIcon: const Icon(Icons.title_rounded),
+            prefixIcon: Icon(
+              isIos ? CupertinoIcons.textformat : Icons.title_rounded,
+            ),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
             isDense: true,
           ),
@@ -506,10 +519,13 @@ class _DesktopCustomReportStudioState
                   height: 36,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
-                    children: const [
-                      Icon(Icons.file_download_rounded, size: 16),
-                      SizedBox(width: 4),
-                      Text('Excel CSV', style: TextStyle(fontSize: 12)),
+                    children: [
+                      Icon(
+                        isIos ? CupertinoIcons.arrow_down_to_line : Icons.file_download_rounded,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 4),
+                      const Text('Excel CSV', style: TextStyle(fontSize: 12)),
                     ],
                   ),
                 ),
@@ -520,10 +536,14 @@ class _DesktopCustomReportStudioState
                   height: 36,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
-                    children: const [
-                      Icon(Icons.print_rounded, size: 16, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text('Print / PDF',
+                    children: [
+                      Icon(
+                        isIos ? CupertinoIcons.printer : Icons.print_rounded,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      const Text('Print / PDF',
                           style: TextStyle(fontSize: 12, color: Colors.white)),
                     ],
                   ),

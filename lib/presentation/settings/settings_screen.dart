@@ -7,6 +7,8 @@ import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
+import '../../core/widgets/adaptive_scaffold.dart';
+import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/sync_model.dart';
 import '../home/company_switcher_sheet.dart';
 import '../home/sync_settings_sheet.dart';
@@ -32,35 +34,15 @@ class SettingsScreen extends ConsumerWidget {
     final syncStatus = ref.watch(syncControllerProvider);
     final isSyncing = syncStatus == SyncStatus.syncing;
 
-    final scaffoldBg = isIos
-        ? (isDark
-            ? CupertinoColors.systemGroupedBackground.darkColor
-            : CupertinoColors.systemGroupedBackground)
-        : Theme.of(context).scaffoldBackgroundColor;
-
-    return Scaffold(
-      backgroundColor: scaffoldBg,
-      appBar: AppBar(
-        title: const Text(
-          'Settings & Preferences',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        centerTitle: isIos,
-        elevation: 0,
-        backgroundColor: isIos
-            ? (isDark
-                ? CupertinoColors.systemBackground.darkColor
-                : CupertinoColors.systemBackground)
-            : Theme.of(context).colorScheme.surface,
-      ),
-      body: SafeArea(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 700),
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              children: [
+    return AdaptiveScaffold(
+      title: 'Settings & Preferences',
+      body: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 700),
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            children: [
                 // 1. APPEARANCE & THEME
                 _buildSectionHeader(context, 'APPEARANCE & THEME'),
                 const SizedBox(height: 8),
@@ -116,7 +98,10 @@ class SettingsScreen extends ConsumerWidget {
                           HapticFeedback.lightImpact();
                           CompanySwitcherSheet.show(context);
                         },
-                        icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+                        icon: Icon(
+                          isIos ? CupertinoIcons.arrow_2_circlepath : Icons.swap_horiz_rounded,
+                          size: 18,
+                        ),
                         label: const Text('Switch'),
                       ),
                     ),
@@ -155,8 +140,8 @@ class SettingsScreen extends ConsumerWidget {
                               .onSurfaceVariant,
                         ),
                       ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios_rounded,
+                      trailing: Icon(
+                        isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
                         size: 14,
                         color: Colors.grey,
                       ),
@@ -217,8 +202,8 @@ class SettingsScreen extends ConsumerWidget {
                               .onSurfaceVariant,
                         ),
                       ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios_rounded,
+                      trailing: Icon(
+                        isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
                         size: 14,
                         color: Colors.grey,
                       ),
@@ -256,8 +241,8 @@ class SettingsScreen extends ConsumerWidget {
                         'Immutable activity ledger and transaction trails',
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios_rounded,
+                      trailing: Icon(
+                        isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
                         size: 14,
                         color: Colors.grey,
                       ),
@@ -311,8 +296,8 @@ class SettingsScreen extends ConsumerWidget {
                         '36 comprehensive reports, Daybook, P&L & GSTR JSON',
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
-                      trailing: const Icon(
-                        Icons.arrow_forward_ios_rounded,
+                      trailing: Icon(
+                        isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
                         size: 14,
                         color: Colors.grey,
                       ),
@@ -348,8 +333,10 @@ class SettingsScreen extends ConsumerWidget {
                           width: 36,
                           height: 36,
                           errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                            Icons.account_balance_wallet_rounded,
+                              Icon(
+                            isIos
+                                ? CupertinoIcons.money_dollar_circle_fill
+                                : Icons.account_balance_wallet_rounded,
                             color: AppColors.primaryBlue,
                             size: 32,
                           ),
@@ -391,7 +378,6 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -416,31 +402,29 @@ class SettingsScreen extends ConsumerWidget {
     bool isIos, {
     required List<Widget> children,
   }) {
-    final bgColor = isIos
-        ? (isDark
-            ? CupertinoColors.systemBackground.darkColor
-            : CupertinoColors.white)
-        : Theme.of(context).colorScheme.surfaceContainerLow;
+    if (isIos) {
+      return LiquidGlassCard(
+        borderRadius: 20,
+        padding: EdgeInsets.zero,
+        child: Column(
+          children: children,
+        ),
+      );
+    }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(
           color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                alpha: isDark ? 0.25 : 0.45,
+                alpha: isDark ? 0.35 : 0.5,
               ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
+      color: Theme.of(context).colorScheme.surfaceContainer,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(28),
         child: Column(
           children: children,
         ),
@@ -455,112 +439,117 @@ class SettingsScreen extends ConsumerWidget {
     bool isDark,
     bool isIos,
   ) {
-    final bgColor = isIos
-        ? (isDark
-            ? CupertinoColors.systemBackground.darkColor
-            : CupertinoColors.white)
-        : Theme.of(context).colorScheme.surfaceContainerLow;
+    final cardBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primaryBlue.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                currentMode == ThemeMode.dark
+                    ? (isIos ? CupertinoIcons.moon_fill : Icons.dark_mode_rounded)
+                    : (currentMode == ThemeMode.light
+                        ? (isIos ? CupertinoIcons.sun_max_fill : Icons.light_mode_rounded)
+                        : (isIos ? CupertinoIcons.device_phone_portrait : Icons.brightness_auto_rounded)),
+                color: AppColors.primaryBlue,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Color Theme',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                  Text(
+                    _getThemeDescription(currentMode),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
+        // 3-Segment Theme Selector: Light, Dark, Auto
+        Row(
+          children: [
+            _buildThemeOptionTile(
+              context: context,
+              ref: ref,
+              mode: ThemeMode.light,
+              label: 'Light',
+              icon: isIos ? CupertinoIcons.sun_max_fill : Icons.light_mode_rounded,
+              isSelected: currentMode == ThemeMode.light,
+              isDark: isDark,
+              isIos: isIos,
+            ),
+            const SizedBox(width: 8),
+            _buildThemeOptionTile(
+              context: context,
+              ref: ref,
+              mode: ThemeMode.dark,
+              label: 'Dark',
+              icon: isIos ? CupertinoIcons.moon_fill : Icons.dark_mode_rounded,
+              isSelected: currentMode == ThemeMode.dark,
+              isDark: isDark,
+              isIos: isIos,
+            ),
+            const SizedBox(width: 8),
+            _buildThemeOptionTile(
+              context: context,
+              ref: ref,
+              mode: ThemeMode.system,
+              label: 'Auto / System',
+              icon: isIos ? CupertinoIcons.device_phone_portrait : Icons.brightness_auto_rounded,
+              isSelected: currentMode == ThemeMode.system,
+              isDark: isDark,
+              isIos: isIos,
+            ),
+          ],
+        ),
+      ],
+    );
+
+    if (isIos) {
+      return LiquidGlassCard(
+        borderRadius: 20,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: cardBody,
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(
           color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                alpha: isDark ? 0.25 : 0.45,
+                alpha: isDark ? 0.35 : 0.5,
               ),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  currentMode == ThemeMode.dark
-                      ? Icons.dark_mode_rounded
-                      : (currentMode == ThemeMode.light
-                          ? Icons.light_mode_rounded
-                          : Icons.brightness_auto_rounded),
-                  color: AppColors.primaryBlue,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Color Theme',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                    ),
-                    Text(
-                      _getThemeDescription(currentMode),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // 3-Segment Theme Selector: Light, Dark, Auto
-          Row(
-            children: [
-              _buildThemeOptionTile(
-                context: context,
-                ref: ref,
-                mode: ThemeMode.light,
-                label: 'Light',
-                icon: Icons.light_mode_rounded,
-                isSelected: currentMode == ThemeMode.light,
-                isDark: isDark,
-              ),
-              const SizedBox(width: 8),
-              _buildThemeOptionTile(
-                context: context,
-                ref: ref,
-                mode: ThemeMode.dark,
-                label: 'Dark',
-                icon: Icons.dark_mode_rounded,
-                isSelected: currentMode == ThemeMode.dark,
-                isDark: isDark,
-              ),
-              const SizedBox(width: 8),
-              _buildThemeOptionTile(
-                context: context,
-                ref: ref,
-                mode: ThemeMode.system,
-                label: 'Auto / System',
-                icon: Icons.brightness_auto_rounded,
-                isSelected: currentMode == ThemeMode.system,
-                isDark: isDark,
-              ),
-            ],
-          ),
-        ],
+      color: Theme.of(context).colorScheme.surfaceContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: cardBody,
       ),
     );
   }
@@ -573,9 +562,10 @@ class SettingsScreen extends ConsumerWidget {
     required IconData icon,
     required bool isSelected,
     required bool isDark,
+    required bool isIos,
   }) {
     final theme = Theme.of(context);
-    final activeColor = AppColors.primaryBlue;
+    final activeColor = isIos ? CupertinoColors.activeBlue : theme.colorScheme.primary;
 
     return Expanded(
       child: GestureDetector(
@@ -588,16 +578,16 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
           decoration: BoxDecoration(
             color: isSelected
-                ? activeColor.withValues(alpha: 0.12)
+                ? activeColor.withValues(alpha: isDark ? 0.25 : 0.15)
                 : (isDark
                     ? const Color(0xFF1E293B).withValues(alpha: 0.5)
                     : const Color(0xFFF1F5F9)),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(isIos ? 14 : 20),
             border: Border.all(
               color: isSelected
                   ? activeColor
                   : theme.colorScheme.outlineVariant.withValues(
-                      alpha: isDark ? 0.2 : 0.3,
+                      alpha: isDark ? 0.2 : 0.35,
                     ),
               width: isSelected ? 2 : 1,
             ),

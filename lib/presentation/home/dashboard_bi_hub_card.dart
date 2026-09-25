@@ -117,7 +117,10 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 20),
+                          icon: Icon(
+                            isIos ? CupertinoIcons.xmark_circle_fill : Icons.close_rounded,
+                            size: 20,
+                          ),
                           onPressed: () {
                             HapticFeedback.lightImpact();
                             Navigator.of(context).pop();
@@ -179,7 +182,9 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
                 title: 'Sales Velocity',
                 value:
                     '${CurrencyFormatter.format(bi.salesVelocityPerDayInCents.round())}/day',
-                icon: Icons.speed_rounded,
+                icon: AdaptiveThemeHelper.isIos(context)
+                    ? CupertinoIcons.speedometer
+                    : Icons.speed_rounded,
                 iconColor: AppColors.primaryBlue,
                 isDark: isDark,
               ),
@@ -191,8 +196,12 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
                 title: 'Net Margin',
                 value: CurrencyFormatter.format(bi.netProfitInCents),
                 icon: bi.netProfitInCents >= 0
-                    ? Icons.trending_up_rounded
-                    : Icons.trending_down_rounded,
+                    ? (AdaptiveThemeHelper.isIos(context)
+                        ? CupertinoIcons.graph_square_fill
+                        : Icons.trending_up_rounded)
+                    : (AdaptiveThemeHelper.isIos(context)
+                        ? CupertinoIcons.graph_square
+                        : Icons.trending_down_rounded),
                 iconColor: bi.netProfitInCents >= 0
                     ? AppColors.receivableGreen
                     : AppColors.payableRed,
@@ -306,7 +315,12 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
                 ),
               );
             },
-            icon: const Icon(Icons.analytics_rounded, size: 18),
+            icon: Icon(
+              AdaptiveThemeHelper.isIos(context)
+                  ? CupertinoIcons.chart_pie_fill
+                  : Icons.analytics_rounded,
+              size: 18,
+            ),
             label: const Text(
               'Open Master Reporting Hub (36 Reports & GSTR)',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),

@@ -220,7 +220,9 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
               decoration: InputDecoration(
                 labelText: 'Select Software or Format',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.sync_alt_rounded),
+                prefixIcon: Icon(
+                  isIos ? CupertinoIcons.arrow_2_circlepath : Icons.sync_alt_rounded,
+                ),
                 isDense: true,
               ),
               items: ImportSourceType.values.map((src) {
@@ -308,7 +310,11 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
-                    const Icon(Icons.person_outline, size: 16, color: Colors.blue),
+                    Icon(
+                      isIos ? CupertinoIcons.person : Icons.person_outline,
+                      size: 16,
+                      color: Colors.blue,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text('${p.name} (${p.type == PartyType.customer ? "Customer" : "Supplier"})',
@@ -322,7 +328,11 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
                 padding: const EdgeInsets.symmetric(vertical: 2),
                 child: Row(
                   children: [
-                    const Icon(Icons.inventory_2_outlined, size: 16, color: Colors.orange),
+                    Icon(
+                      isIos ? CupertinoIcons.cube_box : Icons.inventory_2_outlined,
+                      size: 16,
+                      color: Colors.orange,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text('${it.name} (${it.sku})', style: const TextStyle(fontSize: 12)),

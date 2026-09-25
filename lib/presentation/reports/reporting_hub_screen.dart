@@ -119,7 +119,12 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
               child: const Text('Close'),
             ),
             FilledButton.icon(
-              icon: const Icon(Icons.share_rounded, size: 18),
+              icon: Icon(
+                AdaptiveThemeHelper.isIos(ctx)
+                    ? CupertinoIcons.share
+                    : Icons.share_rounded,
+                size: 18,
+              ),
               label: const Text('Share / Save JSON'),
               onPressed: () {
                 Navigator.pop(ctx);
@@ -211,14 +216,21 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Search across 35+ financial & statutory reports...',
-                prefixIcon: const Icon(Icons.search_rounded),
+                prefixIcon: Icon(
+                  isIos ? CupertinoIcons.search : Icons.search_rounded,
+                ),
                 isDense: true,
                 filled: true,
-                fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                fillColor: isIos
+                    ? (isDark
+                        ? CupertinoColors.systemGrey6.darkColor
+                        : CupertinoColors.systemGrey6)
+                    : Theme.of(context).colorScheme.surfaceContainerHighest,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(28),
                   borderSide: BorderSide.none,
                 ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
               onChanged: (val) => setState(() => _searchQuery = val.trim()),
             ),
@@ -233,6 +245,7 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
                 ChoiceChip(
                   label: const Text('All Reports (36)'),
                   selected: _selectedCategory == null,
+                  shape: const StadiumBorder(),
                   onSelected: (_) => setState(() => _selectedCategory = null),
                 ),
                 const SizedBox(width: 8),
@@ -242,6 +255,7 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
                     child: ChoiceChip(
                       label: Text(cat.displayName),
                       selected: _selectedCategory == cat,
+                      shape: const StadiumBorder(),
                       onSelected: (_) => setState(() => _selectedCategory = cat),
                     ),
                   );
@@ -273,7 +287,7 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
   Widget _buildReportCard(BuildContext context, ReportMetadata report, bool isIos, bool isDark) {
     final cardContent = InkWell(
       onTap: () => _openReport(context, report),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Row(
@@ -282,10 +296,10 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                _getIconData(report.iconCode),
+                _getIconData(report.iconCode, isIos),
                 color: Theme.of(context).colorScheme.primary,
                 size: 22,
               ),
@@ -308,10 +322,10 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
                           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           report.category.displayName,
@@ -350,7 +364,7 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
 
     if (isIos) {
       return LiquidGlassCard(
-        borderRadius: 18,
+        borderRadius: 20,
         color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.7),
         borderColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06),
         child: cardContent,
@@ -359,16 +373,36 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
       return Card(
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5)),
         ),
-        color: Theme.of(context).colorScheme.surface,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         child: cardContent,
       );
     }
   }
 
-  IconData _getIconData(String code) {
+  IconData _getIconData(String code, bool isIos) {
+    if (isIos) {
+      switch (code) {
+        case 'account_balance':
+          return CupertinoIcons.building_2_fill;
+        case 'trending_up':
+          return CupertinoIcons.graph_square_fill;
+        case 'balance':
+          return CupertinoIcons.slider_horizontal_3;
+        case 'file_download':
+          return CupertinoIcons.arrow_down_to_line;
+        case 'sync_alt':
+          return CupertinoIcons.arrow_2_circlepath;
+        case 'inventory':
+          return CupertinoIcons.cube_box_fill;
+        case 'security':
+          return CupertinoIcons.shield_fill;
+        default:
+          return CupertinoIcons.chart_pie_fill;
+      }
+    }
     switch (code) {
       case 'account_balance':
         return Icons.account_balance_rounded;

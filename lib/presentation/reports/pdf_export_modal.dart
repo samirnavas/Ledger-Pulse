@@ -230,7 +230,13 @@ class _PdfExportModalState extends State<PdfExportModal> {
             SnackBar(
               content: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                  Icon(
+                    AdaptiveThemeHelper.isIos(context)
+                        ? CupertinoIcons.checkmark_circle_fill
+                        : Icons.check_circle_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -273,7 +279,13 @@ class _PdfExportModalState extends State<PdfExportModal> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                Icon(
+                  AdaptiveThemeHelper.isIos(context)
+                      ? CupertinoIcons.checkmark_circle_fill
+                      : Icons.check_circle_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -450,7 +462,9 @@ class _PdfExportModalState extends State<PdfExportModal> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
-                            Icons.picture_as_pdf_rounded,
+                            isIos
+                                ? CupertinoIcons.doc_text_fill
+                                : Icons.picture_as_pdf_rounded,
                             color: Theme.of(context).colorScheme.primary,
                             size: 22,
                           ),
@@ -590,7 +604,10 @@ class _PdfExportModalState extends State<PdfExportModal> {
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                 ),
                                 onPressed: _shareViaWhatsApp,
-                                icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                                icon: Icon(
+                                  isIos ? CupertinoIcons.chat_bubble_fill : Icons.chat_bubble_rounded,
+                                  size: 18,
+                                ),
                                 label: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.bold)),
                               ),
                             ),
@@ -606,7 +623,10 @@ class _PdfExportModalState extends State<PdfExportModal> {
                                   padding: const EdgeInsets.symmetric(vertical: 12),
                                 ),
                                 onPressed: _shareViaSms,
-                                icon: const Icon(Icons.sms_rounded, size: 18),
+                                icon: Icon(
+                                  isIos ? CupertinoIcons.text_bubble_fill : Icons.sms_rounded,
+                                  size: 18,
+                                ),
                                 label: const Text('SMS', style: TextStyle(fontWeight: FontWeight.bold)),
                               ),
                             ),
@@ -683,7 +703,10 @@ class _PdfExportModalState extends State<PdfExportModal> {
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                               ),
                               onPressed: () => _showPaymentGatewayModal(context),
-                              icon: const Icon(Icons.payment_rounded, size: 20),
+                              icon: Icon(
+                                isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded,
+                                size: 20,
+                              ),
                               label: const Text('Online Payment Gateways (Razorpay, Paytm, Cashfree, UPI, Stripe)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ),
                           ),
@@ -837,7 +860,9 @@ class _PaymentGatewayDropInSheetState extends State<_PaymentGatewayDropInSheet> 
                 ],
               ),
               IconButton(
-                icon: const Icon(Icons.close),
+                icon: Icon(
+                  AdaptiveThemeHelper.isIos(context) ? CupertinoIcons.xmark : Icons.close,
+                ),
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ],
@@ -902,7 +927,10 @@ class _PaymentGatewayDropInSheetState extends State<_PaymentGatewayDropInSheet> 
                 ),
                 IconButton(
                   tooltip: 'Copy Link',
-                  icon: const Icon(Icons.copy_rounded, size: 20),
+                  icon: Icon(
+                    isIos ? CupertinoIcons.doc_on_doc : Icons.copy_rounded,
+                    size: 20,
+                  ),
                   onPressed: _copyToClipboard,
                 ),
               ],
@@ -922,7 +950,10 @@ class _PaymentGatewayDropInSheetState extends State<_PaymentGatewayDropInSheet> 
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onPressed: _shareWhatsApp,
-                  icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                  icon: Icon(
+                    isIos ? CupertinoIcons.chat_bubble_fill : Icons.chat_bubble_rounded,
+                    size: 18,
+                  ),
                   label: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
@@ -936,7 +967,10 @@ class _PaymentGatewayDropInSheetState extends State<_PaymentGatewayDropInSheet> 
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   onPressed: _shareSms,
-                  icon: const Icon(Icons.sms_rounded, size: 18),
+                  icon: Icon(
+                    isIos ? CupertinoIcons.text_bubble_fill : Icons.sms_rounded,
+                    size: 18,
+                  ),
                   label: const Text('SMS', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
@@ -957,7 +991,11 @@ class _PaymentGatewayDropInSheetState extends State<_PaymentGatewayDropInSheet> 
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
             onPressed: _simulatePaymentCallback,
-            icon: const Icon(Icons.verified_rounded, color: AppColors.receivableGreen, size: 18),
+            icon: Icon(
+              isIos ? CupertinoIcons.checkmark_seal_fill : Icons.verified_rounded,
+              color: AppColors.receivableGreen,
+              size: 18,
+            ),
             label: const Text(
               'Simulate Payment Webhook Confirmation',
               style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.receivableGreen),

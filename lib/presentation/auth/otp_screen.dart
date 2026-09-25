@@ -1,9 +1,12 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:real_liquid_glass/real_liquid_glass.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/constants/typography.dart';
+import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
@@ -69,6 +72,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isIos = AdaptiveThemeHelper.isIos(context);
     final authState = ref.watch(authControllerProvider);
 
     return PopScope(
@@ -96,64 +100,74 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(6, (index) {
+                final isIos = AdaptiveThemeHelper.isIos(context);
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+
+                final textField = TextField(
+                  controller: _controllers[index],
+                  focusNode: _focusNodes[index],
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  maxLength: 1,
+                  autofocus: index == 0,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: isIos
+                        ? (isDark ? Colors.white : Colors.black)
+                        : Theme.of(context).colorScheme.onSurface,
+                  ),
+                  decoration: const InputDecoration(
+                    counterText: '',
+                    filled: false,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                  ),
+                  onChanged: (val) {
+                    if (val.isNotEmpty && index < 5) {
+                      _focusNodes[index + 1].requestFocus();
+                    } else if (val.isEmpty && index > 0) {
+                      _focusNodes[index - 1].requestFocus();
+                    }
+                    if (_enteredOtp.length == 6) {
+                      _verify();
+                    }
+                  },
+                );
+
+                if (isIos) {
+                  return SizedBox(
+                    width: 48,
+                    height: 56,
+                    child: LiquidGlassContainer(
+                      borderRadius: 16,
+                      blur: 20,
+                      borderColor: _focusNodes[index].hasFocus
+                          ? CupertinoColors.activeBlue
+                          : (isDark ? Colors.white.withValues(alpha: 0.22) : Colors.black.withValues(alpha: 0.15)),
+                      child: Center(child: textField),
+                    ),
+                  );
+                }
+
                 return SizedBox(
                   width: 48,
                   height: 56,
-                  child: TextField(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    maxLength: 1,
-                    autofocus: index == 0,
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      counterText: '',
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
-                      contentPadding: EdgeInsets.zero,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                              alpha: Theme.of(context).brightness == Brightness.dark
-                                  ? 0.35
-                                  : 0.5),
-                          width: 1.5,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                              alpha: Theme.of(context).brightness == Brightness.dark
-                                  ? 0.35
-                                  : 0.5),
-                          width: 1.5,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2.5,
-                        ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: _focusNodes[index].hasFocus
+                            ? Theme.of(context).colorScheme.primary
+                            : Theme.of(context).colorScheme.outlineVariant.withValues(
+                                alpha: isDark ? 0.35 : 0.5),
+                        width: _focusNodes[index].hasFocus ? 2.5 : 1.5,
                       ),
                     ),
-                    onChanged: (val) {
-                      if (val.isNotEmpty && index < 5) {
-                        _focusNodes[index + 1].requestFocus();
-                      } else if (val.isEmpty && index > 0) {
-                        _focusNodes[index - 1].requestFocus();
-                      }
-                      if (_enteredOtp.length == 6) {
-                        _verify();
-                      }
-                    },
+                    child: Center(child: textField),
                   ),
                 );
               }),
@@ -188,10 +202,14 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.auto_awesome, size: 18, color: AppColors.primaryBlue),
-                    SizedBox(width: 8),
-                    Text(
+                  children: [
+                    Icon(
+                      isIos ? CupertinoIcons.sparkles : Icons.auto_awesome,
+                      size: 18,
+                      color: AppColors.primaryBlue,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
                       '${AppStrings.otpHelper} (Tap to Auto-fill)',
                       style: TextStyle(
                         fontSize: 13,

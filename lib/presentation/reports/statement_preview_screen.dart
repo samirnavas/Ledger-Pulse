@@ -780,13 +780,13 @@ class _StatementPreviewScreenState
                             height: 48,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
+                              children: [
                                 Icon(
-                                  Icons.chat_rounded,
+                                  isIos ? CupertinoIcons.chat_bubble_fill : Icons.chat_rounded,
                                   size: 18,
-                                  color: Color(0xFF25D366),
+                                  color: const Color(0xFF25D366),
                                 ),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                                 Text(
                                   'WhatsApp',
                                   style: TextStyle(
@@ -825,10 +825,13 @@ class _StatementPreviewScreenState
                                   )
                                 : Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
-                                    children: const [
-                                      Icon(Icons.picture_as_pdf_rounded,
-                                          size: 18, color: Colors.white),
-                                      SizedBox(width: 8),
+                                    children: [
+                                      Icon(
+                                        isIos ? CupertinoIcons.doc_text_fill : Icons.picture_as_pdf_rounded,
+                                        size: 18,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 8),
                                       Text(
                                         AppStrings.exportPdf,
                                         style: TextStyle(
@@ -939,12 +942,16 @@ class _StatementPreviewScreenState
           actions: [
             IconButton(
               tooltip: 'Export to Excel (CSV)',
-              icon: const Icon(Icons.table_view_rounded),
+              icon: Icon(
+                AdaptiveThemeHelper.isIos(context) ? CupertinoIcons.table : Icons.table_view_rounded,
+              ),
               onPressed: _isExporting ? null : () => _exportDynamicCsv(report),
             ),
             IconButton(
               tooltip: 'Print / Save PDF',
-              icon: const Icon(Icons.print_rounded),
+              icon: Icon(
+                AdaptiveThemeHelper.isIos(context) ? CupertinoIcons.printer : Icons.print_rounded,
+              ),
               onPressed: _isExporting ? null : () => _printDynamicPdf(report),
             ),
           ],
@@ -1079,10 +1086,13 @@ class _StatementPreviewScreenState
                         height: 48,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.table_view_rounded, size: 18),
-                            SizedBox(width: 8),
-                            Text(
+                          children: [
+                            Icon(
+                              AdaptiveThemeHelper.isIos(context) ? CupertinoIcons.table : Icons.table_view_rounded,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
                               'Export Excel (CSV)',
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                             ),
@@ -1098,10 +1108,14 @@ class _StatementPreviewScreenState
                         height: 48,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.print_rounded, size: 18, color: Colors.white),
-                            SizedBox(width: 8),
-                            Text(
+                          children: [
+                            Icon(
+                              AdaptiveThemeHelper.isIos(context) ? CupertinoIcons.printer : Icons.print_rounded,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
                               'Print / PDF',
                               style: TextStyle(
                                 fontSize: 14,

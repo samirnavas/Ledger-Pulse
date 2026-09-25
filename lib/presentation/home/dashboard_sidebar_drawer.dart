@@ -6,6 +6,7 @@ import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
+import '../../core/widgets/liquid_glass_card.dart';
 import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
 import '../providers/subscription_providers.dart';
@@ -32,8 +33,71 @@ class DashboardSidebarDrawer extends ConsumerWidget {
     final activeCompany = ref.watch(activeCompanyProvider);
     final subscription = ref.watch(subscriptionStateProvider);
 
+    final drawerBg = isIos
+        ? (isDark ? const Color(0xEE0F172A) : const Color(0xEEF8FAFC))
+        : colorScheme.surfaceContainerLow;
+
+    final profileBadge = Row(
+      children: [
+        CircleAvatar(
+          radius: 18,
+          backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.2),
+          child: Text(
+            profile.name.isNotEmpty ? profile.name[0].toUpperCase() : 'U',
+            style: const TextStyle(
+              color: AppColors.primaryBlue,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                profile.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                profile.phoneNumber,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isIos ? CupertinoColors.secondaryLabel : colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: subscription.isExpired
+                ? AppColors.payableRed.withValues(alpha: 0.15)
+                : AppColors.receivableGreen.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            subscription.tier.displayName,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: subscription.isExpired
+                  ? AppColors.payableRed
+                  : AppColors.receivableGreen,
+            ),
+          ),
+        ),
+      ],
+    );
+
     return Drawer(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: drawerBg,
       child: SafeArea(
         child: Column(
           children: [
@@ -42,10 +106,14 @@ class DashboardSidebarDrawer extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+                color: isIos
+                    ? (isDark ? const Color(0x881E293B) : Colors.white.withValues(alpha: 0.8))
+                    : colorScheme.surfaceContainer,
                 border: Border(
                   bottom: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    color: isIos
+                        ? (isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08))
+                        : colorScheme.outlineVariant.withValues(alpha: 0.5),
                     width: 1,
                   ),
                 ),
@@ -58,13 +126,13 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          color: (isIos ? CupertinoColors.activeBlue : colorScheme.primary).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
-                          Icons.business_rounded,
+                          isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded,
                           size: 24,
-                          color: Theme.of(context).colorScheme.primary,
+                          color: isIos ? CupertinoColors.activeBlue : colorScheme.primary,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -82,71 +150,20 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.2),
-                          child: Text(
-                            profile.name.isNotEmpty ? profile.name[0].toUpperCase() : 'U',
-                            style: const TextStyle(
-                              color: AppColors.primaryBlue,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                profile.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                profile.phoneNumber,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  isIos
+                      ? LiquidGlassCard(
+                          borderRadius: 14,
+                          padding: const EdgeInsets.all(12),
+                          child: profileBadge,
+                        )
+                      : Container(
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: subscription.isExpired
-                                ? AppColors.payableRed.withValues(alpha: 0.15)
-                                : AppColors.receivableGreen.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
+                            color: colorScheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Text(
-                            subscription.tier.displayName,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: subscription.isExpired
-                                  ? AppColors.payableRed
-                                  : AppColors.receivableGreen,
-                            ),
-                          ),
+                          child: profileBadge,
                         ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),

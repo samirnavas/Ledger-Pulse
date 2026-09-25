@@ -1,9 +1,12 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:real_liquid_glass/real_liquid_glass.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/constants/typography.dart';
+import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
@@ -59,6 +62,72 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
 
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final inputRow = Row(
+      children: [
+        // Country Code Badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            border: Border(
+              right: BorderSide(
+                color: isIos
+                    ? (isDark ? Colors.white.withValues(alpha: 0.18) : Colors.black.withValues(alpha: 0.12))
+                    : Theme.of(context).colorScheme.outlineVariant.withValues(
+                        alpha: isDark ? 0.35 : 0.5),
+                width: 1,
+              ),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('🇮🇳', style: TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Text(
+                AppStrings.countryCode,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: isIos
+                      ? (isDark ? Colors.white : Colors.black)
+                      : Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        // Phone Number Input
+        Expanded(
+          child: TextField(
+            controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            autofocus: true,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
+              color: isIos
+                  ? (isDark ? Colors.white : Colors.black)
+                  : Theme.of(context).colorScheme.onSurface,
+            ),
+            decoration: const InputDecoration(
+              hintText: AppStrings.phonePlaceholder,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              fillColor: Colors.transparent,
+            ),
+            onSubmitted: (_) => _handleSubmit(),
+          ),
+        ),
+      ],
+    );
+
     return AdaptiveScaffold(
       title: AppStrings.appName,
       body: SingleChildScrollView(
@@ -87,8 +156,10 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                   fit: BoxFit.cover,
                   errorBuilder: (context, _, _) => Container(
                     color: AppColors.primaryBlue,
-                    child: const Icon(
-                      Icons.account_balance_wallet_rounded,
+                    child: Icon(
+                      isIos
+                          ? CupertinoIcons.money_dollar_circle_fill
+                          : Icons.account_balance_wallet_rounded,
                       color: Colors.white,
                       size: 36,
                     ),
@@ -110,88 +181,37 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
             ),
             const SizedBox(height: 36),
 
-            // Phone Input Field with Country Badge
-            Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(
-                  color: _errorMessage != null
-                      ? AppColors.payableRed
-                      : Theme.of(context).colorScheme.outlineVariant.withValues(
-                          alpha: Theme.of(context).brightness == Brightness.dark
-                              ? 0.35
-                              : 0.5),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Country Code Badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 16),
+            // Phone Input Field (Liquid Glass on iOS, M3 Expressive Container on Android)
+            isIos
+                ? LiquidGlassContainer(
+                    borderRadius: 20,
+                    blur: 24,
+                    borderColor: _errorMessage != null
+                        ? AppColors.payableRed
+                        : (isDark ? Colors.white.withValues(alpha: 0.22) : Colors.black.withValues(alpha: 0.15)),
+                    child: inputRow,
+                  )
+                : Container(
                     decoration: BoxDecoration(
-                      border: Border(
-                        right: BorderSide(
-                          color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                              alpha: Theme.of(context).brightness == Brightness.dark
-                                  ? 0.35
-                                  : 0.5),
-                          width: 1,
-                        ),
+                      color: Theme.of(context).colorScheme.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: _errorMessage != null
+                            ? AppColors.payableRed
+                            : Theme.of(context).colorScheme.outlineVariant.withValues(
+                                alpha: isDark ? 0.35 : 0.5),
+                        width: 1.5,
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('🇮🇳', style: TextStyle(fontSize: 20)),
-                        const SizedBox(width: 8),
-                        Text(
-                          AppStrings.countryCode,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
+                    child: inputRow,
                   ),
-                  const SizedBox(width: 12),
-                  // Phone Number Input
-                  Expanded(
-                    child: TextField(
-                      controller: _phoneController,
-                      keyboardType: TextInputType.phone,
-                      autofocus: true,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: AppStrings.phonePlaceholder,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                        fillColor: Colors.transparent,
-                      ),
-                      onSubmitted: (_) => _handleSubmit(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
 
             if (_errorMessage != null) ...[
               const SizedBox(height: 8),
@@ -223,7 +243,11 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.bolt, size: 16, color: Theme.of(context).colorScheme.onPrimaryContainer),
+                    Icon(
+                      isIos ? CupertinoIcons.bolt_fill : Icons.bolt,
+                      size: 16,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Use demo: 98765 43210',

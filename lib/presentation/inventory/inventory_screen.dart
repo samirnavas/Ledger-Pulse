@@ -348,7 +348,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           controller: _searchCtrl,
                           decoration: InputDecoration(
                             hintText: 'Search SKU or Item Name...',
-                            prefixIcon: const Icon(Icons.search),
+                            prefixIcon: Icon(isIos ? CupertinoIcons.search : Icons.search),
                             filled: true,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),

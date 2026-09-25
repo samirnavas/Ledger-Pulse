@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:real_liquid_glass/real_liquid_glass.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/constants/typography.dart';
@@ -240,7 +241,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.edit_outlined),
+                        leading: Icon(isIos ? CupertinoIcons.pencil : Icons.edit_outlined),
                         title: const Text(
                           'Edit Details',
                           style: TextStyle(fontWeight: FontWeight.w600),
@@ -264,7 +265,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                       ),
                       ListTile(
                         leading: Icon(
-                          Icons.delete_outline,
+                          isIos ? CupertinoIcons.trash : Icons.delete_outline,
                           color: colorScheme.error,
                         ),
                         title: Text(
@@ -487,8 +488,8 @@ class PartyLedgerScreen extends ConsumerWidget {
                               children: [
                                 Icon(
                                   isGave
-                                      ? Icons.arrow_upward_rounded
-                                      : Icons.arrow_downward_rounded,
+                                      ? (isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded)
+                                      : (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded),
                                   size: 14,
                                   color: color,
                                 ),
@@ -570,14 +571,14 @@ class PartyLedgerScreen extends ConsumerWidget {
                         context: sheetContext,
                         label: 'Party',
                         value: '${party.name} (${party.phoneNumber})',
-                        icon: Icons.person_outline_rounded,
+                        icon: isIos ? CupertinoIcons.person : Icons.person_outline_rounded,
                       ),
                       const SizedBox(height: 10),
                       _buildVoucherRow(
                         context: sheetContext,
                         label: 'Date & Time',
                         value: DateFormatter.formatFull(entry.date),
-                        icon: Icons.access_time_rounded,
+                        icon: isIos ? CupertinoIcons.time : Icons.access_time_rounded,
                       ),
                       const SizedBox(height: 10),
                       _buildVoucherRow(
@@ -587,7 +588,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                             entry.note != null && entry.note!.trim().isNotEmpty
                                 ? entry.note!
                                 : 'No note provided',
-                        icon: Icons.notes_rounded,
+                        icon: isIos ? CupertinoIcons.doc_text : Icons.notes_rounded,
                       ),
                       if (entry.runningBalanceInCents != null) ...[
                         const SizedBox(height: 10),
@@ -597,7 +598,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                           value: CurrencyFormatter.format(
                             entry.runningBalanceInCents!,
                           ),
-                          icon: Icons.account_balance_wallet_outlined,
+                          icon: isIos ? CupertinoIcons.money_dollar_circle : Icons.account_balance_wallet_outlined,
                         ),
                       ],
                       if (entry.receiptPhotoUrl != null) ...[
@@ -629,7 +630,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                             child: Row(
                               children: [
                                 Icon(
-                                  Icons.receipt_long_rounded,
+                                  isIos ? CupertinoIcons.doc_text : Icons.receipt_long_rounded,
                                   size: 20,
                                   color: Theme.of(sheetContext)
                                       .colorScheme
@@ -664,7 +665,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                                   ),
                                 ),
                                 Icon(
-                                  Icons.chevron_right_rounded,
+                                  isIos ? CupertinoIcons.chevron_right : Icons.chevron_right_rounded,
                                   size: 18,
                                   color: Theme.of(sheetContext)
                                       .colorScheme
@@ -690,7 +691,10 @@ class PartyLedgerScreen extends ConsumerWidget {
                             Navigator.of(sheetContext).pop();
                             _openEditEntrySheet(context, party, entry);
                           },
-                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          icon: Icon(
+                            isIos ? CupertinoIcons.pencil : Icons.edit_outlined,
+                            size: 18,
+                          ),
                           label: const Text(
                             'Edit Note / Details',
                             style: TextStyle(
@@ -714,8 +718,8 @@ class PartyLedgerScreen extends ConsumerWidget {
                             Navigator.of(sheetContext).pop();
                             _handleVoidEntry(context, ref, entry, party);
                           },
-                          icon: const Icon(
-                            Icons.delete_outline_rounded,
+                          icon: Icon(
+                            isIos ? CupertinoIcons.trash : Icons.delete_outline_rounded,
                             size: 18,
                             color: AppColors.payableRed,
                           ),
@@ -753,11 +757,11 @@ class PartyLedgerScreen extends ConsumerWidget {
                         color: AppColors.payableRed.withValues(alpha: 0.2),
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.info_outline_rounded,
+                          isIos ? CupertinoIcons.info_circle : Icons.info_outline_rounded,
                           size: 16,
                           color: AppColors.payableRed,
                         ),
@@ -981,93 +985,165 @@ class PartyLedgerScreen extends ConsumerWidget {
             ),
           ],
           // Persistent Bottom Action Bar: Side-by-side [ - You Gave ] & [ + You Got ]
-          bottomNavigationBar: Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
-            decoration: BoxDecoration(
-              color: isIos
-                  ? CupertinoColors.systemBackground
-                  : Theme.of(context).colorScheme.surfaceContainerHigh,
-              border: Border(
-                top: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant
-                      .withValues(
-                        alpha: Theme.of(context).brightness == Brightness.dark
-                            ? 0.35
-                            : 0.5,
+          bottomNavigationBar: isIos
+              ? RealLiquidGlass(
+                  borderRadius: 0,
+                  glassColor: isDark
+                      ? const Color(0xFF0F172A).withValues(alpha: 0.75)
+                      : Colors.white.withValues(alpha: 0.8),
+                  borderColor: isDark
+                      ? Colors.white.withValues(alpha: 0.15)
+                      : Colors.black.withValues(alpha: 0.08),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
+                    child: Row(
+                      children: [
+                        // - You Gave (Red)
+                        Expanded(
+                          child: AdaptiveButton(
+                            onPressed: () =>
+                                _openAddEntrySheet(context, party, EntryType.gave),
+                            type: AdaptiveButtonType.destructive,
+                            height: 52,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  AppStrings.youGave,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // + You Got (Green)
+                        Expanded(
+                          child: AdaptiveButton(
+                            onPressed: () =>
+                                _openAddEntrySheet(context, party, EntryType.got),
+                            type: AdaptiveButtonType.success,
+                            height: 52,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  AppStrings.youGot,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Container(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    border: Border(
+                      top: BorderSide(
+                        color: Theme.of(context).colorScheme.outlineVariant
+                            .withValues(
+                              alpha: Theme.of(context).brightness == Brightness.dark
+                                  ? 0.35
+                                  : 0.5,
+                            ),
+                        width: 1,
                       ),
-                  width: 1,
-                ),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 10,
-                  offset: const Offset(0, -3),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                // - You Gave (Red)
-                Expanded(
-                  child: AdaptiveButton(
-                    onPressed: () =>
-                        _openAddEntrySheet(context, party, EntryType.gave),
-                    type: AdaptiveButtonType.destructive,
-                    height: 52,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(
-                          Icons.arrow_upward_rounded,
-                          size: 20,
-                          color: Colors.white,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          AppStrings.youGave,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, -3),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // - You Gave (Red)
+                      Expanded(
+                        child: AdaptiveButton(
+                          onPressed: () =>
+                              _openAddEntrySheet(context, party, EntryType.gave),
+                          type: AdaptiveButtonType.destructive,
+                          height: 52,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                AppStrings.youGave,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // + You Got (Green)
-                Expanded(
-                  child: AdaptiveButton(
-                    onPressed: () =>
-                        _openAddEntrySheet(context, party, EntryType.got),
-                    type: AdaptiveButtonType.success,
-                    height: 52,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(
-                          Icons.arrow_downward_rounded,
-                          size: 20,
-                          color: Colors.white,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          AppStrings.youGot,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                      ),
+                      const SizedBox(width: 12),
+                      // + You Got (Green)
+                      Expanded(
+                        child: AdaptiveButton(
+                          onPressed: () =>
+                              _openAddEntrySheet(context, party, EntryType.got),
+                          type: AdaptiveButtonType.success,
+                          height: 52,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                AppStrings.youGot,
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
           body: Column(
             children: [
               // 1. Top Sticky Header: Contact info, Quick Call, and Net Balance
@@ -1080,8 +1156,8 @@ class PartyLedgerScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: isIos
                       ? (isDark
-                            ? CupertinoColors.systemBackground.darkColor
-                            : CupertinoColors.white)
+                            ? const Color(0xFF1E293B).withValues(alpha: 0.6)
+                            : Colors.white.withValues(alpha: 0.8))
                       : Theme.of(context).colorScheme.surfaceContainerLow,
                   border: Border(
                     bottom: BorderSide(
@@ -1257,10 +1333,10 @@ class PartyLedgerScreen extends ConsumerWidget {
                         return ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.symmetric(vertical: 40),
-                          children: const [
+                          children: [
                             EmptyStateView(
                               lottieAsset: 'assets/animations/empty_ledger.json',
-                              fallbackIcon: Icons.receipt_long_outlined,
+                              fallbackIcon: isIos ? CupertinoIcons.doc_plaintext : Icons.receipt_long_outlined,
                               title: 'No Transactions Yet',
                               subtitle:
                                   'Tap You Gave or You Got below to create the first transaction entry.',
@@ -1521,6 +1597,7 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
     bool isGave,
     Color color,
   ) {
+    final isIos = AdaptiveThemeHelper.isIos(context);
     final effectiveColor =
         entry.isVoided ? color.withValues(alpha: 0.45) : color;
 
@@ -1619,7 +1696,7 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.receipt_long_rounded,
+                                isIos ? CupertinoIcons.doc_text : Icons.receipt_long_rounded,
                                 size: 13,
                                 color: Theme.of(context).colorScheme.primary,
                               ),
@@ -1634,7 +1711,7 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
                               ),
                               const SizedBox(width: 3),
                               Icon(
-                                Icons.open_in_new_rounded,
+                                isIos ? CupertinoIcons.arrow_up_right : Icons.open_in_new_rounded,
                                 size: 11,
                                 color: Theme.of(context).colorScheme.primary,
                               ),

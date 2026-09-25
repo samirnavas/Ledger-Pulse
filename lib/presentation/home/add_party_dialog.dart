@@ -368,7 +368,10 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                         ),
                         decoration: InputDecoration(
                           labelText: 'Contact / Business Name',
-                          prefixIcon: const Icon(Icons.person_outline, size: 20),
+                          prefixIcon: Icon(
+                            isIos ? CupertinoIcons.person : Icons.person_outline,
+                            size: 20,
+                          ),
                           suffixIcon: IconButton(
                             tooltip: 'Import from Contacts',
                             icon: Icon(
@@ -381,16 +384,16 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                             onPressed: _importFromContacts,
                           ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20),
                             borderSide: BorderSide(
                               color: Theme.of(context).colorScheme.outlineVariant,
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20),
                             borderSide: BorderSide(
                               color: Theme.of(context).colorScheme.primary,
                               width: 2,
@@ -415,19 +418,22 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                         ),
                         decoration: InputDecoration(
                           labelText: 'Phone Number',
-                          prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                          prefixIcon: Icon(
+                            isIos ? CupertinoIcons.phone : Icons.phone_outlined,
+                            size: 20,
+                          ),
                           hintText: '9876543210',
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20),
                             borderSide: BorderSide(
                               color: Theme.of(context).colorScheme.outlineVariant,
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(20),
                             borderSide: BorderSide(
                               color: Theme.of(context).colorScheme.primary,
                               width: 2,

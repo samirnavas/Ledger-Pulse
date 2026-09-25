@@ -125,7 +125,11 @@ class OrderConversionDialog extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               FilledButton.icon(
-                icon: const Icon(Icons.receipt_long_rounded),
+                icon: Icon(
+                  AdaptiveThemeHelper.isIos(context)
+                      ? CupertinoIcons.doc_text
+                      : Icons.receipt_long_rounded,
+                ),
                 label: const Text('Convert & Post Invoice'),
                 onPressed: () async {
                   Navigator.pop(context);

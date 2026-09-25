@@ -159,9 +159,17 @@ class _ManufacturingJournalScreenState
               initialValue: _selectedBom,
               decoration: InputDecoration(
                 labelText: 'Select Bill of Materials (BOM)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.precision_manufacturing_rounded),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
+                prefixIcon: Icon(
+                  isIos ? CupertinoIcons.hammer_fill : Icons.precision_manufacturing_rounded,
+                ),
                 isDense: true,
+                filled: true,
+                fillColor: isIos
+                    ? (isDark
+                        ? CupertinoColors.systemGrey6.darkColor
+                        : CupertinoColors.systemGrey6)
+                    : Theme.of(context).colorScheme.surfaceContainerLowest,
               ),
               items: boms.map((b) {
                 return DropdownMenuItem(
@@ -184,8 +192,16 @@ class _ManufacturingJournalScreenState
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
                       labelText: 'Production Batch Quantity (${bom?.outputUnit ?? "Units"})',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      prefixIcon: const Icon(Icons.pin_rounded),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)),
+                      prefixIcon: Icon(
+                        isIos ? CupertinoIcons.number : Icons.pin_rounded,
+                      ),
+                      filled: true,
+                      fillColor: isIos
+                          ? (isDark
+                              ? CupertinoColors.systemGrey6.darkColor
+                              : CupertinoColors.systemGrey6)
+                          : Theme.of(context).colorScheme.surfaceContainerLowest,
                     ),
                     onChanged: (_) => setState(() {}),
                   ),
@@ -211,7 +227,11 @@ class _ManufacturingJournalScreenState
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   child: Row(
                     children: [
-                      Icon(Icons.layers_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
+                      Icon(
+                        isIos ? CupertinoIcons.square_stack_3d_up_fill : Icons.layers_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -239,16 +259,17 @@ class _ManufacturingJournalScreenState
                 if (isIos) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: LiquidGlassCard(borderRadius: 12, padding: EdgeInsets.zero, child: itemTile),
+                    child: LiquidGlassCard(borderRadius: 18, padding: EdgeInsets.zero, child: itemTile),
                   );
                 }
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Card(
                     elevation: 0,
+                    color: Theme.of(context).colorScheme.surfaceContainer,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(24),
+                      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5)),
                     ),
                     child: itemTile,
                   ),
@@ -263,12 +284,18 @@ class _ManufacturingJournalScreenState
                   onPressed: _isExecuting ? () {} : _runProduction,
                   child: _isExecuting
                       ? const CupertinoActivityIndicator()
-                      : const Row(
+                      : Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.bolt_rounded, size: 20),
-                            SizedBox(width: 8),
-                            Text('Execute Production Run & Adjust Stock', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Icon(
+                              isIos ? CupertinoIcons.bolt_fill : Icons.bolt_rounded,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Execute Production Run & Adjust Stock',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ],
                         ),
                 ),
@@ -348,12 +375,13 @@ class _ManufacturingJournalScreenState
     );
 
     if (isIos) {
-      return LiquidGlassCard(borderRadius: 16, padding: EdgeInsets.zero, child: content);
+      return LiquidGlassCard(borderRadius: 22, padding: EdgeInsets.zero, child: content);
     }
     return Card(
       elevation: 0,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(28),
         side: BorderSide(color: AppColors.primaryBlue.withValues(alpha: 0.4)),
       ),
       child: content,
@@ -361,44 +389,66 @@ class _ManufacturingJournalScreenState
   }
 
   Widget _buildExecutionResult(bool isIos, bool isDark, ManufacturingExecutionResult res) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: res.success ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: res.success ? AppColors.receivableGreen : AppColors.payableRed),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                res.success ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              res.success
+                  ? (isIos
+                      ? CupertinoIcons.checkmark_circle_fill
+                      : Icons.check_circle_rounded)
+                  : (isIos
+                      ? CupertinoIcons.exclamationmark_triangle_fill
+                      : Icons.error_outline_rounded),
+              color: res.success ? AppColors.receivableGreen : AppColors.payableRed,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              res.success ? 'Production Run Completed' : 'Production Run Blocked',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
                 color: res.success ? AppColors.receivableGreen : AppColors.payableRed,
-                size: 20,
               ),
-              const SizedBox(width: 8),
-              Text(
-                res.success ? 'Production Run Completed' : 'Production Run Blocked',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: res.success ? AppColors.receivableGreen : AppColors.payableRed,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          if (res.success) ...[
-            Text('Voucher: ${res.voucherNumber} • Total Batch Value: ₹${(res.totalCostInCents / 100.0).toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 12)),
-            const SizedBox(height: 4),
-            ...res.rawMaterialsConsumedSummary.map((s) => Text('• $s', style: const TextStyle(fontSize: 11, color: Colors.grey))),
-          ] else ...[
-            Text(res.errorMessage ?? 'Error occurred.', style: const TextStyle(fontSize: 12)),
+            ),
           ],
+        ),
+        const SizedBox(height: 6),
+        if (res.success) ...[
+          Text('Voucher: ${res.voucherNumber} • Total Batch Value: ₹${(res.totalCostInCents / 100.0).toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 12)),
+          const SizedBox(height: 4),
+          ...res.rawMaterialsConsumedSummary.map((s) => Text('• $s', style: const TextStyle(fontSize: 11, color: Colors.grey))),
+        ] else ...[
+          Text(res.errorMessage ?? 'Error occurred.', style: const TextStyle(fontSize: 12)),
         ],
+      ],
+    );
+
+    if (isIos) {
+      return LiquidGlassCard(
+        borderRadius: 20,
+        borderColor: res.success ? AppColors.receivableGreen.withValues(alpha: 0.5) : AppColors.payableRed.withValues(alpha: 0.5),
+        child: content,
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: res.success
+            ? AppColors.receivableGreen.withValues(alpha: 0.1)
+            : AppColors.payableRed.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: res.success
+              ? AppColors.receivableGreen.withValues(alpha: 0.6)
+              : AppColors.payableRed.withValues(alpha: 0.6),
+        ),
       ),
+      child: content,
     );
   }
 }

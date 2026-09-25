@@ -1,8 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:lottie/lottie.dart';
 import '../constants/colors.dart';
 import '../constants/typography.dart';
+import '../theme/adaptive_theme.dart';
 import 'adaptive_button.dart';
 
 /// A rich, animated empty state view that supports Lottie animation assets,
@@ -43,11 +45,11 @@ class EmptyStateView extends StatelessWidget {
         fit: BoxFit.contain,
         repeat: false,
         errorBuilder: (context, error, stackTrace) {
-          return _buildFallbackIcon(isDark);
+          return _buildFallbackIcon(context, isDark);
         },
       );
     } else {
-      visualWidget = _buildFallbackIcon(isDark);
+      visualWidget = _buildFallbackIcon(context, isDark);
     }
 
     final effectiveActionButton = actionButton ??
@@ -116,7 +118,8 @@ class EmptyStateView extends StatelessWidget {
     );
   }
 
-  Widget _buildFallbackIcon(bool isDark) {
+  Widget _buildFallbackIcon(BuildContext context, bool isDark) {
+    final isIos = AdaptiveThemeHelper.isIos(context);
     return Container(
       width: animationSize * 0.65,
       height: animationSize * 0.65,
@@ -125,7 +128,7 @@ class EmptyStateView extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: Icon(
-        fallbackIcon ?? Icons.inbox_rounded,
+        fallbackIcon ?? (isIos ? CupertinoIcons.tray : Icons.inbox_rounded),
         size: animationSize * 0.35,
         color: AppColors.primaryBlue.withValues(alpha: 0.7),
       ),

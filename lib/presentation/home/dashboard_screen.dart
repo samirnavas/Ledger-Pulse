@@ -68,13 +68,16 @@ class DashboardScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Ludgerpulse ERP Modules', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                IconButton(
+                  icon: Icon(AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.xmark : Icons.close),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
               ],
             ),
             const SizedBox(height: 12),
             _buildModuleTile(
               context: ctx,
-              icon: Icons.receipt_long_rounded,
+              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.doc_text : Icons.receipt_long_rounded,
               title: 'Receivables & Payables Tracking',
               subtitle: 'Aging buckets (0-30, 31-60, 90+ days), reminders & remittance advice',
               color: AppColors.receivableGreen,
@@ -85,7 +88,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             _buildModuleTile(
               context: ctx,
-              icon: Icons.payments_rounded,
+              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.money_dollar_circle : Icons.payments_rounded,
               title: 'Payroll & Employee Salaries',
               subtitle: 'Employee master, PF/ESI/PT deductions & PDF salary slips',
               color: Colors.blue,
@@ -96,7 +99,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             _buildModuleTile(
               context: ctx,
-              icon: Icons.precision_manufacturing_rounded,
+              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.gear_alt : Icons.precision_manufacturing_rounded,
               title: 'Manufacturing & BOM Journals',
               subtitle: 'Bill of Materials, raw material deduction & production cost',
               color: Colors.orange,
@@ -107,7 +110,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             _buildModuleTile(
               context: ctx,
-              icon: Icons.sync_alt_rounded,
+              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.arrow_2_circlepath : Icons.sync_alt_rounded,
               title: 'Third-Party ERP & Excel Import',
               subtitle: 'Import parties and stock from Tally, Zoho, QuickBooks & Excel',
               color: Colors.teal,
@@ -118,7 +121,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             _buildModuleTile(
               context: ctx,
-              icon: Icons.shopping_cart_rounded,
+              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.cart : Icons.shopping_cart_rounded,
               title: 'Amazon & Flipkart Sync',
               subtitle: 'Auto-sync marketplace orders into GST sales invoices',
               color: Colors.amber.shade800,
@@ -129,7 +132,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             _buildModuleTile(
               context: ctx,
-              icon: Icons.print_rounded,
+              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.printer : Icons.print_rounded,
               title: 'CTS-2010 Cheque Printing (Windows)',
               subtitle: 'Pre-calibrated bank cheque printer with MICR zone protection',
               color: Colors.purple,
@@ -140,7 +143,7 @@ class DashboardScreen extends ConsumerWidget {
             ),
             _buildModuleTile(
               context: ctx,
-              icon: Icons.star_rounded,
+              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.star : Icons.star_rounded,
               title: 'ERP Plans & Licensing Paywall',
               subtitle: 'Manage Silver, Gold, Diamond tiers and lifetime licenses',
               color: const Color(0xFF7C3AED),
@@ -164,6 +167,7 @@ class DashboardScreen extends ConsumerWidget {
     required Color color,
     required VoidCallback onTap,
   }) {
+    final isIos = AdaptiveThemeHelper.isIos(context);
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
@@ -175,7 +179,11 @@ class DashboardScreen extends ConsumerWidget {
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-      trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+      trailing: Icon(
+        isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
+        size: 14,
+        color: Colors.grey,
+      ),
       onTap: onTap,
     );
   }
@@ -315,7 +323,9 @@ class DashboardScreen extends ConsumerWidget {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                isExpired ? Icons.warning_rounded : Icons.timer_rounded,
+                isIos
+                    ? (isExpired ? CupertinoIcons.exclamationmark_triangle_fill : CupertinoIcons.timer)
+                    : (isExpired ? Icons.warning_rounded : Icons.timer_rounded),
                 color: isExpired ? AppColors.payableRed : Colors.amber.shade700,
                 size: 20,
               ),
@@ -428,7 +438,7 @@ class DashboardScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Icon(
-                Icons.business_rounded,
+                isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded,
                 size: 20,
                 color: Theme.of(context).colorScheme.primary,
               ),
@@ -528,7 +538,9 @@ class DashboardScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
-                              Icons.arrow_downward_rounded,
+                              isIos
+                                  ? CupertinoIcons.arrow_down
+                                  : Icons.arrow_downward_rounded,
                               size: 14,
                               color: isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen,
                             ),
@@ -568,7 +580,9 @@ class DashboardScreen extends ConsumerWidget {
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
-                              Icons.arrow_upward_rounded,
+                              isIos
+                                  ? CupertinoIcons.arrow_up
+                                  : Icons.arrow_upward_rounded,
                               size: 14,
                               color: isDark ? const Color(0xFFF87171) : AppColors.payableRed,
                             ),

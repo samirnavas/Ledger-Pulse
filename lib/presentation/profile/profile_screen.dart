@@ -169,11 +169,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Row(
+          content: Row(
             children: [
-              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text('Profile and banking details updated successfully'),
+              Icon(
+                AdaptiveThemeHelper.isIos(context)
+                    ? CupertinoIcons.checkmark_circle_fill
+                    : Icons.check_circle_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              const Text('Profile and banking details updated successfully'),
             ],
           ),
           backgroundColor: AppColors.receivableGreen,
@@ -215,11 +221,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         context: context,
         builder: (context) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.logout_rounded, color: AppColors.payableRed),
-              SizedBox(width: 10),
-              Text('Logout'),
+              Icon(
+                AdaptiveThemeHelper.isIos(context)
+                    ? CupertinoIcons.square_arrow_right
+                    : Icons.logout_rounded,
+                color: AppColors.payableRed,
+              ),
+              const SizedBox(width: 10),
+              const Text('Logout'),
             ],
           ),
           content: const Text('Are you sure you want to log out from Ledger Pulse?'),
@@ -298,7 +309,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   if (_isEditing)
                     TextButton.icon(
                       onPressed: _cancelEditing,
-                      icon: const Icon(Icons.close_rounded, size: 18),
+                      icon: Icon(
+                        isIos ? CupertinoIcons.xmark : Icons.close_rounded,
+                        size: 18,
+                      ),
                       label: const Text('Cancel'),
                       style: TextButton.styleFrom(
                         foregroundColor: Theme.of(context).colorScheme.error,
@@ -589,7 +603,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  icon: const Icon(Icons.check_rounded),
+                  icon: Icon(isIos ? CupertinoIcons.checkmark : Icons.check_rounded),
                   label: const Text(
                     'Save Changes',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -678,8 +692,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       color: Theme.of(context).colorScheme.primary,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.camera_alt,
+                    child: Icon(
+                      isIos ? CupertinoIcons.camera_fill : Icons.camera_alt,
                       size: 14,
                       color: Colors.white,
                     ),
