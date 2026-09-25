@@ -1,46 +1,31 @@
 workflows:
-  ios-simulator-build:
-    name: iOS Simulator Build
-    max_build_duration: 30
-    instance_type: mac_mini_m2
+  ios-testflight:
+    name: iOS TestFlight Build
+    instance_type: mac_mini_m1
     environment:
-      flutter: 3.41.6
+      flutter: default
       xcode: latest
+      cocoapods: default
     scripts:
-      - name: Get Flutter packages
+      - name: Install dependencies
         script: |
-          flutter pub get
-
-      - name: Install CocoaPods dependencies
+          flutter packages pub get
+      - name: Install CocoaPods
         script: |
-          cd ios && pod install
-
-      - name: Build iOS for Simulator (no code signing)
+          find . -name "Podfile" -execdir pod install \;
+      - name: Set up iOS code signing
         script: |
-          flutter build ios --simulator --no-codesign
-
+          keychain initialize
+          app-store-connect fetch-signing-files "com.ledger.pulse" --type IOS_APP_STORE --create
+          keychain add-certificates
+      - name: Build iOS App
+        script: |
+          flutter build ipa --release --export-options-plist=/Users/builder/export_options.plist
     artifacts:
-      - build/ios/iphonesimulator/*.app
-
-  ios-debug-build:
-    name: iOS Debug Build (No Signing)
-    max_build_duration: 30
-    instance_type: mac_mini_m2
-    environment:
-      flutter: 3.41.6
-      xcode: latest
-    scripts:
-      - name: Get Flutter packages
-        script: |
-          flutter pub get
-
-      - name: Install CocoaPods dependencies
-        script: |
-          cd ios && pod install
-
-      - name: Build iOS Debug (no code signing)
-        script: |
-          flutter build ios --debug --no-codesign --simulator
-
-    artifacts:
-      - build/ios/iphonesimulator/*.app
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth:
+          integration: "App Store Connect"
+        submit_to_testflight: true

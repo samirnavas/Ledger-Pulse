@@ -1252,7 +1252,10 @@ class DriftLedgerRepository implements ILedgerRepository {
             recordId: partyId,
             mutationType: 'UPDATE',
             payload: jsonEncode({
-              'partyId': partyId,
+              'id': partyId,
+              'name': party.name,
+              'phoneNumber': party.phoneNumber,
+              'type': party.type.name,
               'companyId': _currentCompanyId,
               'netBalanceInCents': newBalance,
               'lastUpdated': latestDate.toIso8601String(),

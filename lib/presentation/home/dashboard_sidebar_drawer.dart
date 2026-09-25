@@ -10,6 +10,7 @@ import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
 import '../providers/subscription_providers.dart';
 import '../reports/reporting_hub_screen.dart';
+import '../settings/settings_screen.dart';
 import 'company_switcher_sheet.dart';
 import 'sync_settings_sheet.dart';
 
@@ -285,6 +286,39 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                       HapticFeedback.lightImpact();
                       Navigator.pop(context);
                       onOpenErpModules();
+                    },
+                  ),
+
+                  // 5. Settings & Preferences
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.blueGrey.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        isIos ? CupertinoIcons.gear_alt_fill : Icons.settings_rounded,
+                        color: Colors.blueGrey,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      'Settings & Preferences',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    subtitle: const Text(
+                      'Color theme, profile, cloud sync & system settings',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
+                    ),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.pop(context);
+                      Navigator.of(context).push(
+                        createAdaptivePageRoute(
+                          builder: (context) => const SettingsScreen(),
+                        ),
+                      );
                     },
                   ),
                 ],

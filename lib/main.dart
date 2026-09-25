@@ -9,6 +9,7 @@ import 'core/config/supabase_config.dart';
 import 'core/constants/strings.dart';
 import 'core/theme/android_theme.dart';
 import 'core/theme/ios_theme.dart';
+import 'presentation/providers/theme_provider.dart';
 import 'presentation/splash/splash_screen.dart';
 
 void main() async {
@@ -37,12 +38,14 @@ class LedgerPulseApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isIos = !kIsWeb && Platform.isIOS;
+    final themeMode = ref.watch(appThemeModeProvider);
 
     if (isIos) {
+      final isDark = themeMode == ThemeMode.dark;
       return CupertinoApp(
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
-        theme: IosTheme.lightTheme,
+        theme: isDark ? IosTheme.darkTheme : IosTheme.lightTheme,
         home: const SplashScreen(),
       );
     }
@@ -66,11 +69,10 @@ class LedgerPulseApp extends ConsumerWidget {
           debugShowCheckedModeBanner: false,
           theme: AndroidTheme.getLight(lightScheme),
           darkTheme: AndroidTheme.getDark(darkScheme),
-          themeMode: ThemeMode.system,
+          themeMode: themeMode,
           home: const SplashScreen(),
         );
       },
     );
   }
 }
-

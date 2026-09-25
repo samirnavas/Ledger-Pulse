@@ -12,7 +12,7 @@ import '../config/supabase_config.dart';
 
 class SyncEngine {
   final AppDatabase db;
-  final SupabaseClient? supabaseClient;
+  final SupabaseClient? _explicitClient;
   final http.Client _httpClient;
   final StreamController<SyncStatus> _statusController =
       StreamController<SyncStatus>.broadcast();
@@ -22,8 +22,13 @@ class SyncEngine {
     required this.db,
     SupabaseClient? supabaseClient,
     http.Client? httpClient,
-  })  : supabaseClient = supabaseClient ?? _getSafeSupabaseClient(),
+  })  : _explicitClient = supabaseClient,
         _httpClient = httpClient ?? http.Client();
+
+  SupabaseClient? get supabaseClient {
+    if (_explicitClient != null) return _explicitClient;
+    return _getSafeSupabaseClient();
+  }
 
   static SupabaseClient? _getSafeSupabaseClient() {
     try {
@@ -72,56 +77,59 @@ class SyncEngine {
       final isRemoteAvailable =
           client != null && SupabaseConfig.isConfigured;
 
+      if (!isRemoteAvailable) {
+        debugPrint('SyncEngine pushQueue: Remote not available (Supabase not initialized or not configured). Keeping ${rows.length} items in outbox.');
+        setStatus(SyncStatus.idle);
+        return SyncResult(
+          success: true,
+          itemsPushed: 0,
+          timestamp: DateTime.now(),
+        );
+      }
+
       for (final row in rows) {
         try {
-          if (isRemoteAvailable) {
-            bool remoteOk = false;
-            final payloadMap = jsonDecode(row.payload) as Map<String, dynamic>;
+          bool remoteOk = false;
+          final payloadMap = jsonDecode(row.payload) as Map<String, dynamic>;
 
-            // 1. Attempt RPC call 'sync_mutation'
-            try {
-              final rpcRes = await client.rpc(
-                'sync_mutation',
-                params: {
-                  'table_name': row.tableName,
-                  'record_id': row.recordId,
-                  'mutation_type': row.mutationType,
-                  'payload': payloadMap,
-                },
-              );
-              if (rpcRes != null) {
-                remoteOk = true;
-              }
-            } catch (rpcError) {
-              debugPrint('RPC sync_mutation notice: $rpcError, attempting direct PostgREST write');
-              // 2. Direct PostgREST table write fallback
-              final formattedPayload = _formatPayloadForTable(row.tableName, payloadMap);
-              if (row.mutationType.toUpperCase() == 'INSERT' ||
-                  row.mutationType.toUpperCase() == 'UPDATE' ||
-                  row.mutationType.toUpperCase() == 'UPSERT') {
-                await client.from(row.tableName).upsert(formattedPayload);
-                remoteOk = true;
-              } else if (row.mutationType.toUpperCase() == 'DELETE') {
-                await client
-                    .from(row.tableName)
-                    .update({'is_deleted': true, 'sync_status': 'synced'})
-                    .eq('id', row.recordId);
-                remoteOk = true;
-              }
+          // 1. Attempt RPC call 'sync_mutation'
+          try {
+            final rpcRes = await client.rpc(
+              'sync_mutation',
+              params: {
+                'table_name': row.tableName,
+                'record_id': row.recordId,
+                'mutation_type': row.mutationType,
+                'payload': payloadMap,
+              },
+            );
+            if (rpcRes != null) {
+              remoteOk = true;
             }
+          } catch (rpcError) {
+            debugPrint('RPC sync_mutation notice: $rpcError, attempting direct PostgREST write');
+            // 2. Direct PostgREST table write fallback
+            final formattedPayload = _formatPayloadForTable(row.tableName, payloadMap);
+            if (row.mutationType.toUpperCase() == 'INSERT' ||
+                row.mutationType.toUpperCase() == 'UPDATE' ||
+                row.mutationType.toUpperCase() == 'UPSERT') {
+              await client.from(row.tableName).upsert(formattedPayload);
+              remoteOk = true;
+            } else if (row.mutationType.toUpperCase() == 'DELETE') {
+              await client
+                  .from(row.tableName)
+                  .update({'is_deleted': true, 'sync_status': 'synced'})
+                  .eq('id', row.recordId);
+              remoteOk = true;
+            }
+          }
 
-            if (remoteOk) {
-              await (db.delete(db.syncOutbox)..where((t) => t.id.equals(row.id))).go();
-              await _updateLocalRecordSyncStatus(row.tableName, row.recordId, SyncRecordStatus.synced);
-              pushedCount++;
-            } else {
-              await _updateLocalRecordSyncStatus(row.tableName, row.recordId, SyncRecordStatus.error);
-            }
-          } else {
-            // Local simulation / offline mode
+          if (remoteOk) {
             await (db.delete(db.syncOutbox)..where((t) => t.id.equals(row.id))).go();
             await _updateLocalRecordSyncStatus(row.tableName, row.recordId, SyncRecordStatus.synced);
             pushedCount++;
+          } else {
+            await _updateLocalRecordSyncStatus(row.tableName, row.recordId, SyncRecordStatus.error);
           }
         } catch (itemErr) {
           debugPrint('Error pushing outbox item ${row.id}: $itemErr');

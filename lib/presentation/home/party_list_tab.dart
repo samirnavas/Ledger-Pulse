@@ -221,7 +221,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
     );
   }
 
-  Future<void> _handleDeleteParty(Party party) async {
+  Future<bool> _handleDeleteParty(Party party) async {
     // 1. Safety Check: Verify if party.netBalanceInCents != 0
     if (party.netBalanceInCents != 0) {
       final formattedBalance = CurrencyFormatter.format(
@@ -235,7 +235,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
             'Cannot delete a party with an outstanding balance of $formattedBalance. Settle the dues first.',
         buttonLabel: 'OK',
       );
-      return;
+      return false;
     }
 
     // 2. Open Adaptive Confirmation Dialog for 0-balance party
@@ -264,6 +264,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
             ),
           );
         }
+        return true;
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -273,8 +274,122 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
             ),
           );
         }
+        return false;
       }
     }
+    return false;
+  }
+
+  Widget _buildSwipeEditBackground(BuildContext context, bool isIos) {
+    if (isIos) {
+      return Container(
+        color: CupertinoColors.systemBlue,
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(CupertinoIcons.pencil, color: Colors.white, size: 22),
+            SizedBox(width: 8),
+            Text(
+              'Edit',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.edit_rounded,
+            color: theme.colorScheme.onPrimaryContainer,
+            size: 22,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Edit',
+            style: TextStyle(
+              color: theme.colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwipeDeleteBackground(BuildContext context, bool isIos) {
+    if (isIos) {
+      return Container(
+        color: CupertinoColors.destructiveRed,
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+                letterSpacing: -0.2,
+              ),
+            ),
+            SizedBox(width: 8),
+            Icon(CupertinoIcons.trash, color: Colors.white, size: 22),
+          ],
+        ),
+      );
+    }
+
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Delete',
+            style: TextStyle(
+              color: theme.colorScheme.onErrorContainer,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            Icons.delete_outline_rounded,
+            color: theme.colorScheme.onErrorContainer,
+            size: 22,
+          ),
+        ],
+      ),
+    );
   }
 
   void _showPartyContextMenu(BuildContext context, Party party) {
@@ -783,28 +898,6 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                         variant: AmountVariant.medium,
                         absolute: true,
                       ),
-
-                      const SizedBox(width: 4),
-
-                      // 3-dot Context Menu Button
-                      IconButton(
-                        icon: Icon(
-                          isIos
-                              ? CupertinoIcons.ellipsis_circle
-                              : Icons.more_vert_rounded,
-                          size: 20,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints:
-                            const BoxConstraints(minWidth: 32, minHeight: 32),
-                        splashRadius: 20,
-                        tooltip: 'Party Options',
-                        onPressed: () =>
-                            _showPartyContextMenu(context, party),
-                      ),
                     ],
                   );
 
@@ -819,14 +912,36 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                     );
                   }
 
-                  return InkWell(
-                    onTap: openLedger,
-                    onLongPress: () =>
-                        _showPartyContextMenu(context, party),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
-                      child: rowContent,
+                  return Dismissible(
+                    key: ValueKey('party_${party.id}'),
+                    direction: DismissDirection.horizontal,
+                    dismissThresholds: const {
+                      DismissDirection.startToEnd: 0.25,
+                      DismissDirection.endToStart: 0.25,
+                    },
+                    background: _buildSwipeEditBackground(context, isIos),
+                    secondaryBackground:
+                        _buildSwipeDeleteBackground(context, isIos),
+                    confirmDismiss: (direction) async {
+                      if (direction == DismissDirection.startToEnd) {
+                        HapticFeedback.lightImpact();
+                        _openEditParty(party);
+                        return false;
+                      } else if (direction == DismissDirection.endToStart) {
+                        HapticFeedback.mediumImpact();
+                        return await _handleDeleteParty(party);
+                      }
+                      return false;
+                    },
+                    child: InkWell(
+                      onTap: openLedger,
+                      onLongPress: () =>
+                          _showPartyContextMenu(context, party),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        child: rowContent,
+                      ),
                     ),
                   );
                 },
