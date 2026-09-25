@@ -15,6 +15,7 @@ import '../models/party_model.dart';
 import '../models/rbac_model.dart';
 import '../models/sync_model.dart';
 import '../models/transaction_model.dart';
+import '../models/user_profile_model.dart';
 import '../security/access_control_service.dart';
 import 'audit_service.dart';
 import 'database.dart';
@@ -104,6 +105,32 @@ class DriftLedgerRepository implements ILedgerRepository {
                 isCloudSyncEnabled: const Value(true),
                 isDropboxSyncEnabled: const Value(false),
                 isActive: const Value(true),
+                isDeleted: const Value(false),
+                syncStatus: const Value(SyncRecordStatus.synced),
+              ),
+            );
+      }
+
+      // Ensure default profile exists
+      final existingProfile = await (_db.select(_db.userProfiles)
+            ..where((t) => t.id.equals(_currentUserId)))
+          .getSingleOrNull();
+
+      if (existingProfile == null) {
+        await _db.into(_db.userProfiles).insertOnConflictUpdate(
+              UserProfilesCompanion.insert(
+                id: _currentUserId,
+                name: 'Samir Navas',
+                phoneNumber: '+91 98765 43210',
+                email: 'samir.navas@example.com',
+                businessName: const Value('Ledger Pulse Enterprise'),
+                address: const Value('Suite 402, Trade Tower, Bangalore, India'),
+                gstin: const Value('29ABCDE1234F1ZH'),
+                businessType: const Value('Retail & Wholesale'),
+                activeCompanyId: Value(_currentCompanyId),
+                role: const Value('admin'),
+                isDeleted: const Value(false),
+                syncStatus: const Value(SyncRecordStatus.synced),
               ),
             );
       }
@@ -188,16 +215,25 @@ class DriftLedgerRepository implements ILedgerRepository {
 
   Future<List<Company>> getCompanies() async {
     await _ensureInitialized();
-    final rows = await (_db.select(_db.companies)..where((t) => t.isActive.equals(true))).get();
+    final rows = await (_db.select(_db.companies)..where((t) => t.isDeleted.equals(false) & t.isActive.equals(true))).get();
     return rows.map((r) => Company(
       id: r.id,
       name: r.name,
       legalName: r.legalName,
       gstin: r.gstin,
+      stateCode: r.stateCode,
+      dealerType: r.dealerType,
       currencyCode: r.currencyCode,
       address: r.address,
       email: r.email,
       phoneNumber: r.phoneNumber,
+      logoUrl: r.logoUrl,
+      signatureUrl: r.signatureUrl,
+      signatoryName: r.signatoryName,
+      bankName: r.bankName,
+      bankAccountNumber: r.bankAccountNumber,
+      bankIfsc: r.bankIfsc,
+      upiId: r.upiId,
       isCloudSyncEnabled: r.isCloudSyncEnabled,
       isDropboxSyncEnabled: r.isDropboxSyncEnabled,
       isActive: r.isActive,
@@ -210,33 +246,313 @@ class DriftLedgerRepository implements ILedgerRepository {
     await _ensureInitialized();
     AccessControlService.verifyPermission(_currentRole, UserAction.createCompany);
 
-    await _db.into(_db.companies).insertOnConflictUpdate(
-          CompaniesCompanion.insert(
-            id: company.id,
-            name: company.name,
-            legalName: company.legalName,
-            gstin: Value(company.gstin),
-            currencyCode: Value(company.currencyCode),
-            address: Value(company.address),
-            email: Value(company.email),
-            phoneNumber: Value(company.phoneNumber),
-            isCloudSyncEnabled: Value(company.isCloudSyncEnabled),
-            isDropboxSyncEnabled: Value(company.isDropboxSyncEnabled),
-            isActive: Value(company.isActive),
-          ),
-        );
+    await _db.transaction(() async {
+      await _db.into(_db.companies).insertOnConflictUpdate(
+            CompaniesCompanion.insert(
+              id: company.id,
+              name: company.name,
+              legalName: company.legalName,
+              gstin: Value(company.gstin),
+              stateCode: Value(company.stateCode),
+              dealerType: Value(company.dealerType),
+              currencyCode: Value(company.currencyCode),
+              address: Value(company.address),
+              email: Value(company.email),
+              phoneNumber: Value(company.phoneNumber),
+              logoUrl: Value(company.logoUrl),
+              signatureUrl: Value(company.signatureUrl),
+              signatoryName: Value(company.signatoryName),
+              bankName: Value(company.bankName),
+              bankAccountNumber: Value(company.bankAccountNumber),
+              bankIfsc: Value(company.bankIfsc),
+              upiId: Value(company.upiId),
+              isCloudSyncEnabled: Value(company.isCloudSyncEnabled),
+              isDropboxSyncEnabled: Value(company.isDropboxSyncEnabled),
+              isActive: Value(company.isActive),
+              isDeleted: const Value(false),
+              createdAt: Value(company.createdAt),
+              updatedAt: Value(company.updatedAt),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
 
-    await _auditService.recordLog(
-      companyId: company.id,
-      userId: _currentUserId,
-      entityType: 'company',
-      entityId: company.id,
-      action: AuditAction.insert,
-      newState: company.toMap(),
-    );
+      await _db.into(_db.syncOutbox).insert(
+            SyncOutboxCompanion.insert(
+              id: _uuid.v4(),
+              targetTable: 'companies',
+              recordId: company.id,
+              mutationType: 'UPSERT',
+              payload: jsonEncode({
+                ...company.toMap(),
+                'companyId': company.id,
+              }),
+            ),
+          );
+
+      await _auditService.recordLog(
+        companyId: company.id,
+        userId: _currentUserId,
+        entityType: 'company',
+        entityId: company.id,
+        action: AuditAction.insert,
+        newState: company.toMap(),
+      );
+    });
 
     _updateStreamController.add(null);
+    _triggerBackgroundSync();
     return company;
+  }
+
+  Future<Company> updateCompany(Company company) async {
+    await _ensureInitialized();
+    AccessControlService.verifyPermission(_currentRole, UserAction.createCompany);
+
+    final existing = await (_db.select(_db.companies)..where((t) => t.id.equals(company.id))).getSingleOrNull();
+    final oldMap = existing != null ? {
+      'id': existing.id,
+      'name': existing.name,
+      'legalName': existing.legalName,
+      'gstin': existing.gstin,
+    } : null;
+
+    final updated = company.copyWith(updatedAt: DateTime.now());
+
+    await _db.transaction(() async {
+      await (_db.update(_db.companies)..where((t) => t.id.equals(updated.id))).write(
+        CompaniesCompanion(
+          name: Value(updated.name),
+          legalName: Value(updated.legalName),
+          gstin: Value(updated.gstin),
+          stateCode: Value(updated.stateCode),
+          dealerType: Value(updated.dealerType),
+          currencyCode: Value(updated.currencyCode),
+          address: Value(updated.address),
+          email: Value(updated.email),
+          phoneNumber: Value(updated.phoneNumber),
+          logoUrl: Value(updated.logoUrl),
+          signatureUrl: Value(updated.signatureUrl),
+          signatoryName: Value(updated.signatoryName),
+          bankName: Value(updated.bankName),
+          bankAccountNumber: Value(updated.bankAccountNumber),
+          bankIfsc: Value(updated.bankIfsc),
+          upiId: Value(updated.upiId),
+          isCloudSyncEnabled: Value(updated.isCloudSyncEnabled),
+          isDropboxSyncEnabled: Value(updated.isDropboxSyncEnabled),
+          isActive: Value(updated.isActive),
+          updatedAt: Value(updated.updatedAt),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      await _db.into(_db.syncOutbox).insert(
+            SyncOutboxCompanion.insert(
+              id: _uuid.v4(),
+              targetTable: 'companies',
+              recordId: updated.id,
+              mutationType: 'UPSERT',
+              payload: jsonEncode({
+                ...updated.toMap(),
+                'companyId': updated.id,
+              }),
+            ),
+          );
+
+      await _auditService.recordLog(
+        companyId: updated.id,
+        userId: _currentUserId,
+        entityType: 'company',
+        entityId: updated.id,
+        action: AuditAction.update,
+        oldState: oldMap,
+        newState: updated.toMap(),
+      );
+    });
+
+    _updateStreamController.add(null);
+    _triggerBackgroundSync();
+    return updated;
+  }
+
+  Future<void> deleteCompany(String companyId) async {
+    await _ensureInitialized();
+    AccessControlService.verifyPermission(_currentRole, UserAction.createCompany);
+
+    await _db.transaction(() async {
+      await (_db.update(_db.companies)..where((t) => t.id.equals(companyId))).write(
+        CompaniesCompanion(
+          isDeleted: const Value(true),
+          isActive: const Value(false),
+          updatedAt: Value(DateTime.now()),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      await _db.into(_db.syncOutbox).insert(
+            SyncOutboxCompanion.insert(
+              id: _uuid.v4(),
+              targetTable: 'companies',
+              recordId: companyId,
+              mutationType: 'DELETE',
+              payload: jsonEncode({
+                'id': companyId,
+                'isDeleted': true,
+                'companyId': companyId,
+              }),
+            ),
+          );
+    });
+
+    _updateStreamController.add(null);
+    _triggerBackgroundSync();
+  }
+
+  // --- User Profile Management ---
+
+  Future<UserProfile?> getUserProfile([String? userId]) async {
+    await _ensureInitialized();
+    final targetId = userId ?? _currentUserId;
+
+    final profileRow = await (_db.select(_db.userProfiles)
+          ..where((t) => t.id.equals(targetId) & t.isDeleted.equals(false)))
+        .getSingleOrNull();
+
+    final companies = await getCompanies();
+
+    if (profileRow == null) {
+      if (companies.isNotEmpty) {
+        return UserProfile(
+          id: targetId,
+          name: 'User',
+          phoneNumber: companies.first.phoneNumber ?? '',
+          email: companies.first.email ?? '',
+          companies: companies,
+          activeCompanyId: companies.first.id,
+        );
+      }
+      return null;
+    }
+
+    Role userRole = Role.admin;
+    try {
+      userRole = Role.values.byName(profileRow.role);
+    } catch (_) {}
+
+    return UserProfile(
+      id: profileRow.id,
+      name: profileRow.name,
+      phoneNumber: profileRow.phoneNumber,
+      email: profileRow.email,
+      businessName: profileRow.businessName,
+      address: profileRow.address,
+      gstin: profileRow.gstin,
+      businessType: profileRow.businessType,
+      bankName: profileRow.bankName,
+      bankAccountNumber: profileRow.bankAccountNumber,
+      bankIfsc: profileRow.bankIfsc,
+      upiId: profileRow.upiId,
+      activeCompanyId: profileRow.activeCompanyId,
+      role: userRole,
+      companies: companies,
+    );
+  }
+
+  Future<void> saveUserProfile(UserProfile profile) async {
+    await _ensureInitialized();
+
+    final profileCompanion = UserProfilesCompanion.insert(
+      id: profile.id,
+      name: profile.name,
+      phoneNumber: profile.phoneNumber,
+      email: profile.email,
+      businessName: Value(profile.businessName),
+      address: Value(profile.address),
+      gstin: Value(profile.gstin),
+      businessType: Value(profile.businessType),
+      bankName: Value(profile.bankName),
+      bankAccountNumber: Value(profile.bankAccountNumber),
+      bankIfsc: Value(profile.bankIfsc),
+      upiId: Value(profile.upiId),
+      activeCompanyId: Value(profile.activeCompanyId),
+      role: Value(profile.role.name),
+      companiesJson: Value(jsonEncode(profile.companies.map((c) => c.toMap()).toList())),
+      isDeleted: const Value(false),
+      updatedAt: Value(DateTime.now()),
+      syncStatus: const Value(SyncRecordStatus.pending),
+    );
+
+    await _db.transaction(() async {
+      await _db.into(_db.userProfiles).insertOnConflictUpdate(profileCompanion);
+
+      // Also persist the company data associated with this profile
+      for (final comp in profile.companies) {
+        await _db.into(_db.companies).insertOnConflictUpdate(
+              CompaniesCompanion.insert(
+                id: comp.id,
+                name: comp.name,
+                legalName: comp.legalName,
+                gstin: Value(comp.gstin),
+                stateCode: Value(comp.stateCode),
+                dealerType: Value(comp.dealerType),
+                currencyCode: Value(comp.currencyCode),
+                address: Value(comp.address),
+                email: Value(comp.email),
+                phoneNumber: Value(comp.phoneNumber),
+                logoUrl: Value(comp.logoUrl),
+                signatureUrl: Value(comp.signatureUrl),
+                signatoryName: Value(comp.signatoryName),
+                bankName: Value(comp.bankName),
+                bankAccountNumber: Value(comp.bankAccountNumber),
+                bankIfsc: Value(comp.bankIfsc),
+                upiId: Value(comp.upiId),
+                isCloudSyncEnabled: Value(comp.isCloudSyncEnabled),
+                isDropboxSyncEnabled: Value(comp.isDropboxSyncEnabled),
+                isActive: Value(comp.isActive),
+                isDeleted: const Value(false),
+                updatedAt: Value(DateTime.now()),
+                syncStatus: const Value(SyncRecordStatus.pending),
+              ),
+            );
+
+        await _db.into(_db.syncOutbox).insert(
+              SyncOutboxCompanion.insert(
+                id: _uuid.v4(),
+                targetTable: 'companies',
+                recordId: comp.id,
+                mutationType: 'UPSERT',
+                payload: jsonEncode({
+                  ...comp.toMap(),
+                  'companyId': comp.id,
+                }),
+              ),
+            );
+      }
+
+      await _db.into(_db.syncOutbox).insert(
+            SyncOutboxCompanion.insert(
+              id: _uuid.v4(),
+              targetTable: 'user_profiles',
+              recordId: profile.id,
+              mutationType: 'UPSERT',
+              payload: jsonEncode({
+                ...profile.toMap(),
+                'companyId': profile.activeCompanyId,
+              }),
+            ),
+          );
+
+      await _auditService.recordLog(
+        companyId: profile.activeCompanyId,
+        userId: profile.id,
+        entityType: 'user_profile',
+        entityId: profile.id,
+        action: AuditAction.update,
+        newState: profile.toMap(),
+      );
+    });
+
+    _updateStreamController.add(null);
+    _triggerBackgroundSync();
   }
 
   // --- Parties ---

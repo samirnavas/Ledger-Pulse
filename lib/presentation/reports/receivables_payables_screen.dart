@@ -21,6 +21,7 @@ import '../../data/models/party_model.dart';
 import '../../data/models/voucher_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
+import '../providers/sync_providers.dart';
 import '../providers/voucher_providers.dart';
 import 'invoice_pdf_generator.dart';
 import 'pdf_export_modal.dart';
@@ -157,71 +158,82 @@ class _ReceivablesPayablesScreenState
                 }
               }
 
-              return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: isWide ? 1100 : double.infinity),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // 1. Dual Segmented View: Receivables vs Payables
-                        AdaptiveSegmentedControl<bool>(
-                          groupValue: _isPayables,
-                          children: const {
-                            false: Text('Receivables (Customers)'),
-                            true: Text('Payables (Vendors)'),
-                          },
-                          onValueChanged: (val) => setState(() => _isPayables = val),
-                        ),
-                        const SizedBox(height: 16),
+              return RefreshIndicator.adaptive(
+                onRefresh: () async {
+                  HapticFeedback.lightImpact();
+                  ref.invalidate(receivablesVouchersProvider);
+                  ref.invalidate(payablesVouchersProvider);
+                  ref.invalidate(partyListProvider);
+                  ref.invalidate(businessSummaryProvider);
+                  await ref.read(syncControllerProvider.notifier).triggerSync();
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: isWide ? 1100 : double.infinity),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. Dual Segmented View: Receivables vs Payables
+                          AdaptiveSegmentedControl<bool>(
+                            groupValue: _isPayables,
+                            children: const {
+                              false: Text('Receivables (Customers)'),
+                              true: Text('Payables (Vendors)'),
+                            },
+                            onValueChanged: (val) => setState(() => _isPayables = val),
+                          ),
+                          const SizedBox(height: 16),
 
-                        // 2. Summary KPI Metrics Card
-                        _buildKpiSummary(
-                          context,
-                          isIos: isIos,
-                          totalOutstanding: totalOutstandingCents,
-                          overdueAmount: overdueCents,
-                          totalInvoices: vouchers.length,
-                          isPayables: _isPayables,
-                        ),
-                        const SizedBox(height: 20),
+                          // 2. Summary KPI Metrics Card
+                          _buildKpiSummary(
+                            context,
+                            isIos: isIos,
+                            totalOutstanding: totalOutstandingCents,
+                            overdueAmount: overdueCents,
+                            totalInvoices: vouchers.length,
+                            isPayables: _isPayables,
+                          ),
+                          const SizedBox(height: 20),
 
-                        // 3. Search Bar & Aging Bucket Filter Chips
-                        _buildSearchAndFilters(context, isIos: isIos),
-                        const SizedBox(height: 16),
+                          // 3. Search Bar & Aging Bucket Filter Chips
+                          _buildSearchAndFilters(context, isIos: isIos),
+                          const SizedBox(height: 16),
 
-                        // 4. Invoices / Bills List
-                        if (filtered.isEmpty)
-                          _buildEmptyState(context, isIos: isIos)
-                        else
-                          ListView.separated(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: filtered.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final voucher = filtered[index];
-                              Party? party;
-                              if (voucher.partyId != null) {
-                                for (final p in partiesList) {
-                                  if (p.id == voucher.partyId) {
-                                    party = p;
-                                    break;
+                          // 4. Invoices / Bills List
+                          if (filtered.isEmpty)
+                            _buildEmptyState(context, isIos: isIos)
+                          else
+                            ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final voucher = filtered[index];
+                                Party? party;
+                                if (voucher.partyId != null) {
+                                  for (final p in partiesList) {
+                                    if (p.id == voucher.partyId) {
+                                      party = p;
+                                      break;
+                                    }
                                   }
                                 }
-                              }
-                              return _buildInvoiceItemCard(
-                                context,
-                                voucher: voucher,
-                                party: party,
-                                company: company,
-                                isIos: isIos,
-                              );
-                            },
-                          ),
-                        const SizedBox(height: 40),
-                      ],
+                                return _buildInvoiceItemCard(
+                                  context,
+                                  voucher: voucher,
+                                  party: party,
+                                  company: company,
+                                  isIos: isIos,
+                                );
+                              },
+                            ),
+                          const SizedBox(height: 40),
+                        ],
+                      ),
                     ),
                   ),
                 ),

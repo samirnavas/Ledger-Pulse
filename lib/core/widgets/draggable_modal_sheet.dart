@@ -19,6 +19,8 @@ class DraggableModalSheet extends StatelessWidget {
   final bool showHandle;
   final Color? backgroundColor;
   final BorderRadiusGeometry? borderRadius;
+  final DraggableScrollableController? controller;
+  final double? maxWidth;
 
   const DraggableModalSheet({
     super.key,
@@ -30,6 +32,8 @@ class DraggableModalSheet extends StatelessWidget {
     this.showHandle = true,
     this.backgroundColor,
     this.borderRadius,
+    this.controller,
+    this.maxWidth = 600,
   });
 
   @override
@@ -50,43 +54,50 @@ class DraggableModalSheet extends StatelessWidget {
             ? [initialChildSize, maxChildSize]
             : [initialChildSize]);
 
-    return DraggableScrollableSheet(
-      initialChildSize: initialChildSize.clamp(minChildSize, maxChildSize),
-      minChildSize: minChildSize,
-      maxChildSize: maxChildSize,
-      snap: true,
-      snapSizes: effectiveSnapSizes,
-      snapAnimationDuration: const Duration(milliseconds: 250),
-      shouldCloseOnMinExtent: true,
-      expand: false,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: containerColor,
-            borderRadius: borderRadius ??
-                const BorderRadius.vertical(top: Radius.circular(28)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
-                blurRadius: 18,
-                offset: const Offset(0, -4),
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth ?? 600),
+        child: DraggableScrollableSheet(
+          controller: controller,
+          initialChildSize: initialChildSize.clamp(minChildSize, maxChildSize),
+          minChildSize: minChildSize,
+          maxChildSize: maxChildSize,
+          snap: true,
+          snapSizes: effectiveSnapSizes,
+          snapAnimationDuration: const Duration(milliseconds: 250),
+          shouldCloseOnMinExtent: true,
+          expand: false,
+          builder: (context, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: containerColor,
+                borderRadius: borderRadius ??
+                    const BorderRadius.vertical(top: Radius.circular(28)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
+                    blurRadius: 18,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (showHandle)
-                ModalDragHandle(
-                  onTap: () => HapticFeedback.selectionClick(),
-                ),
-              Expanded(
-                child: builder(context, scrollController),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showHandle)
+                    ModalDragHandle(
+                      onTap: () => HapticFeedback.selectionClick(),
+                    ),
+                  Expanded(
+                    child: builder(context, scrollController),
+                  ),
+                ],
               ),
-            ],
-          ),
-        );
-      },
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -149,6 +160,8 @@ Future<T?> showAdaptiveDraggableModal<T>({
   Color? barrierColor,
   Color? sheetBackgroundColor,
   BorderRadiusGeometry? borderRadius,
+  DraggableScrollableController? controller,
+  double? maxWidth = 600,
 }) {
   HapticFeedback.lightImpact();
   return showModalBottomSheet<T>(
@@ -160,6 +173,8 @@ Future<T?> showAdaptiveDraggableModal<T>({
     backgroundColor: Colors.transparent,
     barrierColor: barrierColor ?? Colors.black.withValues(alpha: 0.4),
     builder: (context) => DraggableModalSheet(
+      controller: controller,
+      maxWidth: maxWidth,
       initialChildSize: initialChildSize,
       minChildSize: minChildSize,
       maxChildSize: maxChildSize,

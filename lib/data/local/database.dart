@@ -19,16 +19,51 @@ class Companies extends Table {
   TextColumn get name => text()();
   TextColumn get legalName => text()();
   TextColumn get gstin => text().nullable()();
+  TextColumn get stateCode => text().nullable()();
+  TextColumn get dealerType => text().withDefault(const Constant('regular'))();
   TextColumn get currencyCode => text().withDefault(const Constant('INR'))();
   TextColumn get address => text().nullable()();
   TextColumn get email => text().nullable()();
   TextColumn get phoneNumber => text().nullable()();
+  TextColumn get logoUrl => text().nullable()();
+  TextColumn get signatureUrl => text().nullable()();
+  TextColumn get signatoryName => text().nullable()();
+  TextColumn get bankName => text().nullable()();
+  TextColumn get bankAccountNumber => text().nullable()();
+  TextColumn get bankIfsc => text().nullable()();
+  TextColumn get upiId => text().nullable()();
   BoolColumn get isCloudSyncEnabled => boolean().withDefault(const Constant(true))();
   BoolColumn get isDropboxSyncEnabled => boolean().withDefault(const Constant(false))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('synced'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('UserProfileTableData')
+class UserProfiles extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get phoneNumber => text()();
+  TextColumn get email => text()();
+  TextColumn get businessName => text().nullable()();
+  TextColumn get address => text().nullable()();
+  TextColumn get gstin => text().nullable()();
+  TextColumn get businessType => text().nullable()();
+  TextColumn get bankName => text().nullable()();
+  TextColumn get bankAccountNumber => text().nullable()();
+  TextColumn get bankIfsc => text().nullable()();
+  TextColumn get upiId => text().nullable()();
+  TextColumn get activeCompanyId => text().withDefault(const Constant('cmp_default'))();
+  TextColumn get role => text().withDefault(const Constant('admin'))();
+  TextColumn get companiesJson => text().nullable()();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('synced'))();
 
   @override
@@ -208,6 +243,7 @@ class Vouchers extends Table {
 
 @DriftDatabase(tables: [
   Companies,
+  UserProfiles,
   Parties,
   LedgerEntries,
   AuditLogs,
@@ -220,7 +256,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -238,6 +274,23 @@ class AppDatabase extends _$AppDatabase {
               isCloudSyncEnabled: const Value(true),
               isDropboxSyncEnabled: const Value(false),
               isActive: const Value(true),
+              isDeleted: const Value(false),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+          // Seed initial default user profile if created freshly
+          await into(userProfiles).insert(
+            UserProfilesCompanion.insert(
+              id: 'usr_default',
+              name: 'Samir Navas',
+              phoneNumber: '+91 98765 43210',
+              email: 'samir.navas@example.com',
+              businessName: const Value('Ledger Pulse Enterprise'),
+              address: const Value('Suite 402, Trade Tower, Bangalore, India'),
+              gstin: const Value('29ABCDE1234F1ZH'),
+              businessType: const Value('Retail & Wholesale'),
+              activeCompanyId: const Value('cmp_default'),
+              role: const Value('admin'),
               isDeleted: const Value(false),
               syncStatus: const Value(SyncRecordStatus.synced),
             ),
@@ -329,6 +382,38 @@ class AppDatabase extends _$AppDatabase {
               await m.createTable(syncOutbox);
             } catch (_) {}
           }
+          if (from < 6) {
+            try {
+              await m.createTable(userProfiles);
+              await into(userProfiles).insert(
+                UserProfilesCompanion.insert(
+                  id: 'usr_default',
+                  name: 'Samir Navas',
+                  phoneNumber: '+91 98765 43210',
+                  email: 'samir.navas@example.com',
+                  businessName: const Value('Ledger Pulse Enterprise'),
+                  address: const Value('Suite 402, Trade Tower, Bangalore, India'),
+                  gstin: const Value('29ABCDE1234F1ZH'),
+                  businessType: const Value('Retail & Wholesale'),
+                  activeCompanyId: const Value('cmp_default'),
+                  role: const Value('admin'),
+                  isDeleted: const Value(false),
+                  syncStatus: const Value(SyncRecordStatus.synced),
+                ),
+              );
+            } catch (_) {}
+            try {
+              await m.addColumn(companies, companies.stateCode);
+              await m.addColumn(companies, companies.dealerType);
+              await m.addColumn(companies, companies.logoUrl);
+              await m.addColumn(companies, companies.signatureUrl);
+              await m.addColumn(companies, companies.signatoryName);
+              await m.addColumn(companies, companies.bankName);
+              await m.addColumn(companies, companies.bankAccountNumber);
+              await m.addColumn(companies, companies.bankIfsc);
+              await m.addColumn(companies, companies.upiId);
+            } catch (_) {}
+          }
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
@@ -355,6 +440,42 @@ class AppDatabase extends _$AppDatabase {
           try {
             await customStatement(
                 "ALTER TABLE companies ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'synced';");
+          } catch (_) {}
+          try {
+            await customStatement(
+                'ALTER TABLE companies ADD COLUMN state_code TEXT;');
+          } catch (_) {}
+          try {
+            await customStatement(
+                "ALTER TABLE companies ADD COLUMN dealer_type TEXT NOT NULL DEFAULT 'regular';");
+          } catch (_) {}
+          try {
+            await customStatement(
+                'ALTER TABLE companies ADD COLUMN logo_url TEXT;');
+          } catch (_) {}
+          try {
+            await customStatement(
+                'ALTER TABLE companies ADD COLUMN signature_url TEXT;');
+          } catch (_) {}
+          try {
+            await customStatement(
+                'ALTER TABLE companies ADD COLUMN signatory_name TEXT;');
+          } catch (_) {}
+          try {
+            await customStatement(
+                'ALTER TABLE companies ADD COLUMN bank_name TEXT;');
+          } catch (_) {}
+          try {
+            await customStatement(
+                'ALTER TABLE companies ADD COLUMN bank_account_number TEXT;');
+          } catch (_) {}
+          try {
+            await customStatement(
+                'ALTER TABLE companies ADD COLUMN bank_ifsc TEXT;');
+          } catch (_) {}
+          try {
+            await customStatement(
+                'ALTER TABLE companies ADD COLUMN upi_id TEXT;');
           } catch (_) {}
           try {
             await customStatement(
@@ -415,6 +536,30 @@ class AppDatabase extends _$AppDatabase {
           try {
             await customStatement(
                 "ALTER TABLE vouchers ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending';");
+          } catch (_) {}
+          try {
+            await customStatement(
+                '''CREATE TABLE IF NOT EXISTS user_profiles (
+                  id TEXT NOT NULL PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  phone_number TEXT NOT NULL,
+                  email TEXT NOT NULL,
+                  business_name TEXT,
+                  address TEXT,
+                  gstin TEXT,
+                  business_type TEXT,
+                  bank_name TEXT,
+                  bank_account_number TEXT,
+                  bank_ifsc TEXT,
+                  upi_id TEXT,
+                  active_company_id TEXT NOT NULL DEFAULT 'cmp_default',
+                  role TEXT NOT NULL DEFAULT 'admin',
+                  companies_json TEXT,
+                  is_deleted INTEGER NOT NULL DEFAULT 0,
+                  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                  sync_status TEXT NOT NULL DEFAULT 'synced'
+                );''');
           } catch (_) {}
         },
       );

@@ -24,6 +24,7 @@ import '../../data/models/voucher_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../home/add_party_dialog.dart';
 import '../providers/ledger_providers.dart';
+import '../providers/sync_providers.dart';
 import '../reports/statement_preview_screen.dart';
 import 'add_entry_bottom_sheet.dart';
 import 'voucher_creation_screen.dart';
@@ -1221,28 +1222,52 @@ class PartyLedgerScreen extends ConsumerWidget {
                 ),
               ),
 
-              // 2. Chronological Ledger Stream
+              // 2. Chronological Ledger Stream with swipe-down-to-refresh
               Expanded(
-                child: entriesAsync.when(
-                  loading: () => ListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
+                child: RefreshIndicator.adaptive(
+                  onRefresh: () async {
+                    HapticFeedback.lightImpact();
+                    ref.invalidate(partyLedgerEntriesProvider(partyId));
+                    ref.invalidate(partyByIdProvider(partyId));
+                    ref.invalidate(partyListProvider);
+                    ref.invalidate(businessSummaryProvider);
+                    await ref.read(syncControllerProvider.notifier).triggerSync();
+                  },
+                  child: entriesAsync.when(
+                    loading: () => ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      itemCount: 6,
+                      itemBuilder: (context, index) => const SkeletonLedgerTile(),
                     ),
-                    itemCount: 6,
-                    itemBuilder: (context, index) => const SkeletonLedgerTile(),
-                  ),
-                  error: (err, _) => Center(child: Text('Error: $err')),
-                  data: (entries) {
-                    if (entries.isEmpty) {
-                      return const EmptyStateView(
-                        lottieAsset: 'assets/animations/empty_ledger.json',
-                        fallbackIcon: Icons.receipt_long_outlined,
-                        title: 'No Transactions Yet',
-                        subtitle:
-                            'Tap You Gave or You Got below to create the first transaction entry.',
-                      );
-                    }
+                    error: (err, _) => ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+                          child: Center(child: Text('Error: $err')),
+                        ),
+                      ],
+                    ),
+                    data: (entries) {
+                      if (entries.isEmpty) {
+                        return ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(vertical: 40),
+                          children: const [
+                            EmptyStateView(
+                              lottieAsset: 'assets/animations/empty_ledger.json',
+                              fallbackIcon: Icons.receipt_long_outlined,
+                              title: 'No Transactions Yet',
+                              subtitle:
+                                  'Tap You Gave or You Got below to create the first transaction entry.',
+                            ),
+                          ],
+                        );
+                      }
 
                     return Column(
                       children: [
@@ -1340,6 +1365,7 @@ class PartyLedgerScreen extends ConsumerWidget {
                       ],
                     );
                   },
+                ),
                 ),
               ),
             ],

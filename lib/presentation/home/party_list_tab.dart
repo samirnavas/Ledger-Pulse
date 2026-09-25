@@ -17,6 +17,7 @@ import '../../core/widgets/skeleton_list_tile.dart';
 import '../../data/models/party_model.dart';
 import '../ledger/party_ledger_screen.dart';
 import '../providers/ledger_providers.dart';
+import '../providers/sync_providers.dart';
 import 'add_party_dialog.dart';
 
 class PartyListTab extends ConsumerStatefulWidget {
@@ -619,60 +620,86 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
           ),
         ),
 
-        // 2. Party List View (smooth list-only animated transition)
+        // 2. Party List View with swipe-down-to-refresh
         Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            child: KeyedSubtree(
-              key: ValueKey<PartyType?>(ref.watch(selectedPartyTypeFilterProvider)),
-              child: partiesAsync.when(
-                loading: () => ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  itemCount: 6,
-                  separatorBuilder: (_, _) => Divider(
-                    height: 1,
-                    thickness: 0.5,
-                    indent: 76,
-                    endIndent: 16,
-                    color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                        alpha: Theme.of(context).brightness == Brightness.dark
-                            ? 0.2
-                            : 0.35),
-                  ),
-                  itemBuilder: (context, index) => const SkeletonListTile(),
-                ),
-                error: (err, stack) => Center(
-                  child: Text('Error loading parties: $err'),
-                ),
-                data: (parties) {
-                  if (parties.isEmpty) {
-                    final filter = ref.watch(selectedPartyTypeFilterProvider);
-                    final tabName = filter == PartyType.supplier ? 'Suppliers' : 'Customers';
-
-                    return EmptyStateView(
-                      lottieAsset: 'assets/animations/empty_ledger.json',
-                      fallbackIcon: currentQuery.isNotEmpty
-                          ? Icons.search_off_rounded
-                          : (filter == PartyType.supplier
-                              ? Icons.local_shipping_outlined
-                              : Icons.people_outline_rounded),
-                      title: currentQuery.isNotEmpty
-                          ? 'No matches for "$currentQuery"'
-                          : 'No $tabName Found',
-                      subtitle: currentQuery.isNotEmpty
-                          ? 'Try searching by a different name or phone number.'
-                          : 'Add a new ${filter == PartyType.supplier ? 'supplier' : 'customer'} to start tracking transactions.',
-                    );
-                  }
-
-                  final isDark = Theme.of(context).brightness == Brightness.dark;
-
-                  return ListView.separated(
+          child: RefreshIndicator.adaptive(
+            onRefresh: () async {
+              HapticFeedback.lightImpact();
+              ref.invalidate(partyListProvider);
+              ref.invalidate(businessSummaryProvider);
+              await ref.read(syncControllerProvider.notifier).triggerSync();
+            },
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: KeyedSubtree(
+                key: ValueKey<PartyType?>(ref.watch(selectedPartyTypeFilterProvider)),
+                child: partiesAsync.when(
+                  loading: () => ListView.separated(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.symmetric(vertical: 4),
-                    itemCount: parties.length,
+                    itemCount: 6,
                     separatorBuilder: (_, _) => Divider(
+                      height: 1,
+                      thickness: 0.5,
+                      indent: 76,
+                      endIndent: 16,
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(
+                          alpha: Theme.of(context).brightness == Brightness.dark
+                              ? 0.2
+                              : 0.35),
+                    ),
+                    itemBuilder: (context, index) => const SkeletonListTile(),
+                  ),
+                  error: (err, stack) => ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+                        child: Center(
+                          child: Text(
+                            'Error loading parties: $err',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  data: (parties) {
+                    if (parties.isEmpty) {
+                      final filter = ref.watch(selectedPartyTypeFilterProvider);
+                      final tabName = filter == PartyType.supplier ? 'Suppliers' : 'Customers';
+
+                      return ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        children: [
+                          EmptyStateView(
+                            lottieAsset: 'assets/animations/empty_ledger.json',
+                            fallbackIcon: currentQuery.isNotEmpty
+                                ? Icons.search_off_rounded
+                                : (filter == PartyType.supplier
+                                    ? Icons.local_shipping_outlined
+                                    : Icons.people_outline_rounded),
+                            title: currentQuery.isNotEmpty
+                                ? 'No matches for "$currentQuery"'
+                                : 'No $tabName Found',
+                            subtitle: currentQuery.isNotEmpty
+                                ? 'Try searching by a different name or phone number.'
+                                : 'Add a new ${filter == PartyType.supplier ? 'supplier' : 'customer'} to start tracking transactions.',
+                          ),
+                        ],
+                      );
+                    }
+
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+                    return ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: parties.length,
+                      separatorBuilder: (_, _) => Divider(
                       height: 1,
                       thickness: 0.5,
                       indent: 76,
@@ -805,6 +832,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                 },
               );
             },
+          ),
           ),
           ),
           ),

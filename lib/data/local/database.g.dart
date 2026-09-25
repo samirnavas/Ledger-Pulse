@@ -47,6 +47,29 @@ class $CompaniesTable extends Companies
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _stateCodeMeta = const VerificationMeta(
+    'stateCode',
+  );
+  @override
+  late final GeneratedColumn<String> stateCode = GeneratedColumn<String>(
+    'state_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dealerTypeMeta = const VerificationMeta(
+    'dealerType',
+  );
+  @override
+  late final GeneratedColumn<String> dealerType = GeneratedColumn<String>(
+    'dealer_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('regular'),
+  );
   static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
     'currencyCode',
   );
@@ -85,6 +108,82 @@ class $CompaniesTable extends Companies
   @override
   late final GeneratedColumn<String> phoneNumber = GeneratedColumn<String>(
     'phone_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _logoUrlMeta = const VerificationMeta(
+    'logoUrl',
+  );
+  @override
+  late final GeneratedColumn<String> logoUrl = GeneratedColumn<String>(
+    'logo_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _signatureUrlMeta = const VerificationMeta(
+    'signatureUrl',
+  );
+  @override
+  late final GeneratedColumn<String> signatureUrl = GeneratedColumn<String>(
+    'signature_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _signatoryNameMeta = const VerificationMeta(
+    'signatoryName',
+  );
+  @override
+  late final GeneratedColumn<String> signatoryName = GeneratedColumn<String>(
+    'signatory_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bankNameMeta = const VerificationMeta(
+    'bankName',
+  );
+  @override
+  late final GeneratedColumn<String> bankName = GeneratedColumn<String>(
+    'bank_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bankAccountNumberMeta = const VerificationMeta(
+    'bankAccountNumber',
+  );
+  @override
+  late final GeneratedColumn<String> bankAccountNumber =
+      GeneratedColumn<String>(
+        'bank_account_number',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _bankIfscMeta = const VerificationMeta(
+    'bankIfsc',
+  );
+  @override
+  late final GeneratedColumn<String> bankIfsc = GeneratedColumn<String>(
+    'bank_ifsc',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _upiIdMeta = const VerificationMeta('upiId');
+  @override
+  late final GeneratedColumn<String> upiId = GeneratedColumn<String>(
+    'upi_id',
     aliasedName,
     true,
     type: DriftSqlType.string,
@@ -188,10 +287,19 @@ class $CompaniesTable extends Companies
     name,
     legalName,
     gstin,
+    stateCode,
+    dealerType,
     currencyCode,
     address,
     email,
     phoneNumber,
+    logoUrl,
+    signatureUrl,
+    signatoryName,
+    bankName,
+    bankAccountNumber,
+    bankIfsc,
+    upiId,
     isCloudSyncEnabled,
     isDropboxSyncEnabled,
     isActive,
@@ -239,6 +347,18 @@ class $CompaniesTable extends Companies
         gstin.isAcceptableOrUnknown(data['gstin']!, _gstinMeta),
       );
     }
+    if (data.containsKey('state_code')) {
+      context.handle(
+        _stateCodeMeta,
+        stateCode.isAcceptableOrUnknown(data['state_code']!, _stateCodeMeta),
+      );
+    }
+    if (data.containsKey('dealer_type')) {
+      context.handle(
+        _dealerTypeMeta,
+        dealerType.isAcceptableOrUnknown(data['dealer_type']!, _dealerTypeMeta),
+      );
+    }
     if (data.containsKey('currency_code')) {
       context.handle(
         _currencyCodeMeta,
@@ -267,6 +387,57 @@ class $CompaniesTable extends Companies
           data['phone_number']!,
           _phoneNumberMeta,
         ),
+      );
+    }
+    if (data.containsKey('logo_url')) {
+      context.handle(
+        _logoUrlMeta,
+        logoUrl.isAcceptableOrUnknown(data['logo_url']!, _logoUrlMeta),
+      );
+    }
+    if (data.containsKey('signature_url')) {
+      context.handle(
+        _signatureUrlMeta,
+        signatureUrl.isAcceptableOrUnknown(
+          data['signature_url']!,
+          _signatureUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('signatory_name')) {
+      context.handle(
+        _signatoryNameMeta,
+        signatoryName.isAcceptableOrUnknown(
+          data['signatory_name']!,
+          _signatoryNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('bank_name')) {
+      context.handle(
+        _bankNameMeta,
+        bankName.isAcceptableOrUnknown(data['bank_name']!, _bankNameMeta),
+      );
+    }
+    if (data.containsKey('bank_account_number')) {
+      context.handle(
+        _bankAccountNumberMeta,
+        bankAccountNumber.isAcceptableOrUnknown(
+          data['bank_account_number']!,
+          _bankAccountNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('bank_ifsc')) {
+      context.handle(
+        _bankIfscMeta,
+        bankIfsc.isAcceptableOrUnknown(data['bank_ifsc']!, _bankIfscMeta),
+      );
+    }
+    if (data.containsKey('upi_id')) {
+      context.handle(
+        _upiIdMeta,
+        upiId.isAcceptableOrUnknown(data['upi_id']!, _upiIdMeta),
       );
     }
     if (data.containsKey('is_cloud_sync_enabled')) {
@@ -336,6 +507,14 @@ class $CompaniesTable extends Companies
         DriftSqlType.string,
         data['${effectivePrefix}gstin'],
       ),
+      stateCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state_code'],
+      ),
+      dealerType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}dealer_type'],
+      )!,
       currencyCode: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}currency_code'],
@@ -351,6 +530,34 @@ class $CompaniesTable extends Companies
       phoneNumber: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}phone_number'],
+      ),
+      logoUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}logo_url'],
+      ),
+      signatureUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}signature_url'],
+      ),
+      signatoryName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}signatory_name'],
+      ),
+      bankName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bank_name'],
+      ),
+      bankAccountNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bank_account_number'],
+      ),
+      bankIfsc: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bank_ifsc'],
+      ),
+      upiId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}upi_id'],
       ),
       isCloudSyncEnabled: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
@@ -402,10 +609,19 @@ class CompanyTableData extends DataClass
   final String name;
   final String legalName;
   final String? gstin;
+  final String? stateCode;
+  final String dealerType;
   final String currencyCode;
   final String? address;
   final String? email;
   final String? phoneNumber;
+  final String? logoUrl;
+  final String? signatureUrl;
+  final String? signatoryName;
+  final String? bankName;
+  final String? bankAccountNumber;
+  final String? bankIfsc;
+  final String? upiId;
   final bool isCloudSyncEnabled;
   final bool isDropboxSyncEnabled;
   final bool isActive;
@@ -418,10 +634,19 @@ class CompanyTableData extends DataClass
     required this.name,
     required this.legalName,
     this.gstin,
+    this.stateCode,
+    required this.dealerType,
     required this.currencyCode,
     this.address,
     this.email,
     this.phoneNumber,
+    this.logoUrl,
+    this.signatureUrl,
+    this.signatoryName,
+    this.bankName,
+    this.bankAccountNumber,
+    this.bankIfsc,
+    this.upiId,
     required this.isCloudSyncEnabled,
     required this.isDropboxSyncEnabled,
     required this.isActive,
@@ -439,6 +664,10 @@ class CompanyTableData extends DataClass
     if (!nullToAbsent || gstin != null) {
       map['gstin'] = Variable<String>(gstin);
     }
+    if (!nullToAbsent || stateCode != null) {
+      map['state_code'] = Variable<String>(stateCode);
+    }
+    map['dealer_type'] = Variable<String>(dealerType);
     map['currency_code'] = Variable<String>(currencyCode);
     if (!nullToAbsent || address != null) {
       map['address'] = Variable<String>(address);
@@ -448,6 +677,27 @@ class CompanyTableData extends DataClass
     }
     if (!nullToAbsent || phoneNumber != null) {
       map['phone_number'] = Variable<String>(phoneNumber);
+    }
+    if (!nullToAbsent || logoUrl != null) {
+      map['logo_url'] = Variable<String>(logoUrl);
+    }
+    if (!nullToAbsent || signatureUrl != null) {
+      map['signature_url'] = Variable<String>(signatureUrl);
+    }
+    if (!nullToAbsent || signatoryName != null) {
+      map['signatory_name'] = Variable<String>(signatoryName);
+    }
+    if (!nullToAbsent || bankName != null) {
+      map['bank_name'] = Variable<String>(bankName);
+    }
+    if (!nullToAbsent || bankAccountNumber != null) {
+      map['bank_account_number'] = Variable<String>(bankAccountNumber);
+    }
+    if (!nullToAbsent || bankIfsc != null) {
+      map['bank_ifsc'] = Variable<String>(bankIfsc);
+    }
+    if (!nullToAbsent || upiId != null) {
+      map['upi_id'] = Variable<String>(upiId);
     }
     map['is_cloud_sync_enabled'] = Variable<bool>(isCloudSyncEnabled);
     map['is_dropbox_sync_enabled'] = Variable<bool>(isDropboxSyncEnabled);
@@ -471,6 +721,10 @@ class CompanyTableData extends DataClass
       gstin: gstin == null && nullToAbsent
           ? const Value.absent()
           : Value(gstin),
+      stateCode: stateCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stateCode),
+      dealerType: Value(dealerType),
       currencyCode: Value(currencyCode),
       address: address == null && nullToAbsent
           ? const Value.absent()
@@ -481,6 +735,27 @@ class CompanyTableData extends DataClass
       phoneNumber: phoneNumber == null && nullToAbsent
           ? const Value.absent()
           : Value(phoneNumber),
+      logoUrl: logoUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(logoUrl),
+      signatureUrl: signatureUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(signatureUrl),
+      signatoryName: signatoryName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(signatoryName),
+      bankName: bankName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bankName),
+      bankAccountNumber: bankAccountNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bankAccountNumber),
+      bankIfsc: bankIfsc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bankIfsc),
+      upiId: upiId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(upiId),
       isCloudSyncEnabled: Value(isCloudSyncEnabled),
       isDropboxSyncEnabled: Value(isDropboxSyncEnabled),
       isActive: Value(isActive),
@@ -501,10 +776,21 @@ class CompanyTableData extends DataClass
       name: serializer.fromJson<String>(json['name']),
       legalName: serializer.fromJson<String>(json['legalName']),
       gstin: serializer.fromJson<String?>(json['gstin']),
+      stateCode: serializer.fromJson<String?>(json['stateCode']),
+      dealerType: serializer.fromJson<String>(json['dealerType']),
       currencyCode: serializer.fromJson<String>(json['currencyCode']),
       address: serializer.fromJson<String?>(json['address']),
       email: serializer.fromJson<String?>(json['email']),
       phoneNumber: serializer.fromJson<String?>(json['phoneNumber']),
+      logoUrl: serializer.fromJson<String?>(json['logoUrl']),
+      signatureUrl: serializer.fromJson<String?>(json['signatureUrl']),
+      signatoryName: serializer.fromJson<String?>(json['signatoryName']),
+      bankName: serializer.fromJson<String?>(json['bankName']),
+      bankAccountNumber: serializer.fromJson<String?>(
+        json['bankAccountNumber'],
+      ),
+      bankIfsc: serializer.fromJson<String?>(json['bankIfsc']),
+      upiId: serializer.fromJson<String?>(json['upiId']),
       isCloudSyncEnabled: serializer.fromJson<bool>(json['isCloudSyncEnabled']),
       isDropboxSyncEnabled: serializer.fromJson<bool>(
         json['isDropboxSyncEnabled'],
@@ -526,10 +812,19 @@ class CompanyTableData extends DataClass
       'name': serializer.toJson<String>(name),
       'legalName': serializer.toJson<String>(legalName),
       'gstin': serializer.toJson<String?>(gstin),
+      'stateCode': serializer.toJson<String?>(stateCode),
+      'dealerType': serializer.toJson<String>(dealerType),
       'currencyCode': serializer.toJson<String>(currencyCode),
       'address': serializer.toJson<String?>(address),
       'email': serializer.toJson<String?>(email),
       'phoneNumber': serializer.toJson<String?>(phoneNumber),
+      'logoUrl': serializer.toJson<String?>(logoUrl),
+      'signatureUrl': serializer.toJson<String?>(signatureUrl),
+      'signatoryName': serializer.toJson<String?>(signatoryName),
+      'bankName': serializer.toJson<String?>(bankName),
+      'bankAccountNumber': serializer.toJson<String?>(bankAccountNumber),
+      'bankIfsc': serializer.toJson<String?>(bankIfsc),
+      'upiId': serializer.toJson<String?>(upiId),
       'isCloudSyncEnabled': serializer.toJson<bool>(isCloudSyncEnabled),
       'isDropboxSyncEnabled': serializer.toJson<bool>(isDropboxSyncEnabled),
       'isActive': serializer.toJson<bool>(isActive),
@@ -547,10 +842,19 @@ class CompanyTableData extends DataClass
     String? name,
     String? legalName,
     Value<String?> gstin = const Value.absent(),
+    Value<String?> stateCode = const Value.absent(),
+    String? dealerType,
     String? currencyCode,
     Value<String?> address = const Value.absent(),
     Value<String?> email = const Value.absent(),
     Value<String?> phoneNumber = const Value.absent(),
+    Value<String?> logoUrl = const Value.absent(),
+    Value<String?> signatureUrl = const Value.absent(),
+    Value<String?> signatoryName = const Value.absent(),
+    Value<String?> bankName = const Value.absent(),
+    Value<String?> bankAccountNumber = const Value.absent(),
+    Value<String?> bankIfsc = const Value.absent(),
+    Value<String?> upiId = const Value.absent(),
     bool? isCloudSyncEnabled,
     bool? isDropboxSyncEnabled,
     bool? isActive,
@@ -563,10 +867,23 @@ class CompanyTableData extends DataClass
     name: name ?? this.name,
     legalName: legalName ?? this.legalName,
     gstin: gstin.present ? gstin.value : this.gstin,
+    stateCode: stateCode.present ? stateCode.value : this.stateCode,
+    dealerType: dealerType ?? this.dealerType,
     currencyCode: currencyCode ?? this.currencyCode,
     address: address.present ? address.value : this.address,
     email: email.present ? email.value : this.email,
     phoneNumber: phoneNumber.present ? phoneNumber.value : this.phoneNumber,
+    logoUrl: logoUrl.present ? logoUrl.value : this.logoUrl,
+    signatureUrl: signatureUrl.present ? signatureUrl.value : this.signatureUrl,
+    signatoryName: signatoryName.present
+        ? signatoryName.value
+        : this.signatoryName,
+    bankName: bankName.present ? bankName.value : this.bankName,
+    bankAccountNumber: bankAccountNumber.present
+        ? bankAccountNumber.value
+        : this.bankAccountNumber,
+    bankIfsc: bankIfsc.present ? bankIfsc.value : this.bankIfsc,
+    upiId: upiId.present ? upiId.value : this.upiId,
     isCloudSyncEnabled: isCloudSyncEnabled ?? this.isCloudSyncEnabled,
     isDropboxSyncEnabled: isDropboxSyncEnabled ?? this.isDropboxSyncEnabled,
     isActive: isActive ?? this.isActive,
@@ -581,6 +898,10 @@ class CompanyTableData extends DataClass
       name: data.name.present ? data.name.value : this.name,
       legalName: data.legalName.present ? data.legalName.value : this.legalName,
       gstin: data.gstin.present ? data.gstin.value : this.gstin,
+      stateCode: data.stateCode.present ? data.stateCode.value : this.stateCode,
+      dealerType: data.dealerType.present
+          ? data.dealerType.value
+          : this.dealerType,
       currencyCode: data.currencyCode.present
           ? data.currencyCode.value
           : this.currencyCode,
@@ -589,6 +910,19 @@ class CompanyTableData extends DataClass
       phoneNumber: data.phoneNumber.present
           ? data.phoneNumber.value
           : this.phoneNumber,
+      logoUrl: data.logoUrl.present ? data.logoUrl.value : this.logoUrl,
+      signatureUrl: data.signatureUrl.present
+          ? data.signatureUrl.value
+          : this.signatureUrl,
+      signatoryName: data.signatoryName.present
+          ? data.signatoryName.value
+          : this.signatoryName,
+      bankName: data.bankName.present ? data.bankName.value : this.bankName,
+      bankAccountNumber: data.bankAccountNumber.present
+          ? data.bankAccountNumber.value
+          : this.bankAccountNumber,
+      bankIfsc: data.bankIfsc.present ? data.bankIfsc.value : this.bankIfsc,
+      upiId: data.upiId.present ? data.upiId.value : this.upiId,
       isCloudSyncEnabled: data.isCloudSyncEnabled.present
           ? data.isCloudSyncEnabled.value
           : this.isCloudSyncEnabled,
@@ -612,10 +946,19 @@ class CompanyTableData extends DataClass
           ..write('name: $name, ')
           ..write('legalName: $legalName, ')
           ..write('gstin: $gstin, ')
+          ..write('stateCode: $stateCode, ')
+          ..write('dealerType: $dealerType, ')
           ..write('currencyCode: $currencyCode, ')
           ..write('address: $address, ')
           ..write('email: $email, ')
           ..write('phoneNumber: $phoneNumber, ')
+          ..write('logoUrl: $logoUrl, ')
+          ..write('signatureUrl: $signatureUrl, ')
+          ..write('signatoryName: $signatoryName, ')
+          ..write('bankName: $bankName, ')
+          ..write('bankAccountNumber: $bankAccountNumber, ')
+          ..write('bankIfsc: $bankIfsc, ')
+          ..write('upiId: $upiId, ')
           ..write('isCloudSyncEnabled: $isCloudSyncEnabled, ')
           ..write('isDropboxSyncEnabled: $isDropboxSyncEnabled, ')
           ..write('isActive: $isActive, ')
@@ -628,15 +971,24 @@ class CompanyTableData extends DataClass
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     name,
     legalName,
     gstin,
+    stateCode,
+    dealerType,
     currencyCode,
     address,
     email,
     phoneNumber,
+    logoUrl,
+    signatureUrl,
+    signatoryName,
+    bankName,
+    bankAccountNumber,
+    bankIfsc,
+    upiId,
     isCloudSyncEnabled,
     isDropboxSyncEnabled,
     isActive,
@@ -644,7 +996,7 @@ class CompanyTableData extends DataClass
     updatedAt,
     isDeleted,
     syncStatus,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -653,10 +1005,19 @@ class CompanyTableData extends DataClass
           other.name == this.name &&
           other.legalName == this.legalName &&
           other.gstin == this.gstin &&
+          other.stateCode == this.stateCode &&
+          other.dealerType == this.dealerType &&
           other.currencyCode == this.currencyCode &&
           other.address == this.address &&
           other.email == this.email &&
           other.phoneNumber == this.phoneNumber &&
+          other.logoUrl == this.logoUrl &&
+          other.signatureUrl == this.signatureUrl &&
+          other.signatoryName == this.signatoryName &&
+          other.bankName == this.bankName &&
+          other.bankAccountNumber == this.bankAccountNumber &&
+          other.bankIfsc == this.bankIfsc &&
+          other.upiId == this.upiId &&
           other.isCloudSyncEnabled == this.isCloudSyncEnabled &&
           other.isDropboxSyncEnabled == this.isDropboxSyncEnabled &&
           other.isActive == this.isActive &&
@@ -671,10 +1032,19 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
   final Value<String> name;
   final Value<String> legalName;
   final Value<String?> gstin;
+  final Value<String?> stateCode;
+  final Value<String> dealerType;
   final Value<String> currencyCode;
   final Value<String?> address;
   final Value<String?> email;
   final Value<String?> phoneNumber;
+  final Value<String?> logoUrl;
+  final Value<String?> signatureUrl;
+  final Value<String?> signatoryName;
+  final Value<String?> bankName;
+  final Value<String?> bankAccountNumber;
+  final Value<String?> bankIfsc;
+  final Value<String?> upiId;
   final Value<bool> isCloudSyncEnabled;
   final Value<bool> isDropboxSyncEnabled;
   final Value<bool> isActive;
@@ -688,10 +1058,19 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     this.name = const Value.absent(),
     this.legalName = const Value.absent(),
     this.gstin = const Value.absent(),
+    this.stateCode = const Value.absent(),
+    this.dealerType = const Value.absent(),
     this.currencyCode = const Value.absent(),
     this.address = const Value.absent(),
     this.email = const Value.absent(),
     this.phoneNumber = const Value.absent(),
+    this.logoUrl = const Value.absent(),
+    this.signatureUrl = const Value.absent(),
+    this.signatoryName = const Value.absent(),
+    this.bankName = const Value.absent(),
+    this.bankAccountNumber = const Value.absent(),
+    this.bankIfsc = const Value.absent(),
+    this.upiId = const Value.absent(),
     this.isCloudSyncEnabled = const Value.absent(),
     this.isDropboxSyncEnabled = const Value.absent(),
     this.isActive = const Value.absent(),
@@ -706,10 +1085,19 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     required String name,
     required String legalName,
     this.gstin = const Value.absent(),
+    this.stateCode = const Value.absent(),
+    this.dealerType = const Value.absent(),
     this.currencyCode = const Value.absent(),
     this.address = const Value.absent(),
     this.email = const Value.absent(),
     this.phoneNumber = const Value.absent(),
+    this.logoUrl = const Value.absent(),
+    this.signatureUrl = const Value.absent(),
+    this.signatoryName = const Value.absent(),
+    this.bankName = const Value.absent(),
+    this.bankAccountNumber = const Value.absent(),
+    this.bankIfsc = const Value.absent(),
+    this.upiId = const Value.absent(),
     this.isCloudSyncEnabled = const Value.absent(),
     this.isDropboxSyncEnabled = const Value.absent(),
     this.isActive = const Value.absent(),
@@ -726,10 +1114,19 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     Expression<String>? name,
     Expression<String>? legalName,
     Expression<String>? gstin,
+    Expression<String>? stateCode,
+    Expression<String>? dealerType,
     Expression<String>? currencyCode,
     Expression<String>? address,
     Expression<String>? email,
     Expression<String>? phoneNumber,
+    Expression<String>? logoUrl,
+    Expression<String>? signatureUrl,
+    Expression<String>? signatoryName,
+    Expression<String>? bankName,
+    Expression<String>? bankAccountNumber,
+    Expression<String>? bankIfsc,
+    Expression<String>? upiId,
     Expression<bool>? isCloudSyncEnabled,
     Expression<bool>? isDropboxSyncEnabled,
     Expression<bool>? isActive,
@@ -744,10 +1141,19 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
       if (name != null) 'name': name,
       if (legalName != null) 'legal_name': legalName,
       if (gstin != null) 'gstin': gstin,
+      if (stateCode != null) 'state_code': stateCode,
+      if (dealerType != null) 'dealer_type': dealerType,
       if (currencyCode != null) 'currency_code': currencyCode,
       if (address != null) 'address': address,
       if (email != null) 'email': email,
       if (phoneNumber != null) 'phone_number': phoneNumber,
+      if (logoUrl != null) 'logo_url': logoUrl,
+      if (signatureUrl != null) 'signature_url': signatureUrl,
+      if (signatoryName != null) 'signatory_name': signatoryName,
+      if (bankName != null) 'bank_name': bankName,
+      if (bankAccountNumber != null) 'bank_account_number': bankAccountNumber,
+      if (bankIfsc != null) 'bank_ifsc': bankIfsc,
+      if (upiId != null) 'upi_id': upiId,
       if (isCloudSyncEnabled != null)
         'is_cloud_sync_enabled': isCloudSyncEnabled,
       if (isDropboxSyncEnabled != null)
@@ -766,10 +1172,19 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     Value<String>? name,
     Value<String>? legalName,
     Value<String?>? gstin,
+    Value<String?>? stateCode,
+    Value<String>? dealerType,
     Value<String>? currencyCode,
     Value<String?>? address,
     Value<String?>? email,
     Value<String?>? phoneNumber,
+    Value<String?>? logoUrl,
+    Value<String?>? signatureUrl,
+    Value<String?>? signatoryName,
+    Value<String?>? bankName,
+    Value<String?>? bankAccountNumber,
+    Value<String?>? bankIfsc,
+    Value<String?>? upiId,
     Value<bool>? isCloudSyncEnabled,
     Value<bool>? isDropboxSyncEnabled,
     Value<bool>? isActive,
@@ -784,10 +1199,19 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
       name: name ?? this.name,
       legalName: legalName ?? this.legalName,
       gstin: gstin ?? this.gstin,
+      stateCode: stateCode ?? this.stateCode,
+      dealerType: dealerType ?? this.dealerType,
       currencyCode: currencyCode ?? this.currencyCode,
       address: address ?? this.address,
       email: email ?? this.email,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      logoUrl: logoUrl ?? this.logoUrl,
+      signatureUrl: signatureUrl ?? this.signatureUrl,
+      signatoryName: signatoryName ?? this.signatoryName,
+      bankName: bankName ?? this.bankName,
+      bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
+      bankIfsc: bankIfsc ?? this.bankIfsc,
+      upiId: upiId ?? this.upiId,
       isCloudSyncEnabled: isCloudSyncEnabled ?? this.isCloudSyncEnabled,
       isDropboxSyncEnabled: isDropboxSyncEnabled ?? this.isDropboxSyncEnabled,
       isActive: isActive ?? this.isActive,
@@ -814,6 +1238,12 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     if (gstin.present) {
       map['gstin'] = Variable<String>(gstin.value);
     }
+    if (stateCode.present) {
+      map['state_code'] = Variable<String>(stateCode.value);
+    }
+    if (dealerType.present) {
+      map['dealer_type'] = Variable<String>(dealerType.value);
+    }
     if (currencyCode.present) {
       map['currency_code'] = Variable<String>(currencyCode.value);
     }
@@ -825,6 +1255,27 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     }
     if (phoneNumber.present) {
       map['phone_number'] = Variable<String>(phoneNumber.value);
+    }
+    if (logoUrl.present) {
+      map['logo_url'] = Variable<String>(logoUrl.value);
+    }
+    if (signatureUrl.present) {
+      map['signature_url'] = Variable<String>(signatureUrl.value);
+    }
+    if (signatoryName.present) {
+      map['signatory_name'] = Variable<String>(signatoryName.value);
+    }
+    if (bankName.present) {
+      map['bank_name'] = Variable<String>(bankName.value);
+    }
+    if (bankAccountNumber.present) {
+      map['bank_account_number'] = Variable<String>(bankAccountNumber.value);
+    }
+    if (bankIfsc.present) {
+      map['bank_ifsc'] = Variable<String>(bankIfsc.value);
+    }
+    if (upiId.present) {
+      map['upi_id'] = Variable<String>(upiId.value);
     }
     if (isCloudSyncEnabled.present) {
       map['is_cloud_sync_enabled'] = Variable<bool>(isCloudSyncEnabled.value);
@@ -864,16 +1315,1104 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
           ..write('name: $name, ')
           ..write('legalName: $legalName, ')
           ..write('gstin: $gstin, ')
+          ..write('stateCode: $stateCode, ')
+          ..write('dealerType: $dealerType, ')
           ..write('currencyCode: $currencyCode, ')
           ..write('address: $address, ')
           ..write('email: $email, ')
           ..write('phoneNumber: $phoneNumber, ')
+          ..write('logoUrl: $logoUrl, ')
+          ..write('signatureUrl: $signatureUrl, ')
+          ..write('signatoryName: $signatoryName, ')
+          ..write('bankName: $bankName, ')
+          ..write('bankAccountNumber: $bankAccountNumber, ')
+          ..write('bankIfsc: $bankIfsc, ')
+          ..write('upiId: $upiId, ')
           ..write('isCloudSyncEnabled: $isCloudSyncEnabled, ')
           ..write('isDropboxSyncEnabled: $isDropboxSyncEnabled, ')
           ..write('isActive: $isActive, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $UserProfilesTable extends UserProfiles
+    with TableInfo<$UserProfilesTable, UserProfileTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UserProfilesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _phoneNumberMeta = const VerificationMeta(
+    'phoneNumber',
+  );
+  @override
+  late final GeneratedColumn<String> phoneNumber = GeneratedColumn<String>(
+    'phone_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _emailMeta = const VerificationMeta('email');
+  @override
+  late final GeneratedColumn<String> email = GeneratedColumn<String>(
+    'email',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _businessNameMeta = const VerificationMeta(
+    'businessName',
+  );
+  @override
+  late final GeneratedColumn<String> businessName = GeneratedColumn<String>(
+    'business_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _addressMeta = const VerificationMeta(
+    'address',
+  );
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+    'address',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _gstinMeta = const VerificationMeta('gstin');
+  @override
+  late final GeneratedColumn<String> gstin = GeneratedColumn<String>(
+    'gstin',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _businessTypeMeta = const VerificationMeta(
+    'businessType',
+  );
+  @override
+  late final GeneratedColumn<String> businessType = GeneratedColumn<String>(
+    'business_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bankNameMeta = const VerificationMeta(
+    'bankName',
+  );
+  @override
+  late final GeneratedColumn<String> bankName = GeneratedColumn<String>(
+    'bank_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bankAccountNumberMeta = const VerificationMeta(
+    'bankAccountNumber',
+  );
+  @override
+  late final GeneratedColumn<String> bankAccountNumber =
+      GeneratedColumn<String>(
+        'bank_account_number',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _bankIfscMeta = const VerificationMeta(
+    'bankIfsc',
+  );
+  @override
+  late final GeneratedColumn<String> bankIfsc = GeneratedColumn<String>(
+    'bank_ifsc',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _upiIdMeta = const VerificationMeta('upiId');
+  @override
+  late final GeneratedColumn<String> upiId = GeneratedColumn<String>(
+    'upi_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _activeCompanyIdMeta = const VerificationMeta(
+    'activeCompanyId',
+  );
+  @override
+  late final GeneratedColumn<String> activeCompanyId = GeneratedColumn<String>(
+    'active_company_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('cmp_default'),
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('admin'),
+  );
+  static const VerificationMeta _companiesJsonMeta = const VerificationMeta(
+    'companiesJson',
+  );
+  @override
+  late final GeneratedColumn<String> companiesJson = GeneratedColumn<String>(
+    'companies_json',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('synced'),
+  ).withConverter<SyncRecordStatus>($UserProfilesTable.$convertersyncStatus);
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    phoneNumber,
+    email,
+    businessName,
+    address,
+    gstin,
+    businessType,
+    bankName,
+    bankAccountNumber,
+    bankIfsc,
+    upiId,
+    activeCompanyId,
+    role,
+    companiesJson,
+    isDeleted,
+    createdAt,
+    updatedAt,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'user_profiles';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UserProfileTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('phone_number')) {
+      context.handle(
+        _phoneNumberMeta,
+        phoneNumber.isAcceptableOrUnknown(
+          data['phone_number']!,
+          _phoneNumberMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_phoneNumberMeta);
+    }
+    if (data.containsKey('email')) {
+      context.handle(
+        _emailMeta,
+        email.isAcceptableOrUnknown(data['email']!, _emailMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_emailMeta);
+    }
+    if (data.containsKey('business_name')) {
+      context.handle(
+        _businessNameMeta,
+        businessName.isAcceptableOrUnknown(
+          data['business_name']!,
+          _businessNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('address')) {
+      context.handle(
+        _addressMeta,
+        address.isAcceptableOrUnknown(data['address']!, _addressMeta),
+      );
+    }
+    if (data.containsKey('gstin')) {
+      context.handle(
+        _gstinMeta,
+        gstin.isAcceptableOrUnknown(data['gstin']!, _gstinMeta),
+      );
+    }
+    if (data.containsKey('business_type')) {
+      context.handle(
+        _businessTypeMeta,
+        businessType.isAcceptableOrUnknown(
+          data['business_type']!,
+          _businessTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('bank_name')) {
+      context.handle(
+        _bankNameMeta,
+        bankName.isAcceptableOrUnknown(data['bank_name']!, _bankNameMeta),
+      );
+    }
+    if (data.containsKey('bank_account_number')) {
+      context.handle(
+        _bankAccountNumberMeta,
+        bankAccountNumber.isAcceptableOrUnknown(
+          data['bank_account_number']!,
+          _bankAccountNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('bank_ifsc')) {
+      context.handle(
+        _bankIfscMeta,
+        bankIfsc.isAcceptableOrUnknown(data['bank_ifsc']!, _bankIfscMeta),
+      );
+    }
+    if (data.containsKey('upi_id')) {
+      context.handle(
+        _upiIdMeta,
+        upiId.isAcceptableOrUnknown(data['upi_id']!, _upiIdMeta),
+      );
+    }
+    if (data.containsKey('active_company_id')) {
+      context.handle(
+        _activeCompanyIdMeta,
+        activeCompanyId.isAcceptableOrUnknown(
+          data['active_company_id']!,
+          _activeCompanyIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    }
+    if (data.containsKey('companies_json')) {
+      context.handle(
+        _companiesJsonMeta,
+        companiesJson.isAcceptableOrUnknown(
+          data['companies_json']!,
+          _companiesJsonMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  UserProfileTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UserProfileTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      phoneNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phone_number'],
+      )!,
+      email: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}email'],
+      )!,
+      businessName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_name'],
+      ),
+      address: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}address'],
+      ),
+      gstin: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gstin'],
+      ),
+      businessType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}business_type'],
+      ),
+      bankName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bank_name'],
+      ),
+      bankAccountNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bank_account_number'],
+      ),
+      bankIfsc: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bank_ifsc'],
+      ),
+      upiId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}upi_id'],
+      ),
+      activeCompanyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}active_company_id'],
+      )!,
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      )!,
+      companiesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}companies_json'],
+      ),
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      syncStatus: $UserProfilesTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $UserProfilesTable createAlias(String alias) {
+    return $UserProfilesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class UserProfileTableData extends DataClass
+    implements Insertable<UserProfileTableData> {
+  final String id;
+  final String name;
+  final String phoneNumber;
+  final String email;
+  final String? businessName;
+  final String? address;
+  final String? gstin;
+  final String? businessType;
+  final String? bankName;
+  final String? bankAccountNumber;
+  final String? bankIfsc;
+  final String? upiId;
+  final String activeCompanyId;
+  final String role;
+  final String? companiesJson;
+  final bool isDeleted;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final SyncRecordStatus syncStatus;
+  const UserProfileTableData({
+    required this.id,
+    required this.name,
+    required this.phoneNumber,
+    required this.email,
+    this.businessName,
+    this.address,
+    this.gstin,
+    this.businessType,
+    this.bankName,
+    this.bankAccountNumber,
+    this.bankIfsc,
+    this.upiId,
+    required this.activeCompanyId,
+    required this.role,
+    this.companiesJson,
+    required this.isDeleted,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['phone_number'] = Variable<String>(phoneNumber);
+    map['email'] = Variable<String>(email);
+    if (!nullToAbsent || businessName != null) {
+      map['business_name'] = Variable<String>(businessName);
+    }
+    if (!nullToAbsent || address != null) {
+      map['address'] = Variable<String>(address);
+    }
+    if (!nullToAbsent || gstin != null) {
+      map['gstin'] = Variable<String>(gstin);
+    }
+    if (!nullToAbsent || businessType != null) {
+      map['business_type'] = Variable<String>(businessType);
+    }
+    if (!nullToAbsent || bankName != null) {
+      map['bank_name'] = Variable<String>(bankName);
+    }
+    if (!nullToAbsent || bankAccountNumber != null) {
+      map['bank_account_number'] = Variable<String>(bankAccountNumber);
+    }
+    if (!nullToAbsent || bankIfsc != null) {
+      map['bank_ifsc'] = Variable<String>(bankIfsc);
+    }
+    if (!nullToAbsent || upiId != null) {
+      map['upi_id'] = Variable<String>(upiId);
+    }
+    map['active_company_id'] = Variable<String>(activeCompanyId);
+    map['role'] = Variable<String>(role);
+    if (!nullToAbsent || companiesJson != null) {
+      map['companies_json'] = Variable<String>(companiesJson);
+    }
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    {
+      map['sync_status'] = Variable<String>(
+        $UserProfilesTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    return map;
+  }
+
+  UserProfilesCompanion toCompanion(bool nullToAbsent) {
+    return UserProfilesCompanion(
+      id: Value(id),
+      name: Value(name),
+      phoneNumber: Value(phoneNumber),
+      email: Value(email),
+      businessName: businessName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(businessName),
+      address: address == null && nullToAbsent
+          ? const Value.absent()
+          : Value(address),
+      gstin: gstin == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gstin),
+      businessType: businessType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(businessType),
+      bankName: bankName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bankName),
+      bankAccountNumber: bankAccountNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bankAccountNumber),
+      bankIfsc: bankIfsc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(bankIfsc),
+      upiId: upiId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(upiId),
+      activeCompanyId: Value(activeCompanyId),
+      role: Value(role),
+      companiesJson: companiesJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(companiesJson),
+      isDeleted: Value(isDeleted),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory UserProfileTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UserProfileTableData(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      phoneNumber: serializer.fromJson<String>(json['phoneNumber']),
+      email: serializer.fromJson<String>(json['email']),
+      businessName: serializer.fromJson<String?>(json['businessName']),
+      address: serializer.fromJson<String?>(json['address']),
+      gstin: serializer.fromJson<String?>(json['gstin']),
+      businessType: serializer.fromJson<String?>(json['businessType']),
+      bankName: serializer.fromJson<String?>(json['bankName']),
+      bankAccountNumber: serializer.fromJson<String?>(
+        json['bankAccountNumber'],
+      ),
+      bankIfsc: serializer.fromJson<String?>(json['bankIfsc']),
+      upiId: serializer.fromJson<String?>(json['upiId']),
+      activeCompanyId: serializer.fromJson<String>(json['activeCompanyId']),
+      role: serializer.fromJson<String>(json['role']),
+      companiesJson: serializer.fromJson<String?>(json['companiesJson']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      syncStatus: $UserProfilesTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'phoneNumber': serializer.toJson<String>(phoneNumber),
+      'email': serializer.toJson<String>(email),
+      'businessName': serializer.toJson<String?>(businessName),
+      'address': serializer.toJson<String?>(address),
+      'gstin': serializer.toJson<String?>(gstin),
+      'businessType': serializer.toJson<String?>(businessType),
+      'bankName': serializer.toJson<String?>(bankName),
+      'bankAccountNumber': serializer.toJson<String?>(bankAccountNumber),
+      'bankIfsc': serializer.toJson<String?>(bankIfsc),
+      'upiId': serializer.toJson<String?>(upiId),
+      'activeCompanyId': serializer.toJson<String>(activeCompanyId),
+      'role': serializer.toJson<String>(role),
+      'companiesJson': serializer.toJson<String?>(companiesJson),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'syncStatus': serializer.toJson<String>(
+        $UserProfilesTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+    };
+  }
+
+  UserProfileTableData copyWith({
+    String? id,
+    String? name,
+    String? phoneNumber,
+    String? email,
+    Value<String?> businessName = const Value.absent(),
+    Value<String?> address = const Value.absent(),
+    Value<String?> gstin = const Value.absent(),
+    Value<String?> businessType = const Value.absent(),
+    Value<String?> bankName = const Value.absent(),
+    Value<String?> bankAccountNumber = const Value.absent(),
+    Value<String?> bankIfsc = const Value.absent(),
+    Value<String?> upiId = const Value.absent(),
+    String? activeCompanyId,
+    String? role,
+    Value<String?> companiesJson = const Value.absent(),
+    bool? isDeleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    SyncRecordStatus? syncStatus,
+  }) => UserProfileTableData(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    phoneNumber: phoneNumber ?? this.phoneNumber,
+    email: email ?? this.email,
+    businessName: businessName.present ? businessName.value : this.businessName,
+    address: address.present ? address.value : this.address,
+    gstin: gstin.present ? gstin.value : this.gstin,
+    businessType: businessType.present ? businessType.value : this.businessType,
+    bankName: bankName.present ? bankName.value : this.bankName,
+    bankAccountNumber: bankAccountNumber.present
+        ? bankAccountNumber.value
+        : this.bankAccountNumber,
+    bankIfsc: bankIfsc.present ? bankIfsc.value : this.bankIfsc,
+    upiId: upiId.present ? upiId.value : this.upiId,
+    activeCompanyId: activeCompanyId ?? this.activeCompanyId,
+    role: role ?? this.role,
+    companiesJson: companiesJson.present
+        ? companiesJson.value
+        : this.companiesJson,
+    isDeleted: isDeleted ?? this.isDeleted,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  UserProfileTableData copyWithCompanion(UserProfilesCompanion data) {
+    return UserProfileTableData(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      phoneNumber: data.phoneNumber.present
+          ? data.phoneNumber.value
+          : this.phoneNumber,
+      email: data.email.present ? data.email.value : this.email,
+      businessName: data.businessName.present
+          ? data.businessName.value
+          : this.businessName,
+      address: data.address.present ? data.address.value : this.address,
+      gstin: data.gstin.present ? data.gstin.value : this.gstin,
+      businessType: data.businessType.present
+          ? data.businessType.value
+          : this.businessType,
+      bankName: data.bankName.present ? data.bankName.value : this.bankName,
+      bankAccountNumber: data.bankAccountNumber.present
+          ? data.bankAccountNumber.value
+          : this.bankAccountNumber,
+      bankIfsc: data.bankIfsc.present ? data.bankIfsc.value : this.bankIfsc,
+      upiId: data.upiId.present ? data.upiId.value : this.upiId,
+      activeCompanyId: data.activeCompanyId.present
+          ? data.activeCompanyId.value
+          : this.activeCompanyId,
+      role: data.role.present ? data.role.value : this.role,
+      companiesJson: data.companiesJson.present
+          ? data.companiesJson.value
+          : this.companiesJson,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserProfileTableData(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('phoneNumber: $phoneNumber, ')
+          ..write('email: $email, ')
+          ..write('businessName: $businessName, ')
+          ..write('address: $address, ')
+          ..write('gstin: $gstin, ')
+          ..write('businessType: $businessType, ')
+          ..write('bankName: $bankName, ')
+          ..write('bankAccountNumber: $bankAccountNumber, ')
+          ..write('bankIfsc: $bankIfsc, ')
+          ..write('upiId: $upiId, ')
+          ..write('activeCompanyId: $activeCompanyId, ')
+          ..write('role: $role, ')
+          ..write('companiesJson: $companiesJson, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    name,
+    phoneNumber,
+    email,
+    businessName,
+    address,
+    gstin,
+    businessType,
+    bankName,
+    bankAccountNumber,
+    bankIfsc,
+    upiId,
+    activeCompanyId,
+    role,
+    companiesJson,
+    isDeleted,
+    createdAt,
+    updatedAt,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UserProfileTableData &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.phoneNumber == this.phoneNumber &&
+          other.email == this.email &&
+          other.businessName == this.businessName &&
+          other.address == this.address &&
+          other.gstin == this.gstin &&
+          other.businessType == this.businessType &&
+          other.bankName == this.bankName &&
+          other.bankAccountNumber == this.bankAccountNumber &&
+          other.bankIfsc == this.bankIfsc &&
+          other.upiId == this.upiId &&
+          other.activeCompanyId == this.activeCompanyId &&
+          other.role == this.role &&
+          other.companiesJson == this.companiesJson &&
+          other.isDeleted == this.isDeleted &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.syncStatus == this.syncStatus);
+}
+
+class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> phoneNumber;
+  final Value<String> email;
+  final Value<String?> businessName;
+  final Value<String?> address;
+  final Value<String?> gstin;
+  final Value<String?> businessType;
+  final Value<String?> bankName;
+  final Value<String?> bankAccountNumber;
+  final Value<String?> bankIfsc;
+  final Value<String?> upiId;
+  final Value<String> activeCompanyId;
+  final Value<String> role;
+  final Value<String?> companiesJson;
+  final Value<bool> isDeleted;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> rowid;
+  const UserProfilesCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.phoneNumber = const Value.absent(),
+    this.email = const Value.absent(),
+    this.businessName = const Value.absent(),
+    this.address = const Value.absent(),
+    this.gstin = const Value.absent(),
+    this.businessType = const Value.absent(),
+    this.bankName = const Value.absent(),
+    this.bankAccountNumber = const Value.absent(),
+    this.bankIfsc = const Value.absent(),
+    this.upiId = const Value.absent(),
+    this.activeCompanyId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.companiesJson = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  UserProfilesCompanion.insert({
+    required String id,
+    required String name,
+    required String phoneNumber,
+    required String email,
+    this.businessName = const Value.absent(),
+    this.address = const Value.absent(),
+    this.gstin = const Value.absent(),
+    this.businessType = const Value.absent(),
+    this.bankName = const Value.absent(),
+    this.bankAccountNumber = const Value.absent(),
+    this.bankIfsc = const Value.absent(),
+    this.upiId = const Value.absent(),
+    this.activeCompanyId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.companiesJson = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       phoneNumber = Value(phoneNumber),
+       email = Value(email);
+  static Insertable<UserProfileTableData> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? phoneNumber,
+    Expression<String>? email,
+    Expression<String>? businessName,
+    Expression<String>? address,
+    Expression<String>? gstin,
+    Expression<String>? businessType,
+    Expression<String>? bankName,
+    Expression<String>? bankAccountNumber,
+    Expression<String>? bankIfsc,
+    Expression<String>? upiId,
+    Expression<String>? activeCompanyId,
+    Expression<String>? role,
+    Expression<String>? companiesJson,
+    Expression<bool>? isDeleted,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (phoneNumber != null) 'phone_number': phoneNumber,
+      if (email != null) 'email': email,
+      if (businessName != null) 'business_name': businessName,
+      if (address != null) 'address': address,
+      if (gstin != null) 'gstin': gstin,
+      if (businessType != null) 'business_type': businessType,
+      if (bankName != null) 'bank_name': bankName,
+      if (bankAccountNumber != null) 'bank_account_number': bankAccountNumber,
+      if (bankIfsc != null) 'bank_ifsc': bankIfsc,
+      if (upiId != null) 'upi_id': upiId,
+      if (activeCompanyId != null) 'active_company_id': activeCompanyId,
+      if (role != null) 'role': role,
+      if (companiesJson != null) 'companies_json': companiesJson,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  UserProfilesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? phoneNumber,
+    Value<String>? email,
+    Value<String?>? businessName,
+    Value<String?>? address,
+    Value<String?>? gstin,
+    Value<String?>? businessType,
+    Value<String?>? bankName,
+    Value<String?>? bankAccountNumber,
+    Value<String?>? bankIfsc,
+    Value<String?>? upiId,
+    Value<String>? activeCompanyId,
+    Value<String>? role,
+    Value<String?>? companiesJson,
+    Value<bool>? isDeleted,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return UserProfilesCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      email: email ?? this.email,
+      businessName: businessName ?? this.businessName,
+      address: address ?? this.address,
+      gstin: gstin ?? this.gstin,
+      businessType: businessType ?? this.businessType,
+      bankName: bankName ?? this.bankName,
+      bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
+      bankIfsc: bankIfsc ?? this.bankIfsc,
+      upiId: upiId ?? this.upiId,
+      activeCompanyId: activeCompanyId ?? this.activeCompanyId,
+      role: role ?? this.role,
+      companiesJson: companiesJson ?? this.companiesJson,
+      isDeleted: isDeleted ?? this.isDeleted,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (phoneNumber.present) {
+      map['phone_number'] = Variable<String>(phoneNumber.value);
+    }
+    if (email.present) {
+      map['email'] = Variable<String>(email.value);
+    }
+    if (businessName.present) {
+      map['business_name'] = Variable<String>(businessName.value);
+    }
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
+    if (gstin.present) {
+      map['gstin'] = Variable<String>(gstin.value);
+    }
+    if (businessType.present) {
+      map['business_type'] = Variable<String>(businessType.value);
+    }
+    if (bankName.present) {
+      map['bank_name'] = Variable<String>(bankName.value);
+    }
+    if (bankAccountNumber.present) {
+      map['bank_account_number'] = Variable<String>(bankAccountNumber.value);
+    }
+    if (bankIfsc.present) {
+      map['bank_ifsc'] = Variable<String>(bankIfsc.value);
+    }
+    if (upiId.present) {
+      map['upi_id'] = Variable<String>(upiId.value);
+    }
+    if (activeCompanyId.present) {
+      map['active_company_id'] = Variable<String>(activeCompanyId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (companiesJson.present) {
+      map['companies_json'] = Variable<String>(companiesJson.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $UserProfilesTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserProfilesCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('phoneNumber: $phoneNumber, ')
+          ..write('email: $email, ')
+          ..write('businessName: $businessName, ')
+          ..write('address: $address, ')
+          ..write('gstin: $gstin, ')
+          ..write('businessType: $businessType, ')
+          ..write('bankName: $bankName, ')
+          ..write('bankAccountNumber: $bankAccountNumber, ')
+          ..write('bankIfsc: $bankIfsc, ')
+          ..write('upiId: $upiId, ')
+          ..write('activeCompanyId: $activeCompanyId, ')
+          ..write('role: $role, ')
+          ..write('companiesJson: $companiesJson, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -6703,6 +8242,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $CompaniesTable companies = $CompaniesTable(this);
+  late final $UserProfilesTable userProfiles = $UserProfilesTable(this);
   late final $PartiesTable parties = $PartiesTable(this);
   late final $LedgerEntriesTable ledgerEntries = $LedgerEntriesTable(this);
   late final $AuditLogsTable auditLogs = $AuditLogsTable(this);
@@ -6716,6 +8256,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     companies,
+    userProfiles,
     parties,
     ledgerEntries,
     auditLogs,
@@ -6732,10 +8273,19 @@ typedef $$CompaniesTableCreateCompanionBuilder =
       required String name,
       required String legalName,
       Value<String?> gstin,
+      Value<String?> stateCode,
+      Value<String> dealerType,
       Value<String> currencyCode,
       Value<String?> address,
       Value<String?> email,
       Value<String?> phoneNumber,
+      Value<String?> logoUrl,
+      Value<String?> signatureUrl,
+      Value<String?> signatoryName,
+      Value<String?> bankName,
+      Value<String?> bankAccountNumber,
+      Value<String?> bankIfsc,
+      Value<String?> upiId,
       Value<bool> isCloudSyncEnabled,
       Value<bool> isDropboxSyncEnabled,
       Value<bool> isActive,
@@ -6751,10 +8301,19 @@ typedef $$CompaniesTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> legalName,
       Value<String?> gstin,
+      Value<String?> stateCode,
+      Value<String> dealerType,
       Value<String> currencyCode,
       Value<String?> address,
       Value<String?> email,
       Value<String?> phoneNumber,
+      Value<String?> logoUrl,
+      Value<String?> signatureUrl,
+      Value<String?> signatoryName,
+      Value<String?> bankName,
+      Value<String?> bankAccountNumber,
+      Value<String?> bankIfsc,
+      Value<String?> upiId,
       Value<bool> isCloudSyncEnabled,
       Value<bool> isDropboxSyncEnabled,
       Value<bool> isActive,
@@ -6794,6 +8353,16 @@ class $$CompaniesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get stateCode => $composableBuilder(
+    column: $table.stateCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dealerType => $composableBuilder(
+    column: $table.dealerType,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
     builder: (column) => ColumnFilters(column),
@@ -6811,6 +8380,41 @@ class $$CompaniesTableFilterComposer
 
   ColumnFilters<String> get phoneNumber => $composableBuilder(
     column: $table.phoneNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get logoUrl => $composableBuilder(
+    column: $table.logoUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get signatureUrl => $composableBuilder(
+    column: $table.signatureUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get signatoryName => $composableBuilder(
+    column: $table.signatoryName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bankName => $composableBuilder(
+    column: $table.bankName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bankAccountNumber => $composableBuilder(
+    column: $table.bankAccountNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bankIfsc => $composableBuilder(
+    column: $table.bankIfsc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get upiId => $composableBuilder(
+    column: $table.upiId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6880,6 +8484,16 @@ class $$CompaniesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get stateCode => $composableBuilder(
+    column: $table.stateCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dealerType => $composableBuilder(
+    column: $table.dealerType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
     builder: (column) => ColumnOrderings(column),
@@ -6897,6 +8511,41 @@ class $$CompaniesTableOrderingComposer
 
   ColumnOrderings<String> get phoneNumber => $composableBuilder(
     column: $table.phoneNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get logoUrl => $composableBuilder(
+    column: $table.logoUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get signatureUrl => $composableBuilder(
+    column: $table.signatureUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get signatoryName => $composableBuilder(
+    column: $table.signatoryName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bankName => $composableBuilder(
+    column: $table.bankName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bankAccountNumber => $composableBuilder(
+    column: $table.bankAccountNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bankIfsc => $composableBuilder(
+    column: $table.bankIfsc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get upiId => $composableBuilder(
+    column: $table.upiId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -6957,6 +8606,14 @@ class $$CompaniesTableAnnotationComposer
   GeneratedColumn<String> get gstin =>
       $composableBuilder(column: $table.gstin, builder: (column) => column);
 
+  GeneratedColumn<String> get stateCode =>
+      $composableBuilder(column: $table.stateCode, builder: (column) => column);
+
+  GeneratedColumn<String> get dealerType => $composableBuilder(
+    column: $table.dealerType,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
     builder: (column) => column,
@@ -6972,6 +8629,33 @@ class $$CompaniesTableAnnotationComposer
     column: $table.phoneNumber,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get logoUrl =>
+      $composableBuilder(column: $table.logoUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get signatureUrl => $composableBuilder(
+    column: $table.signatureUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get signatoryName => $composableBuilder(
+    column: $table.signatoryName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bankName =>
+      $composableBuilder(column: $table.bankName, builder: (column) => column);
+
+  GeneratedColumn<String> get bankAccountNumber => $composableBuilder(
+    column: $table.bankAccountNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bankIfsc =>
+      $composableBuilder(column: $table.bankIfsc, builder: (column) => column);
+
+  GeneratedColumn<String> get upiId =>
+      $composableBuilder(column: $table.upiId, builder: (column) => column);
 
   GeneratedColumn<bool> get isCloudSyncEnabled => $composableBuilder(
     column: $table.isCloudSyncEnabled,
@@ -7037,10 +8721,19 @@ class $$CompaniesTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> legalName = const Value.absent(),
                 Value<String?> gstin = const Value.absent(),
+                Value<String?> stateCode = const Value.absent(),
+                Value<String> dealerType = const Value.absent(),
                 Value<String> currencyCode = const Value.absent(),
                 Value<String?> address = const Value.absent(),
                 Value<String?> email = const Value.absent(),
                 Value<String?> phoneNumber = const Value.absent(),
+                Value<String?> logoUrl = const Value.absent(),
+                Value<String?> signatureUrl = const Value.absent(),
+                Value<String?> signatoryName = const Value.absent(),
+                Value<String?> bankName = const Value.absent(),
+                Value<String?> bankAccountNumber = const Value.absent(),
+                Value<String?> bankIfsc = const Value.absent(),
+                Value<String?> upiId = const Value.absent(),
                 Value<bool> isCloudSyncEnabled = const Value.absent(),
                 Value<bool> isDropboxSyncEnabled = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
@@ -7054,10 +8747,19 @@ class $$CompaniesTableTableManager
                 name: name,
                 legalName: legalName,
                 gstin: gstin,
+                stateCode: stateCode,
+                dealerType: dealerType,
                 currencyCode: currencyCode,
                 address: address,
                 email: email,
                 phoneNumber: phoneNumber,
+                logoUrl: logoUrl,
+                signatureUrl: signatureUrl,
+                signatoryName: signatoryName,
+                bankName: bankName,
+                bankAccountNumber: bankAccountNumber,
+                bankIfsc: bankIfsc,
+                upiId: upiId,
                 isCloudSyncEnabled: isCloudSyncEnabled,
                 isDropboxSyncEnabled: isDropboxSyncEnabled,
                 isActive: isActive,
@@ -7073,10 +8775,19 @@ class $$CompaniesTableTableManager
                 required String name,
                 required String legalName,
                 Value<String?> gstin = const Value.absent(),
+                Value<String?> stateCode = const Value.absent(),
+                Value<String> dealerType = const Value.absent(),
                 Value<String> currencyCode = const Value.absent(),
                 Value<String?> address = const Value.absent(),
                 Value<String?> email = const Value.absent(),
                 Value<String?> phoneNumber = const Value.absent(),
+                Value<String?> logoUrl = const Value.absent(),
+                Value<String?> signatureUrl = const Value.absent(),
+                Value<String?> signatoryName = const Value.absent(),
+                Value<String?> bankName = const Value.absent(),
+                Value<String?> bankAccountNumber = const Value.absent(),
+                Value<String?> bankIfsc = const Value.absent(),
+                Value<String?> upiId = const Value.absent(),
                 Value<bool> isCloudSyncEnabled = const Value.absent(),
                 Value<bool> isDropboxSyncEnabled = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
@@ -7090,10 +8801,19 @@ class $$CompaniesTableTableManager
                 name: name,
                 legalName: legalName,
                 gstin: gstin,
+                stateCode: stateCode,
+                dealerType: dealerType,
                 currencyCode: currencyCode,
                 address: address,
                 email: email,
                 phoneNumber: phoneNumber,
+                logoUrl: logoUrl,
+                signatureUrl: signatureUrl,
+                signatoryName: signatoryName,
+                bankName: bankName,
+                bankAccountNumber: bankAccountNumber,
+                bankIfsc: bankIfsc,
+                upiId: upiId,
                 isCloudSyncEnabled: isCloudSyncEnabled,
                 isDropboxSyncEnabled: isDropboxSyncEnabled,
                 isActive: isActive,
@@ -7126,6 +8846,492 @@ typedef $$CompaniesTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $CompaniesTable, CompanyTableData>,
       ),
       CompanyTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$UserProfilesTableCreateCompanionBuilder =
+    UserProfilesCompanion Function({
+      required String id,
+      required String name,
+      required String phoneNumber,
+      required String email,
+      Value<String?> businessName,
+      Value<String?> address,
+      Value<String?> gstin,
+      Value<String?> businessType,
+      Value<String?> bankName,
+      Value<String?> bankAccountNumber,
+      Value<String?> bankIfsc,
+      Value<String?> upiId,
+      Value<String> activeCompanyId,
+      Value<String> role,
+      Value<String?> companiesJson,
+      Value<bool> isDeleted,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$UserProfilesTableUpdateCompanionBuilder =
+    UserProfilesCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> phoneNumber,
+      Value<String> email,
+      Value<String?> businessName,
+      Value<String?> address,
+      Value<String?> gstin,
+      Value<String?> businessType,
+      Value<String?> bankName,
+      Value<String?> bankAccountNumber,
+      Value<String?> bankIfsc,
+      Value<String?> upiId,
+      Value<String> activeCompanyId,
+      Value<String> role,
+      Value<String?> companiesJson,
+      Value<bool> isDeleted,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+
+class $$UserProfilesTableFilterComposer
+    extends Composer<_$AppDatabase, $UserProfilesTable> {
+  $$UserProfilesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phoneNumber => $composableBuilder(
+    column: $table.phoneNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get email => $composableBuilder(
+    column: $table.email,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessName => $composableBuilder(
+    column: $table.businessName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get gstin => $composableBuilder(
+    column: $table.gstin,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get businessType => $composableBuilder(
+    column: $table.businessType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bankName => $composableBuilder(
+    column: $table.bankName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bankAccountNumber => $composableBuilder(
+    column: $table.bankAccountNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bankIfsc => $composableBuilder(
+    column: $table.bankIfsc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get upiId => $composableBuilder(
+    column: $table.upiId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get activeCompanyId => $composableBuilder(
+    column: $table.activeCompanyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companiesJson => $composableBuilder(
+    column: $table.companiesJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+}
+
+class $$UserProfilesTableOrderingComposer
+    extends Composer<_$AppDatabase, $UserProfilesTable> {
+  $$UserProfilesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phoneNumber => $composableBuilder(
+    column: $table.phoneNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get email => $composableBuilder(
+    column: $table.email,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessName => $composableBuilder(
+    column: $table.businessName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get address => $composableBuilder(
+    column: $table.address,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get gstin => $composableBuilder(
+    column: $table.gstin,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get businessType => $composableBuilder(
+    column: $table.businessType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bankName => $composableBuilder(
+    column: $table.bankName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bankAccountNumber => $composableBuilder(
+    column: $table.bankAccountNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bankIfsc => $composableBuilder(
+    column: $table.bankIfsc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get upiId => $composableBuilder(
+    column: $table.upiId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get activeCompanyId => $composableBuilder(
+    column: $table.activeCompanyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companiesJson => $composableBuilder(
+    column: $table.companiesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$UserProfilesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UserProfilesTable> {
+  $$UserProfilesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get phoneNumber => $composableBuilder(
+    column: $table.phoneNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get email =>
+      $composableBuilder(column: $table.email, builder: (column) => column);
+
+  GeneratedColumn<String> get businessName => $composableBuilder(
+    column: $table.businessName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get address =>
+      $composableBuilder(column: $table.address, builder: (column) => column);
+
+  GeneratedColumn<String> get gstin =>
+      $composableBuilder(column: $table.gstin, builder: (column) => column);
+
+  GeneratedColumn<String> get businessType => $composableBuilder(
+    column: $table.businessType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bankName =>
+      $composableBuilder(column: $table.bankName, builder: (column) => column);
+
+  GeneratedColumn<String> get bankAccountNumber => $composableBuilder(
+    column: $table.bankAccountNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get bankIfsc =>
+      $composableBuilder(column: $table.bankIfsc, builder: (column) => column);
+
+  GeneratedColumn<String> get upiId =>
+      $composableBuilder(column: $table.upiId, builder: (column) => column);
+
+  GeneratedColumn<String> get activeCompanyId => $composableBuilder(
+    column: $table.activeCompanyId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<String> get companiesJson => $composableBuilder(
+    column: $table.companiesJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+}
+
+class $$UserProfilesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $UserProfilesTable,
+          UserProfileTableData,
+          $$UserProfilesTableFilterComposer,
+          $$UserProfilesTableOrderingComposer,
+          $$UserProfilesTableAnnotationComposer,
+          $$UserProfilesTableCreateCompanionBuilder,
+          $$UserProfilesTableUpdateCompanionBuilder,
+          (
+            UserProfileTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $UserProfilesTable,
+              UserProfileTableData
+            >,
+          ),
+          UserProfileTableData,
+          PrefetchHooks Function()
+        > {
+  $$UserProfilesTableTableManager(_$AppDatabase db, $UserProfilesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UserProfilesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UserProfilesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UserProfilesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> phoneNumber = const Value.absent(),
+                Value<String> email = const Value.absent(),
+                Value<String?> businessName = const Value.absent(),
+                Value<String?> address = const Value.absent(),
+                Value<String?> gstin = const Value.absent(),
+                Value<String?> businessType = const Value.absent(),
+                Value<String?> bankName = const Value.absent(),
+                Value<String?> bankAccountNumber = const Value.absent(),
+                Value<String?> bankIfsc = const Value.absent(),
+                Value<String?> upiId = const Value.absent(),
+                Value<String> activeCompanyId = const Value.absent(),
+                Value<String> role = const Value.absent(),
+                Value<String?> companiesJson = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UserProfilesCompanion(
+                id: id,
+                name: name,
+                phoneNumber: phoneNumber,
+                email: email,
+                businessName: businessName,
+                address: address,
+                gstin: gstin,
+                businessType: businessType,
+                bankName: bankName,
+                bankAccountNumber: bankAccountNumber,
+                bankIfsc: bankIfsc,
+                upiId: upiId,
+                activeCompanyId: activeCompanyId,
+                role: role,
+                companiesJson: companiesJson,
+                isDeleted: isDeleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                required String phoneNumber,
+                required String email,
+                Value<String?> businessName = const Value.absent(),
+                Value<String?> address = const Value.absent(),
+                Value<String?> gstin = const Value.absent(),
+                Value<String?> businessType = const Value.absent(),
+                Value<String?> bankName = const Value.absent(),
+                Value<String?> bankAccountNumber = const Value.absent(),
+                Value<String?> bankIfsc = const Value.absent(),
+                Value<String?> upiId = const Value.absent(),
+                Value<String> activeCompanyId = const Value.absent(),
+                Value<String> role = const Value.absent(),
+                Value<String?> companiesJson = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UserProfilesCompanion.insert(
+                id: id,
+                name: name,
+                phoneNumber: phoneNumber,
+                email: email,
+                businessName: businessName,
+                address: address,
+                gstin: gstin,
+                businessType: businessType,
+                bankName: bankName,
+                bankAccountNumber: bankAccountNumber,
+                bankIfsc: bankIfsc,
+                upiId: upiId,
+                activeCompanyId: activeCompanyId,
+                role: role,
+                companiesJson: companiesJson,
+                isDeleted: isDeleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$UserProfilesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $UserProfilesTable,
+      UserProfileTableData,
+      $$UserProfilesTableFilterComposer,
+      $$UserProfilesTableOrderingComposer,
+      $$UserProfilesTableAnnotationComposer,
+      $$UserProfilesTableCreateCompanionBuilder,
+      $$UserProfilesTableUpdateCompanionBuilder,
+      (
+        UserProfileTableData,
+        BaseReferences<_$AppDatabase, $UserProfilesTable, UserProfileTableData>,
+      ),
+      UserProfileTableData,
       PrefetchHooks Function()
     >;
 typedef $$PartiesTableCreateCompanionBuilder =
@@ -10299,6 +12505,8 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$CompaniesTableTableManager get companies =>
       $$CompaniesTableTableManager(_db, _db.companies);
+  $$UserProfilesTableTableManager get userProfiles =>
+      $$UserProfilesTableTableManager(_db, _db.userProfiles);
   $$PartiesTableTableManager get parties =>
       $$PartiesTableTableManager(_db, _db.parties);
   $$LedgerEntriesTableTableManager get ledgerEntries =>

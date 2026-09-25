@@ -13,6 +13,7 @@ import '../home/company_switcher_sheet.dart';
 import '../home/sync_settings_sheet.dart';
 import '../providers/auth_providers.dart';
 import '../providers/profile_provider.dart';
+import '../providers/sync_providers.dart';
 import '../inventory/inventory_screen.dart';
 import '../reports/audit_log_screen.dart';
 
@@ -68,6 +69,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _bankAccountController.addListener(_onFieldChanged);
     _bankIfscController.addListener(_onFieldChanged);
     _upiIdController.addListener(_onFieldChanged);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(profileSaveActionProvider.notifier).setAction(_saveProfile);
+      }
+    });
   }
 
   void _onFieldChanged() {
@@ -88,11 +95,37 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() {
         _hasChanges = changed;
       });
+      ref.read(hasProfileChangesProvider.notifier).setHasChanges(changed);
     }
+  }
+
+  void _cancelEditing() {
+    HapticFeedback.lightImpact();
+    final current = ref.read(userProfileProvider);
+    _nameController.text = current.name;
+    _businessNameController.text = current.businessName;
+    _phoneController.text = current.phoneNumber;
+    _emailController.text = current.email;
+    _addressController.text = current.address;
+    _gstinController.text = current.gstin;
+    _businessTypeController.text = current.businessType;
+    _bankNameController.text = current.bankName ?? '';
+    _bankAccountController.text = current.bankAccountNumber ?? '';
+    _bankIfscController.text = current.bankIfsc ?? '';
+    _upiIdController.text = current.upiId ?? '';
+    setState(() {
+      _isEditing = false;
+      _hasChanges = false;
+    });
+    ref.read(isProfileEditingProvider.notifier).setEditing(false);
+    ref.read(hasProfileChangesProvider.notifier).setHasChanges(false);
   }
 
   @override
   void dispose() {
+    ref.read(profileSaveActionProvider.notifier).setAction(null);
+    ref.read(isProfileEditingProvider.notifier).setEditing(false);
+    ref.read(hasProfileChangesProvider.notifier).setHasChanges(false);
     _nameController.dispose();
     _businessNameController.dispose();
     _phoneController.dispose();
@@ -131,6 +164,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _isEditing = false;
         _hasChanges = false;
       });
+      ref.read(isProfileEditingProvider.notifier).setEditing(false);
+      ref.read(hasProfileChangesProvider.notifier).setHasChanges(false);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -229,46 +264,45 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final profile = ref.watch(userProfileProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    ref.listen<bool>(isProfileEditingProvider, (previous, next) {
+      if (next != _isEditing && mounted) {
+        setState(() {
+          _isEditing = next;
+        });
+      }
+    });
+
     return Form(
       key: _formKey,
       child: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Top Action Row for Edit/Save
+        child: RefreshIndicator.adaptive(
+          onRefresh: () async {
+            HapticFeedback.lightImpact();
+            await ref.read(userProfileProvider.notifier).syncProfileToDatabase();
+            await ref.read(syncControllerProvider.notifier).triggerSync();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+              // Top Title & Cancel editing if active
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('My Profile', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'My Profile',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
                   if (_isEditing)
                     TextButton.icon(
-                      onPressed: _hasChanges ? _saveProfile : () {
-                        HapticFeedback.lightImpact();
-                        setState(() => _isEditing = false);
-                      },
-                      icon: Icon(Icons.check_circle_outline, color: _hasChanges ? Theme.of(context).colorScheme.primary : Colors.grey),
-                      label: Text(
-                        _hasChanges ? 'Save' : 'Cancel',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _hasChanges
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      onPressed: _cancelEditing,
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      label: const Text('Cancel'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Theme.of(context).colorScheme.error,
                       ),
-                    )
-                  else
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        setState(() {
-                          _isEditing = true;
-                        });
-                      },
-                      icon: Icon(isIos ? CupertinoIcons.pencil : Icons.edit_outlined, size: 16),
-                      label: const Text('Edit Profile'),
                     ),
                 ],
               ),
@@ -306,6 +340,65 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 icon: isIos ? CupertinoIcons.cloud_upload_fill : Icons.sync_rounded,
                 isIos: isIos,
                 onTap: () => SyncSettingsSheet.show(context),
+              ),
+              const SizedBox(height: 10),
+              _buildActionTile(
+                context,
+                title: 'Sync Profile & Company to Database',
+                subtitle: 'Push profile and company master to Supabase Cloud',
+                icon: isIos ? CupertinoIcons.arrow_2_circlepath_circle_fill : Icons.cloud_sync_rounded,
+                isIos: isIos,
+                onTap: () async {
+                  HapticFeedback.mediumImpact();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          ),
+                          SizedBox(width: 12),
+                          Text('Syncing company and profile to database...'),
+                        ],
+                      ),
+                      duration: const Duration(seconds: 2),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  );
+
+                  await ref.read(userProfileProvider.notifier).syncProfileToDatabase();
+                  final syncRes = await ref.read(syncControllerProvider.notifier).triggerSync();
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            Icon(
+                              syncRes.success ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              syncRes.success
+                                  ? 'Company and profile synced successfully to database'
+                                  : 'Saved locally & queued for sync (${syncRes.errorMessage ?? ""})',
+                            ),
+                          ],
+                        ),
+                        backgroundColor: syncRes.success ? AppColors.receivableGreen : Colors.amber.shade800,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    );
+                  }
+                },
               ),
               const SizedBox(height: 10),
               _buildActionTile(
@@ -547,8 +640,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildHeaderCard(
     BuildContext context,

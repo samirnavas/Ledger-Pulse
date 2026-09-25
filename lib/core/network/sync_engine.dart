@@ -145,7 +145,7 @@ class SyncEngine {
     }
   }
 
-  /// Pulls remote parties and ledger entries from Supabase into local SQLite.
+  /// Pulls remote companies, user profiles, parties, and ledger entries from Supabase into local SQLite.
   Future<SyncResult> pullChanges({String? companyId}) async {
     final client = supabaseClient;
     if (client == null || !SupabaseConfig.isConfigured) {
@@ -157,7 +157,123 @@ class SyncEngine {
     final effectiveCompanyId = companyId ?? 'cmp_default';
 
     try {
-      // 1. Pull Remote Parties
+      // 1. Pull Remote Companies
+      try {
+        final remoteCompanies = await client.from('companies').select();
+        for (final c in (remoteCompanies as List)) {
+          final map = c as Map<String, dynamic>;
+          final compId = map['id'] as String;
+          final name = map['name'] as String? ?? 'Ledger Pulse Enterprise';
+          final legalName = (map['legal_name'] ?? name) as String;
+          final gstin = map['gstin'] as String?;
+          final stateCode = map['state_code'] as String?;
+          final dealerType = map['dealer_type'] as String? ?? 'regular';
+          final currencyCode = map['currency_code'] as String? ?? 'INR';
+          final address = map['address'] as String?;
+          final email = map['email'] as String?;
+          final phone = map['phone_number'] as String?;
+          final logoUrl = map['logo_url'] as String?;
+          final signatureUrl = map['signature_url'] as String?;
+          final signatoryName = map['signatory_name'] as String?;
+          final bankName = map['bank_name'] as String?;
+          final bankAccountNumber = map['bank_account_number'] as String?;
+          final bankIfsc = map['bank_ifsc'] as String?;
+          final upiId = map['upi_id'] as String?;
+          final isCloudSyncEnabled = map['is_cloud_sync_enabled'] as bool? ?? true;
+          final isDropboxSyncEnabled = map['is_dropbox_sync_enabled'] as bool? ?? false;
+          final isActive = map['is_active'] as bool? ?? true;
+          final isDeleted = map['is_deleted'] as bool? ?? false;
+          final createdAtStr = map['created_at'] as String?;
+          final updatedAtStr = map['updated_at'] as String?;
+
+          await db.into(db.companies).insertOnConflictUpdate(
+            CompaniesCompanion(
+              id: Value(compId),
+              name: Value(name),
+              legalName: Value(legalName),
+              gstin: Value(gstin),
+              stateCode: Value(stateCode),
+              dealerType: Value(dealerType),
+              currencyCode: Value(currencyCode),
+              address: Value(address),
+              email: Value(email),
+              phoneNumber: Value(phone),
+              logoUrl: Value(logoUrl),
+              signatureUrl: Value(signatureUrl),
+              signatoryName: Value(signatoryName),
+              bankName: Value(bankName),
+              bankAccountNumber: Value(bankAccountNumber),
+              bankIfsc: Value(bankIfsc),
+              upiId: Value(upiId),
+              isCloudSyncEnabled: Value(isCloudSyncEnabled),
+              isDropboxSyncEnabled: Value(isDropboxSyncEnabled),
+              isActive: Value(isActive),
+              isDeleted: Value(isDeleted),
+              createdAt: Value(createdAtStr != null ? DateTime.parse(createdAtStr) : DateTime.now()),
+              updatedAt: Value(updatedAtStr != null ? DateTime.parse(updatedAtStr) : DateTime.now()),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+          pulledCount++;
+        }
+      } catch (compErr) {
+        debugPrint('SyncEngine pull companies notice: $compErr');
+      }
+
+      // 2. Pull Remote User Profiles
+      try {
+        final remoteProfiles = await client.from('user_profiles').select();
+        for (final p in (remoteProfiles as List)) {
+          final map = p as Map<String, dynamic>;
+          final profId = map['id'] as String;
+          final name = map['name'] as String? ?? 'User';
+          final phone = map['phone_number'] as String? ?? '';
+          final email = map['email'] as String? ?? '';
+          final businessName = map['business_name'] as String?;
+          final address = map['address'] as String?;
+          final gstin = map['gstin'] as String?;
+          final businessType = map['business_type'] as String?;
+          final bankName = map['bank_name'] as String?;
+          final bankAccountNumber = map['bank_account_number'] as String?;
+          final bankIfsc = map['bank_ifsc'] as String?;
+          final upiId = map['upi_id'] as String?;
+          final activeCompanyId = map['active_company_id'] as String? ?? 'cmp_default';
+          final role = map['role'] as String? ?? 'admin';
+          final companiesJson = map['companies_json'] != null ? jsonEncode(map['companies_json']) : null;
+          final isDeleted = map['is_deleted'] as bool? ?? false;
+          final createdAtStr = map['created_at'] as String?;
+          final updatedAtStr = map['updated_at'] as String?;
+
+          await db.into(db.userProfiles).insertOnConflictUpdate(
+            UserProfilesCompanion(
+              id: Value(profId),
+              name: Value(name),
+              phoneNumber: Value(phone),
+              email: Value(email),
+              businessName: Value(businessName),
+              address: Value(address),
+              gstin: Value(gstin),
+              businessType: Value(businessType),
+              bankName: Value(bankName),
+              bankAccountNumber: Value(bankAccountNumber),
+              bankIfsc: Value(bankIfsc),
+              upiId: Value(upiId),
+              activeCompanyId: Value(activeCompanyId),
+              role: Value(role),
+              companiesJson: Value(companiesJson),
+              isDeleted: Value(isDeleted),
+              createdAt: Value(createdAtStr != null ? DateTime.parse(createdAtStr) : DateTime.now()),
+              updatedAt: Value(updatedAtStr != null ? DateTime.parse(updatedAtStr) : DateTime.now()),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+          pulledCount++;
+        }
+      } catch (profErr) {
+        debugPrint('SyncEngine pull user_profiles notice: $profErr');
+      }
+
+      // 3. Pull Remote Parties
       final remoteParties = await client
           .from('parties')
           .select()
@@ -202,7 +318,7 @@ class SyncEngine {
         pulledCount++;
       }
 
-      // 2. Pull Remote Ledger Entries
+      // 4. Pull Remote Ledger Entries
       final remoteEntries = await client
           .from('ledger_entries')
           .select()
@@ -273,6 +389,92 @@ class SyncEngine {
 
   Future<void> _queueUnsyncedLocalRecords(String? companyId) async {
     try {
+      // Find companies with pending sync status that are not in outbox
+      final pendingCompanies = await (db.select(db.companies)
+            ..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .get();
+
+      for (final c in pendingCompanies) {
+        final existingOutbox = await (db.select(db.syncOutbox)
+              ..where((t) => t.recordId.equals(c.id))
+              ..limit(1))
+            .getSingleOrNull();
+        if (existingOutbox == null) {
+          await db.into(db.syncOutbox).insertOnConflictUpdate(
+            SyncOutboxCompanion.insert(
+              id: 'outbox_comp_${c.id}_${DateTime.now().millisecondsSinceEpoch}',
+              targetTable: 'companies',
+              recordId: c.id,
+              mutationType: 'UPSERT',
+              payload: jsonEncode({
+                'id': c.id,
+                'name': c.name,
+                'legalName': c.legalName,
+                'gstin': c.gstin,
+                'stateCode': c.stateCode,
+                'dealerType': c.dealerType,
+                'currencyCode': c.currencyCode,
+                'address': c.address,
+                'email': c.email,
+                'phoneNumber': c.phoneNumber,
+                'logoUrl': c.logoUrl,
+                'signatureUrl': c.signatureUrl,
+                'signatoryName': c.signatoryName,
+                'bankName': c.bankName,
+                'bankAccountNumber': c.bankAccountNumber,
+                'bankIfsc': c.bankIfsc,
+                'upiId': c.upiId,
+                'isCloudSyncEnabled': c.isCloudSyncEnabled,
+                'isDropboxSyncEnabled': c.isDropboxSyncEnabled,
+                'isActive': c.isActive,
+                'isDeleted': c.isDeleted,
+                'companyId': c.id,
+              }),
+            ),
+          );
+        }
+      }
+
+      // Find user profiles with pending sync status that are not in outbox
+      final pendingProfiles = await (db.select(db.userProfiles)
+            ..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .get();
+
+      for (final p in pendingProfiles) {
+        final existingOutbox = await (db.select(db.syncOutbox)
+              ..where((t) => t.recordId.equals(p.id))
+              ..limit(1))
+            .getSingleOrNull();
+        if (existingOutbox == null) {
+          await db.into(db.syncOutbox).insertOnConflictUpdate(
+            SyncOutboxCompanion.insert(
+              id: 'outbox_prof_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
+              targetTable: 'user_profiles',
+              recordId: p.id,
+              mutationType: 'UPSERT',
+              payload: jsonEncode({
+                'id': p.id,
+                'name': p.name,
+                'phoneNumber': p.phoneNumber,
+                'email': p.email,
+                'businessName': p.businessName,
+                'address': p.address,
+                'gstin': p.gstin,
+                'businessType': p.businessType,
+                'bankName': p.bankName,
+                'bankAccountNumber': p.bankAccountNumber,
+                'bankIfsc': p.bankIfsc,
+                'upiId': p.upiId,
+                'activeCompanyId': p.activeCompanyId,
+                'role': p.role,
+                'isDeleted': p.isDeleted,
+                'companyId': p.activeCompanyId,
+              }),
+            ),
+          );
+        }
+      }
+
       // Find parties with pending sync status that are not in outbox
       final pendingParties = await (db.select(db.parties)
             ..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.pending)))
@@ -351,6 +553,42 @@ class SyncEngine {
 
       if (key == 'companyId') {
         map['company_id'] = val;
+      } else if (key == 'legalName') {
+        map['legal_name'] = val;
+      } else if (key == 'stateCode') {
+        map['state_code'] = val;
+      } else if (key == 'dealerType') {
+        map['dealer_type'] = val;
+      } else if (key == 'currencyCode') {
+        map['currency_code'] = val;
+      } else if (key == 'logoUrl') {
+        map['logo_url'] = val;
+      } else if (key == 'signatureUrl') {
+        map['signature_url'] = val;
+      } else if (key == 'signatoryName') {
+        map['signatory_name'] = val;
+      } else if (key == 'bankName') {
+        map['bank_name'] = val;
+      } else if (key == 'bankAccountNumber') {
+        map['bank_account_number'] = val;
+      } else if (key == 'bankIfsc') {
+        map['bank_ifsc'] = val;
+      } else if (key == 'upiId') {
+        map['upi_id'] = val;
+      } else if (key == 'businessName') {
+        map['business_name'] = val;
+      } else if (key == 'businessType') {
+        map['business_type'] = val;
+      } else if (key == 'activeCompanyId') {
+        map['active_company_id'] = val;
+      } else if (key == 'companiesJson') {
+        map['companies_json'] = val;
+      } else if (key == 'isCloudSyncEnabled') {
+        map['is_cloud_sync_enabled'] = val;
+      } else if (key == 'isDropboxSyncEnabled') {
+        map['is_dropbox_sync_enabled'] = val;
+      } else if (key == 'isActive') {
+        map['is_active'] = val;
       } else if (key == 'partyId') {
         map['party_id'] = val;
       } else if (key == 'amountInCents') {
@@ -367,7 +605,7 @@ class SyncEngine {
         map['net_balance_in_cents'] = val;
       } else if (key == 'lastUpdated') {
         map['last_updated'] = val;
-      } else if (key != 'runningBalanceInCents') {
+      } else if (key != 'runningBalanceInCents' && key != 'companies') {
         map[key] = val;
       }
     }
@@ -393,6 +631,10 @@ class SyncEngine {
       } else if (tableName == 'companies') {
         await (db.update(db.companies)..where((t) => t.id.equals(recordId))).write(
           CompaniesCompanion(syncStatus: Value(status)),
+        );
+      } else if (tableName == 'user_profiles' || tableName == 'profiles') {
+        await (db.update(db.userProfiles)..where((t) => t.id.equals(recordId))).write(
+          UserProfilesCompanion(syncStatus: Value(status)),
         );
       }
     } catch (_) {}

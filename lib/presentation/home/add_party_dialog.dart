@@ -30,6 +30,9 @@ class AddPartyDialog extends ConsumerStatefulWidget {
 class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _nameFocusNode = FocusNode();
+  final _phoneFocusNode = FocusNode();
+  late final DraggableScrollableController _sheetController;
   late PartyType _type;
   String? _error;
   bool _isSubmitting = false;
@@ -51,6 +54,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
   @override
   void initState() {
     super.initState();
+    _sheetController = DraggableScrollableController();
     if (widget.partyToEdit != null) {
       _nameController.text = widget.partyToEdit!.name;
       _phoneController.text = widget.partyToEdit!.phoneNumber
@@ -63,20 +67,49 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
     }
     _nameController.addListener(_onFieldChanged);
     _phoneController.addListener(_onFieldChanged);
+    _nameFocusNode.addListener(_onFocusChanged);
+    _phoneFocusNode.addListener(_onFocusChanged);
+  }
+
+  void _expandSheet() {
+    if (_sheetController.isAttached) {
+      const targetSize = 0.90;
+      if (_sheetController.size < targetSize - 0.05) {
+        _sheetController.animateTo(
+          targetSize,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    }
+  }
+
+  void _onFocusChanged() {
+    if (_nameFocusNode.hasFocus || _phoneFocusNode.hasFocus) {
+      _expandSheet();
+    }
   }
 
   void _onFieldChanged() {
     if (mounted) {
       setState(() {});
+      if (_nameController.text.isNotEmpty || _phoneController.text.isNotEmpty) {
+        _expandSheet();
+      }
     }
   }
 
   @override
   void dispose() {
+    _nameFocusNode.removeListener(_onFocusChanged);
+    _phoneFocusNode.removeListener(_onFocusChanged);
+    _nameFocusNode.dispose();
+    _phoneFocusNode.dispose();
     _nameController.removeListener(_onFieldChanged);
     _phoneController.removeListener(_onFieldChanged);
     _nameController.dispose();
     _phoneController.dispose();
+    _sheetController.dispose();
     super.dispose();
   }
 
@@ -230,195 +263,214 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
           Navigator.of(context).pop();
         }
       },
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.42,
-        minChildSize: 0.25,
-        maxChildSize: 0.88,
-        snap: true,
-        snapSizes: const [0.42, 0.88],
-        snapAnimationDuration: const Duration(milliseconds: 250),
-        shouldCloseOnMinExtent: true,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: BoxDecoration(
-              color: containerColor,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(28.0)),
-            ),
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 8,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-            ),
-            child: SingleChildScrollView(
-              controller: scrollController,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top Drag Handle
-                  const ModalDragHandle(
-                    margin: EdgeInsets.only(bottom: 12.0),
-                  ),
-
-                  // Header Title
-                  Text(
-                    widget.partyToEdit != null
-                        ? 'Edit ${_type.displayName}'
-                        : 'Add New ${_type.displayName}',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Party Type Toggle / Slider
-                  AdaptiveSegmentedControl<PartyType>(
-                    groupValue: _type,
-                    children: const {
-                      PartyType.customer: Text(
-                        'Customer',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      PartyType.supplier: Text(
-                        'Supplier',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    },
-                    onValueChanged: (val) {
-                      if (widget.partyToEdit != null &&
-                          widget.partyToEdit!.netBalanceInCents != 0) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Cannot change type for a party with an active balance.',
-                            ),
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                        return;
-                      }
-                      setState(() {
-                        _type = val;
-                      });
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Name with inline Import from Contacts button
-                  TextField(
-                    controller: _nameController,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Contact / Business Name',
-                      prefixIcon: const Icon(Icons.person_outline, size: 20),
-                      suffixIcon: IconButton(
-                        tooltip: 'Import from Contacts',
-                        icon: Icon(
-                          isIos
-                              ? CupertinoIcons.person_crop_circle_badge_plus
-                              : Icons.contacts_rounded,
-                          size: 22,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        onPressed: _importFromContacts,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      filled: true,
-                      fillColor:
-                          Theme.of(context).colorScheme.surfaceContainerLowest,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Phone
-                  TextField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.phone,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Phone Number',
-                      prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                      hintText: '9876543210',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                      filled: true,
-                      fillColor:
-                          Theme.of(context).colorScheme.surfaceContainerLowest,
-                    ),
-                  ),
-
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _error!,
-                      style: const TextStyle(
-                        color: AppColors.payableRed,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: DraggableScrollableSheet(
+            controller: _sheetController,
+            initialChildSize: 0.48,
+            minChildSize: 0.28,
+            maxChildSize: 0.90,
+            snap: true,
+            snapSizes: const [0.48, 0.90],
+            snapAnimationDuration: const Duration(milliseconds: 250),
+            shouldCloseOnMinExtent: true,
+            expand: false,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: containerColor,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(28.0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
+                      blurRadius: 18,
+                      offset: const Offset(0, -4),
                     ),
                   ],
+                ),
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 8,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  physics: const ClampingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Top Drag Handle
+                      const ModalDragHandle(
+                        margin: EdgeInsets.only(bottom: 12.0),
+                      ),
 
-                  const SizedBox(height: 24),
+                      // Header Title
+                      Text(
+                        widget.partyToEdit != null
+                            ? 'Edit ${_type.displayName}'
+                            : 'Add New ${_type.displayName}',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
 
-                  // Save Button
-                  AdaptiveButton(
-                    onPressed: _submit,
-                    isFullWidth: true,
-                    isLoading: _isSubmitting,
-                    child: Text(
-                      widget.partyToEdit != null
-                          ? 'Save Changes'
-                          : 'Save & Open Ledger',
-                    ),
+                      // Party Type Toggle / Slider
+                      AdaptiveSegmentedControl<PartyType>(
+                        groupValue: _type,
+                        children: const {
+                          PartyType.customer: Text(
+                            'Customer',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          PartyType.supplier: Text(
+                            'Supplier',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        },
+                        onValueChanged: (val) {
+                          if (widget.partyToEdit != null &&
+                              widget.partyToEdit!.netBalanceInCents != 0) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Cannot change type for a party with an active balance.',
+                                ),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                            return;
+                          }
+                          setState(() {
+                            _type = val;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Name with inline Import from Contacts button
+                      TextField(
+                        controller: _nameController,
+                        focusNode: _nameFocusNode,
+                        onTap: _expandSheet,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'Contact / Business Name',
+                          prefixIcon: const Icon(Icons.person_outline, size: 20),
+                          suffixIcon: IconButton(
+                            tooltip: 'Import from Contacts',
+                            icon: Icon(
+                              isIos
+                                  ? CupertinoIcons.person_crop_circle_badge_plus
+                                  : Icons.contacts_rounded,
+                              size: 22,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            onPressed: _importFromContacts,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Theme.of(context).colorScheme.outlineVariant,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor:
+                              Theme.of(context).colorScheme.surfaceContainerLowest,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Phone
+                      TextField(
+                        controller: _phoneController,
+                        focusNode: _phoneFocusNode,
+                        onTap: _expandSheet,
+                        keyboardType: TextInputType.phone,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'Phone Number',
+                          prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                          hintText: '9876543210',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Theme.of(context).colorScheme.outlineVariant,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor:
+                              Theme.of(context).colorScheme.surfaceContainerLowest,
+                        ),
+                      ),
+
+                      if (_error != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          _error!,
+                          style: const TextStyle(
+                            color: AppColors.payableRed,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 24),
+
+                      // Save Button
+                      AdaptiveButton(
+                        onPressed: _submit,
+                        isFullWidth: true,
+                        isLoading: _isSubmitting,
+                        child: Text(
+                          widget.partyToEdit != null
+                              ? 'Save Changes'
+                              : 'Save & Open Ledger',
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          );
-        },
+                ),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

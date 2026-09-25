@@ -1,30 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/network/sync_engine.dart';
-import '../../data/local/database.dart';
 import '../../data/local/drift_ledger_repository.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
+import 'database_providers.dart';
 import 'profile_provider.dart';
 
-// Singleton Drift AppDatabase provider
-final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
-  ref.onDispose(() {
-    db.close();
-  });
-  return db;
-});
-
-// Singleton SyncEngine provider
-final syncEngineProvider = Provider<SyncEngine>((ref) {
-  final db = ref.watch(appDatabaseProvider);
-  final engine = SyncEngine(db: db);
-  ref.onDispose(() {
-    engine.dispose();
-  });
-  return engine;
-});
+export 'database_providers.dart';
 
 // Single repository instance backed directly by local SQLite (Drift)
 final ledgerRepositoryProvider = Provider<ILedgerRepository>((ref) {

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -8,6 +9,7 @@ import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/inventory_item_model.dart';
 import '../../data/models/stock_ledger_model.dart';
 import '../providers/inventory_providers.dart';
+import '../providers/sync_providers.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -364,26 +366,40 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             ),
           ),
 
-          // 3. Item List
+          // 3. Item List with swipe-down-to-refresh
           Expanded(
-            child: itemsAsync.when(
-              data: (items) {
-                if (items.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+            child: RefreshIndicator.adaptive(
+              onRefresh: () async {
+                HapticFeedback.lightImpact();
+                ref.invalidate(inventoryItemsListProvider);
+                ref.invalidate(inventoryValuationProvider);
+                await ref.read(syncControllerProvider.notifier).triggerSync();
+              },
+              child: itemsAsync.when(
+                data: (items) {
+                  if (items.isEmpty) {
+                    return ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(vertical: 60),
                       children: [
-                        Icon(isIos ? CupertinoIcons.cube_box : Icons.inventory_2_outlined, size: 56, color: Colors.grey),
-                        const SizedBox(height: 12),
-                        const Text('No inventory items found', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        const SizedBox(height: 4),
-                        const Text('Add your product SKUs to start tracking stock.', style: TextStyle(color: Colors.grey)),
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(isIos ? CupertinoIcons.cube_box : Icons.inventory_2_outlined, size: 56, color: Colors.grey),
+                              const SizedBox(height: 12),
+                              const Text('No inventory items found', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              const SizedBox(height: 4),
+                              const Text('Add your product SKUs to start tracking stock.', style: TextStyle(color: Colors.grey)),
+                            ],
+                          ),
+                        ),
                       ],
-                    ),
-                  );
-                }
+                    );
+                  }
 
-                return ListView.builder(
+                  return ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   itemCount: items.length,
                   itemBuilder: (ctx, i) {
@@ -504,8 +520,25 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   },
                 );
               },
-              loading: () => const Center(child: CircularProgressIndicator.adaptive()),
-              error: (err, _) => Center(child: Text('Error: $err')),
+              loading: () => ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: const [
+                    Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Center(child: CircularProgressIndicator.adaptive()),
+                    ),
+                  ],
+                ),
+                error: (err, _) => ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(40),
+                      child: Center(child: Text('Error: $err')),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

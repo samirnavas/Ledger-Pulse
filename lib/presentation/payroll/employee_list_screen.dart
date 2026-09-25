@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
@@ -298,17 +299,31 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
             ),
           ),
 
-          // Employee List
+          // Employee List with swipe-down-to-refresh
           Expanded(
-            child: filtered.isEmpty
-                ? const EmptyStateView(
-                    title: 'No Employees Found',
-                    subtitle: 'Add employee records to start managing payroll and generating salary slips.',
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
+            child: RefreshIndicator.adaptive(
+              onRefresh: () async {
+                HapticFeedback.lightImpact();
+                ref.invalidate(employeeListProvider);
+              },
+              child: filtered.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        Padding(
+                          padding: EdgeInsets.symmetric(vertical: 60),
+                          child: EmptyStateView(
+                            title: 'No Employees Found',
+                            subtitle: 'Add employee records to start managing payroll and generating salary slips.',
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
                       final emp = filtered[index];
                       final tile = Padding(
                         padding: const EdgeInsets.all(14),
@@ -396,6 +411,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                       );
                     },
                   ),
+            ),
           ),
         ],
       ),

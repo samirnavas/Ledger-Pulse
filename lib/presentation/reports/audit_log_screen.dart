@@ -92,11 +92,14 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
       ],
       body: _isLoading
           ? const Center(child: CircularProgressIndicator.adaptive())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Tamper-Evident Verification Banner
-                if (isIos)
+          : RefreshIndicator.adaptive(
+              onRefresh: _loadLogs,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Tamper-Evident Verification Banner
+                  if (isIos)
                   LiquidGlassCard(
                     borderRadius: 16,
                     borderColor: _isChainValid == true
@@ -390,7 +393,8 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
                       ),
                     );
                   }),
-              ],
+                ],
+              ),
             ),
     );
   }

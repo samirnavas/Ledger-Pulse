@@ -486,37 +486,40 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
 
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: FilledButton.tonal(
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            onTap();
-          },
-          onLongPress: onLongPress != null
-              ? () {
-                  HapticFeedback.mediumImpact();
-                  onLongPress();
-                }
-              : null,
-          style: ButtonStyle(
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+        child: SizedBox(
+          height: 52,
+          child: FilledButton.tonal(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              onTap();
+            },
+            onLongPress: onLongPress != null
+                ? () {
+                    HapticFeedback.mediumImpact();
+                    onLongPress();
+                  }
+                : null,
+            style: ButtonStyle(
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              padding: const WidgetStatePropertyAll(
+                EdgeInsets.symmetric(vertical: 8),
               ),
             ),
-            padding: const WidgetStatePropertyAll(
-              EdgeInsets.symmetric(vertical: 18),
-            ),
+            child: icon != null
+                ? Icon(icon, size: 24)
+                : Text(
+                    label,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: label == '00' ? 20 : null,
+                        ),
+                  ),
           ),
-          child: icon != null
-              ? Icon(icon, size: 24)
-              : Text(
-                  label,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: label == '00' ? 20 : null,
-                      ),
-                ),
         ),
       ),
     );
@@ -590,6 +593,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark ||
+        CupertinoTheme.of(context).brightness == Brightness.dark;
     final isGave = _entryType == EntryType.gave;
     final themeColor =
         isGave ? AppColors.payableRed : AppColors.receivableGreen;
@@ -597,7 +602,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     final formattedDisplay = CurrencyFormatter.format(rawAmountInt * 100);
 
     final containerColor = isIos
-        ? (Theme.of(context).brightness == Brightness.dark
+        ? (isDark
             ? CupertinoColors.systemGroupedBackground.darkColor
             : CupertinoColors.systemGroupedBackground)
         : Theme.of(context).colorScheme.surfaceContainerHighest;
@@ -611,38 +616,50 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           Navigator.of(context).pop();
         }
       },
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.55,
-        minChildSize: 0.25,
-        maxChildSize: 0.95,
-        snap: true,
-        snapSizes: const [0.55, 0.95],
-        snapAnimationDuration: const Duration(milliseconds: 250),
-        shouldCloseOnMinExtent: true,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: BoxDecoration(
-              color: containerColor,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(28.0)),
-            ),
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 8,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-            ),
-            child: SingleChildScrollView(
-              controller: scrollController,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Top Drag Handle
-                  const ModalDragHandle(
-                    margin: EdgeInsets.only(bottom: 8.0),
-                  ),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.95,
+            minChildSize: 0.35,
+            maxChildSize: 0.98,
+            snap: true,
+            snapSizes: const [0.95, 0.98],
+            snapAnimationDuration: const Duration(milliseconds: 250),
+            shouldCloseOnMinExtent: true,
+            expand: false,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: containerColor,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(28.0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
+                      blurRadius: 18,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
+                ),
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 8,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+                ),
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  physics: const ClampingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Top Drag Handle
+                      const ModalDragHandle(
+                        margin: EdgeInsets.only(bottom: 8.0),
+                      ),
 
                   // Top Header: Type Indicator & Party Name & Close Button
                   Row(
@@ -1162,6 +1179,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           );
         },
       ),
-    );
+    ),
+  ),
+);
   }
 }

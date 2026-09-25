@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import 'package:http/http.dart' as http;
 import '../../core/config/supabase_config.dart';
 import '../local/database.dart';
+import '../models/company_model.dart';
 import '../models/party_model.dart';
 import '../models/sync_model.dart';
 import '../models/transaction_model.dart';
@@ -114,6 +115,13 @@ class SupabaseSyncProvider extends SyncEngine {
 
         if (response.statusCode == 200) {
           final Map<String, dynamic> body = jsonDecode(response.body);
+          if (body['companies'] is List) {
+            for (final c in body['companies']) {
+              final comp = Company.fromMap(c as Map<String, dynamic>);
+              await _applyRemoteCompany(comp);
+              pulledCount++;
+            }
+          }
           if (body['parties'] is List) {
             for (final p in body['parties']) {
               final party = Party.fromMap(p as Map<String, dynamic>);
@@ -139,6 +147,39 @@ class SupabaseSyncProvider extends SyncEngine {
       itemsPulled: pulledCount,
       timestamp: DateTime.now(),
     );
+  }
+
+  Future<void> _applyRemoteCompany(Company company) async {
+    final existing = await (db.select(db.companies)..where((t) => t.id.equals(company.id))).getSingleOrNull();
+    if (existing == null || company.updatedAt.isAfter(existing.updatedAt)) {
+      await db.into(db.companies).insertOnConflictUpdate(
+            CompaniesCompanion.insert(
+              id: company.id,
+              name: company.name,
+              legalName: company.legalName,
+              gstin: Value(company.gstin),
+              stateCode: Value(company.stateCode),
+              dealerType: Value(company.dealerType),
+              currencyCode: Value(company.currencyCode),
+              address: Value(company.address),
+              email: Value(company.email),
+              phoneNumber: Value(company.phoneNumber),
+              logoUrl: Value(company.logoUrl),
+              signatureUrl: Value(company.signatureUrl),
+              signatoryName: Value(company.signatoryName),
+              bankName: Value(company.bankName),
+              bankAccountNumber: Value(company.bankAccountNumber),
+              bankIfsc: Value(company.bankIfsc),
+              upiId: Value(company.upiId),
+              isCloudSyncEnabled: Value(company.isCloudSyncEnabled),
+              isDropboxSyncEnabled: Value(company.isDropboxSyncEnabled),
+              isActive: Value(company.isActive),
+              createdAt: Value(company.createdAt),
+              updatedAt: Value(company.updatedAt),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+    }
   }
 
   Future<void> _applyRemoteParty(String companyId, Party party) async {

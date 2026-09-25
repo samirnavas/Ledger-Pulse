@@ -11,6 +11,7 @@ import '../../core/widgets/adaptive_bottom_nav.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/liquid_glass_card.dart';
+import '../../core/widgets/spring_morphing_fab.dart';
 import '../../data/models/party_model.dart';
 import '../integrations/ecommerce_sync_screen.dart';
 import '../integrations/third_party_import_screen.dart';
@@ -21,6 +22,7 @@ import '../profile/profile_screen.dart';
 import '../../data/models/subscription_tier_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
+import '../providers/profile_provider.dart';
 import '../providers/subscription_providers.dart';
 import '../reports/receivables_payables_screen.dart';
 import '../subscription/subscription_paywall_screen.dart';
@@ -233,7 +235,84 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
+  Widget? _buildAnimatedFab(
+    BuildContext context,
+    WidgetRef ref,
+    bool isIos,
+    int tabIndex,
+    PartyType? activeFilter,
+  ) {
+    if (isIos) return null;
 
+    final isProfileEditing = ref.watch(isProfileEditingProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final String fabKey;
+    final IconData fabIcon;
+    final String fabLabel;
+    final Color backgroundColor;
+    final Color foregroundColor;
+    final VoidCallback onPressed;
+
+    if (tabIndex == 2) {
+      if (isProfileEditing) {
+        fabKey = 'profile_save';
+        fabIcon = Icons.check_circle_rounded;
+        fabLabel = 'Save Changes';
+        backgroundColor = AppColors.receivableGreen;
+        foregroundColor = Colors.white;
+        onPressed = () {
+          HapticFeedback.mediumImpact();
+          ref.read(profileSaveActionProvider)?.call();
+        };
+      } else {
+        fabKey = 'profile_edit';
+        fabIcon = Icons.edit_rounded;
+        fabLabel = 'Edit Profile';
+        backgroundColor = colorScheme.primaryContainer;
+        foregroundColor = colorScheme.onPrimaryContainer;
+        onPressed = () {
+          HapticFeedback.lightImpact();
+          ref.read(isProfileEditingProvider.notifier).setEditing(true);
+        };
+      }
+    } else {
+      final isSupplier = (tabIndex == 1) || (activeFilter == PartyType.supplier);
+      fabKey = isSupplier ? 'supplier_add' : 'customer_add';
+      fabIcon = Icons.person_add_rounded;
+      fabLabel = isSupplier ? AppStrings.addSupplier : AppStrings.addCustomer;
+      backgroundColor = colorScheme.primaryContainer;
+      foregroundColor = colorScheme.onPrimaryContainer;
+      onPressed = () => _showAddPartySheet(
+            context,
+            isSupplier ? PartyType.supplier : PartyType.customer,
+          );
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.85, end: 1.0).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: SpringMorphingFab(
+        key: ValueKey(fabKey),
+        icon: fabIcon,
+        label: fabLabel,
+        backgroundColor: backgroundColor,
+        foregroundColor: foregroundColor,
+        onPressed: onPressed,
+      ),
+    );
+  }
 
   static Widget _buildSubscriptionAlertBanner(BuildContext context, bool isIos, bool isDark, LicenseState sub) {
     if (!sub.isExpired && (!sub.isTrial || sub.daysRemaining > 3)) {
@@ -416,31 +495,15 @@ class DashboardScreen extends ConsumerWidget {
               child: const Icon(CupertinoIcons.add, size: 22),
             ),
         ],
-        // Android M3 Expressive Floating Action Button
-        floatingActionButton: isIos || tabIndex == 2
-            ? null
-            : FloatingActionButton.extended(
-                onPressed: () => _showAddPartySheet(
-                  context,
-                  activeFilter ?? PartyType.customer,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                icon: const Icon(Icons.person_add_rounded),
-                label: Text(
-                  activeFilter == PartyType.supplier
-                      ? AppStrings.addSupplier
-                      : AppStrings.addCustomer,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                ),
-              ),
+        // Android / Desktop / Web M3 Expressive Floating Action Button with smooth morphing transitions
+        floatingActionButton: _buildAnimatedFab(context, ref, isIos, tabIndex, activeFilter),
         bottomNavigationBar: AdaptiveBottomNav(
           currentIndex: tabIndex,
           onTap: (index) {
             HapticFeedback.lightImpact();
             ref.read(dashboardTabProvider.notifier).setTab(index);
             if (index != 2) {
+              ref.read(isProfileEditingProvider.notifier).setEditing(false);
               ref.read(selectedPartyTypeFilterProvider.notifier).setFilter(
                     index == 1 ? PartyType.supplier : PartyType.customer,
                   );
