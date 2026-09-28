@@ -116,16 +116,6 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: Icon(
-                            isIos ? CupertinoIcons.xmark_circle_fill : Icons.close_rounded,
-                            size: 20,
-                          ),
-                          onPressed: () {
-                            HapticFeedback.lightImpact();
-                            Navigator.of(context).pop();
-                          },
-                        ),
                       ],
                     ),
 

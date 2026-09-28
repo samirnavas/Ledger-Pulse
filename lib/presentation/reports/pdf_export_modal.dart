@@ -58,6 +58,7 @@ class PdfExportModal extends StatefulWidget {
   }) {
     return showModalBottomSheet<void>(
       context: context,
+      showDragHandle: false,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
@@ -504,13 +505,6 @@ class _PdfExportModalState extends State<PdfExportModal> {
                             ),
                             onPressed: _showBrandingConfigModal,
                           ),
-                        IconButton(
-                          icon: Icon(
-                            isIos ? CupertinoIcons.xmark_circle_fill : Icons.close_rounded,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
                       ],
                     ),
                   ),
@@ -858,12 +852,6 @@ class _PaymentGatewayDropInSheetState extends State<_PaymentGatewayDropInSheet> 
                     ),
                   ),
                 ],
-              ),
-              IconButton(
-                icon: Icon(
-                  AdaptiveThemeHelper.isIos(context) ? CupertinoIcons.xmark : Icons.close,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
               ),
             ],
           ),

@@ -303,6 +303,7 @@ class PartyLedgerScreen extends ConsumerWidget {
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
@@ -323,6 +324,7 @@ class PartyLedgerScreen extends ConsumerWidget {
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
@@ -384,6 +386,7 @@ class PartyLedgerScreen extends ConsumerWidget {
 
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: isIos
@@ -398,56 +401,32 @@ class PartyLedgerScreen extends ConsumerWidget {
       builder: (sheetContext) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(sheetContext)
-                          .colorScheme
-                          .onSurfaceVariant
-                          .withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+                const ModalDragHandle(
+                  margin: EdgeInsets.only(bottom: 12.0),
                 ),
                 const SizedBox(height: 14),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Icon(
-                          isIos
-                              ? CupertinoIcons.doc_text
-                              : Icons.receipt_long_rounded,
-                          size: 20,
-                          color: Theme.of(sheetContext).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Transaction Voucher',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      ],
+                    Icon(
+                      isIos
+                          ? CupertinoIcons.doc_text
+                          : Icons.receipt_long_rounded,
+                      size: 20,
+                      color: Theme.of(sheetContext).colorScheme.primary,
                     ),
-                    IconButton(
-                      icon: Icon(
-                        isIos
-                            ? CupertinoIcons.xmark_circle_fill
-                            : Icons.close_rounded,
-                        size: 20,
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Transaction Voucher',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
                       ),
-                      onPressed: () => Navigator.of(sheetContext).pop(),
                     ),
                   ],
                 ),
@@ -825,7 +804,6 @@ class PartyLedgerScreen extends ConsumerWidget {
 
   void _showReceiptDialog(BuildContext context, LedgerEntry entry) {
     HapticFeedback.lightImpact();
-    final isIos = AdaptiveThemeHelper.isIos(context);
 
     showAdaptiveDraggableModal(
       context: context,
@@ -841,25 +819,13 @@ class PartyLedgerScreen extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Bill / Receipt',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      isIos ? CupertinoIcons.xmark_circle_fill : Icons.close_rounded,
-                      size: 22,
-                    ),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
+              const Text(
+                'Bill / Receipt',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
               ),
               const SizedBox(height: 12),
               ClipRRect(

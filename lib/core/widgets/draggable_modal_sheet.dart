@@ -166,6 +166,7 @@ Future<T?> showAdaptiveDraggableModal<T>({
   HapticFeedback.lightImpact();
   return showModalBottomSheet<T>(
     context: context,
+    showDragHandle: false,
     isScrollControlled: true,
     useSafeArea: true,
     isDismissible: isDismissible,

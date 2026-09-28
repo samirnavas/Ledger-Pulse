@@ -94,17 +94,6 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     super.dispose();
   }
 
-  Future<void> _handlePopAction() async {
-    if (_isClean) {
-      Navigator.of(context).pop();
-      return;
-    }
-    final shouldDiscard = await showDiscardChangesDialog(context);
-    if (shouldDiscard && mounted) {
-      Navigator.of(context).pop();
-    }
-  }
-
   void _onKeypadTap(String key) {
     HapticFeedback.lightImpact();
     setState(() {
@@ -666,21 +655,17 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                 child: SingleChildScrollView(
                   controller: scrollController,
                   physics: const ClampingScrollPhysics(),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Top Drag Handle
-                      const ModalDragHandle(
-                        margin: EdgeInsets.only(bottom: 8.0),
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Top Drag Handle (centered on card)
+                        const ModalDragHandle(
+                          margin: EdgeInsets.only(bottom: 12.0),
+                        ),
 
-                  // Top Header: Type Indicator & Party Name & Close Button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Row(
+                        // Top Header: Type Indicator & Party Name
+                        Row(
                           children: [
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -727,16 +712,6 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                             ),
                           ],
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(isIos ? CupertinoIcons.xmark : Icons.close, size: 20),
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          _handlePopAction();
-                        },
-                      ),
-                    ],
-                  ),
                   const SizedBox(height: 10),
 
                   // Type Switcher: You Gave vs You Got
