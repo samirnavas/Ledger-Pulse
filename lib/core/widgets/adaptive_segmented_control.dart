@@ -51,57 +51,103 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
       );
     } else {
       final scheme = Theme.of(context).colorScheme;
-      // Material Design 3 SegmentedButton
-      return SizedBox(
-        width: double.infinity,
-        child: SegmentedButton<T>(
-          segments: children.entries.map((entry) {
-            return ButtonSegment<T>(
-              value: entry.key,
-              label: entry.value,
+      final entries = children.entries.toList();
+      final selectedIndex = entries.indexWhere((e) => e.key == groupValue);
+
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+        child: Row(
+          children: List.generate(entries.length, (index) {
+            final entry = entries[index];
+            final isSelected = index == selectedIndex;
+            final borderRadius = _getM3ExpressiveCornerRadius(
+              index,
+              entries.length,
+              selectedIndex,
             );
-          }).toList(),
-          selected: {groupValue},
-          onSelectionChanged: (newSelection) {
-            if (newSelection.isNotEmpty) {
-              HapticFeedback.lightImpact();
-              onValueChanged(newSelection.first);
-            }
-          },
-          style: ButtonStyle(
-            shape: WidgetStateProperty.all(
-              const StadiumBorder(),
-            ),
-            side: WidgetStateProperty.resolveWith((states) {
-              return BorderSide(
-                color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
-                width: 1,
-              );
-            }),
-            backgroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.selected)) {
-                return scheme.primaryContainer;
-              }
-              return scheme.surfaceContainerHighest.withValues(alpha: isDark ? 0.35 : 0.5);
-            }),
-            foregroundColor: WidgetStateProperty.resolveWith((states) {
-              if (states.contains(WidgetState.selected)) {
-                return scheme.onPrimaryContainer;
-              }
-              return scheme.onSurfaceVariant;
-            }),
-            textStyle: WidgetStateProperty.resolveWith((states) {
-              return TextStyle(
-                fontSize: 14,
-                fontWeight: states.contains(WidgetState.selected)
-                    ? FontWeight.w700
-                    : FontWeight.w500,
-              );
-            }),
-          ),
+
+            final containerBg = isSelected
+                ? (isDark ? scheme.primary : scheme.onSurface)
+                : (isDark
+                    ? scheme.surfaceContainerHighest.withValues(alpha: 0.6)
+                    : scheme.secondaryContainer.withValues(alpha: 0.7));
+
+            final fgColor = isSelected
+                ? (isDark ? scheme.onPrimary : scheme.surface)
+                : (isDark ? scheme.onSurface : scheme.onSecondaryContainer);
+
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    onValueChanged(entry.key);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutCubic,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: containerBg,
+                      borderRadius: borderRadius,
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: scheme.shadow.withValues(alpha: 0.12),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Center(
+                      child: DefaultTextStyle(
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: fgColor,
+                        ),
+                        child: entry.value,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
         ),
       );
     }
+  }
+
+  static BorderRadius _getM3ExpressiveCornerRadius(int index, int total, int selectedIndex) {
+    const double fullRadius = 9999.0;
+    const double innerRadius = 4.0;
+    const double neighborRadius = 8.0;
+
+    if (index == selectedIndex) {
+      return BorderRadius.circular(fullRadius);
+    }
+
+    final bool isFirstInGroup = (index == 0);
+    final bool isLeftNeighborSelected = (selectedIndex == index - 1);
+    final double leftRadius = isFirstInGroup
+        ? fullRadius
+        : (isLeftNeighborSelected ? neighborRadius : innerRadius);
+
+    final bool isLastInGroup = (index == total - 1);
+    final bool isRightNeighborSelected = (selectedIndex == index + 1);
+    final double rightRadius = isLastInGroup
+        ? fullRadius
+        : (isRightNeighborSelected ? neighborRadius : innerRadius);
+
+    return BorderRadius.only(
+      topLeft: Radius.circular(leftRadius),
+      bottomLeft: Radius.circular(leftRadius),
+      topRight: Radius.circular(rightRadius),
+      bottomRight: Radius.circular(rightRadius),
+    );
   }
 }
 

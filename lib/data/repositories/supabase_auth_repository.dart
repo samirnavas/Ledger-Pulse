@@ -11,6 +11,7 @@ class SupabaseAuthRepository implements IAuthRepository {
   static const String _keyPhoneNumber = 'supabase_auth_phone_number';
 
   final SupabaseClient? _client;
+  final SharedPreferences? _prefs;
   final StreamController<bool> _authStateController = StreamController<bool>.broadcast();
 
   StreamSubscription<AuthState>? _supabaseAuthSub;
@@ -18,9 +19,21 @@ class SupabaseAuthRepository implements IAuthRepository {
   String? _cachedSessionToken;
   String? _cachedPhoneNumber;
 
-  SupabaseAuthRepository({SupabaseClient? client})
-      : _client = client ?? _getSafeSupabaseClient() {
+  SupabaseAuthRepository({
+    SupabaseClient? client,
+    SharedPreferences? prefs,
+  })  : _client = client ?? _getSafeSupabaseClient(),
+        _prefs = prefs {
+    _loadFromPrefsSync();
     _init();
+  }
+
+  void _loadFromPrefsSync() {
+    if (_prefs != null) {
+      _cachedUserId = _prefs.getString(_keyUserId);
+      _cachedSessionToken = _prefs.getString(_keySessionToken);
+      _cachedPhoneNumber = _prefs.getString(_keyPhoneNumber);
+    }
   }
 
   static SupabaseClient? _getSafeSupabaseClient() {
@@ -33,10 +46,10 @@ class SupabaseAuthRepository implements IAuthRepository {
 
   Future<void> _init() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      _cachedUserId = prefs.getString(_keyUserId);
-      _cachedSessionToken = prefs.getString(_keySessionToken);
-      _cachedPhoneNumber = prefs.getString(_keyPhoneNumber);
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
+      _cachedUserId ??= prefs.getString(_keyUserId);
+      _cachedSessionToken ??= prefs.getString(_keySessionToken);
+      _cachedPhoneNumber ??= prefs.getString(_keyPhoneNumber);
     } catch (_) {}
 
     final client = _client;
@@ -45,7 +58,7 @@ class SupabaseAuthRepository implements IAuthRepository {
       if (currentSession != null) {
         _cachedUserId = currentSession.user.id;
         _cachedSessionToken = currentSession.accessToken;
-        _cachedPhoneNumber = currentSession.user.phone;
+        _cachedPhoneNumber = currentSession.user.phone ?? _cachedPhoneNumber;
         await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
       }
 
@@ -54,12 +67,12 @@ class SupabaseAuthRepository implements IAuthRepository {
         if (session != null) {
           _cachedUserId = session.user.id;
           _cachedSessionToken = session.accessToken;
-          _cachedPhoneNumber = session.user.phone;
+          _cachedPhoneNumber = session.user.phone ?? _cachedPhoneNumber;
           await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
           if (!_authStateController.isClosed) {
             _authStateController.add(true);
           }
-        } else {
+        } else if (data.event == AuthChangeEvent.signedOut) {
           _cachedUserId = null;
           _cachedSessionToken = null;
           _cachedPhoneNumber = null;
@@ -78,7 +91,7 @@ class SupabaseAuthRepository implements IAuthRepository {
 
   Future<void> _persistAuthData(String? userId, String? token, String? phone) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
       if (userId != null) await prefs.setString(_keyUserId, userId);
       if (token != null) await prefs.setString(_keySessionToken, token);
       if (phone != null) await prefs.setString(_keyPhoneNumber, phone);
@@ -89,7 +102,7 @@ class SupabaseAuthRepository implements IAuthRepository {
 
   Future<void> _clearAuthData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = _prefs ?? await SharedPreferences.getInstance();
       await prefs.remove(_keyUserId);
       await prefs.remove(_keySessionToken);
       await prefs.remove(_keyPhoneNumber);

@@ -64,14 +64,14 @@ class SettingsScreen extends ConsumerWidget {
                       leading: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.indigo.withValues(alpha: 0.15),
+                          color: (isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           isIos
                               ? CupertinoIcons.building_2_fill
-                              : Icons.business_rounded,
-                          color: Colors.indigo,
+                              : Icons.corporate_fare_rounded,
+                          color: isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary,
                           size: 22,
                         ),
                       ),
@@ -111,14 +111,13 @@ class SettingsScreen extends ConsumerWidget {
                           const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       leading: CircleAvatar(
                         radius: 20,
-                        backgroundColor:
-                            AppColors.primaryBlue.withValues(alpha: 0.2),
+                        backgroundColor: (isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary).withValues(alpha: 0.15),
                         child: Text(
                           profile.name.isNotEmpty
                               ? profile.name[0].toUpperCase()
                               : 'U',
-                          style: const TextStyle(
-                            color: AppColors.primaryBlue,
+                          style: TextStyle(
+                            color: isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
@@ -141,9 +140,9 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       ),
                       trailing: Icon(
-                        isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
-                        size: 14,
-                        color: Colors.grey,
+                        isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                        size: isIos ? 14 : 20,
+                        color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                       ),
                       onTap: () {
                         HapticFeedback.lightImpact();
@@ -173,14 +172,14 @@ class SettingsScreen extends ConsumerWidget {
                       leading: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withValues(alpha: 0.15),
+                          color: (isIos ? CupertinoColors.systemTeal : Theme.of(context).colorScheme.secondary).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           isIos
                               ? CupertinoIcons.cloud_upload_fill
-                              : Icons.sync_rounded,
-                          color: AppColors.primaryBlue,
+                              : Icons.cloud_sync_rounded,
+                          color: isIos ? CupertinoColors.systemTeal : Theme.of(context).colorScheme.secondary,
                           size: 22,
                         ),
                       ),
@@ -203,9 +202,9 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       ),
                       trailing: Icon(
-                        isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
-                        size: 14,
-                        color: Colors.grey,
+                        isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                        size: isIos ? 14 : 20,
+                        color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                       ),
                       onTap: () {
                         HapticFeedback.lightImpact();
@@ -219,14 +218,14 @@ class SettingsScreen extends ConsumerWidget {
                       leading: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.purple.withValues(alpha: 0.15),
+                          color: (isIos ? CupertinoColors.systemPurple : Theme.of(context).colorScheme.tertiary).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           isIos
                               ? CupertinoIcons.doc_text_search
-                              : Icons.history_edu_rounded,
-                          color: Colors.purple,
+                              : Icons.manage_search_rounded,
+                          color: isIos ? CupertinoColors.systemPurple : Theme.of(context).colorScheme.tertiary,
                           size: 22,
                         ),
                       ),
@@ -237,14 +236,17 @@ class SettingsScreen extends ConsumerWidget {
                           fontSize: 14,
                         ),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         'Immutable activity ledger and transaction trails',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       trailing: Icon(
-                        isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
-                        size: 14,
-                        color: Colors.grey,
+                        isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                        size: isIos ? 14 : 20,
+                        color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                       ),
                       onTap: () {
                         HapticFeedback.lightImpact();
@@ -274,14 +276,14 @@ class SettingsScreen extends ConsumerWidget {
                       leading: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppColors.receivableGreen.withValues(alpha: 0.15),
+                          color: (isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
                           isIos
                               ? CupertinoIcons.chart_pie_fill
                               : Icons.analytics_rounded,
-                          color: AppColors.receivableGreen,
+                          color: isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary,
                           size: 22,
                         ),
                       ),
@@ -292,14 +294,17 @@ class SettingsScreen extends ConsumerWidget {
                           fontSize: 14,
                         ),
                       ),
-                      subtitle: const Text(
+                      subtitle: Text(
                         '36 comprehensive reports, Daybook, P&L & GSTR JSON',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       trailing: Icon(
-                        isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
-                        size: 14,
-                        color: Colors.grey,
+                        isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                        size: isIos ? 14 : 20,
+                        color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                       ),
                       onTap: () {
                         HapticFeedback.lightImpact();
@@ -447,8 +452,10 @@ class SettingsScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.primaryBlue.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                color: isIos
+                    ? CupertinoColors.activeBlue.withValues(alpha: 0.15)
+                    : Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 currentMode == ThemeMode.dark
@@ -456,8 +463,10 @@ class SettingsScreen extends ConsumerWidget {
                     : (currentMode == ThemeMode.light
                         ? (isIos ? CupertinoIcons.sun_max_fill : Icons.light_mode_rounded)
                         : (isIos ? CupertinoIcons.device_phone_portrait : Icons.brightness_auto_rounded)),
-                color: AppColors.primaryBlue,
-                size: 20,
+                color: isIos
+                    ? CupertinoColors.activeBlue
+                    : Theme.of(context).colorScheme.primary,
+                size: 22,
               ),
             ),
             const SizedBox(width: 12),
@@ -476,7 +485,9 @@ class SettingsScreen extends ConsumerWidget {
                     _getThemeDescription(currentMode),
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: isIos
+                          ? (isDark ? CupertinoColors.systemGrey : CupertinoColors.secondaryLabel)
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -486,43 +497,12 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
 
-        // 3-Segment Theme Selector: Light, Dark, Auto
-        Row(
-          children: [
-            _buildThemeOptionTile(
-              context: context,
-              ref: ref,
-              mode: ThemeMode.light,
-              label: 'Light',
-              icon: isIos ? CupertinoIcons.sun_max_fill : Icons.light_mode_rounded,
-              isSelected: currentMode == ThemeMode.light,
-              isDark: isDark,
-              isIos: isIos,
-            ),
-            const SizedBox(width: 8),
-            _buildThemeOptionTile(
-              context: context,
-              ref: ref,
-              mode: ThemeMode.dark,
-              label: 'Dark',
-              icon: isIos ? CupertinoIcons.moon_fill : Icons.dark_mode_rounded,
-              isSelected: currentMode == ThemeMode.dark,
-              isDark: isDark,
-              isIos: isIos,
-            ),
-            const SizedBox(width: 8),
-            _buildThemeOptionTile(
-              context: context,
-              ref: ref,
-              mode: ThemeMode.system,
-              label: 'Auto / System',
-              icon: isIos ? CupertinoIcons.device_phone_portrait : Icons.brightness_auto_rounded,
-              isSelected: currentMode == ThemeMode.system,
-              isDark: isDark,
-              isIos: isIos,
-            ),
-          ],
-        ),
+        // iOS: Native Cupertino Sliding Segmented Control
+        // Android / Material: M3 Expressive Morphing Button Group
+        if (isIos)
+          _buildIosSegmentedControl(context, ref, currentMode, isDark)
+        else
+          _buildM3ExpressiveMorphingButtonGroup(context, ref, currentMode, isDark),
       ],
     );
 
@@ -554,71 +534,268 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildThemeOptionTile({
-    required BuildContext context,
-    required WidgetRef ref,
-    required ThemeMode mode,
-    required String label,
-    required IconData icon,
-    required bool isSelected,
-    required bool isDark,
-    required bool isIos,
-  }) {
-    final theme = Theme.of(context);
-    final activeColor = isIos ? CupertinoColors.activeBlue : theme.colorScheme.primary;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          ref.read(appThemeModeProvider.notifier).setThemeMode(mode);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? activeColor.withValues(alpha: isDark ? 0.25 : 0.15)
-                : (isDark
-                    ? const Color(0xFF1E293B).withValues(alpha: 0.5)
-                    : const Color(0xFFF1F5F9)),
-            borderRadius: BorderRadius.circular(isIos ? 14 : 20),
-            border: Border.all(
-              color: isSelected
-                  ? activeColor
-                  : theme.colorScheme.outlineVariant.withValues(
-                      alpha: isDark ? 0.2 : 0.35,
-                    ),
-              width: isSelected ? 2 : 1,
+  Widget _buildIosSegmentedControl(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeMode currentMode,
+    bool isDark,
+  ) {
+    return SizedBox(
+      width: double.infinity,
+      child: CupertinoSlidingSegmentedControl<ThemeMode>(
+        groupValue: currentMode,
+        backgroundColor: isDark
+            ? CupertinoColors.systemGrey6.darkColor
+            : CupertinoColors.systemGrey5,
+        thumbColor: isDark
+            ? const Color(0xFF334155)
+            : CupertinoColors.white,
+        children: {
+          ThemeMode.light: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.sun_max_fill,
+                  size: 16,
+                  color: currentMode == ThemeMode.light
+                      ? (isDark ? CupertinoColors.white : CupertinoColors.activeBlue)
+                      : CupertinoColors.secondaryLabel,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Light',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: currentMode == ThemeMode.light
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: currentMode == ThemeMode.light
+                        ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                        : CupertinoColors.secondaryLabel,
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isSelected
-                    ? activeColor
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color: isSelected
-                      ? activeColor
-                      : theme.colorScheme.onSurface,
+          ThemeMode.dark: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.moon_fill,
+                  size: 16,
+                  color: currentMode == ThemeMode.dark
+                      ? (isDark ? CupertinoColors.white : CupertinoColors.activeBlue)
+                      : CupertinoColors.secondaryLabel,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  'Dark',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: currentMode == ThemeMode.dark
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: currentMode == ThemeMode.dark
+                        ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                        : CupertinoColors.secondaryLabel,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          ThemeMode.system: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CupertinoIcons.device_phone_portrait,
+                  size: 16,
+                  color: currentMode == ThemeMode.system
+                      ? (isDark ? CupertinoColors.white : CupertinoColors.activeBlue)
+                      : CupertinoColors.secondaryLabel,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'System',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: currentMode == ThemeMode.system
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: currentMode == ThemeMode.system
+                        ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                        : CupertinoColors.secondaryLabel,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        },
+        onValueChanged: (val) {
+          if (val != null) {
+            HapticFeedback.selectionClick();
+            ref.read(appThemeModeProvider.notifier).setThemeMode(val);
+          }
+        },
       ),
+    );
+  }
+
+  Widget _buildM3ExpressiveMorphingButtonGroup(
+    BuildContext context,
+    WidgetRef ref,
+    ThemeMode currentMode,
+    bool isDark,
+  ) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    final options = [
+      (
+        mode: ThemeMode.light,
+        label: 'Light',
+        selectedIcon: Icons.light_mode_rounded,
+        unselectedIcon: Icons.light_mode_outlined,
+      ),
+      (
+        mode: ThemeMode.dark,
+        label: 'Dark',
+        selectedIcon: Icons.dark_mode_rounded,
+        unselectedIcon: Icons.dark_mode_outlined,
+      ),
+      (
+        mode: ThemeMode.system,
+        label: 'Auto',
+        selectedIcon: Icons.brightness_auto_rounded,
+        unselectedIcon: Icons.brightness_auto_outlined,
+      ),
+    ];
+
+    final selectedIndex = options.indexWhere((opt) => opt.mode == currentMode);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+      child: Row(
+        children: List.generate(options.length, (index) {
+          final opt = options[index];
+          final isSelected = index == selectedIndex;
+          final borderRadius = _getM3ExpressiveCornerRadius(
+            index,
+            options.length,
+            selectedIndex,
+          );
+
+          // In M3 Expressive: Selected button has high-emphasis solid fill; unselected has soft tonal container
+          final containerBg = isSelected
+              ? (isDark ? scheme.primary : scheme.onSurface)
+              : (isDark
+                  ? scheme.surfaceContainerHighest.withValues(alpha: 0.6)
+                  : scheme.secondaryContainer.withValues(alpha: 0.7));
+
+          final fgColor = isSelected
+              ? (isDark ? scheme.onPrimary : scheme.surface)
+              : (isDark ? scheme.onSurface : scheme.onSecondaryContainer);
+
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  ref.read(appThemeModeProvider.notifier).setThemeMode(opt.mode);
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutCubic,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: containerBg,
+                    borderRadius: borderRadius,
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: scheme.shadow.withValues(alpha: 0.12),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedScale(
+                        scale: isSelected ? 1.15 : 1.0,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutBack,
+                        child: Icon(
+                          isSelected ? opt.selectedIcon : opt.unselectedIcon,
+                          size: 18,
+                          color: fgColor,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                        style: TextStyle(
+                          fontFamily: theme.textTheme.labelLarge?.fontFamily,
+                          fontSize: 13,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          letterSpacing: isSelected ? 0.1 : 0,
+                          color: fgColor,
+                        ),
+                        child: Text(
+                          opt.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  BorderRadius _getM3ExpressiveCornerRadius(int index, int total, int selectedIndex) {
+    const double fullRadius = 9999.0;
+    const double innerRadius = 4.0;
+    const double neighborRadius = 8.0;
+
+    // 1. Selected item morphs into a complete standalone pill (all 4 corners rounded)
+    if (index == selectedIndex) {
+      return BorderRadius.circular(fullRadius);
+    }
+
+    // 2. Determine left edge radius:
+    final bool isFirstInGroup = (index == 0);
+    final bool isLeftNeighborSelected = (selectedIndex == index - 1);
+    final double leftRadius = isFirstInGroup
+        ? fullRadius
+        : (isLeftNeighborSelected ? neighborRadius : innerRadius);
+
+    // 3. Determine right edge radius:
+    final bool isLastInGroup = (index == total - 1);
+    final bool isRightNeighborSelected = (selectedIndex == index + 1);
+    final double rightRadius = isLastInGroup
+        ? fullRadius
+        : (isRightNeighborSelected ? neighborRadius : innerRadius);
+
+    return BorderRadius.only(
+      topLeft: Radius.circular(leftRadius),
+      bottomLeft: Radius.circular(leftRadius),
+      topRight: Radius.circular(rightRadius),
+      bottomRight: Radius.circular(rightRadius),
     );
   }
 

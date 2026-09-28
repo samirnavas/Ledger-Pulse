@@ -30,6 +30,82 @@ void main() {
       expect(route, isA<PageRouteBuilder<void>>());
     });
 
+    testWidgets('ForegroundPageShadowTransition applies elevation drop shadow when animation is active', (tester) async {
+      final animationController = AnimationController(
+        vsync: const TestVSync(),
+        duration: const Duration(milliseconds: 300),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AndroidTheme.lightTheme,
+          home: Scaffold(
+            body: ForegroundPageShadowTransition(
+              animation: animationController,
+              child: const Text('Foreground Page Content'),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Foreground Page Content'), findsOneWidget);
+
+      // Animate controller to simulate route entry / active transition / predictive back
+      animationController.value = 0.8;
+      await tester.pump();
+
+      // Find DecoratedBox with drop shadows
+      final decoratedBoxes = tester.widgetList<DecoratedBox>(find.byType(DecoratedBox));
+      final shadowBox = decoratedBoxes.firstWhere(
+        (box) => box.decoration is BoxDecoration && (box.decoration as BoxDecoration).boxShadow != null && (box.decoration as BoxDecoration).boxShadow!.isNotEmpty,
+      );
+
+      final boxDec = shadowBox.decoration as BoxDecoration;
+      expect(boxDec.boxShadow, isNotNull);
+      expect(boxDec.boxShadow!.length, greaterThanOrEqualTo(2));
+      expect(boxDec.boxShadow!.first.blurRadius, greaterThan(0));
+
+      animationController.dispose();
+    });
+
+    testWidgets('BackgroundExposureTransition reduces background page exposure when secondaryAnimation is active', (tester) async {
+      final secondaryController = AnimationController(
+        vsync: const TestVSync(),
+        duration: const Duration(milliseconds: 300),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AndroidTheme.lightTheme,
+          home: Scaffold(
+            body: BackgroundExposureTransition(
+              secondaryAnimation: secondaryController,
+              child: const Text('Background Content'),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Background Content'), findsOneWidget);
+      // At 0.0, no dark scrim overlay is active
+      Finder scrimFinder() => find.byWidgetPredicate(
+        (widget) => widget is ColoredBox && widget.color.a > 0 && widget.color.r == 0 && widget.color.g == 0 && widget.color.b == 0,
+      );
+
+      expect(scrimFinder(), findsNothing);
+
+      // Animate secondary to simulate a foreground route pushing or predictive back preview
+      secondaryController.value = 0.5;
+      await tester.pump();
+
+      // Now a dark ColoredBox scrim is present to decrease exposure
+      expect(scrimFinder(), findsOneWidget);
+      final coloredBox = tester.widget<ColoredBox>(scrimFinder());
+      expect(coloredBox.color.a, greaterThan(0));
+
+      secondaryController.dispose();
+    });
+
     testWidgets('AdaptivePageRoute delegates to PredictiveBackPageTransitionsBuilder on Android', (tester) async {
       await tester.pumpWidget(
         MaterialApp(

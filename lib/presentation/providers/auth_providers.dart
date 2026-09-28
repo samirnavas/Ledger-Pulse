@@ -1,9 +1,16 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/repositories/supabase_auth_repository.dart';
 import '../../domain/repositories/i_auth_repository.dart';
 
+final sharedPreferencesProvider = Provider<SharedPreferences?>((ref) {
+  return null;
+});
+
 final authRepositoryProvider = Provider<IAuthRepository>((ref) {
-  final repo = SupabaseAuthRepository();
+  final prefs = ref.watch(sharedPreferencesProvider);
+  final repo = SupabaseAuthRepository(prefs: prefs);
   ref.onDispose(() {
     repo.dispose();
   });
@@ -27,7 +34,7 @@ class AuthState {
     this.error,
     this.phoneNumber,
     this.isOtpSent = false,
-    this.isAuthenticated = true,
+    this.isAuthenticated = false,
   });
 
   AuthState copyWith({
@@ -49,10 +56,24 @@ class AuthState {
 
 class AuthController extends Notifier<AuthState> {
   IAuthRepository get _repository => ref.read(authRepositoryProvider);
+  StreamSubscription<bool>? _authSub;
 
   @override
   AuthState build() {
     final repo = ref.watch(authRepositoryProvider);
+
+    _authSub?.cancel();
+    _authSub = repo.authStateStream.listen((isAuth) {
+      state = state.copyWith(
+        isAuthenticated: isAuth,
+        phoneNumber: repo.currentPhoneNumber,
+      );
+    });
+
+    ref.onDispose(() {
+      _authSub?.cancel();
+    });
+
     return AuthState(
       isAuthenticated: repo.isAuthenticated,
       phoneNumber: repo.currentPhoneNumber,

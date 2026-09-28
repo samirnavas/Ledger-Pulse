@@ -4,16 +4,26 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
 import 'core/constants/strings.dart';
 import 'core/theme/android_theme.dart';
 import 'core/theme/ios_theme.dart';
+import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/splash/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  SharedPreferences? sharedPreferences;
+  try {
+    sharedPreferences = await SharedPreferences.getInstance();
+  } catch (e) {
+    debugPrint('SharedPreferences init notice: $e');
+  }
+
   if (SupabaseConfig.isConfigured) {
     try {
       await Supabase.initialize(
@@ -26,8 +36,12 @@ void main() async {
     }
   }
   runApp(
-    const ProviderScope(
-      child: LedgerPulseApp(),
+    ProviderScope(
+      overrides: [
+        if (sharedPreferences != null)
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+      ],
+      child: const LedgerPulseApp(),
     ),
   );
 }
