@@ -140,6 +140,76 @@ void main() {
       expect(find.text('Go to Page 2'), findsOneWidget);
       expect(find.text('Page 2'), findsNothing);
     });
+
+    testWidgets('Modals (fullscreenDialog or isModal) do not apply shadow or background exposure reduction', (tester) async {
+      final animationController = AnimationController(
+        vsync: const TestVSync(),
+        duration: const Duration(milliseconds: 300),
+      );
+      final secondaryController = AnimationController(
+        vsync: const TestVSync(),
+        duration: const Duration(milliseconds: 300),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AndroidTheme.lightTheme,
+          home: Scaffold(
+            body: ForegroundPageShadowTransition(
+              animation: animationController,
+              enabled: false, // disabled for modal
+              child: BackgroundExposureTransition(
+                secondaryAnimation: secondaryController,
+                enabled: false, // disabled for modal
+                child: const Text('Modal Content Without Shadow Or Exposure Dimming'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      animationController.value = 1.0;
+      secondaryController.value = 1.0;
+      await tester.pump();
+
+      expect(find.text('Modal Content Without Shadow Or Exposure Dimming'), findsOneWidget);
+
+      // Verify no dark scrim ColoredBox exists
+      final scrimFinder = find.byWidgetPredicate(
+        (widget) => widget is ColoredBox && widget.color.a > 0 && widget.color.r == 0 && widget.color.g == 0 && widget.color.b == 0,
+      );
+      expect(scrimFinder, findsNothing);
+
+      // Verify no drop shadow DecoratedBox exists
+      final decoratedBoxes = tester.widgetList<DecoratedBox>(find.byType(DecoratedBox));
+      final hasShadow = decoratedBoxes.any(
+        (box) => box.decoration is BoxDecoration && (box.decoration as BoxDecoration).boxShadow != null && (box.decoration as BoxDecoration).boxShadow!.isNotEmpty,
+      );
+      expect(hasShadow, isFalse);
+
+      animationController.dispose();
+      secondaryController.dispose();
+    });
+
+    test('AdaptivePageRoute identifies modal routes and fullscreenDialog correctly', () {
+      final normalRoute = createAdaptivePageRoute<void>(
+        builder: (_) => const Scaffold(),
+      ) as AdaptivePageRoute<void>;
+
+      final modalRoute = createAdaptivePageRoute<void>(
+        builder: (_) => const Scaffold(),
+        fullscreenDialog: true,
+      ) as AdaptivePageRoute<void>;
+
+      final explicitModalRoute = createAdaptivePageRoute<void>(
+        builder: (_) => const Scaffold(),
+        isModal: true,
+      ) as AdaptivePageRoute<void>;
+
+      expect(normalRoute.effectiveIsModal, isFalse);
+      expect(modalRoute.effectiveIsModal, isTrue);
+      expect(explicitModalRoute.effectiveIsModal, isTrue);
+    });
   });
 
   group('Draggable Modal Sheet Tests', () {

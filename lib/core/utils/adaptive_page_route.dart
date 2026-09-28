@@ -16,16 +16,21 @@ Route<T> createAdaptivePageRoute<T>({
   SharedAxisTransitionType transitionType = SharedAxisTransitionType.horizontal,
   bool useFadeThrough = false,
   bool fullscreenDialog = false,
+  bool isModal = false,
 }) {
+  final bool effectiveIsModal = fullscreenDialog || isModal;
   if (useFadeThrough) {
     return PageRouteBuilder<T>(
       settings: settings,
+      fullscreenDialog: fullscreenDialog,
       pageBuilder: (context, animation, secondaryAnimation) => builder(context),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         final contrastAdjustedChild = ForegroundPageShadowTransition(
           animation: animation,
+          enabled: !effectiveIsModal,
           child: BackgroundExposureTransition(
             secondaryAnimation: secondaryAnimation,
+            enabled: !effectiveIsModal,
             child: child,
           ),
         );
@@ -44,23 +49,39 @@ Route<T> createAdaptivePageRoute<T>({
     transitionType: transitionType,
     useFadeThrough: useFadeThrough,
     fullscreenDialog: fullscreenDialog,
+    isModal: isModal,
   );
 }
 
 /// A widget that decreases the exposure and brightness of the background page
 /// when it is covered by a foreground route or revealed in predictive back preview.
+/// Disabled for modal routes so modals maintain clean underlying backgrounds.
 class BackgroundExposureTransition extends StatelessWidget {
   const BackgroundExposureTransition({
     super.key,
     required this.secondaryAnimation,
     required this.child,
+    this.enabled = true,
   });
 
   final Animation<double> secondaryAnimation;
   final Widget child;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
+    if (!enabled) {
+      return child;
+    }
+
+    final route = ModalRoute.of(context);
+    if (route is PageRoute && route.fullscreenDialog) {
+      return child;
+    }
+    if (route is AdaptivePageRoute && route.effectiveIsModal) {
+      return child;
+    }
+
     return AnimatedBuilder(
       animation: secondaryAnimation,
       builder: (context, child) {
@@ -100,18 +121,33 @@ class BackgroundExposureTransition extends StatelessWidget {
 
 /// A widget that applies an ambient and directional drop shadow to the foreground page
 /// during page transitions and predictive back gestures to clearly separate it from the background page.
+/// Disabled for modal routes to prevent unwanted perimeter shadows on modals.
 class ForegroundPageShadowTransition extends StatelessWidget {
   const ForegroundPageShadowTransition({
     super.key,
     required this.animation,
     required this.child,
+    this.enabled = true,
   });
 
   final Animation<double> animation;
   final Widget child;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
+    if (!enabled) {
+      return child;
+    }
+
+    final route = ModalRoute.of(context);
+    if (route is PageRoute && route.fullscreenDialog) {
+      return child;
+    }
+    if (route is AdaptivePageRoute && route.effectiveIsModal) {
+      return child;
+    }
+
     return AnimatedBuilder(
       animation: animation,
       builder: (context, child) {
@@ -263,6 +299,7 @@ class _EnhancedPredictiveBackPageTransition extends StatefulWidget {
     required this.startBackEvent,
     required this.currentBackEvent,
     required this.child,
+    this.showShadow = true,
   });
 
   final Animation<double> animation;
@@ -271,6 +308,7 @@ class _EnhancedPredictiveBackPageTransition extends StatefulWidget {
   final PredictiveBackEvent? startBackEvent;
   final PredictiveBackEvent? currentBackEvent;
   final Widget child;
+  final bool showShadow;
 
   @override
   State<_EnhancedPredictiveBackPageTransition> createState() =>
@@ -420,7 +458,7 @@ class _EnhancedPredictiveBackPageTransitionState
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: borderRadius,
-                  boxShadow: bounce > 0.001
+                  boxShadow: (widget.showShadow && bounce > 0.001)
                       ? [
                           BoxShadow(
                             color: Colors.black.withValues(
@@ -473,6 +511,9 @@ class EnhancedPredictiveBackPageTransitionsBuilder extends PageTransitionsBuilde
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
+    final bool isModal = route.fullscreenDialog ||
+        (route is AdaptivePageRoute && (route as AdaptivePageRoute).effectiveIsModal);
+
     return _EnhancedPredictiveBackGestureDetector(
       route: route,
       builder: (context, phase, startBackEvent, currentBackEvent) {
@@ -483,6 +524,7 @@ class EnhancedPredictiveBackPageTransitionsBuilder extends PageTransitionsBuilde
             secondaryAnimation: secondaryAnimation,
             startBackEvent: startBackEvent,
             currentBackEvent: currentBackEvent,
+            showShadow: !isModal,
             child: child,
           );
         }
@@ -502,6 +544,7 @@ class EnhancedPredictiveBackPageTransitionsBuilder extends PageTransitionsBuilde
 class AdaptivePageRoute<T> extends MaterialPageRoute<T> {
   final SharedAxisTransitionType transitionType;
   final bool useFadeThrough;
+  final bool isModal;
 
   AdaptivePageRoute({
     required super.builder,
@@ -509,8 +552,36 @@ class AdaptivePageRoute<T> extends MaterialPageRoute<T> {
     this.transitionType = SharedAxisTransitionType.horizontal,
     this.useFadeThrough = false,
     super.fullscreenDialog = false,
+    this.isModal = false,
     super.maintainState = true,
   });
+
+  bool get effectiveIsModal => fullscreenDialog || isModal;
+
+  Route<dynamic>? _nextRoute;
+  Route<dynamic>? get nextRoute => _nextRoute;
+
+  @override
+  void didChangeNext(Route<dynamic>? nextRoute) {
+    _nextRoute = nextRoute;
+    super.didChangeNext(nextRoute);
+  }
+
+  /// Whether the route covering this page is a modal, dialog, or bottom sheet.
+  bool get isNextRouteModal {
+    final next = _nextRoute;
+    if (next == null) return false;
+    if (next is PageRoute && next.fullscreenDialog) return true;
+    if (next is AdaptivePageRoute && next.effectiveIsModal) return true;
+    final typeName = next.runtimeType.toString().toLowerCase();
+    if (typeName.contains('modal') ||
+        typeName.contains('dialog') ||
+        typeName.contains('popup') ||
+        typeName.contains('bottomsheet')) {
+      return true;
+    }
+    return false;
+  }
 
   @override
   Widget buildTransitions(
@@ -519,12 +590,17 @@ class AdaptivePageRoute<T> extends MaterialPageRoute<T> {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    // Apply background exposure reduction to receding/underlying pages
-    // and foreground drop shadow to separate the current page from background page.
+    // For modals (e.g. fullscreenDialog or isModal), remove the shadow and low-exposure background.
+    // Also, if the route pushed on top of this page is a modal or bottom sheet, do not reduce background exposure.
+    final bool shouldApplyShadow = !effectiveIsModal;
+    final bool shouldReduceExposure = !effectiveIsModal && !isNextRouteModal;
+
     final contrastAdjustedChild = ForegroundPageShadowTransition(
       animation: animation,
+      enabled: shouldApplyShadow,
       child: BackgroundExposureTransition(
         secondaryAnimation: secondaryAnimation,
+        enabled: shouldReduceExposure,
         child: child,
       ),
     );

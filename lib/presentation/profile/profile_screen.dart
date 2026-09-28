@@ -7,6 +7,7 @@ import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/liquid_glass_card.dart';
+import '../../core/widgets/splitting_fab.dart';
 import '../../data/models/user_profile_model.dart';
 import '../auth/phone_input_screen.dart';
 import '../home/company_switcher_sheet.dart';
@@ -73,6 +74,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(profileSaveActionProvider.notifier).setAction(_saveProfile);
+        ref.read(profileCancelActionProvider.notifier).setAction(_cancelEditing);
       }
     });
   }
@@ -124,6 +126,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void dispose() {
     ref.read(profileSaveActionProvider.notifier).setAction(null);
+    ref.read(profileCancelActionProvider.notifier).setAction(null);
     ref.read(isProfileEditingProvider.notifier).setEditing(false);
     ref.read(hasProfileChangesProvider.notifier).setHasChanges(false);
     _nameController.dispose();
@@ -283,7 +286,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     });
 
-    return Form(
+    final canPop = ModalRoute.of(context)?.canPop ?? false;
+
+    final formContent = Form(
       key: _formKey,
       child: SafeArea(
         child: RefreshIndicator.adaptive(
@@ -298,27 +303,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-              // Top Title & Cancel editing if active
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'My Profile',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  if (_isEditing)
-                    TextButton.icon(
-                      onPressed: _cancelEditing,
-                      icon: Icon(
-                        isIos ? CupertinoIcons.xmark : Icons.close_rounded,
-                        size: 18,
-                      ),
-                      label: const Text('Cancel'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                ],
+              // Top Title
+              const Text(
+                'My Profile',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               // 1. Header Card with Avatar
@@ -656,7 +644,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     ),
   );
-}
+
+    if (canPop) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('My Profile'),
+        ),
+        floatingActionButton: SplittingProfileFab(
+          isEditing: _isEditing,
+          onEdit: () {
+            HapticFeedback.lightImpact();
+            setState(() => _isEditing = true);
+            ref.read(isProfileEditingProvider.notifier).setEditing(true);
+          },
+          onSave: _saveProfile,
+          onCancel: _cancelEditing,
+        ),
+        body: formContent,
+      );
+    }
+
+    return formContent;
+  }
 
   Widget _buildHeaderCard(
     BuildContext context,

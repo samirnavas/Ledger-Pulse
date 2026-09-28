@@ -212,6 +212,8 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
   void _openEditParty(Party party) {
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AddPartyDialog(

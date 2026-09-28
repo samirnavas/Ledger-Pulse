@@ -317,9 +317,10 @@ class AndroidTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surfaceContainerLow,
         modalBackgroundColor: scheme.surfaceContainerLow,
-        surfaceTintColor: scheme.surfaceTint,
-        elevation: 1,
-        showDragHandle: true,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        modalElevation: 0,
+        showDragHandle: false,
         dragHandleColor: scheme.onSurfaceVariant.withValues(alpha: 0.4),
         dragHandleSize: const Size(32, 4),
         shape: const RoundedRectangleBorder(

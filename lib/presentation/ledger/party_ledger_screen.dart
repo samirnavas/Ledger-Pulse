@@ -69,6 +69,8 @@ class PartyLedgerScreen extends ConsumerWidget {
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AddPartyDialog(
@@ -304,6 +306,7 @@ class PartyLedgerScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
@@ -325,6 +328,7 @@ class PartyLedgerScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,

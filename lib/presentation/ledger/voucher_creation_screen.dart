@@ -441,6 +441,8 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
 
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => DraggableScrollableSheet(
@@ -596,6 +598,8 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
 
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => DraggableScrollableSheet(

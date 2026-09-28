@@ -121,6 +121,8 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
 
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(

@@ -17,6 +17,7 @@ class DraggableModalSheet extends StatelessWidget {
   final double maxChildSize;
   final List<double>? snapSizes;
   final bool showHandle;
+  final bool showShadow;
   final Color? backgroundColor;
   final BorderRadiusGeometry? borderRadius;
   final DraggableScrollableController? controller;
@@ -30,6 +31,7 @@ class DraggableModalSheet extends StatelessWidget {
     this.maxChildSize = 0.95,
     this.snapSizes,
     this.showHandle = true,
+    this.showShadow = false,
     this.backgroundColor,
     this.borderRadius,
     this.controller,
@@ -74,13 +76,15 @@ class DraggableModalSheet extends StatelessWidget {
                 color: containerColor,
                 borderRadius: borderRadius ??
                     const BorderRadius.vertical(top: Radius.circular(28)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
-                    blurRadius: 18,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
+                boxShadow: showShadow
+                    ? [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
+                          blurRadius: 18,
+                          offset: const Offset(0, -4),
+                        ),
+                      ]
+                    : null,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -167,6 +171,7 @@ Future<T?> showAdaptiveDraggableModal<T>({
   return showModalBottomSheet<T>(
     context: context,
     showDragHandle: false,
+    elevation: 0,
     isScrollControlled: true,
     useSafeArea: true,
     isDismissible: isDismissible,

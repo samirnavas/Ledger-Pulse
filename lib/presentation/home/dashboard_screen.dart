@@ -10,7 +10,9 @@ import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_bottom_nav.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/amount_text.dart';
+import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../core/widgets/liquid_glass_card.dart';
+import '../../core/widgets/splitting_fab.dart';
 import '../../core/widgets/spring_morphing_fab.dart';
 import '../../data/models/party_model.dart';
 import '../integrations/ecommerce_sync_screen.dart';
@@ -49,104 +51,114 @@ class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   void _showErpModulesModal(BuildContext context) {
-
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Ludgerpulse ERP Modules', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            _buildModuleTile(
-              context: ctx,
-              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.doc_text : Icons.receipt_long_rounded,
-              title: 'Receivables & Payables Tracking',
-              subtitle: 'Aging buckets (0-30, 31-60, 90+ days), reminders & remittance advice',
-              color: AppColors.receivableGreen,
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ReceivablesPayablesScreen()));
-              },
-            ),
-            _buildModuleTile(
-              context: ctx,
-              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.money_dollar_circle : Icons.payments_rounded,
-              title: 'Payroll & Employee Salaries',
-              subtitle: 'Employee master, PF/ESI/PT deductions & PDF salary slips',
-              color: Colors.blue,
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const EmployeeListScreen()));
-              },
-            ),
-            _buildModuleTile(
-              context: ctx,
-              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.gear_alt : Icons.precision_manufacturing_rounded,
-              title: 'Manufacturing & BOM Journals',
-              subtitle: 'Bill of Materials, raw material deduction & production cost',
-              color: Colors.orange,
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ManufacturingJournalScreen()));
-              },
-            ),
-            _buildModuleTile(
-              context: ctx,
-              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.arrow_2_circlepath : Icons.sync_alt_rounded,
-              title: 'Third-Party ERP & Excel Import',
-              subtitle: 'Import parties and stock from Tally, Zoho, QuickBooks & Excel',
-              color: Colors.teal,
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ThirdPartyImportScreen()));
-              },
-            ),
-            _buildModuleTile(
-              context: ctx,
-              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.cart : Icons.shopping_cart_rounded,
-              title: 'Amazon & Flipkart Sync',
-              subtitle: 'Auto-sync marketplace orders into GST sales invoices',
-              color: Colors.amber.shade800,
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const EcommerceSyncScreen()));
-              },
-            ),
-            _buildModuleTile(
-              context: ctx,
-              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.printer : Icons.print_rounded,
-              title: 'CTS-2010 Cheque Printing (Windows)',
-              subtitle: 'Pre-calibrated bank cheque printer with MICR zone protection',
-              color: Colors.purple,
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const Cts2010ChequePreviewScreen()));
-              },
-            ),
-            _buildModuleTile(
-              context: ctx,
-              icon: AdaptiveThemeHelper.isIos(ctx) ? CupertinoIcons.star : Icons.star_rounded,
-              title: 'ERP Plans & Licensing Paywall',
-              subtitle: 'Manage Silver, Gold, Diamond tiers and lifetime licenses',
-              color: const Color(0xFF7C3AED),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()));
-              },
-            ),
-            const SizedBox(height: 10),
-          ],
-        ),
-      ),
+      builder: (ctx) {
+        final isIos = AdaptiveThemeHelper.isIos(ctx);
+        final colorScheme = Theme.of(ctx).colorScheme;
+
+        return Container(
+          padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 20),
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const ModalDragHandle(margin: EdgeInsets.only(bottom: 12)),
+              const Text(
+                'LedgerPulse ERP Modules',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              _buildModuleTile(
+                context: ctx,
+                icon: isIos ? CupertinoIcons.doc_text_fill : Icons.receipt_long_rounded,
+                title: 'Receivables & Payables Tracking',
+                subtitle: 'Aging buckets (0-30, 31-60, 90+ days), reminders & remittance advice',
+                color: isIos ? CupertinoColors.systemGreen : colorScheme.primary,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ReceivablesPayablesScreen()));
+                },
+              ),
+              _buildModuleTile(
+                context: ctx,
+                icon: isIos ? CupertinoIcons.money_dollar_circle_fill : Icons.payments_rounded,
+                title: 'Payroll & Employee Salaries',
+                subtitle: 'Employee master, PF/ESI/PT deductions & PDF salary slips',
+                color: isIos ? CupertinoColors.activeBlue : colorScheme.secondary,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const EmployeeListScreen()));
+                },
+              ),
+              _buildModuleTile(
+                context: ctx,
+                icon: isIos ? CupertinoIcons.gear_alt_fill : Icons.precision_manufacturing_rounded,
+                title: 'Manufacturing & BOM Journals',
+                subtitle: 'Bill of Materials, raw material deduction & production cost',
+                color: isIos ? CupertinoColors.systemOrange : colorScheme.tertiary,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ManufacturingJournalScreen()));
+                },
+              ),
+              _buildModuleTile(
+                context: ctx,
+                icon: isIos ? CupertinoIcons.arrow_2_circlepath_circle_fill : Icons.sync_alt_rounded,
+                title: 'Third-Party ERP & Excel Import',
+                subtitle: 'Import parties and stock from Tally, Zoho, QuickBooks & Excel',
+                color: isIos ? CupertinoColors.systemTeal : colorScheme.primary,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ThirdPartyImportScreen()));
+                },
+              ),
+              _buildModuleTile(
+                context: ctx,
+                icon: isIos ? CupertinoIcons.cart_fill : Icons.shopping_cart_rounded,
+                title: 'Amazon & Flipkart Sync',
+                subtitle: 'Auto-sync marketplace orders into GST sales invoices',
+                color: isIos ? CupertinoColors.activeOrange : colorScheme.secondary,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const EcommerceSyncScreen()));
+                },
+              ),
+              _buildModuleTile(
+                context: ctx,
+                icon: isIos ? CupertinoIcons.printer_fill : Icons.print_rounded,
+                title: 'CTS-2010 Cheque Printing (Windows)',
+                subtitle: 'Pre-calibrated bank cheque printer with MICR zone protection',
+                color: isIos ? CupertinoColors.systemPurple : colorScheme.tertiary,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const Cts2010ChequePreviewScreen()));
+                },
+              ),
+              _buildModuleTile(
+                context: ctx,
+                icon: isIos ? CupertinoIcons.star_fill : Icons.star_rounded,
+                title: 'ERP Plans & Licensing Paywall',
+                subtitle: 'Manage Silver, Gold, Diamond tiers and lifetime licenses',
+                color: isIos ? CupertinoColors.systemIndigo : colorScheme.primary,
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()));
+                },
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -183,6 +195,8 @@ class DashboardScreen extends ConsumerWidget {
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
@@ -195,6 +209,8 @@ class DashboardScreen extends ConsumerWidget {
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
@@ -216,46 +232,34 @@ class DashboardScreen extends ConsumerWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final String fabKey;
-    final IconData fabIcon;
-    final String fabLabel;
-    final Color backgroundColor;
-    final Color foregroundColor;
-    final VoidCallback onPressed;
-
+    final Widget fabChild;
     if (tabIndex == 2) {
-      if (isProfileEditing) {
-        fabKey = 'profile_save';
-        fabIcon = Icons.check_circle_rounded;
-        fabLabel = 'Save Changes';
-        backgroundColor = AppColors.receivableGreen;
-        foregroundColor = Colors.white;
-        onPressed = () {
-          HapticFeedback.mediumImpact();
-          ref.read(profileSaveActionProvider)?.call();
-        };
-      } else {
-        fabKey = 'profile_edit';
-        fabIcon = Icons.edit_rounded;
-        fabLabel = 'Edit Profile';
-        backgroundColor = colorScheme.primaryContainer;
-        foregroundColor = colorScheme.onPrimaryContainer;
-        onPressed = () {
-          HapticFeedback.lightImpact();
+      fabChild = SplittingProfileFab(
+        key: const ValueKey('profile_splitting_fab'),
+        isEditing: isProfileEditing,
+        onEdit: () {
           ref.read(isProfileEditingProvider.notifier).setEditing(true);
-        };
-      }
+        },
+        onSave: () {
+          ref.read(profileSaveActionProvider)?.call();
+        },
+        onCancel: () {
+          ref.read(profileCancelActionProvider)?.call();
+        },
+      );
     } else {
       final isSupplier = (tabIndex == 1) || (activeFilter == PartyType.supplier);
-      fabKey = isSupplier ? 'supplier_add' : 'customer_add';
-      fabIcon = Icons.person_add_rounded;
-      fabLabel = isSupplier ? AppStrings.addSupplier : AppStrings.addCustomer;
-      backgroundColor = colorScheme.primaryContainer;
-      foregroundColor = colorScheme.onPrimaryContainer;
-      onPressed = () => _showAddPartySheet(
-            context,
-            isSupplier ? PartyType.supplier : PartyType.customer,
-          );
+      fabChild = SpringMorphingFab(
+        key: ValueKey(isSupplier ? 'supplier_add' : 'customer_add'),
+        icon: Icons.person_add_rounded,
+        label: isSupplier ? AppStrings.addSupplier : AppStrings.addCustomer,
+        backgroundColor: colorScheme.primaryContainer,
+        foregroundColor: colorScheme.onPrimaryContainer,
+        onPressed: () => _showAddPartySheet(
+          context,
+          isSupplier ? PartyType.supplier : PartyType.customer,
+        ),
+      );
     }
 
     return AnimatedSwitcher(
@@ -271,14 +275,7 @@ class DashboardScreen extends ConsumerWidget {
           ),
         );
       },
-      child: SpringMorphingFab(
-        key: ValueKey(fabKey),
-        icon: fabIcon,
-        label: fabLabel,
-        backgroundColor: backgroundColor,
-        foregroundColor: foregroundColor,
-        onPressed: onPressed,
-      ),
+      child: fabChild,
     );
   }
 

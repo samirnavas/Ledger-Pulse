@@ -59,6 +59,7 @@ class PdfExportModal extends StatefulWidget {
     return showModalBottomSheet<void>(
       context: context,
       showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
@@ -211,6 +212,8 @@ class _PdfExportModalState extends State<PdfExportModal> {
 
     showModalBottomSheet(
       context: context,
+      showDragHandle: false,
+      elevation: 0,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (modalCtx) => _PaymentGatewayDropInSheet(

@@ -96,3 +96,14 @@ class ProfileSaveActionNotifier extends Notifier<VoidCallback?> {
 final profileSaveActionProvider =
     NotifierProvider<ProfileSaveActionNotifier, VoidCallback?>(ProfileSaveActionNotifier.new);
 
+class ProfileCancelActionNotifier extends Notifier<VoidCallback?> {
+  @override
+  VoidCallback? build() => null;
+
+  void setAction(VoidCallback? action) => state = action;
+}
+
+final profileCancelActionProvider =
+    NotifierProvider<ProfileCancelActionNotifier, VoidCallback?>(ProfileCancelActionNotifier.new);
+
+

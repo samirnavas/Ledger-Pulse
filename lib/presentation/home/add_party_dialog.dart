@@ -283,13 +283,6 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                   color: containerColor,
                   borderRadius:
                       const BorderRadius.vertical(top: Radius.circular(28.0)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
-                      blurRadius: 18,
-                      offset: const Offset(0, -4),
-                    ),
-                  ],
                 ),
                 padding: EdgeInsets.only(
                   left: 20,
