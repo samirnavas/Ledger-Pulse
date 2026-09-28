@@ -227,16 +227,12 @@ class _SpringFabButton extends StatefulWidget {
   final Color backgroundColor;
   final VoidCallback onTap;
   final String tooltip;
-  final double elevation;
-  final double pressedElevation;
 
   const _SpringFabButton({
     required this.child,
     required this.backgroundColor,
     required this.onTap,
     required this.tooltip,
-    this.elevation = 6.0,
-    this.pressedElevation = 2.0,
   });
 
   @override
@@ -250,6 +246,8 @@ class _SpringFabButtonState extends State<_SpringFabButton>
   static const double _mass = 1.0;
   static const double _stiffness = 600.0;
   static const double _damping = 22.0;
+  static const double _elevation = 6.0;
+  static const double _pressedElevation = 2.0;
 
   @override
   void initState() {
@@ -297,8 +295,8 @@ class _SpringFabButtonState extends State<_SpringFabButton>
       builder: (context, child) {
         final double progress = _pressController.value.clamp(0.0, 1.0);
         final double currentElevation = ui.lerpDouble(
-          widget.elevation,
-          widget.pressedElevation,
+          _elevation,
+          _pressedElevation,
           progress,
         )!;
         final double scale = 1.0 - (progress * 0.04);

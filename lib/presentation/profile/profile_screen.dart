@@ -438,84 +438,68 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               // 2. Personal Information Section
               _buildSectionHeader(context, 'Personal Information', Icons.person_outline_rounded, isIos),
               const SizedBox(height: 12),
-              if (_isEditing) ...[
-                _buildInputField(
-                  context,
-                  controller: _nameController,
-                  label: 'Full Name',
-                  icon: isIos ? CupertinoIcons.person : Icons.person_outline,
-                  enabled: _isEditing,
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Name cannot be empty' : null,
-                ),
-                const SizedBox(height: 12),
-                _buildInputField(
-                  context,
-                  controller: _phoneController,
-                  label: 'Phone Number',
-                  icon: isIos ? CupertinoIcons.phone : Icons.phone_outlined,
-                  keyboardType: TextInputType.phone,
-                  enabled: _isEditing,
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Phone number cannot be empty' : null,
-                ),
-                const SizedBox(height: 12),
-                _buildInputField(
-                  context,
-                  controller: _emailController,
-                  label: 'Email Address',
-                  icon: isIos ? CupertinoIcons.mail : Icons.email_outlined,
-                  keyboardType: TextInputType.emailAddress,
-                  enabled: _isEditing,
-                ),
-              ] else
-                _buildReadOnlyCard(context, isIos, [
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 320),
+                firstCurve: Curves.easeInOutCubic,
+                secondCurve: Curves.easeInOutCubic,
+                sizeCurve: Curves.easeInOutCubic,
+                crossFadeState: _isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                firstChild: _buildReadOnlyCard(context, isIos, [
                   _buildReadOnlyRow(context, 'Full Name', profile.name, isIos ? CupertinoIcons.person : Icons.person_outline),
                   const SizedBox(height: 16),
                   _buildReadOnlyRow(context, 'Phone Number', profile.phoneNumber, isIos ? CupertinoIcons.phone : Icons.phone_outlined),
                   const SizedBox(height: 16),
                   _buildReadOnlyRow(context, 'Email Address', profile.email, isIos ? CupertinoIcons.mail : Icons.email_outlined),
                 ]),
+                secondChild: Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildInputField(
+                        context,
+                        controller: _nameController,
+                        label: 'Full Name',
+                        icon: isIos ? CupertinoIcons.person : Icons.person_outline,
+                        enabled: _isEditing,
+                        validator: (val) => val == null || val.trim().isEmpty ? 'Name cannot be empty' : null,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildInputField(
+                        context,
+                        controller: _phoneController,
+                        label: 'Phone Number',
+                        icon: isIos ? CupertinoIcons.phone : Icons.phone_outlined,
+                        keyboardType: TextInputType.phone,
+                        enabled: _isEditing,
+                        validator: (val) => val == null || val.trim().isEmpty ? 'Phone number cannot be empty' : null,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildInputField(
+                        context,
+                        controller: _emailController,
+                        label: 'Email Address',
+                        icon: isIos ? CupertinoIcons.mail : Icons.email_outlined,
+                        keyboardType: TextInputType.emailAddress,
+                        enabled: _isEditing,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 24),
 
               // 3. Business Information Section
               _buildSectionHeader(context, 'Business Details', Icons.business_outlined, isIos),
               const SizedBox(height: 12),
-              if (_isEditing) ...[
-                _buildInputField(
-                  context,
-                  controller: _businessNameController,
-                  label: 'Business Name',
-                  icon: isIos ? CupertinoIcons.briefcase : Icons.storefront_outlined,
-                  enabled: _isEditing,
-                  validator: (val) => val == null || val.trim().isEmpty ? 'Business name cannot be empty' : null,
-                ),
-                const SizedBox(height: 12),
-                _buildInputField(
-                  context,
-                  controller: _businessTypeController,
-                  label: 'Business Type',
-                  icon: isIos ? CupertinoIcons.tag : Icons.category_outlined,
-                  enabled: _isEditing,
-                ),
-                const SizedBox(height: 12),
-                _buildInputField(
-                  context,
-                  controller: _gstinController,
-                  label: 'GSTIN / Tax ID',
-                  icon: isIos ? CupertinoIcons.doc_text : Icons.badge_outlined,
-                  enabled: _isEditing,
-                ),
-                const SizedBox(height: 12),
-                _buildInputField(
-                  context,
-                  controller: _addressController,
-                  label: 'Business Address',
-                  icon: isIos ? CupertinoIcons.location : Icons.location_on_outlined,
-                  maxLines: 2,
-                  enabled: _isEditing,
-                ),
-              ] else
-                _buildReadOnlyCard(context, isIos, [
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 320),
+                firstCurve: Curves.easeInOutCubic,
+                secondCurve: Curves.easeInOutCubic,
+                sizeCurve: Curves.easeInOutCubic,
+                crossFadeState: _isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                firstChild: _buildReadOnlyCard(context, isIos, [
                   _buildReadOnlyRow(context, 'Business Name', profile.businessName, isIos ? CupertinoIcons.briefcase : Icons.storefront_outlined),
                   const SizedBox(height: 16),
                   _buildReadOnlyRow(context, 'Business Type', profile.businessType, isIos ? CupertinoIcons.tag : Icons.category_outlined),
@@ -524,6 +508,48 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 16),
                   _buildReadOnlyRow(context, 'Business Address', profile.address, isIos ? CupertinoIcons.location : Icons.location_on_outlined),
                 ]),
+                secondChild: Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildInputField(
+                        context,
+                        controller: _businessNameController,
+                        label: 'Business Name',
+                        icon: isIos ? CupertinoIcons.briefcase : Icons.storefront_outlined,
+                        enabled: _isEditing,
+                        validator: (val) => val == null || val.trim().isEmpty ? 'Business name cannot be empty' : null,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildInputField(
+                        context,
+                        controller: _businessTypeController,
+                        label: 'Business Type',
+                        icon: isIos ? CupertinoIcons.tag : Icons.category_outlined,
+                        enabled: _isEditing,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildInputField(
+                        context,
+                        controller: _gstinController,
+                        label: 'GSTIN / Tax ID',
+                        icon: isIos ? CupertinoIcons.doc_text : Icons.badge_outlined,
+                        enabled: _isEditing,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildInputField(
+                        context,
+                        controller: _addressController,
+                        label: 'Business Address',
+                        icon: isIos ? CupertinoIcons.location : Icons.location_on_outlined,
+                        maxLines: 2,
+                        enabled: _isEditing,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 24),
 
@@ -535,41 +561,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 isIos,
               ),
               const SizedBox(height: 12),
-              if (_isEditing) ...[
-                _buildInputField(
-                  context,
-                  controller: _bankNameController,
-                  label: 'Bank Name',
-                  icon: isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded,
-                  enabled: _isEditing,
-                ),
-                const SizedBox(height: 12),
-                _buildInputField(
-                  context,
-                  controller: _bankAccountController,
-                  label: 'Account Number',
-                  icon: isIos ? CupertinoIcons.number : Icons.credit_card_rounded,
-                  keyboardType: TextInputType.number,
-                  enabled: _isEditing,
-                ),
-                const SizedBox(height: 12),
-                _buildInputField(
-                  context,
-                  controller: _bankIfscController,
-                  label: 'IFSC Code',
-                  icon: isIos ? CupertinoIcons.barcode : Icons.qr_code_2_rounded,
-                  enabled: _isEditing,
-                ),
-                const SizedBox(height: 12),
-                _buildInputField(
-                  context,
-                  controller: _upiIdController,
-                  label: 'UPI ID / VPA (e.g. business@okhdfcbank)',
-                  icon: isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded,
-                  enabled: _isEditing,
-                ),
-              ] else
-                _buildReadOnlyCard(context, isIos, [
+              AnimatedCrossFade(
+                duration: const Duration(milliseconds: 320),
+                firstCurve: Curves.easeInOutCubic,
+                secondCurve: Curves.easeInOutCubic,
+                sizeCurve: Curves.easeInOutCubic,
+                crossFadeState: _isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                firstChild: _buildReadOnlyCard(context, isIos, [
                   _buildReadOnlyRow(context, 'Bank Name', profile.bankName ?? '', isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded),
                   const SizedBox(height: 16),
                   _buildReadOnlyRow(context, 'Account Number', profile.bankAccountNumber ?? '', isIos ? CupertinoIcons.number : Icons.credit_card_rounded),
@@ -578,27 +576,49 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 16),
                   _buildReadOnlyRow(context, 'UPI ID / VPA', profile.upiId ?? '', isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded),
                 ]),
-
-              const SizedBox(height: 24),
-
-              // 4. Save Changes Button (if editing)
-              if (_isEditing) ...[
-                ElevatedButton.icon(
-                  onPressed: _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  icon: Icon(isIos ? CupertinoIcons.checkmark : Icons.check_rounded),
-                  label: const Text(
-                    'Save Changes',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                secondChild: Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildInputField(
+                        context,
+                        controller: _bankNameController,
+                        label: 'Bank Name',
+                        icon: isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded,
+                        enabled: _isEditing,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildInputField(
+                        context,
+                        controller: _bankAccountController,
+                        label: 'Account Number',
+                        icon: isIos ? CupertinoIcons.number : Icons.credit_card_rounded,
+                        keyboardType: TextInputType.number,
+                        enabled: _isEditing,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildInputField(
+                        context,
+                        controller: _bankIfscController,
+                        label: 'IFSC Code',
+                        icon: isIos ? CupertinoIcons.barcode : Icons.qr_code_2_rounded,
+                        enabled: _isEditing,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildInputField(
+                        context,
+                        controller: _upiIdController,
+                        label: 'UPI ID / VPA (e.g. business@okhdfcbank)',
+                        icon: isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded,
+                        enabled: _isEditing,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 24),
-              ],
+              ),
+
+              const SizedBox(height: 24),
 
               // 5. Logout Section Button inside Profile
               Container(
@@ -801,51 +821,144 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required bool enabled,
     String? Function(String?)? validator,
   }) {
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    if (isIos) {
+      // iOS Modern Cupertino Inset Field
+      return Container(
+        decoration: BoxDecoration(
+          color: isDark
+              ? const Color(0xFF1C1C1E)
+              : CupertinoColors.secondarySystemGroupedBackground,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDark
+                ? const Color(0xFF38383A)
+                : const Color(0xFFE5E5EA),
+            width: 1.0,
+          ),
+        ),
+        child: TextFormField(
+          controller: controller,
+          enabled: enabled,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          validator: validator,
+          cursorColor: CupertinoColors.activeBlue,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: enabled
+                ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                : CupertinoColors.secondaryLabel,
+          ),
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: TextStyle(
+              fontSize: 13,
+              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70),
+              fontWeight: FontWeight.w500,
+            ),
+            floatingLabelStyle: const TextStyle(
+              fontSize: 12,
+              color: CupertinoColors.activeBlue,
+              fontWeight: FontWeight.w600,
+            ),
+            prefixIcon: Icon(
+              icon,
+              size: 20,
+              color: isDark ? const Color(0xFF8E8E93) : const Color(0xFF6C6C70),
+            ),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            disabledBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            filled: false,
+          ),
+        ),
+      );
+    }
+
+    // Material 3 Expressive Text Field (Android)
     return TextFormField(
       controller: controller,
       enabled: enabled,
       keyboardType: keyboardType,
       maxLines: maxLines,
       validator: validator,
+      cursorColor: colorScheme.primary,
       style: TextStyle(
-        fontSize: 14,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
         color: enabled
-            ? Theme.of(context).colorScheme.onSurface
-            : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            ? colorScheme.onSurface
+            : colorScheme.onSurface.withValues(alpha: 0.6),
       ),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, size: 20),
+        labelStyle: TextStyle(
+          fontSize: 14,
+          color: colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w500,
+        ),
+        floatingLabelStyle: TextStyle(
+          fontSize: 12,
+          color: colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
+        prefixIcon: Container(
+          margin: const EdgeInsets.only(left: 12, right: 10),
+          child: Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 24),
         filled: true,
-        fillColor: enabled
-            ? Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4)
-            : Theme.of(context).colorScheme.surfaceContainerLow.withValues(alpha: 0.5),
+        fillColor: colorScheme.surfaceContainerLowest,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.6),
           ),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.6),
           ),
         ),
         disabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.25),
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           borderSide: BorderSide(
-            color: Theme.of(context).colorScheme.primary,
+            color: colorScheme.primary,
+            width: 2.0,
+          ),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(
+            color: colorScheme.error,
             width: 1.5,
           ),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(
+            color: colorScheme.error,
+            width: 2.0,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       ),
     );
   }
