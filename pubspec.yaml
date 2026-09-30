@@ -60,6 +60,7 @@ dependencies:
   supabase_flutter: ^2.17.2
   uuid: ^4.6.0
   shared_preferences: ^2.5.5
+  home_widget: ^0.10.0
 
 dev_dependencies:
   flutter_test:

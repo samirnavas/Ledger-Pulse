@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Material You (Monet) Dynamic Dark Palette on Android 12+ (API 31+) -->
+    <color name="widget_bg">@android:color/system_neutral1_800</color>
+    <color name="widget_container_tonal">@android:color/system_neutral1_700</color>
+    <color name="widget_on_surface">@android:color/system_neutral1_100</color>
+    <color name="widget_on_surface_variant">@android:color/system_neutral2_200</color>
+    <color name="widget_divider">@android:color/system_neutral2_600</color>
+    <color name="widget_inflow_indicator">@android:color/system_accent1_200</color>
+    <color name="widget_outflow_indicator">@android:color/system_accent3_200</color>
+    <color name="widget_badge_inflow_bg">@android:color/system_accent1_800</color>
+    <color name="widget_badge_outflow_bg">@android:color/system_accent3_800</color>
+</resources>

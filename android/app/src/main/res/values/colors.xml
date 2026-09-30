@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- M3 Expressive Light Mode Tokens for Ledger Pulse Widget -->
+    <color name="widget_bg">#9BD6A2</color>
+    <color name="widget_container_tonal">#86C58E</color>
+    <color name="widget_on_surface">#0A1C0E</color>
+    <color name="widget_on_surface_variant">#1E3B24</color>
+    <color name="widget_divider">#527357</color>
+    <color name="widget_inflow_indicator">#004D25</color>
+    <color name="widget_outflow_indicator">#8A1414</color>
+    <color name="widget_badge_inflow_bg">#C8E6C9</color>
+    <color name="widget_badge_outflow_bg">#FFCDD2</color>
+</resources>

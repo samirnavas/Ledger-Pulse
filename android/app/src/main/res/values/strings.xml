@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ledger Pulse</string>
+    <string name="widget_name">Ledger Pulse</string>
+    <string name="widget_description">Live cash inflow &amp; outflow overview for the active company</string>
+</resources>
