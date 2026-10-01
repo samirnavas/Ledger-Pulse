@@ -2,14 +2,14 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/constants/colors.dart';
+// import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
-import '../../core/widgets/liquid_glass_card.dart';
+// import '../../core/widgets/liquid_glass_card.dart';
 import '../providers/company_providers.dart';
-import '../providers/profile_provider.dart';
-import '../providers/subscription_providers.dart';
+// import '../providers/profile_provider.dart';
+// import '../providers/subscription_providers.dart';
 import '../reports/reporting_hub_screen.dart';
 import '../settings/settings_screen.dart';
 import 'company_switcher_sheet.dart';
@@ -17,10 +17,12 @@ import 'sync_settings_sheet.dart';
 
 class DashboardSidebarDrawer extends ConsumerWidget {
   final VoidCallback onOpenErpModules;
+  final VoidCallback onOpenBiHub;
 
   const DashboardSidebarDrawer({
     super.key,
     required this.onOpenErpModules,
+    required this.onOpenBiHub,
   });
 
   @override
@@ -29,14 +31,15 @@ class DashboardSidebarDrawer extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
-    final profile = ref.watch(userProfileProvider);
+    // final profile = ref.watch(userProfileProvider);
     final activeCompany = ref.watch(activeCompanyProvider);
-    final subscription = ref.watch(subscriptionStateProvider);
+    // final subscription = ref.watch(subscriptionStateProvider);
 
     final drawerBg = isIos
         ? (isDark ? const Color(0xEE0F172A) : const Color(0xEEF8FAFC))
         : colorScheme.surfaceContainerLow;
 
+    /* Temporarily commented out profile badge definition
     final profileBadge = Row(
       children: [
         CircleAvatar(
@@ -68,7 +71,9 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                 profile.phoneNumber,
                 style: TextStyle(
                   fontSize: 11,
-                  color: isIos ? CupertinoColors.secondaryLabel : colorScheme.onSurfaceVariant,
+                  color: isIos
+                      ? CupertinoColors.secondaryLabel
+                      : colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -80,15 +85,18 @@ class DashboardSidebarDrawer extends ConsumerWidget {
             color: subscription.isExpired
                 ? AppColors.payableRed.withValues(alpha: 0.15)
                 : AppColors.receivableGreen.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 isIos
-                    ? (subscription.isExpired ? CupertinoIcons.exclamationmark_triangle_fill : CupertinoIcons.checkmark_seal_fill)
-                    : (subscription.isExpired ? Icons.warning_rounded : Icons.verified_rounded),
+                    ? (subscription.isExpired
+                          ? CupertinoIcons.exclamationmark_triangle_fill
+                          : CupertinoIcons.checkmark_seal_fill)
+                    : (subscription.isExpired
+                          ? Icons.warning_rounded
+                          : Icons.verified_rounded),
                 size: 12,
                 color: subscription.isExpired
                     ? AppColors.payableRed
@@ -110,6 +118,7 @@ class DashboardSidebarDrawer extends ConsumerWidget {
         ),
       ],
     );
+    */
 
     return Drawer(
       backgroundColor: drawerBg,
@@ -122,12 +131,16 @@ class DashboardSidebarDrawer extends ConsumerWidget {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: isIos
-                    ? (isDark ? const Color(0x881E293B) : Colors.white.withValues(alpha: 0.8))
+                    ? (isDark
+                          ? const Color(0x881E293B)
+                          : Colors.white.withValues(alpha: 0.8))
                     : colorScheme.surfaceContainer,
                 border: Border(
                   bottom: BorderSide(
                     color: isIos
-                        ? (isDark ? Colors.white.withValues(alpha: 0.12) : Colors.black.withValues(alpha: 0.08))
+                        ? (isDark
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : Colors.black.withValues(alpha: 0.08))
                         : colorScheme.outlineVariant.withValues(alpha: 0.5),
                     width: 1,
                   ),
@@ -141,13 +154,21 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: (isIos ? CupertinoColors.activeBlue : colorScheme.primary).withValues(alpha: 0.12),
+                          color:
+                              (isIos
+                                      ? CupertinoColors.activeBlue
+                                      : colorScheme.primary)
+                                  .withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
-                          isIos ? CupertinoIcons.building_2_fill : Icons.corporate_fare_rounded,
+                          isIos
+                              ? CupertinoIcons.building_2_fill
+                              : Icons.corporate_fare_rounded,
                           size: 24,
-                          color: isIos ? CupertinoColors.activeBlue : colorScheme.primary,
+                          color: isIos
+                              ? CupertinoColors.activeBlue
+                              : colorScheme.primary,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -164,6 +185,7 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  /* Temporarily commented out profile badge
                   const SizedBox(height: 16),
                   isIos
                       ? LiquidGlassCard(
@@ -179,6 +201,7 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                           ),
                           child: profileBadge,
                         ),
+                  */
                 ],
               ),
             ),
@@ -206,32 +229,49 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (isIos ? CupertinoColors.activeBlue : colorScheme.primary).withValues(alpha: 0.12),
+                        color:
+                            (isIos
+                                    ? CupertinoColors.activeBlue
+                                    : colorScheme.primary)
+                                .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                       ),
                       child: Icon(
-                        isIos ? CupertinoIcons.arrow_2_squarepath : Icons.swap_horizontal_circle_rounded,
-                        color: isIos ? CupertinoColors.activeBlue : colorScheme.primary,
+                        isIos
+                            ? CupertinoIcons.arrow_2_squarepath
+                            : Icons.swap_horizontal_circle_rounded,
+                        color: isIos
+                            ? CupertinoColors.activeBlue
+                            : colorScheme.primary,
                         size: 20,
                       ),
                     ),
                     title: const Text(
                       'Switch Company',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     subtitle: Text(
                       activeCompany.name,
                       style: TextStyle(
                         fontSize: 11,
-                        color: isIos ? CupertinoColors.secondaryLabel : colorScheme.onSurfaceVariant,
+                        color: isIos
+                            ? CupertinoColors.secondaryLabel
+                            : colorScheme.onSurfaceVariant,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     trailing: Icon(
-                      isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                      isIos
+                          ? CupertinoIcons.chevron_forward
+                          : Icons.chevron_right_rounded,
                       size: isIos ? 14 : 20,
-                      color: isIos ? CupertinoColors.tertiaryLabel : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      color: isIos
+                          ? CupertinoColors.tertiaryLabel
+                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
                     onTap: () {
                       HapticFeedback.lightImpact();
@@ -245,30 +285,47 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (isIos ? CupertinoColors.systemTeal : colorScheme.secondary).withValues(alpha: 0.12),
+                        color:
+                            (isIos
+                                    ? CupertinoColors.systemTeal
+                                    : colorScheme.secondary)
+                                .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                       ),
                       child: Icon(
-                        isIos ? CupertinoIcons.cloud_upload_fill : Icons.cloud_sync_rounded,
-                        color: isIos ? CupertinoColors.systemTeal : colorScheme.secondary,
+                        isIos
+                            ? CupertinoIcons.cloud_upload_fill
+                            : Icons.cloud_sync_rounded,
+                        color: isIos
+                            ? CupertinoColors.systemTeal
+                            : colorScheme.secondary,
                         size: 20,
                       ),
                     ),
                     title: const Text(
                       'Sync & Backup Center',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     subtitle: Text(
                       'Cloud synchronization status & settings',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isIos ? CupertinoColors.secondaryLabel : colorScheme.onSurfaceVariant,
+                        color: isIos
+                            ? CupertinoColors.secondaryLabel
+                            : colorScheme.onSurfaceVariant,
                       ),
                     ),
                     trailing: Icon(
-                      isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                      isIos
+                          ? CupertinoIcons.chevron_forward
+                          : Icons.chevron_right_rounded,
                       size: isIos ? 14 : 20,
-                      color: isIos ? CupertinoColors.tertiaryLabel : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      color: isIos
+                          ? CupertinoColors.tertiaryLabel
+                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
                     onTap: () {
                       HapticFeedback.lightImpact();
@@ -277,41 +334,114 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                     },
                   ),
 
+                  // 3. Business Intelligence & Cash Flow
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color:
+                            (isIos
+                                    ? CupertinoColors.activeBlue
+                                    : colorScheme.primary)
+                                .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(isIos ? 10 : 14),
+                      ),
+                      child: Icon(
+                        isIos
+                            ? CupertinoIcons.chart_bar_alt_fill
+                            : Icons.insights_rounded,
+                        color: isIos
+                            ? CupertinoColors.activeBlue
+                            : colorScheme.primary,
+                        size: 20,
+                      ),
+                    ),
+                    title: const Text(
+                      'Cash Flow & Intelligence',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Telemetry, margins & working capital breakdown',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: isIos
+                            ? CupertinoColors.secondaryLabel
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    trailing: Icon(
+                      isIos
+                          ? CupertinoIcons.chevron_forward
+                          : Icons.chevron_right_rounded,
+                      size: isIos ? 14 : 20,
+                      color: isIos
+                          ? CupertinoColors.tertiaryLabel
+                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                    ),
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.pop(context);
+                      onOpenBiHub();
+                    },
+                  ),
+
                   // 3. Reports & Analytics Hub
                   ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (isIos ? CupertinoColors.systemPurple : colorScheme.tertiary).withValues(alpha: 0.12),
+                        color:
+                            (isIos
+                                    ? CupertinoColors.systemPurple
+                                    : colorScheme.tertiary)
+                                .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                       ),
                       child: Icon(
-                        isIos ? CupertinoIcons.chart_pie_fill : Icons.analytics_rounded,
-                        color: isIos ? CupertinoColors.systemPurple : colorScheme.tertiary,
+                        isIos
+                            ? CupertinoIcons.chart_pie_fill
+                            : Icons.analytics_rounded,
+                        color: isIos
+                            ? CupertinoColors.systemPurple
+                            : colorScheme.tertiary,
                         size: 20,
                       ),
                     ),
                     title: const Text(
                       'Reports & Analytics Hub',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     subtitle: Text(
                       'Daybook, P&L, GST & Party analytics',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isIos ? CupertinoColors.secondaryLabel : colorScheme.onSurfaceVariant,
+                        color: isIos
+                            ? CupertinoColors.secondaryLabel
+                            : colorScheme.onSurfaceVariant,
                       ),
                     ),
                     trailing: Icon(
-                      isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                      isIos
+                          ? CupertinoIcons.chevron_forward
+                          : Icons.chevron_right_rounded,
                       size: isIos ? 14 : 20,
-                      color: isIos ? CupertinoColors.tertiaryLabel : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      color: isIos
+                          ? CupertinoColors.tertiaryLabel
+                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
                     onTap: () {
                       HapticFeedback.lightImpact();
                       Navigator.pop(context);
                       Navigator.of(context).push(
-                        createAdaptivePageRoute(builder: (context) => const ReportingHubScreen()),
+                        createAdaptivePageRoute(
+                          builder: (context) => const ReportingHubScreen(),
+                        ),
                       );
                     },
                   ),
@@ -321,30 +451,47 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (isIos ? CupertinoColors.systemOrange : colorScheme.primaryContainer).withValues(alpha: 0.7),
+                        color:
+                            (isIos
+                                    ? CupertinoColors.activeBlue
+                                    : colorScheme.primary)
+                                .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                       ),
                       child: Icon(
-                        isIos ? CupertinoIcons.square_grid_2x2_fill : Icons.grid_view_rounded,
-                        color: isIos ? CupertinoColors.systemOrange : colorScheme.onPrimaryContainer,
+                        isIos
+                            ? CupertinoIcons.square_grid_2x2_fill
+                            : Icons.grid_view_rounded,
+                        color: isIos
+                            ? CupertinoColors.activeBlue
+                            : colorScheme.primary,
                         size: 20,
                       ),
                     ),
                     title: const Text(
                       'ERP Modules & Licensing',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     subtitle: Text(
                       'Payroll, Importers, Cheque printing & Paywall',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isIos ? CupertinoColors.secondaryLabel : colorScheme.onSurfaceVariant,
+                        color: isIos
+                            ? CupertinoColors.secondaryLabel
+                            : colorScheme.onSurfaceVariant,
                       ),
                     ),
                     trailing: Icon(
-                      isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                      isIos
+                          ? CupertinoIcons.chevron_forward
+                          : Icons.chevron_right_rounded,
                       size: isIos ? 14 : 20,
-                      color: isIos ? CupertinoColors.tertiaryLabel : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      color: isIos
+                          ? CupertinoColors.activeBlue
+                          : colorScheme.primary,
                     ),
                     onTap: () {
                       HapticFeedback.lightImpact();
@@ -358,30 +505,47 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (isIos ? CupertinoColors.systemGrey : colorScheme.surfaceContainerHighest).withValues(alpha: 0.5),
+                        color:
+                            (isIos
+                                    ? CupertinoColors.systemPurple
+                                    : colorScheme.tertiary)
+                                .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                       ),
                       child: Icon(
-                        isIos ? CupertinoIcons.gear_alt_fill : Icons.settings_suggest_rounded,
-                        color: isIos ? (isDark ? CupertinoColors.white : CupertinoColors.darkBackgroundGray) : colorScheme.onSurface,
+                        isIos
+                            ? CupertinoIcons.gear_alt_fill
+                            : Icons.settings_suggest_rounded,
+                        color: isIos
+                            ? CupertinoColors.activeBlue
+                            : colorScheme.primary,
                         size: 20,
                       ),
                     ),
                     title: const Text(
                       'Settings & Preferences',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     subtitle: Text(
                       'Color theme, profile, cloud sync & system settings',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isIos ? CupertinoColors.secondaryLabel : colorScheme.onSurfaceVariant,
+                        color: isIos
+                            ? CupertinoColors.secondaryLabel
+                            : colorScheme.onSurfaceVariant,
                       ),
                     ),
                     trailing: Icon(
-                      isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                      isIos
+                          ? CupertinoIcons.chevron_forward
+                          : Icons.chevron_right_rounded,
                       size: isIos ? 14 : 20,
-                      color: isIos ? CupertinoColors.tertiaryLabel : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      color: isIos
+                          ? CupertinoColors.tertiaryLabel
+                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
                     onTap: () {
                       HapticFeedback.lightImpact();

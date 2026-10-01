@@ -29,9 +29,11 @@ import '../providers/subscription_providers.dart';
 import '../reports/receivables_payables_screen.dart';
 import '../subscription/subscription_paywall_screen.dart';
 import 'add_party_dialog.dart';
+import 'company_switcher_sheet.dart';
 import 'dashboard_bi_hub_card.dart';
 import 'dashboard_sidebar_drawer.dart';
 import 'party_list_tab.dart';
+import 'sync_settings_sheet.dart';
 
 class DashboardTabNotifier extends Notifier<int> {
   @override
@@ -415,43 +417,76 @@ class DashboardScreen extends ConsumerWidget {
       child: AdaptiveScaffold(
         drawer: DashboardSidebarDrawer(
           onOpenErpModules: () => _showErpModulesModal(context),
+          onOpenBiHub: () => _showBiHubModal(context),
         ),
-        titleWidget: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(
-                isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded,
-                size: 20,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+        titleWidget: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            CompanySwitcherSheet.show(context);
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(
+                    isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded,
+                    size: 18,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    ref.watch(activeCompanyProvider).name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  isIos ? CupertinoIcons.chevron_down : Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: isIos
+                      ? CupertinoColors.secondaryLabel
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Text(
-              ref.watch(activeCompanyProvider).name,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
+          ),
         ),
         actions: [
+          // 1. Sync & Backup Center Button
           if (isIos)
             CupertinoButton(
               padding: const EdgeInsets.symmetric(horizontal: 8),
-              onPressed: () => _showBiHubModal(context),
-              child: const Icon(CupertinoIcons.chart_pie_fill, size: 22),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                SyncSettingsSheet.show(context);
+              },
+              child: const Icon(CupertinoIcons.cloud_upload_fill, size: 22),
             )
           else
             IconButton(
-              icon: const Icon(Icons.analytics_rounded),
-              onPressed: () => _showBiHubModal(context),
+              icon: const Icon(Icons.cloud_sync_rounded),
+              tooltip: 'Sync & Backup',
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                SyncSettingsSheet.show(context);
+              },
             ),
+          // 2. Add Party Button (iOS)
           if (isIos)
             CupertinoButton(
               padding: const EdgeInsets.symmetric(horizontal: 8),

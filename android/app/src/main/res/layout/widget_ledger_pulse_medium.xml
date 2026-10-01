@@ -51,7 +51,7 @@
         android:layout_weight="1"
         android:orientation="horizontal">
 
-        <!-- Inflow / Receivable Card -->
+        <!-- You'll Get / Receivable Card (Down Arrow ↓) -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
@@ -77,7 +77,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="4dp"
                     android:fontFamily="sans-serif-medium"
-                    android:text="↑"
+                    android:text="↓"
                     android:textColor="@color/widget_inflow_indicator"
                     android:textSize="18sp"
                     android:textStyle="bold" />
@@ -86,7 +86,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
-                    android:text="RECEIVABLE"
+                    android:text="YOU'LL GET"
                     android:textColor="@color/widget_on_surface_variant"
                     android:textSize="10sp"
                     android:textStyle="bold" />
@@ -127,7 +127,7 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Outflow / Payable Card -->
+        <!-- You'll Give / Payable Card (Up Arrow ↑) -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="match_parent"
@@ -153,7 +153,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="4dp"
                     android:fontFamily="sans-serif-medium"
-                    android:text="↓"
+                    android:text="↑"
                     android:textColor="@color/widget_outflow_indicator"
                     android:textSize="18sp"
                     android:textStyle="bold" />
@@ -162,7 +162,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
-                    android:text="PAYABLE"
+                    android:text="YOU'LL GIVE"
                     android:textColor="@color/widget_on_surface_variant"
                     android:textSize="10sp"
                     android:textStyle="bold" />

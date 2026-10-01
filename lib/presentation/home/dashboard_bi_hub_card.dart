@@ -77,16 +77,20 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryBlue.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
+                            color: isIos
+                                ? CupertinoColors.activeBlue.withValues(alpha: 0.15)
+                                : Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
                             isIos
                                 ? CupertinoIcons.chart_bar_alt_fill
                                 : Icons.insights_rounded,
-                            color: AppColors.primaryBlue,
+                            color: isIos
+                                ? CupertinoColors.activeBlue
+                                : Theme.of(context).colorScheme.onPrimaryContainer,
                             size: 22,
                           ),
                         ),
@@ -160,6 +164,9 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
     DashboardBiMetrics bi,
     bool isDark,
   ) {
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -172,10 +179,15 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
                 title: 'Sales Velocity',
                 value:
                     '${CurrencyFormatter.format(bi.salesVelocityPerDayInCents.round())}/day',
-                icon: AdaptiveThemeHelper.isIos(context)
+                icon: isIos
                     ? CupertinoIcons.speedometer
                     : Icons.speed_rounded,
-                iconColor: AppColors.primaryBlue,
+                iconColor: isIos
+                    ? CupertinoColors.activeBlue
+                    : colorScheme.primary,
+                iconBgColor: isIos
+                    ? CupertinoColors.activeBlue.withValues(alpha: 0.15)
+                    : colorScheme.primaryContainer,
                 isDark: isDark,
               ),
             ),
@@ -186,15 +198,20 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
                 title: 'Net Margin',
                 value: CurrencyFormatter.format(bi.netProfitInCents),
                 icon: bi.netProfitInCents >= 0
-                    ? (AdaptiveThemeHelper.isIos(context)
+                    ? (isIos
                         ? CupertinoIcons.graph_square_fill
                         : Icons.trending_up_rounded)
-                    : (AdaptiveThemeHelper.isIos(context)
+                    : (isIos
                         ? CupertinoIcons.graph_square
                         : Icons.trending_down_rounded),
                 iconColor: bi.netProfitInCents >= 0
-                    ? AppColors.receivableGreen
+                    ? (isIos ? CupertinoColors.systemGreen : colorScheme.tertiary)
                     : AppColors.payableRed,
+                iconBgColor: bi.netProfitInCents >= 0
+                    ? (isIos
+                        ? CupertinoColors.systemGreen.withValues(alpha: 0.15)
+                        : colorScheme.tertiaryContainer)
+                    : AppColors.payableRed.withValues(alpha: 0.15),
                 isDark: isDark,
               ),
             ),
@@ -333,17 +350,24 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
     required String value,
     required IconData icon,
     required Color iconColor,
+    required Color iconBgColor,
     required bool isDark,
   }) {
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(16),
+        color: isIos
+            ? (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9))
+            : colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                alpha: isDark ? 0.2 : 0.4,
-              ),
+          color: isIos
+              ? (isDark ? const Color(0x33475569) : const Color(0x1F000000))
+              : colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+          width: 1,
         ),
       ),
       child: Column(
@@ -351,24 +375,39 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 18, color: iconColor),
-              const SizedBox(width: 6),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: iconColor),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isIos
+                        ? (isDark ? CupertinoColors.secondaryLabel : CupertinoColors.secondaryLabel)
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
+              color: isIos
+                  ? (isDark ? CupertinoColors.white : CupertinoColors.black)
+                  : colorScheme.onSurface,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -397,15 +436,21 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
       if (t.expenseInCents > maxVal) maxVal = t.expenseInCents;
     }
 
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
+        color: isIos
+            ? (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC))
+            : colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                alpha: isDark ? 0.2 : 0.4,
-              ),
+          color: isIos
+              ? (isDark ? const Color(0x33475569) : const Color(0x1F000000))
+              : colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+          width: 1,
         ),
       ),
       child: Column(

@@ -144,9 +144,9 @@ struct SmallWidgetView: View {
 
                 Spacer(minLength: 4)
 
-                // Metric 1: Cash In / Receivable (↑ ₹ 2000)
+                // Metric 1: Cash In / Receivable / You'll Get (↓ ₹ 2000)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: "arrow.up")
+                    Image(systemName: "arrow.down")
                         .font(.system(size: 20, weight: .bold))
                         .foregroundColor(textColor)
 
@@ -173,9 +173,9 @@ struct SmallWidgetView: View {
 
                 Spacer(minLength: 4)
 
-                // Metric 2: Cash Out / Payable (↓ ₹ 1000)
+                // Metric 2: Cash Out / Payable / You'll Give (↑ ₹ 1000)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: "arrow.down")
+                    Image(systemName: "arrow.up")
                         .font(.system(size: 20, weight: .bold))
                         .foregroundColor(textColor)
 
@@ -264,14 +264,14 @@ struct MediumWidgetView: View {
 
                 // Dual Metric Cards
                 HStack(spacing: 10) {
-                    // Inflow Card
+                    // You'll Get Card (Down Arrow)
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 4) {
-                            Image(systemName: "arrow.up.circle.fill")
+                            Image(systemName: "arrow.down.circle.fill")
                                 .font(.system(size: 14))
                                 .foregroundColor(colorScheme == .dark ? .green : Color(red: 0.0, green: 0.35, blue: 0.15))
 
-                            Text("RECEIVABLE")
+                            Text("YOU'LL GET")
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(subtitleColor)
                         }
@@ -295,14 +295,14 @@ struct MediumWidgetView: View {
                     .background(cardBackgroundColor)
                     .cornerRadius(14)
 
-                    // Outflow Card
+                    // You'll Give Card (Up Arrow)
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 4) {
-                            Image(systemName: "arrow.down.circle.fill")
+                            Image(systemName: "arrow.up.circle.fill")
                                 .font(.system(size: 14))
                                 .foregroundColor(colorScheme == .dark ? .red : Color(red: 0.55, green: 0.10, blue: 0.10))
 
-                            Text("PAYABLE")
+                            Text("YOU'LL GIVE")
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(subtitleColor)
                         }

@@ -17,7 +17,7 @@ class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({
     super.key,
     this.onAnimationComplete,
-    this.holdDuration = const Duration(milliseconds: 1500),
+    this.holdDuration = const Duration(milliseconds: 450),
   });
 
   @override
@@ -72,13 +72,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         ? AppColors.textSecondaryDark
         : AppColors.textSecondaryLight;
 
-    // Animation timeline calculation:
-    // 1. Fade in & scale: 500ms
-    // 2. Hold: widget.holdDuration (default 1500ms)
-    // 3. Exit delay = 500ms + holdDuration
-    const entryDuration = Duration(milliseconds: 500);
+    // Animation timeline calculation (snappy & fast):
+    // 1. Fade in & scale: 300ms
+    // 2. Hold: widget.holdDuration (default 450ms)
+    // 3. Exit delay = 300ms + holdDuration
+    const entryDuration = Duration(milliseconds: 300);
     final exitDelay = entryDuration + widget.holdDuration;
-    const exitDuration = Duration(milliseconds: 450);
+    const exitDuration = Duration(milliseconds: 250);
 
     final content = Center(
       child: Column(

@@ -5,6 +5,8 @@
     android:initialLayout="@layout/widget_ledger_pulse_small"
     android:minWidth="140dp"
     android:minHeight="140dp"
+    android:minResizeWidth="140dp"
+    android:minResizeHeight="140dp"
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:previewLayout="@layout/widget_ledger_pulse_small"

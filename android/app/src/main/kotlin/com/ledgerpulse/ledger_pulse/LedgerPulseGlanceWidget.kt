@@ -124,13 +124,13 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
 
                 Spacer(modifier = GlanceModifier.defaultWeight())
 
-                // Inflow Row: ↑ ₹ 6,650
+                // You'll Get Row (Receivable): ↓ ₹ 6,650
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "↑",
+                        text = "↓",
                         style = TextStyle(
                             color = onSurfaceVariant,
                             fontSize = 18.sp,
@@ -169,13 +169,13 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
 
                 Spacer(modifier = GlanceModifier.defaultWeight())
 
-                // Outflow Row: ↓ ₹ 16,000
+                // You'll Give Row (Payable): ↑ ₹ 16,000
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "↓",
+                        text = "↑",
                         style = TextStyle(
                             color = onSurfaceVariant,
                             fontSize = 18.sp,
