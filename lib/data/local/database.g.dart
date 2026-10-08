@@ -8238,6 +8238,2265 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
   }
 }
 
+class $AccountsTable extends Accounts
+    with TableInfo<$AccountsTable, AccountTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AccountsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyIdMeta = const VerificationMeta(
+    'companyId',
+  );
+  @override
+  late final GeneratedColumn<String> companyId = GeneratedColumn<String>(
+    'company_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('cmp_default'),
+  );
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+    'code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _parentAccountIdMeta = const VerificationMeta(
+    'parentAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> parentAccountId = GeneratedColumn<String>(
+    'parent_account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSystemMeta = const VerificationMeta(
+    'isSystem',
+  );
+  @override
+  late final GeneratedColumn<bool> isSystem = GeneratedColumn<bool>(
+    'is_system',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_system" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _currentBalanceInCentsMeta =
+      const VerificationMeta('currentBalanceInCents');
+  @override
+  late final GeneratedColumn<int> currentBalanceInCents = GeneratedColumn<int>(
+    'current_balance_in_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  ).withConverter<SyncRecordStatus>($AccountsTable.$convertersyncStatus);
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    companyId,
+    code,
+    name,
+    type,
+    parentAccountId,
+    isSystem,
+    isActive,
+    description,
+    currentBalanceInCents,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'accounts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AccountTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('company_id')) {
+      context.handle(
+        _companyIdMeta,
+        companyId.isAcceptableOrUnknown(data['company_id']!, _companyIdMeta),
+      );
+    }
+    if (data.containsKey('code')) {
+      context.handle(
+        _codeMeta,
+        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_codeMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('parent_account_id')) {
+      context.handle(
+        _parentAccountIdMeta,
+        parentAccountId.isAcceptableOrUnknown(
+          data['parent_account_id']!,
+          _parentAccountIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_system')) {
+      context.handle(
+        _isSystemMeta,
+        isSystem.isAcceptableOrUnknown(data['is_system']!, _isSystemMeta),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('current_balance_in_cents')) {
+      context.handle(
+        _currentBalanceInCentsMeta,
+        currentBalanceInCents.isAcceptableOrUnknown(
+          data['current_balance_in_cents']!,
+          _currentBalanceInCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AccountTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AccountTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      companyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_id'],
+      )!,
+      code: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      parentAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_account_id'],
+      ),
+      isSystem: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_system'],
+      )!,
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      currentBalanceInCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}current_balance_in_cents'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $AccountsTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $AccountsTable createAlias(String alias) {
+    return $AccountsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class AccountTableData extends DataClass
+    implements Insertable<AccountTableData> {
+  final String id;
+  final String companyId;
+  final String code;
+  final String name;
+  final String type;
+  final String? parentAccountId;
+  final bool isSystem;
+  final bool isActive;
+  final String? description;
+  final int currentBalanceInCents;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  const AccountTableData({
+    required this.id,
+    required this.companyId,
+    required this.code,
+    required this.name,
+    required this.type,
+    this.parentAccountId,
+    required this.isSystem,
+    required this.isActive,
+    this.description,
+    required this.currentBalanceInCents,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['company_id'] = Variable<String>(companyId);
+    map['code'] = Variable<String>(code);
+    map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
+    if (!nullToAbsent || parentAccountId != null) {
+      map['parent_account_id'] = Variable<String>(parentAccountId);
+    }
+    map['is_system'] = Variable<bool>(isSystem);
+    map['is_active'] = Variable<bool>(isActive);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['current_balance_in_cents'] = Variable<int>(currentBalanceInCents);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $AccountsTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    return map;
+  }
+
+  AccountsCompanion toCompanion(bool nullToAbsent) {
+    return AccountsCompanion(
+      id: Value(id),
+      companyId: Value(companyId),
+      code: Value(code),
+      name: Value(name),
+      type: Value(type),
+      parentAccountId: parentAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentAccountId),
+      isSystem: Value(isSystem),
+      isActive: Value(isActive),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      currentBalanceInCents: Value(currentBalanceInCents),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory AccountTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AccountTableData(
+      id: serializer.fromJson<String>(json['id']),
+      companyId: serializer.fromJson<String>(json['companyId']),
+      code: serializer.fromJson<String>(json['code']),
+      name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
+      parentAccountId: serializer.fromJson<String?>(json['parentAccountId']),
+      isSystem: serializer.fromJson<bool>(json['isSystem']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      description: serializer.fromJson<String?>(json['description']),
+      currentBalanceInCents: serializer.fromJson<int>(
+        json['currentBalanceInCents'],
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $AccountsTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'companyId': serializer.toJson<String>(companyId),
+      'code': serializer.toJson<String>(code),
+      'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
+      'parentAccountId': serializer.toJson<String?>(parentAccountId),
+      'isSystem': serializer.toJson<bool>(isSystem),
+      'isActive': serializer.toJson<bool>(isActive),
+      'description': serializer.toJson<String?>(description),
+      'currentBalanceInCents': serializer.toJson<int>(currentBalanceInCents),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $AccountsTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+    };
+  }
+
+  AccountTableData copyWith({
+    String? id,
+    String? companyId,
+    String? code,
+    String? name,
+    String? type,
+    Value<String?> parentAccountId = const Value.absent(),
+    bool? isSystem,
+    bool? isActive,
+    Value<String?> description = const Value.absent(),
+    int? currentBalanceInCents,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+  }) => AccountTableData(
+    id: id ?? this.id,
+    companyId: companyId ?? this.companyId,
+    code: code ?? this.code,
+    name: name ?? this.name,
+    type: type ?? this.type,
+    parentAccountId: parentAccountId.present
+        ? parentAccountId.value
+        : this.parentAccountId,
+    isSystem: isSystem ?? this.isSystem,
+    isActive: isActive ?? this.isActive,
+    description: description.present ? description.value : this.description,
+    currentBalanceInCents: currentBalanceInCents ?? this.currentBalanceInCents,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  AccountTableData copyWithCompanion(AccountsCompanion data) {
+    return AccountTableData(
+      id: data.id.present ? data.id.value : this.id,
+      companyId: data.companyId.present ? data.companyId.value : this.companyId,
+      code: data.code.present ? data.code.value : this.code,
+      name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      parentAccountId: data.parentAccountId.present
+          ? data.parentAccountId.value
+          : this.parentAccountId,
+      isSystem: data.isSystem.present ? data.isSystem.value : this.isSystem,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      currentBalanceInCents: data.currentBalanceInCents.present
+          ? data.currentBalanceInCents.value
+          : this.currentBalanceInCents,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AccountTableData(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('code: $code, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('parentAccountId: $parentAccountId, ')
+          ..write('isSystem: $isSystem, ')
+          ..write('isActive: $isActive, ')
+          ..write('description: $description, ')
+          ..write('currentBalanceInCents: $currentBalanceInCents, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    companyId,
+    code,
+    name,
+    type,
+    parentAccountId,
+    isSystem,
+    isActive,
+    description,
+    currentBalanceInCents,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AccountTableData &&
+          other.id == this.id &&
+          other.companyId == this.companyId &&
+          other.code == this.code &&
+          other.name == this.name &&
+          other.type == this.type &&
+          other.parentAccountId == this.parentAccountId &&
+          other.isSystem == this.isSystem &&
+          other.isActive == this.isActive &&
+          other.description == this.description &&
+          other.currentBalanceInCents == this.currentBalanceInCents &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus);
+}
+
+class AccountsCompanion extends UpdateCompanion<AccountTableData> {
+  final Value<String> id;
+  final Value<String> companyId;
+  final Value<String> code;
+  final Value<String> name;
+  final Value<String> type;
+  final Value<String?> parentAccountId;
+  final Value<bool> isSystem;
+  final Value<bool> isActive;
+  final Value<String?> description;
+  final Value<int> currentBalanceInCents;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> rowid;
+  const AccountsCompanion({
+    this.id = const Value.absent(),
+    this.companyId = const Value.absent(),
+    this.code = const Value.absent(),
+    this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.parentAccountId = const Value.absent(),
+    this.isSystem = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.description = const Value.absent(),
+    this.currentBalanceInCents = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AccountsCompanion.insert({
+    required String id,
+    this.companyId = const Value.absent(),
+    required String code,
+    required String name,
+    required String type,
+    this.parentAccountId = const Value.absent(),
+    this.isSystem = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.description = const Value.absent(),
+    this.currentBalanceInCents = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       code = Value(code),
+       name = Value(name),
+       type = Value(type);
+  static Insertable<AccountTableData> custom({
+    Expression<String>? id,
+    Expression<String>? companyId,
+    Expression<String>? code,
+    Expression<String>? name,
+    Expression<String>? type,
+    Expression<String>? parentAccountId,
+    Expression<bool>? isSystem,
+    Expression<bool>? isActive,
+    Expression<String>? description,
+    Expression<int>? currentBalanceInCents,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (companyId != null) 'company_id': companyId,
+      if (code != null) 'code': code,
+      if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (parentAccountId != null) 'parent_account_id': parentAccountId,
+      if (isSystem != null) 'is_system': isSystem,
+      if (isActive != null) 'is_active': isActive,
+      if (description != null) 'description': description,
+      if (currentBalanceInCents != null)
+        'current_balance_in_cents': currentBalanceInCents,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AccountsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? companyId,
+    Value<String>? code,
+    Value<String>? name,
+    Value<String>? type,
+    Value<String?>? parentAccountId,
+    Value<bool>? isSystem,
+    Value<bool>? isActive,
+    Value<String?>? description,
+    Value<int>? currentBalanceInCents,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return AccountsCompanion(
+      id: id ?? this.id,
+      companyId: companyId ?? this.companyId,
+      code: code ?? this.code,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      parentAccountId: parentAccountId ?? this.parentAccountId,
+      isSystem: isSystem ?? this.isSystem,
+      isActive: isActive ?? this.isActive,
+      description: description ?? this.description,
+      currentBalanceInCents:
+          currentBalanceInCents ?? this.currentBalanceInCents,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (companyId.present) {
+      map['company_id'] = Variable<String>(companyId.value);
+    }
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (parentAccountId.present) {
+      map['parent_account_id'] = Variable<String>(parentAccountId.value);
+    }
+    if (isSystem.present) {
+      map['is_system'] = Variable<bool>(isSystem.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (currentBalanceInCents.present) {
+      map['current_balance_in_cents'] = Variable<int>(
+        currentBalanceInCents.value,
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $AccountsTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AccountsCompanion(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('code: $code, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('parentAccountId: $parentAccountId, ')
+          ..write('isSystem: $isSystem, ')
+          ..write('isActive: $isActive, ')
+          ..write('description: $description, ')
+          ..write('currentBalanceInCents: $currentBalanceInCents, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $JournalsTable extends Journals
+    with TableInfo<$JournalsTable, JournalTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $JournalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyIdMeta = const VerificationMeta(
+    'companyId',
+  );
+  @override
+  late final GeneratedColumn<String> companyId = GeneratedColumn<String>(
+    'company_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('cmp_default'),
+  );
+  static const VerificationMeta _journalNumberMeta = const VerificationMeta(
+    'journalNumber',
+  );
+  @override
+  late final GeneratedColumn<String> journalNumber = GeneratedColumn<String>(
+    'journal_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _voucherIdMeta = const VerificationMeta(
+    'voucherId',
+  );
+  @override
+  late final GeneratedColumn<String> voucherId = GeneratedColumn<String>(
+    'voucher_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+    'date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _narrationMeta = const VerificationMeta(
+    'narration',
+  );
+  @override
+  late final GeneratedColumn<String> narration = GeneratedColumn<String>(
+    'narration',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _totalAmountInCentsMeta =
+      const VerificationMeta('totalAmountInCents');
+  @override
+  late final GeneratedColumn<int> totalAmountInCents = GeneratedColumn<int>(
+    'total_amount_in_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('posted'),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  ).withConverter<SyncRecordStatus>($JournalsTable.$convertersyncStatus);
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    companyId,
+    journalNumber,
+    voucherId,
+    date,
+    narration,
+    totalAmountInCents,
+    status,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'journals';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<JournalTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('company_id')) {
+      context.handle(
+        _companyIdMeta,
+        companyId.isAcceptableOrUnknown(data['company_id']!, _companyIdMeta),
+      );
+    }
+    if (data.containsKey('journal_number')) {
+      context.handle(
+        _journalNumberMeta,
+        journalNumber.isAcceptableOrUnknown(
+          data['journal_number']!,
+          _journalNumberMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_journalNumberMeta);
+    }
+    if (data.containsKey('voucher_id')) {
+      context.handle(
+        _voucherIdMeta,
+        voucherId.isAcceptableOrUnknown(data['voucher_id']!, _voucherIdMeta),
+      );
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('narration')) {
+      context.handle(
+        _narrationMeta,
+        narration.isAcceptableOrUnknown(data['narration']!, _narrationMeta),
+      );
+    }
+    if (data.containsKey('total_amount_in_cents')) {
+      context.handle(
+        _totalAmountInCentsMeta,
+        totalAmountInCents.isAcceptableOrUnknown(
+          data['total_amount_in_cents']!,
+          _totalAmountInCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  JournalTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return JournalTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      companyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_id'],
+      )!,
+      journalNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}journal_number'],
+      )!,
+      voucherId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}voucher_id'],
+      ),
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}date'],
+      )!,
+      narration: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}narration'],
+      ),
+      totalAmountInCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_amount_in_cents'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $JournalsTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $JournalsTable createAlias(String alias) {
+    return $JournalsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class JournalTableData extends DataClass
+    implements Insertable<JournalTableData> {
+  final String id;
+  final String companyId;
+  final String journalNumber;
+  final String? voucherId;
+  final DateTime date;
+  final String? narration;
+  final int totalAmountInCents;
+  final String status;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  const JournalTableData({
+    required this.id,
+    required this.companyId,
+    required this.journalNumber,
+    this.voucherId,
+    required this.date,
+    this.narration,
+    required this.totalAmountInCents,
+    required this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['company_id'] = Variable<String>(companyId);
+    map['journal_number'] = Variable<String>(journalNumber);
+    if (!nullToAbsent || voucherId != null) {
+      map['voucher_id'] = Variable<String>(voucherId);
+    }
+    map['date'] = Variable<DateTime>(date);
+    if (!nullToAbsent || narration != null) {
+      map['narration'] = Variable<String>(narration);
+    }
+    map['total_amount_in_cents'] = Variable<int>(totalAmountInCents);
+    map['status'] = Variable<String>(status);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $JournalsTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    return map;
+  }
+
+  JournalsCompanion toCompanion(bool nullToAbsent) {
+    return JournalsCompanion(
+      id: Value(id),
+      companyId: Value(companyId),
+      journalNumber: Value(journalNumber),
+      voucherId: voucherId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(voucherId),
+      date: Value(date),
+      narration: narration == null && nullToAbsent
+          ? const Value.absent()
+          : Value(narration),
+      totalAmountInCents: Value(totalAmountInCents),
+      status: Value(status),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory JournalTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return JournalTableData(
+      id: serializer.fromJson<String>(json['id']),
+      companyId: serializer.fromJson<String>(json['companyId']),
+      journalNumber: serializer.fromJson<String>(json['journalNumber']),
+      voucherId: serializer.fromJson<String?>(json['voucherId']),
+      date: serializer.fromJson<DateTime>(json['date']),
+      narration: serializer.fromJson<String?>(json['narration']),
+      totalAmountInCents: serializer.fromJson<int>(json['totalAmountInCents']),
+      status: serializer.fromJson<String>(json['status']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $JournalsTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'companyId': serializer.toJson<String>(companyId),
+      'journalNumber': serializer.toJson<String>(journalNumber),
+      'voucherId': serializer.toJson<String?>(voucherId),
+      'date': serializer.toJson<DateTime>(date),
+      'narration': serializer.toJson<String?>(narration),
+      'totalAmountInCents': serializer.toJson<int>(totalAmountInCents),
+      'status': serializer.toJson<String>(status),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $JournalsTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+    };
+  }
+
+  JournalTableData copyWith({
+    String? id,
+    String? companyId,
+    String? journalNumber,
+    Value<String?> voucherId = const Value.absent(),
+    DateTime? date,
+    Value<String?> narration = const Value.absent(),
+    int? totalAmountInCents,
+    String? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+  }) => JournalTableData(
+    id: id ?? this.id,
+    companyId: companyId ?? this.companyId,
+    journalNumber: journalNumber ?? this.journalNumber,
+    voucherId: voucherId.present ? voucherId.value : this.voucherId,
+    date: date ?? this.date,
+    narration: narration.present ? narration.value : this.narration,
+    totalAmountInCents: totalAmountInCents ?? this.totalAmountInCents,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  JournalTableData copyWithCompanion(JournalsCompanion data) {
+    return JournalTableData(
+      id: data.id.present ? data.id.value : this.id,
+      companyId: data.companyId.present ? data.companyId.value : this.companyId,
+      journalNumber: data.journalNumber.present
+          ? data.journalNumber.value
+          : this.journalNumber,
+      voucherId: data.voucherId.present ? data.voucherId.value : this.voucherId,
+      date: data.date.present ? data.date.value : this.date,
+      narration: data.narration.present ? data.narration.value : this.narration,
+      totalAmountInCents: data.totalAmountInCents.present
+          ? data.totalAmountInCents.value
+          : this.totalAmountInCents,
+      status: data.status.present ? data.status.value : this.status,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JournalTableData(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('journalNumber: $journalNumber, ')
+          ..write('voucherId: $voucherId, ')
+          ..write('date: $date, ')
+          ..write('narration: $narration, ')
+          ..write('totalAmountInCents: $totalAmountInCents, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    companyId,
+    journalNumber,
+    voucherId,
+    date,
+    narration,
+    totalAmountInCents,
+    status,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is JournalTableData &&
+          other.id == this.id &&
+          other.companyId == this.companyId &&
+          other.journalNumber == this.journalNumber &&
+          other.voucherId == this.voucherId &&
+          other.date == this.date &&
+          other.narration == this.narration &&
+          other.totalAmountInCents == this.totalAmountInCents &&
+          other.status == this.status &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus);
+}
+
+class JournalsCompanion extends UpdateCompanion<JournalTableData> {
+  final Value<String> id;
+  final Value<String> companyId;
+  final Value<String> journalNumber;
+  final Value<String?> voucherId;
+  final Value<DateTime> date;
+  final Value<String?> narration;
+  final Value<int> totalAmountInCents;
+  final Value<String> status;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> rowid;
+  const JournalsCompanion({
+    this.id = const Value.absent(),
+    this.companyId = const Value.absent(),
+    this.journalNumber = const Value.absent(),
+    this.voucherId = const Value.absent(),
+    this.date = const Value.absent(),
+    this.narration = const Value.absent(),
+    this.totalAmountInCents = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  JournalsCompanion.insert({
+    required String id,
+    this.companyId = const Value.absent(),
+    required String journalNumber,
+    this.voucherId = const Value.absent(),
+    required DateTime date,
+    this.narration = const Value.absent(),
+    this.totalAmountInCents = const Value.absent(),
+    this.status = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       journalNumber = Value(journalNumber),
+       date = Value(date);
+  static Insertable<JournalTableData> custom({
+    Expression<String>? id,
+    Expression<String>? companyId,
+    Expression<String>? journalNumber,
+    Expression<String>? voucherId,
+    Expression<DateTime>? date,
+    Expression<String>? narration,
+    Expression<int>? totalAmountInCents,
+    Expression<String>? status,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (companyId != null) 'company_id': companyId,
+      if (journalNumber != null) 'journal_number': journalNumber,
+      if (voucherId != null) 'voucher_id': voucherId,
+      if (date != null) 'date': date,
+      if (narration != null) 'narration': narration,
+      if (totalAmountInCents != null)
+        'total_amount_in_cents': totalAmountInCents,
+      if (status != null) 'status': status,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  JournalsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? companyId,
+    Value<String>? journalNumber,
+    Value<String?>? voucherId,
+    Value<DateTime>? date,
+    Value<String?>? narration,
+    Value<int>? totalAmountInCents,
+    Value<String>? status,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return JournalsCompanion(
+      id: id ?? this.id,
+      companyId: companyId ?? this.companyId,
+      journalNumber: journalNumber ?? this.journalNumber,
+      voucherId: voucherId ?? this.voucherId,
+      date: date ?? this.date,
+      narration: narration ?? this.narration,
+      totalAmountInCents: totalAmountInCents ?? this.totalAmountInCents,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (companyId.present) {
+      map['company_id'] = Variable<String>(companyId.value);
+    }
+    if (journalNumber.present) {
+      map['journal_number'] = Variable<String>(journalNumber.value);
+    }
+    if (voucherId.present) {
+      map['voucher_id'] = Variable<String>(voucherId.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (narration.present) {
+      map['narration'] = Variable<String>(narration.value);
+    }
+    if (totalAmountInCents.present) {
+      map['total_amount_in_cents'] = Variable<int>(totalAmountInCents.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $JournalsTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JournalsCompanion(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('journalNumber: $journalNumber, ')
+          ..write('voucherId: $voucherId, ')
+          ..write('date: $date, ')
+          ..write('narration: $narration, ')
+          ..write('totalAmountInCents: $totalAmountInCents, ')
+          ..write('status: $status, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $JournalLinesTable extends JournalLines
+    with TableInfo<$JournalLinesTable, JournalLineTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $JournalLinesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyIdMeta = const VerificationMeta(
+    'companyId',
+  );
+  @override
+  late final GeneratedColumn<String> companyId = GeneratedColumn<String>(
+    'company_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('cmp_default'),
+  );
+  static const VerificationMeta _journalIdMeta = const VerificationMeta(
+    'journalId',
+  );
+  @override
+  late final GeneratedColumn<String> journalId = GeneratedColumn<String>(
+    'journal_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES journals (id)',
+    ),
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id)',
+    ),
+  );
+  static const VerificationMeta _partyIdMeta = const VerificationMeta(
+    'partyId',
+  );
+  @override
+  late final GeneratedColumn<String> partyId = GeneratedColumn<String>(
+    'party_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _debitInCentsMeta = const VerificationMeta(
+    'debitInCents',
+  );
+  @override
+  late final GeneratedColumn<int> debitInCents = GeneratedColumn<int>(
+    'debit_in_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _creditInCentsMeta = const VerificationMeta(
+    'creditInCents',
+  );
+  @override
+  late final GeneratedColumn<int> creditInCents = GeneratedColumn<int>(
+    'credit_in_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _narrationMeta = const VerificationMeta(
+    'narration',
+  );
+  @override
+  late final GeneratedColumn<String> narration = GeneratedColumn<String>(
+    'narration',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  ).withConverter<SyncRecordStatus>($JournalLinesTable.$convertersyncStatus);
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    companyId,
+    journalId,
+    accountId,
+    partyId,
+    debitInCents,
+    creditInCents,
+    narration,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'journal_lines';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<JournalLineTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('company_id')) {
+      context.handle(
+        _companyIdMeta,
+        companyId.isAcceptableOrUnknown(data['company_id']!, _companyIdMeta),
+      );
+    }
+    if (data.containsKey('journal_id')) {
+      context.handle(
+        _journalIdMeta,
+        journalId.isAcceptableOrUnknown(data['journal_id']!, _journalIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_journalIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('party_id')) {
+      context.handle(
+        _partyIdMeta,
+        partyId.isAcceptableOrUnknown(data['party_id']!, _partyIdMeta),
+      );
+    }
+    if (data.containsKey('debit_in_cents')) {
+      context.handle(
+        _debitInCentsMeta,
+        debitInCents.isAcceptableOrUnknown(
+          data['debit_in_cents']!,
+          _debitInCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('credit_in_cents')) {
+      context.handle(
+        _creditInCentsMeta,
+        creditInCents.isAcceptableOrUnknown(
+          data['credit_in_cents']!,
+          _creditInCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('narration')) {
+      context.handle(
+        _narrationMeta,
+        narration.isAcceptableOrUnknown(data['narration']!, _narrationMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  JournalLineTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return JournalLineTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      companyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_id'],
+      )!,
+      journalId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}journal_id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      partyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}party_id'],
+      ),
+      debitInCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}debit_in_cents'],
+      )!,
+      creditInCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}credit_in_cents'],
+      )!,
+      narration: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}narration'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $JournalLinesTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $JournalLinesTable createAlias(String alias) {
+    return $JournalLinesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class JournalLineTableData extends DataClass
+    implements Insertable<JournalLineTableData> {
+  final String id;
+  final String companyId;
+  final String journalId;
+  final String accountId;
+  final String? partyId;
+  final int debitInCents;
+  final int creditInCents;
+  final String? narration;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  const JournalLineTableData({
+    required this.id,
+    required this.companyId,
+    required this.journalId,
+    required this.accountId,
+    this.partyId,
+    required this.debitInCents,
+    required this.creditInCents,
+    this.narration,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['company_id'] = Variable<String>(companyId);
+    map['journal_id'] = Variable<String>(journalId);
+    map['account_id'] = Variable<String>(accountId);
+    if (!nullToAbsent || partyId != null) {
+      map['party_id'] = Variable<String>(partyId);
+    }
+    map['debit_in_cents'] = Variable<int>(debitInCents);
+    map['credit_in_cents'] = Variable<int>(creditInCents);
+    if (!nullToAbsent || narration != null) {
+      map['narration'] = Variable<String>(narration);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $JournalLinesTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    return map;
+  }
+
+  JournalLinesCompanion toCompanion(bool nullToAbsent) {
+    return JournalLinesCompanion(
+      id: Value(id),
+      companyId: Value(companyId),
+      journalId: Value(journalId),
+      accountId: Value(accountId),
+      partyId: partyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(partyId),
+      debitInCents: Value(debitInCents),
+      creditInCents: Value(creditInCents),
+      narration: narration == null && nullToAbsent
+          ? const Value.absent()
+          : Value(narration),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory JournalLineTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return JournalLineTableData(
+      id: serializer.fromJson<String>(json['id']),
+      companyId: serializer.fromJson<String>(json['companyId']),
+      journalId: serializer.fromJson<String>(json['journalId']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      partyId: serializer.fromJson<String?>(json['partyId']),
+      debitInCents: serializer.fromJson<int>(json['debitInCents']),
+      creditInCents: serializer.fromJson<int>(json['creditInCents']),
+      narration: serializer.fromJson<String?>(json['narration']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $JournalLinesTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'companyId': serializer.toJson<String>(companyId),
+      'journalId': serializer.toJson<String>(journalId),
+      'accountId': serializer.toJson<String>(accountId),
+      'partyId': serializer.toJson<String?>(partyId),
+      'debitInCents': serializer.toJson<int>(debitInCents),
+      'creditInCents': serializer.toJson<int>(creditInCents),
+      'narration': serializer.toJson<String?>(narration),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $JournalLinesTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+    };
+  }
+
+  JournalLineTableData copyWith({
+    String? id,
+    String? companyId,
+    String? journalId,
+    String? accountId,
+    Value<String?> partyId = const Value.absent(),
+    int? debitInCents,
+    int? creditInCents,
+    Value<String?> narration = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+  }) => JournalLineTableData(
+    id: id ?? this.id,
+    companyId: companyId ?? this.companyId,
+    journalId: journalId ?? this.journalId,
+    accountId: accountId ?? this.accountId,
+    partyId: partyId.present ? partyId.value : this.partyId,
+    debitInCents: debitInCents ?? this.debitInCents,
+    creditInCents: creditInCents ?? this.creditInCents,
+    narration: narration.present ? narration.value : this.narration,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  JournalLineTableData copyWithCompanion(JournalLinesCompanion data) {
+    return JournalLineTableData(
+      id: data.id.present ? data.id.value : this.id,
+      companyId: data.companyId.present ? data.companyId.value : this.companyId,
+      journalId: data.journalId.present ? data.journalId.value : this.journalId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      partyId: data.partyId.present ? data.partyId.value : this.partyId,
+      debitInCents: data.debitInCents.present
+          ? data.debitInCents.value
+          : this.debitInCents,
+      creditInCents: data.creditInCents.present
+          ? data.creditInCents.value
+          : this.creditInCents,
+      narration: data.narration.present ? data.narration.value : this.narration,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JournalLineTableData(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('journalId: $journalId, ')
+          ..write('accountId: $accountId, ')
+          ..write('partyId: $partyId, ')
+          ..write('debitInCents: $debitInCents, ')
+          ..write('creditInCents: $creditInCents, ')
+          ..write('narration: $narration, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    companyId,
+    journalId,
+    accountId,
+    partyId,
+    debitInCents,
+    creditInCents,
+    narration,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is JournalLineTableData &&
+          other.id == this.id &&
+          other.companyId == this.companyId &&
+          other.journalId == this.journalId &&
+          other.accountId == this.accountId &&
+          other.partyId == this.partyId &&
+          other.debitInCents == this.debitInCents &&
+          other.creditInCents == this.creditInCents &&
+          other.narration == this.narration &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus);
+}
+
+class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
+  final Value<String> id;
+  final Value<String> companyId;
+  final Value<String> journalId;
+  final Value<String> accountId;
+  final Value<String?> partyId;
+  final Value<int> debitInCents;
+  final Value<int> creditInCents;
+  final Value<String?> narration;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> rowid;
+  const JournalLinesCompanion({
+    this.id = const Value.absent(),
+    this.companyId = const Value.absent(),
+    this.journalId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.partyId = const Value.absent(),
+    this.debitInCents = const Value.absent(),
+    this.creditInCents = const Value.absent(),
+    this.narration = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  JournalLinesCompanion.insert({
+    required String id,
+    this.companyId = const Value.absent(),
+    required String journalId,
+    required String accountId,
+    this.partyId = const Value.absent(),
+    this.debitInCents = const Value.absent(),
+    this.creditInCents = const Value.absent(),
+    this.narration = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       journalId = Value(journalId),
+       accountId = Value(accountId);
+  static Insertable<JournalLineTableData> custom({
+    Expression<String>? id,
+    Expression<String>? companyId,
+    Expression<String>? journalId,
+    Expression<String>? accountId,
+    Expression<String>? partyId,
+    Expression<int>? debitInCents,
+    Expression<int>? creditInCents,
+    Expression<String>? narration,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (companyId != null) 'company_id': companyId,
+      if (journalId != null) 'journal_id': journalId,
+      if (accountId != null) 'account_id': accountId,
+      if (partyId != null) 'party_id': partyId,
+      if (debitInCents != null) 'debit_in_cents': debitInCents,
+      if (creditInCents != null) 'credit_in_cents': creditInCents,
+      if (narration != null) 'narration': narration,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  JournalLinesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? companyId,
+    Value<String>? journalId,
+    Value<String>? accountId,
+    Value<String?>? partyId,
+    Value<int>? debitInCents,
+    Value<int>? creditInCents,
+    Value<String?>? narration,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return JournalLinesCompanion(
+      id: id ?? this.id,
+      companyId: companyId ?? this.companyId,
+      journalId: journalId ?? this.journalId,
+      accountId: accountId ?? this.accountId,
+      partyId: partyId ?? this.partyId,
+      debitInCents: debitInCents ?? this.debitInCents,
+      creditInCents: creditInCents ?? this.creditInCents,
+      narration: narration ?? this.narration,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (companyId.present) {
+      map['company_id'] = Variable<String>(companyId.value);
+    }
+    if (journalId.present) {
+      map['journal_id'] = Variable<String>(journalId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (partyId.present) {
+      map['party_id'] = Variable<String>(partyId.value);
+    }
+    if (debitInCents.present) {
+      map['debit_in_cents'] = Variable<int>(debitInCents.value);
+    }
+    if (creditInCents.present) {
+      map['credit_in_cents'] = Variable<int>(creditInCents.value);
+    }
+    if (narration.present) {
+      map['narration'] = Variable<String>(narration.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $JournalLinesTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JournalLinesCompanion(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('journalId: $journalId, ')
+          ..write('accountId: $accountId, ')
+          ..write('partyId: $partyId, ')
+          ..write('debitInCents: $debitInCents, ')
+          ..write('creditInCents: $creditInCents, ')
+          ..write('narration: $narration, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -8250,6 +10509,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $InventoryItemsTable inventoryItems = $InventoryItemsTable(this);
   late final $StockLedgerTable stockLedger = $StockLedgerTable(this);
   late final $VouchersTable vouchers = $VouchersTable(this);
+  late final $AccountsTable accounts = $AccountsTable(this);
+  late final $JournalsTable journals = $JournalsTable(this);
+  late final $JournalLinesTable journalLines = $JournalLinesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -8264,6 +10526,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     inventoryItems,
     stockLedger,
     vouchers,
+    accounts,
+    journals,
+    journalLines,
   ];
 }
 
@@ -12499,6 +14764,1477 @@ typedef $$VouchersTableProcessedTableManager =
       VoucherTableData,
       PrefetchHooks Function()
     >;
+typedef $$AccountsTableCreateCompanionBuilder =
+    AccountsCompanion Function({
+      required String id,
+      Value<String> companyId,
+      required String code,
+      required String name,
+      required String type,
+      Value<String?> parentAccountId,
+      Value<bool> isSystem,
+      Value<bool> isActive,
+      Value<String?> description,
+      Value<int> currentBalanceInCents,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$AccountsTableUpdateCompanionBuilder =
+    AccountsCompanion Function({
+      Value<String> id,
+      Value<String> companyId,
+      Value<String> code,
+      Value<String> name,
+      Value<String> type,
+      Value<String?> parentAccountId,
+      Value<bool> isSystem,
+      Value<bool> isActive,
+      Value<String?> description,
+      Value<int> currentBalanceInCents,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+
+final class $$AccountsTableReferences
+    extends BaseReferences<_$AppDatabase, $AccountsTable, AccountTableData> {
+  $$AccountsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$JournalLinesTable, List<JournalLineTableData>>
+  _journalLinesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.journalLines,
+    aliasName: 'accounts__id__journal_lines__account_id',
+  );
+
+  $$JournalLinesTableProcessedTableManager get journalLinesRefs {
+    final manager = $$JournalLinesTableTableManager(
+      $_db,
+      $_db.journalLines,
+    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_journalLinesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$AccountsTableFilterComposer
+    extends Composer<_$AppDatabase, $AccountsTable> {
+  $$AccountsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentAccountId => $composableBuilder(
+    column: $table.parentAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSystem => $composableBuilder(
+    column: $table.isSystem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get currentBalanceInCents => $composableBuilder(
+    column: $table.currentBalanceInCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  Expression<bool> journalLinesRefs(
+    Expression<bool> Function($$JournalLinesTableFilterComposer f) f,
+  ) {
+    final $$JournalLinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journalLines,
+      getReferencedColumn: (t) => t.accountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournalLinesTableFilterComposer(
+            $db: $db,
+            $table: $db.journalLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$AccountsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AccountsTable> {
+  $$AccountsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentAccountId => $composableBuilder(
+    column: $table.parentAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSystem => $composableBuilder(
+    column: $table.isSystem,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get currentBalanceInCents => $composableBuilder(
+    column: $table.currentBalanceInCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AccountsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AccountsTable> {
+  $$AccountsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get companyId =>
+      $composableBuilder(column: $table.companyId, builder: (column) => column);
+
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get parentAccountId => $composableBuilder(
+    column: $table.parentAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isSystem =>
+      $composableBuilder(column: $table.isSystem, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get currentBalanceInCents => $composableBuilder(
+    column: $table.currentBalanceInCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+
+  Expression<T> journalLinesRefs<T extends Object>(
+    Expression<T> Function($$JournalLinesTableAnnotationComposer a) f,
+  ) {
+    final $$JournalLinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journalLines,
+      getReferencedColumn: (t) => t.accountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournalLinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.journalLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$AccountsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AccountsTable,
+          AccountTableData,
+          $$AccountsTableFilterComposer,
+          $$AccountsTableOrderingComposer,
+          $$AccountsTableAnnotationComposer,
+          $$AccountsTableCreateCompanionBuilder,
+          $$AccountsTableUpdateCompanionBuilder,
+          (AccountTableData, $$AccountsTableReferences),
+          AccountTableData,
+          PrefetchHooks Function({bool journalLinesRefs})
+        > {
+  $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AccountsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AccountsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AccountsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> companyId = const Value.absent(),
+                Value<String> code = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String?> parentAccountId = const Value.absent(),
+                Value<bool> isSystem = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<int> currentBalanceInCents = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AccountsCompanion(
+                id: id,
+                companyId: companyId,
+                code: code,
+                name: name,
+                type: type,
+                parentAccountId: parentAccountId,
+                isSystem: isSystem,
+                isActive: isActive,
+                description: description,
+                currentBalanceInCents: currentBalanceInCents,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String> companyId = const Value.absent(),
+                required String code,
+                required String name,
+                required String type,
+                Value<String?> parentAccountId = const Value.absent(),
+                Value<bool> isSystem = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<int> currentBalanceInCents = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AccountsCompanion.insert(
+                id: id,
+                companyId: companyId,
+                code: code,
+                name: name,
+                type: type,
+                parentAccountId: parentAccountId,
+                isSystem: isSystem,
+                isActive: isActive,
+                description: description,
+                currentBalanceInCents: currentBalanceInCents,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$AccountsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({journalLinesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (journalLinesRefs) db.journalLines],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (journalLinesRefs)
+                    await $_getPrefetchedData<
+                      AccountTableData,
+                      $AccountsTable,
+                      JournalLineTableData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$AccountsTableReferences
+                          ._journalLinesRefsTable(db),
+                      managerFromTypedResult: (p0) => $$AccountsTableReferences(
+                        db,
+                        table,
+                        p0,
+                      ).journalLinesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.accountId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$AccountsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AccountsTable,
+      AccountTableData,
+      $$AccountsTableFilterComposer,
+      $$AccountsTableOrderingComposer,
+      $$AccountsTableAnnotationComposer,
+      $$AccountsTableCreateCompanionBuilder,
+      $$AccountsTableUpdateCompanionBuilder,
+      (AccountTableData, $$AccountsTableReferences),
+      AccountTableData,
+      PrefetchHooks Function({bool journalLinesRefs})
+    >;
+typedef $$JournalsTableCreateCompanionBuilder =
+    JournalsCompanion Function({
+      required String id,
+      Value<String> companyId,
+      required String journalNumber,
+      Value<String?> voucherId,
+      required DateTime date,
+      Value<String?> narration,
+      Value<int> totalAmountInCents,
+      Value<String> status,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$JournalsTableUpdateCompanionBuilder =
+    JournalsCompanion Function({
+      Value<String> id,
+      Value<String> companyId,
+      Value<String> journalNumber,
+      Value<String?> voucherId,
+      Value<DateTime> date,
+      Value<String?> narration,
+      Value<int> totalAmountInCents,
+      Value<String> status,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+
+final class $$JournalsTableReferences
+    extends BaseReferences<_$AppDatabase, $JournalsTable, JournalTableData> {
+  $$JournalsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$JournalLinesTable, List<JournalLineTableData>>
+  _journalLinesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.journalLines,
+    aliasName: 'journals__id__journal_lines__journal_id',
+  );
+
+  $$JournalLinesTableProcessedTableManager get journalLinesRefs {
+    final manager = $$JournalLinesTableTableManager(
+      $_db,
+      $_db.journalLines,
+    ).filter((f) => f.journalId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_journalLinesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$JournalsTableFilterComposer
+    extends Composer<_$AppDatabase, $JournalsTable> {
+  $$JournalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get journalNumber => $composableBuilder(
+    column: $table.journalNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get voucherId => $composableBuilder(
+    column: $table.voucherId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get narration => $composableBuilder(
+    column: $table.narration,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalAmountInCents => $composableBuilder(
+    column: $table.totalAmountInCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  Expression<bool> journalLinesRefs(
+    Expression<bool> Function($$JournalLinesTableFilterComposer f) f,
+  ) {
+    final $$JournalLinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journalLines,
+      getReferencedColumn: (t) => t.journalId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournalLinesTableFilterComposer(
+            $db: $db,
+            $table: $db.journalLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$JournalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $JournalsTable> {
+  $$JournalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get journalNumber => $composableBuilder(
+    column: $table.journalNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get voucherId => $composableBuilder(
+    column: $table.voucherId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get narration => $composableBuilder(
+    column: $table.narration,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalAmountInCents => $composableBuilder(
+    column: $table.totalAmountInCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$JournalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $JournalsTable> {
+  $$JournalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get companyId =>
+      $composableBuilder(column: $table.companyId, builder: (column) => column);
+
+  GeneratedColumn<String> get journalNumber => $composableBuilder(
+    column: $table.journalNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get voucherId =>
+      $composableBuilder(column: $table.voucherId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<String> get narration =>
+      $composableBuilder(column: $table.narration, builder: (column) => column);
+
+  GeneratedColumn<int> get totalAmountInCents => $composableBuilder(
+    column: $table.totalAmountInCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+
+  Expression<T> journalLinesRefs<T extends Object>(
+    Expression<T> Function($$JournalLinesTableAnnotationComposer a) f,
+  ) {
+    final $$JournalLinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journalLines,
+      getReferencedColumn: (t) => t.journalId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournalLinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.journalLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$JournalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $JournalsTable,
+          JournalTableData,
+          $$JournalsTableFilterComposer,
+          $$JournalsTableOrderingComposer,
+          $$JournalsTableAnnotationComposer,
+          $$JournalsTableCreateCompanionBuilder,
+          $$JournalsTableUpdateCompanionBuilder,
+          (JournalTableData, $$JournalsTableReferences),
+          JournalTableData,
+          PrefetchHooks Function({bool journalLinesRefs})
+        > {
+  $$JournalsTableTableManager(_$AppDatabase db, $JournalsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$JournalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$JournalsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$JournalsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> companyId = const Value.absent(),
+                Value<String> journalNumber = const Value.absent(),
+                Value<String?> voucherId = const Value.absent(),
+                Value<DateTime> date = const Value.absent(),
+                Value<String?> narration = const Value.absent(),
+                Value<int> totalAmountInCents = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => JournalsCompanion(
+                id: id,
+                companyId: companyId,
+                journalNumber: journalNumber,
+                voucherId: voucherId,
+                date: date,
+                narration: narration,
+                totalAmountInCents: totalAmountInCents,
+                status: status,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String> companyId = const Value.absent(),
+                required String journalNumber,
+                Value<String?> voucherId = const Value.absent(),
+                required DateTime date,
+                Value<String?> narration = const Value.absent(),
+                Value<int> totalAmountInCents = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => JournalsCompanion.insert(
+                id: id,
+                companyId: companyId,
+                journalNumber: journalNumber,
+                voucherId: voucherId,
+                date: date,
+                narration: narration,
+                totalAmountInCents: totalAmountInCents,
+                status: status,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$JournalsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({journalLinesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (journalLinesRefs) db.journalLines],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (journalLinesRefs)
+                    await $_getPrefetchedData<
+                      JournalTableData,
+                      $JournalsTable,
+                      JournalLineTableData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$JournalsTableReferences
+                          ._journalLinesRefsTable(db),
+                      managerFromTypedResult: (p0) => $$JournalsTableReferences(
+                        db,
+                        table,
+                        p0,
+                      ).journalLinesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.journalId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$JournalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $JournalsTable,
+      JournalTableData,
+      $$JournalsTableFilterComposer,
+      $$JournalsTableOrderingComposer,
+      $$JournalsTableAnnotationComposer,
+      $$JournalsTableCreateCompanionBuilder,
+      $$JournalsTableUpdateCompanionBuilder,
+      (JournalTableData, $$JournalsTableReferences),
+      JournalTableData,
+      PrefetchHooks Function({bool journalLinesRefs})
+    >;
+typedef $$JournalLinesTableCreateCompanionBuilder =
+    JournalLinesCompanion Function({
+      required String id,
+      Value<String> companyId,
+      required String journalId,
+      required String accountId,
+      Value<String?> partyId,
+      Value<int> debitInCents,
+      Value<int> creditInCents,
+      Value<String?> narration,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$JournalLinesTableUpdateCompanionBuilder =
+    JournalLinesCompanion Function({
+      Value<String> id,
+      Value<String> companyId,
+      Value<String> journalId,
+      Value<String> accountId,
+      Value<String?> partyId,
+      Value<int> debitInCents,
+      Value<int> creditInCents,
+      Value<String?> narration,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+
+final class $$JournalLinesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $JournalLinesTable,
+          JournalLineTableData
+        > {
+  $$JournalLinesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $JournalsTable _journalIdTable(_$AppDatabase db) =>
+      db.journals.createAlias('journal_lines__journal_id__journals__id');
+
+  $$JournalsTableProcessedTableManager get journalId {
+    final $_column = $_itemColumn<String>('journal_id')!;
+
+    final manager = $$JournalsTableTableManager(
+      $_db,
+      $_db.journals,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_journalIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $AccountsTable _accountIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias('journal_lines__account_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager get accountId {
+    final $_column = $_itemColumn<String>('account_id')!;
+
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_accountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$JournalLinesTableFilterComposer
+    extends Composer<_$AppDatabase, $JournalLinesTable> {
+  $$JournalLinesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partyId => $composableBuilder(
+    column: $table.partyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get debitInCents => $composableBuilder(
+    column: $table.debitInCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get creditInCents => $composableBuilder(
+    column: $table.creditInCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get narration => $composableBuilder(
+    column: $table.narration,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  $$JournalsTableFilterComposer get journalId {
+    final $$JournalsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.journalId,
+      referencedTable: $db.journals,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournalsTableFilterComposer(
+            $db: $db,
+            $table: $db.journals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableFilterComposer get accountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$JournalLinesTableOrderingComposer
+    extends Composer<_$AppDatabase, $JournalLinesTable> {
+  $$JournalLinesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get partyId => $composableBuilder(
+    column: $table.partyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get debitInCents => $composableBuilder(
+    column: $table.debitInCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get creditInCents => $composableBuilder(
+    column: $table.creditInCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get narration => $composableBuilder(
+    column: $table.narration,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$JournalsTableOrderingComposer get journalId {
+    final $$JournalsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.journalId,
+      referencedTable: $db.journals,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournalsTableOrderingComposer(
+            $db: $db,
+            $table: $db.journals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableOrderingComposer get accountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$JournalLinesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $JournalLinesTable> {
+  $$JournalLinesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get companyId =>
+      $composableBuilder(column: $table.companyId, builder: (column) => column);
+
+  GeneratedColumn<String> get partyId =>
+      $composableBuilder(column: $table.partyId, builder: (column) => column);
+
+  GeneratedColumn<int> get debitInCents => $composableBuilder(
+    column: $table.debitInCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get creditInCents => $composableBuilder(
+    column: $table.creditInCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get narration =>
+      $composableBuilder(column: $table.narration, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+
+  $$JournalsTableAnnotationComposer get journalId {
+    final $$JournalsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.journalId,
+      referencedTable: $db.journals,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournalsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.journals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableAnnotationComposer get accountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.accountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$JournalLinesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $JournalLinesTable,
+          JournalLineTableData,
+          $$JournalLinesTableFilterComposer,
+          $$JournalLinesTableOrderingComposer,
+          $$JournalLinesTableAnnotationComposer,
+          $$JournalLinesTableCreateCompanionBuilder,
+          $$JournalLinesTableUpdateCompanionBuilder,
+          (JournalLineTableData, $$JournalLinesTableReferences),
+          JournalLineTableData,
+          PrefetchHooks Function({bool journalId, bool accountId})
+        > {
+  $$JournalLinesTableTableManager(_$AppDatabase db, $JournalLinesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$JournalLinesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$JournalLinesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$JournalLinesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> companyId = const Value.absent(),
+                Value<String> journalId = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<String?> partyId = const Value.absent(),
+                Value<int> debitInCents = const Value.absent(),
+                Value<int> creditInCents = const Value.absent(),
+                Value<String?> narration = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => JournalLinesCompanion(
+                id: id,
+                companyId: companyId,
+                journalId: journalId,
+                accountId: accountId,
+                partyId: partyId,
+                debitInCents: debitInCents,
+                creditInCents: creditInCents,
+                narration: narration,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String> companyId = const Value.absent(),
+                required String journalId,
+                required String accountId,
+                Value<String?> partyId = const Value.absent(),
+                Value<int> debitInCents = const Value.absent(),
+                Value<int> creditInCents = const Value.absent(),
+                Value<String?> narration = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => JournalLinesCompanion.insert(
+                id: id,
+                companyId: companyId,
+                journalId: journalId,
+                accountId: accountId,
+                partyId: partyId,
+                debitInCents: debitInCents,
+                creditInCents: creditInCents,
+                narration: narration,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$JournalLinesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({journalId = false, accountId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (journalId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.journalId,
+                                referencedTable: $$JournalLinesTableReferences
+                                    ._journalIdTable(db),
+                                referencedColumn: $$JournalLinesTableReferences
+                                    ._journalIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (accountId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.accountId,
+                                referencedTable: $$JournalLinesTableReferences
+                                    ._accountIdTable(db),
+                                referencedColumn: $$JournalLinesTableReferences
+                                    ._accountIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$JournalLinesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $JournalLinesTable,
+      JournalLineTableData,
+      $$JournalLinesTableFilterComposer,
+      $$JournalLinesTableOrderingComposer,
+      $$JournalLinesTableAnnotationComposer,
+      $$JournalLinesTableCreateCompanionBuilder,
+      $$JournalLinesTableUpdateCompanionBuilder,
+      (JournalLineTableData, $$JournalLinesTableReferences),
+      JournalLineTableData,
+      PrefetchHooks Function({bool journalId, bool accountId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -12521,4 +16257,10 @@ class $AppDatabaseManager {
       $$StockLedgerTableTableManager(_db, _db.stockLedger);
   $$VouchersTableTableManager get vouchers =>
       $$VouchersTableTableManager(_db, _db.vouchers);
+  $$AccountsTableTableManager get accounts =>
+      $$AccountsTableTableManager(_db, _db.accounts);
+  $$JournalsTableTableManager get journals =>
+      $$JournalsTableTableManager(_db, _db.journals);
+  $$JournalLinesTableTableManager get journalLines =>
+      $$JournalLinesTableTableManager(_db, _db.journalLines);
 }

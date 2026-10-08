@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/voucher_model.dart';
@@ -41,7 +42,52 @@ final dynamicReportDataProvider = FutureProvider.family<ReportData, String>((ref
   final vouchers = await ref.watch(vouchersListProvider(null).future);
   final items = await ref.watch(inventoryItemsListProvider.future);
   final db = ref.watch(appDatabaseProvider);
-  final entries = await db.select(db.ledgerEntries).get();
+
+  // Fetch accounts and journal lines for the active company
+  final accountRows = await (db.select(db.accounts)
+        ..where((t) => t.companyId.equals(company.id) & t.isDeleted.equals(false)))
+      .get();
+  final convertedAccounts = accountRows
+      .map((r) => AccountModel(
+            id: r.id,
+            companyId: r.companyId,
+            code: r.code,
+            name: r.name,
+            type: AccountType.values.firstWhere(
+              (e) => e.name.toLowerCase() == r.type.toLowerCase(),
+              orElse: () => AccountType.asset,
+            ),
+            parentAccountId: r.parentAccountId,
+            isSystem: r.isSystem,
+            isActive: r.isActive,
+            description: r.description,
+            currentBalanceInCents: r.currentBalanceInCents,
+            createdAt: r.createdAt,
+            updatedAt: r.updatedAt,
+          ))
+      .toList();
+
+  final journalLineRows = await (db.select(db.journalLines)
+        ..where((t) => t.companyId.equals(company.id) & t.isDeleted.equals(false)))
+      .get();
+  final convertedJournalLines = journalLineRows
+      .map((r) => JournalLineModel(
+            id: r.id,
+            companyId: r.companyId,
+            journalId: r.journalId,
+            accountId: r.accountId,
+            partyId: r.partyId,
+            debitInCents: r.debitInCents,
+            creditInCents: r.creditInCents,
+            narration: r.narration,
+            createdAt: r.createdAt,
+            updatedAt: r.updatedAt,
+          ))
+      .toList();
+
+  final entries = await (db.select(db.ledgerEntries)
+        ..where((t) => t.companyId.equals(company.id) & t.isDeleted.equals(false)))
+      .get();
 
   final convertedEntries = entries
       .map((row) => LedgerEntry(
@@ -64,6 +110,8 @@ final dynamicReportDataProvider = FutureProvider.family<ReportData, String>((ref
         items: items,
         entries: convertedEntries,
         vouchers: vouchers,
+        accounts: convertedAccounts,
+        journalLines: convertedJournalLines,
       );
 
     case 'rpt_pnl':
@@ -72,6 +120,8 @@ final dynamicReportDataProvider = FutureProvider.family<ReportData, String>((ref
         vouchers: vouchers,
         items: items,
         entries: convertedEntries,
+        accounts: convertedAccounts,
+        journalLines: convertedJournalLines,
       );
 
     case 'rpt_trial_balance':
@@ -79,6 +129,9 @@ final dynamicReportDataProvider = FutureProvider.family<ReportData, String>((ref
         parties: parties,
         vouchers: vouchers,
         items: items,
+        accounts: convertedAccounts,
+        journalLines: convertedJournalLines,
+        companyId: company.id,
       );
 
     case 'rpt_day_book':
@@ -100,13 +153,14 @@ final dynamicReportDataProvider = FutureProvider.family<ReportData, String>((ref
       return InventoryReportEngine.generateLowStockRegister(items: items);
 
     default:
-      // Fallback: generate balance sheet or default statement
       return FinancialStatementEngine.generateBalanceSheet(
         company: company,
         parties: parties,
         items: items,
         entries: convertedEntries,
         vouchers: vouchers,
+        accounts: convertedAccounts,
+        journalLines: convertedJournalLines,
       );
   }
 });

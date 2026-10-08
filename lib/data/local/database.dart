@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'connection/connection.dart' as impl;
 
+import '../models/account_model.dart';
 import '../models/party_model.dart';
 import '../models/transaction_model.dart';
 
@@ -241,6 +242,65 @@ class Vouchers extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('AccountTableData')
+class Accounts extends Table {
+  TextColumn get id => text()();
+  TextColumn get companyId => text().withDefault(const Constant('cmp_default'))();
+  TextColumn get code => text()();
+  TextColumn get name => text()();
+  TextColumn get type => text()(); // asset, liability, equity, income, expense
+  TextColumn get parentAccountId => text().nullable()();
+  BoolColumn get isSystem => boolean().withDefault(const Constant(false))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  TextColumn get description => text().nullable()();
+  IntColumn get currentBalanceInCents => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('JournalTableData')
+class Journals extends Table {
+  TextColumn get id => text()();
+  TextColumn get companyId => text().withDefault(const Constant('cmp_default'))();
+  TextColumn get journalNumber => text()();
+  TextColumn get voucherId => text().nullable()();
+  DateTimeColumn get date => dateTime()();
+  TextColumn get narration => text().nullable()();
+  IntColumn get totalAmountInCents => integer().withDefault(const Constant(0))();
+  TextColumn get status => text().withDefault(const Constant('posted'))(); // posted, voided
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('JournalLineTableData')
+class JournalLines extends Table {
+  TextColumn get id => text()();
+  TextColumn get companyId => text().withDefault(const Constant('cmp_default'))();
+  TextColumn get journalId => text().references(Journals, #id)();
+  TextColumn get accountId => text().references(Accounts, #id)();
+  TextColumn get partyId => text().nullable()();
+  IntColumn get debitInCents => integer().withDefault(const Constant(0))();
+  IntColumn get creditInCents => integer().withDefault(const Constant(0))();
+  TextColumn get narration => text().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(tables: [
   Companies,
   UserProfiles,
@@ -251,12 +311,15 @@ class Vouchers extends Table {
   InventoryItems,
   StockLedger,
   Vouchers,
+  Accounts,
+  Journals,
+  JournalLines,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -295,6 +358,28 @@ class AppDatabase extends _$AppDatabase {
               syncStatus: const Value(SyncRecordStatus.synced),
             ),
           );
+          // Seed initial chart of accounts for default company
+          final defaultAccounts = DefaultAccounts.getDefaultAccounts('cmp_default');
+          for (final acc in defaultAccounts) {
+            await into(accounts).insertOnConflictUpdate(
+              AccountsCompanion.insert(
+                id: acc.id,
+                companyId: Value(acc.companyId),
+                code: acc.code,
+                name: acc.name,
+                type: acc.type.name,
+                parentAccountId: Value(acc.parentAccountId),
+                isSystem: Value(acc.isSystem),
+                isActive: Value(acc.isActive),
+                description: Value(acc.description),
+                currentBalanceInCents: Value(acc.currentBalanceInCents),
+                createdAt: Value(acc.createdAt),
+                updatedAt: Value(acc.updatedAt),
+                isDeleted: const Value(false),
+                syncStatus: const Value(SyncRecordStatus.synced),
+              ),
+            );
+          }
         },
         onUpgrade: (Migrator m, int from, int to) async {
           if (from < 2) {
@@ -412,6 +497,38 @@ class AppDatabase extends _$AppDatabase {
               await m.addColumn(companies, companies.bankAccountNumber);
               await m.addColumn(companies, companies.bankIfsc);
               await m.addColumn(companies, companies.upiId);
+            } catch (_) {}
+          }
+          if (from < 7) {
+            try {
+              await m.createTable(accounts);
+              final defaultAccounts = DefaultAccounts.getDefaultAccounts('cmp_default');
+              for (final acc in defaultAccounts) {
+                await into(accounts).insertOnConflictUpdate(
+                  AccountsCompanion.insert(
+                    id: acc.id,
+                    companyId: Value(acc.companyId),
+                    code: acc.code,
+                    name: acc.name,
+                    type: acc.type.name,
+                    parentAccountId: Value(acc.parentAccountId),
+                    isSystem: Value(acc.isSystem),
+                    isActive: Value(acc.isActive),
+                    description: Value(acc.description),
+                    currentBalanceInCents: Value(acc.currentBalanceInCents),
+                    createdAt: Value(acc.createdAt),
+                    updatedAt: Value(acc.updatedAt),
+                    isDeleted: const Value(false),
+                    syncStatus: const Value(SyncRecordStatus.synced),
+                  ),
+                );
+              }
+            } catch (_) {}
+            try {
+              await m.createTable(journals);
+            } catch (_) {}
+            try {
+              await m.createTable(journalLines);
             } catch (_) {}
           }
         },
@@ -559,6 +676,59 @@ class AppDatabase extends _$AppDatabase {
                   created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
                   updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
                   sync_status TEXT NOT NULL DEFAULT 'synced'
+                );''');
+          } catch (_) {}
+          try {
+            await customStatement(
+                '''CREATE TABLE IF NOT EXISTS accounts (
+                  id TEXT NOT NULL PRIMARY KEY,
+                  company_id TEXT NOT NULL DEFAULT 'cmp_default',
+                  code TEXT NOT NULL,
+                  name TEXT NOT NULL,
+                  type TEXT NOT NULL,
+                  parent_account_id TEXT,
+                  is_system INTEGER NOT NULL DEFAULT 0,
+                  is_active INTEGER NOT NULL DEFAULT 1,
+                  description TEXT,
+                  current_balance_in_cents INTEGER NOT NULL DEFAULT 0,
+                  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                  is_deleted INTEGER NOT NULL DEFAULT 0,
+                  sync_status TEXT NOT NULL DEFAULT 'pending'
+                );''');
+          } catch (_) {}
+          try {
+            await customStatement(
+                '''CREATE TABLE IF NOT EXISTS journals (
+                  id TEXT NOT NULL PRIMARY KEY,
+                  company_id TEXT NOT NULL DEFAULT 'cmp_default',
+                  journal_number TEXT NOT NULL,
+                  voucher_id TEXT,
+                  date INTEGER NOT NULL,
+                  narration TEXT,
+                  total_amount_in_cents INTEGER NOT NULL DEFAULT 0,
+                  status TEXT NOT NULL DEFAULT 'posted',
+                  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                  is_deleted INTEGER NOT NULL DEFAULT 0,
+                  sync_status TEXT NOT NULL DEFAULT 'pending'
+                );''');
+          } catch (_) {}
+          try {
+            await customStatement(
+                '''CREATE TABLE IF NOT EXISTS journal_lines (
+                  id TEXT NOT NULL PRIMARY KEY,
+                  company_id TEXT NOT NULL DEFAULT 'cmp_default',
+                  journal_id TEXT NOT NULL,
+                  account_id TEXT NOT NULL,
+                  party_id TEXT,
+                  debit_in_cents INTEGER NOT NULL DEFAULT 0,
+                  credit_in_cents INTEGER NOT NULL DEFAULT 0,
+                  narration TEXT,
+                  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                  is_deleted INTEGER NOT NULL DEFAULT 0,
+                  sync_status TEXT NOT NULL DEFAULT 'pending'
                 );''');
           } catch (_) {}
         },

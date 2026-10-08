@@ -25,9 +25,34 @@ final voucherRepositoryProvider = Provider<DriftVoucherRepository>((ref) {
   );
 });
 
+final nextVoucherNumberProvider = FutureProvider.family<String, VoucherType>((ref, type) async {
+  final repo = ref.watch(voucherRepositoryProvider);
+  return await repo.generateNextVoucherNumber(type);
+});
+
 final vouchersListProvider = FutureProvider.family<List<VoucherModel>, VoucherType?>((ref, type) async {
   final repo = ref.watch(voucherRepositoryProvider);
   return await repo.getVouchers(type: type);
+});
+
+final salesInvoicesListProvider = FutureProvider<List<VoucherModel>>((ref) async {
+  final repo = ref.watch(voucherRepositoryProvider);
+  return await repo.getVouchers(type: VoucherType.sales);
+});
+
+final salesOrdersListProvider = FutureProvider<List<VoucherModel>>((ref) async {
+  final repo = ref.watch(voucherRepositoryProvider);
+  return await repo.getVouchers(type: VoucherType.salesOrder);
+});
+
+final estimatesListProvider = FutureProvider<List<VoucherModel>>((ref) async {
+  final repo = ref.watch(voucherRepositoryProvider);
+  return await repo.getVouchers(type: VoucherType.estimate);
+});
+
+final purchasesListProvider = FutureProvider<List<VoucherModel>>((ref) async {
+  final repo = ref.watch(voucherRepositoryProvider);
+  return await repo.getVouchers(type: VoucherType.purchase);
 });
 
 final ordersAndEstimatesProvider = FutureProvider<List<VoucherModel>>((ref) async {
@@ -58,42 +83,60 @@ class VoucherController extends Notifier<void> {
   @override
   void build() {}
 
-  Future<VoucherModel> createVoucher(VoucherModel voucher) async {
-    final repo = ref.read(voucherRepositoryProvider);
-    final posted = await repo.createVoucher(voucher);
+  void _invalidateAll() {
     ref.invalidate(vouchersListProvider);
+    ref.invalidate(salesInvoicesListProvider);
+    ref.invalidate(salesOrdersListProvider);
+    ref.invalidate(estimatesListProvider);
+    ref.invalidate(purchasesListProvider);
     ref.invalidate(ordersAndEstimatesProvider);
     ref.invalidate(draftAndHeldVouchersProvider);
     ref.invalidate(receivablesVouchersProvider);
     ref.invalidate(payablesVouchersProvider);
     ref.invalidate(partyListProvider);
     ref.invalidate(businessSummaryProvider);
+    ref.invalidate(nextVoucherNumberProvider);
+  }
+
+  Future<VoucherModel> createVoucher(VoucherModel voucher) async {
+    final repo = ref.read(voucherRepositoryProvider);
+    final posted = await repo.createVoucher(voucher);
+    _invalidateAll();
     return posted;
+  }
+
+  Future<VoucherModel> convertEstimateToSalesOrder(String estimateId) async {
+    final repo = ref.read(voucherRepositoryProvider);
+    final order = await repo.convertEstimateToSalesOrder(estimateId);
+    _invalidateAll();
+    return order;
+  }
+
+  Future<VoucherModel> convertEstimateToSalesInvoice(String estimateId) async {
+    final repo = ref.read(voucherRepositoryProvider);
+    final invoice = await repo.convertEstimateToSalesInvoice(estimateId);
+    _invalidateAll();
+    return invoice;
+  }
+
+  Future<VoucherModel> convertSalesOrderToSalesInvoice(String salesOrderId) async {
+    final repo = ref.read(voucherRepositoryProvider);
+    final invoice = await repo.convertSalesOrderToSalesInvoice(salesOrderId);
+    _invalidateAll();
+    return invoice;
   }
 
   Future<VoucherModel> convertToInvoice(String orderOrEstimateId) async {
     final repo = ref.read(voucherRepositoryProvider);
     final invoice = await repo.convertToInvoice(orderOrEstimateId);
-    ref.invalidate(vouchersListProvider);
-    ref.invalidate(ordersAndEstimatesProvider);
-    ref.invalidate(draftAndHeldVouchersProvider);
-    ref.invalidate(receivablesVouchersProvider);
-    ref.invalidate(payablesVouchersProvider);
-    ref.invalidate(partyListProvider);
-    ref.invalidate(businessSummaryProvider);
+    _invalidateAll();
     return invoice;
   }
 
   Future<void> voidVoucher(String voucherId) async {
     final repo = ref.read(voucherRepositoryProvider);
     await repo.voidVoucher(voucherId);
-    ref.invalidate(vouchersListProvider);
-    ref.invalidate(ordersAndEstimatesProvider);
-    ref.invalidate(draftAndHeldVouchersProvider);
-    ref.invalidate(receivablesVouchersProvider);
-    ref.invalidate(payablesVouchersProvider);
-    ref.invalidate(partyListProvider);
-    ref.invalidate(businessSummaryProvider);
+    _invalidateAll();
   }
 }
 

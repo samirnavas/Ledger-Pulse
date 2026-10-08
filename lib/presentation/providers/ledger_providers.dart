@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/drift_ledger_repository.dart';
+import '../../data/models/account_model.dart';
+import '../../data/models/journal_model.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
@@ -7,6 +9,8 @@ import 'database_providers.dart';
 import 'profile_provider.dart';
 
 export 'database_providers.dart';
+export '../../data/models/account_model.dart';
+export '../../data/models/journal_model.dart';
 
 // Single repository instance backed directly by local SQLite (Drift)
 final ledgerRepositoryProvider = Provider<ILedgerRepository>((ref) {
@@ -312,3 +316,21 @@ final ledgerActionControllerProvider = Provider<LedgerActionController>((ref) {
   final repo = ref.watch(ledgerRepositoryProvider);
   return LedgerActionController(ref, repo);
 });
+
+final driftLedgerRepositoryProvider = Provider<DriftLedgerRepository>((ref) {
+  final repo = ref.watch(ledgerRepositoryProvider);
+  return repo as DriftLedgerRepository;
+});
+
+final chartOfAccountsProvider = FutureProvider<List<AccountModel>>((ref) async {
+  ref.watch(ledgerUpdatesStreamProvider);
+  final repo = ref.watch(driftLedgerRepositoryProvider);
+  return await repo.getAccounts();
+});
+
+final journalEntriesProvider = FutureProvider<List<JournalModel>>((ref) async {
+  ref.watch(ledgerUpdatesStreamProvider);
+  final repo = ref.watch(driftLedgerRepositoryProvider);
+  return await repo.getJournals();
+});
+

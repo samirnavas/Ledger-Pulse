@@ -25,9 +25,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final skuCtrl = TextEditingController(text: itemToEdit?.sku ?? 'SKU-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}');
     final nameCtrl = TextEditingController(text: itemToEdit?.name ?? '');
+    final hsnCtrl = TextEditingController(text: itemToEdit?.hsnCode ?? '');
     final unitCtrl = TextEditingController(text: itemToEdit?.unit ?? 'PCS');
     final buyPriceCtrl = TextEditingController(text: itemToEdit != null ? (itemToEdit.purchasePriceInCents / 100).toStringAsFixed(2) : '0');
     final sellPriceCtrl = TextEditingController(text: itemToEdit != null ? (itemToEdit.sellingPriceInCents / 100).toStringAsFixed(2) : '0');
+    final taxRateCtrl = TextEditingController(text: itemToEdit != null ? itemToEdit.taxRatePercent.toStringAsFixed(0) : '18');
     final stockCtrl = TextEditingController(text: itemToEdit != null ? itemToEdit.currentStockQuantity.toString() : '0');
     final alertCtrl = TextEditingController(text: itemToEdit != null ? itemToEdit.minimumStockAlert.toString() : '5');
 
@@ -37,6 +39,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       final sellCents = ((double.tryParse(sellPriceCtrl.text) ?? 0) * 100).round();
       final stockQty = double.tryParse(stockCtrl.text) ?? 0.0;
       final minAlert = double.tryParse(alertCtrl.text) ?? 5.0;
+      final taxRate = double.tryParse(taxRateCtrl.text) ?? 0.0;
+      final hsn = hsnCtrl.text.trim().isNotEmpty ? hsnCtrl.text.trim() : null;
 
       if (itemToEdit == null) {
         final newItem = InventoryItem(
@@ -49,6 +53,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           sellingPriceInCents: sellCents,
           currentStockQuantity: stockQty,
           minimumStockAlert: minAlert,
+          hsnCode: hsn,
+          taxRatePercent: taxRate,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
@@ -61,6 +67,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           purchasePriceInCents: buyCents,
           sellingPriceInCents: sellCents,
           minimumStockAlert: minAlert,
+          hsnCode: hsn,
+          taxRatePercent: taxRate,
           updatedAt: DateTime.now(),
         );
         ref.read(inventoryControllerProvider.notifier).updateItem(updated);
@@ -69,74 +77,359 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     }
 
     if (isIos) {
-      showCupertinoDialog(
+      showDialog(
         context: context,
-        builder: (ctx) => CupertinoAlertDialog(
-          title: Text(itemToEdit == null ? 'New Inventory Item' : 'Edit Item'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 12),
-                CupertinoTextField(controller: skuCtrl, placeholder: 'SKU Code'),
-                const SizedBox(height: 8),
-                CupertinoTextField(controller: nameCtrl, placeholder: 'Item / Product Name'),
-                const SizedBox(height: 8),
-                CupertinoTextField(controller: unitCtrl, placeholder: 'Unit (PCS, KG, BOX)'),
-                const SizedBox(height: 8),
-                CupertinoTextField(controller: buyPriceCtrl, placeholder: 'Purchase Price (₹)', keyboardType: TextInputType.number),
-                const SizedBox(height: 8),
-                CupertinoTextField(controller: sellPriceCtrl, placeholder: 'Selling Price (₹)', keyboardType: TextInputType.number),
-                if (itemToEdit == null) ...[
-                  const SizedBox(height: 8),
-                  CupertinoTextField(controller: stockCtrl, placeholder: 'Opening Stock Qty', keyboardType: TextInputType.number),
-                ],
-                const SizedBox(height: 8),
-                CupertinoTextField(controller: alertCtrl, placeholder: 'Low Stock Alert Qty', keyboardType: TextInputType.number),
-              ],
+        builder: (ctx) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: LiquidGlassCard(
+              borderRadius: 28,
+              padding: const EdgeInsets.all(22),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          itemToEdit == null ? 'New Inventory Item' : 'Edit Item Details',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.4,
+                            color: CupertinoColors.label,
+                          ),
+                        ),
+                        CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Icon(CupertinoIcons.xmark_circle_fill, color: CupertinoColors.secondaryLabel, size: 22),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('SKU Code *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel)),
+                              const SizedBox(height: 4),
+                              CupertinoTextField(controller: skuCtrl, placeholder: 'e.g. SKU-1002'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Unit of Measure', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel)),
+                              const SizedBox(height: 4),
+                              CupertinoTextField(controller: unitCtrl, placeholder: 'PCS, KG, BOX'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Product / Item Name *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel)),
+                        const SizedBox(height: 4),
+                        CupertinoTextField(controller: nameCtrl, placeholder: 'e.g. Premium Cotton Shirt'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('HSN / SAC Code', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel)),
+                              const SizedBox(height: 4),
+                              CupertinoTextField(controller: hsnCtrl, placeholder: 'e.g. 6205'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('GST Rate %', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel)),
+                              const SizedBox(height: 4),
+                              CupertinoTextField(controller: taxRateCtrl, placeholder: '18', keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Purchase Price (₹)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel)),
+                              const SizedBox(height: 4),
+                              CupertinoTextField(controller: buyPriceCtrl, placeholder: '0.00', keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Selling Price (₹)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel)),
+                              const SizedBox(height: 4),
+                              CupertinoTextField(controller: sellPriceCtrl, placeholder: '0.00', keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (itemToEdit == null) ...[
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Opening Stock Qty', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel)),
+                                const SizedBox(height: 4),
+                                CupertinoTextField(controller: stockCtrl, placeholder: '0', keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Low Stock Alert Level', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: CupertinoColors.secondaryLabel)),
+                              const SizedBox(height: 4),
+                              CupertinoTextField(controller: alertCtrl, placeholder: '5', keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        CupertinoButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 8),
+                        CupertinoButton.filled(
+                          onPressed: onSave,
+                          child: const Text('Save Item'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          actions: [
-            CupertinoDialogAction(child: const Text('Cancel'), onPressed: () => Navigator.pop(ctx)),
-            CupertinoDialogAction(isDefaultAction: true, onPressed: onSave, child: const Text('Save Item')),
-          ],
         ),
       );
     } else {
       showDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(itemToEdit == null ? 'Add Inventory SKU' : 'Edit SKU'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(controller: skuCtrl, decoration: const InputDecoration(labelText: 'SKU Code *', border: OutlineInputBorder())),
-                const SizedBox(height: 10),
-                TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'Item Name *', border: OutlineInputBorder())),
-                const SizedBox(height: 10),
-                TextField(controller: unitCtrl, decoration: const InputDecoration(labelText: 'Unit (e.g. PCS, KG)', border: OutlineInputBorder())),
-                const SizedBox(height: 10),
-                Row(
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(child: TextField(controller: buyPriceCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Buy Price (₹)', border: OutlineInputBorder()))),
-                    const SizedBox(width: 8),
-                    Expanded(child: TextField(controller: sellPriceCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Sell Price (₹)', border: OutlineInputBorder()))),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          itemToEdit == null ? 'Add Inventory SKU' : 'Edit Inventory SKU',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: skuCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'SKU Code *',
+                              hintText: 'e.g. SKU-1002',
+                              isDense: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: unitCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Unit *',
+                              hintText: 'PCS, KG, BOX',
+                              isDense: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Product / Item Name *',
+                        hintText: 'e.g. Premium Cotton Shirt',
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: hsnCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'HSN / SAC Code',
+                              hintText: 'e.g. 6205',
+                              isDense: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: taxRateCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'GST Rate %',
+                              hintText: '18',
+                              isDense: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: buyPriceCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Buy Price (₹)',
+                              hintText: '0.00',
+                              isDense: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: sellPriceCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Sell Price (₹)',
+                              hintText: '0.00',
+                              isDense: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        if (itemToEdit == null) ...[
+                          Expanded(
+                            child: TextField(
+                              controller: stockCtrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              decoration: InputDecoration(
+                                labelText: 'Initial Stock Qty',
+                                hintText: '0',
+                                isDense: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                        ],
+                        Expanded(
+                          child: TextField(
+                            controller: alertCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Low Stock Alert Level',
+                              hintText: '5',
+                              isDense: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          child: const Text('Cancel'),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                        const SizedBox(width: 8),
+                        FilledButton(
+                          onPressed: onSave,
+                          child: const Text('Save Item'),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-                if (itemToEdit == null) ...[
-                  const SizedBox(height: 10),
-                  TextField(controller: stockCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Initial Stock Qty', border: OutlineInputBorder())),
-                ],
-                const SizedBox(height: 10),
-                TextField(controller: alertCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Low Stock Alert Level', border: OutlineInputBorder())),
-              ],
+              ),
             ),
           ),
-          actions: [
-            TextButton(child: const Text('Cancel'), onPressed: () => Navigator.pop(ctx)),
-            FilledButton(onPressed: onSave, child: const Text('Save Item')),
-          ],
         ),
       );
     }
@@ -148,78 +441,151 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final noteCtrl = TextEditingController(text: 'Physical inventory audit');
     StockTransactionType type = StockTransactionType.adjustment;
 
+    void onApply(BuildContext ctx) {
+      final delta = double.tryParse(qtyCtrl.text) ?? 0.0;
+      ref.read(inventoryControllerProvider.notifier).adjustStock(
+            itemId: item.id,
+            quantityDelta: delta,
+            type: type,
+            note: noteCtrl.text.trim(),
+          );
+      Navigator.pop(ctx);
+    }
+
     if (isIos) {
-      showCupertinoDialog(
+      showDialog(
         context: context,
-        builder: (ctx) => CupertinoAlertDialog(
-          title: Text('Adjust Stock: ${item.name}'),
-          content: Column(
-            children: [
-              const SizedBox(height: 10),
-              Text('Current Stock: ${item.currentStockQuantity} ${item.unit}'),
-              const SizedBox(height: 10),
-              CupertinoTextField(controller: qtyCtrl, placeholder: 'Adjustment Quantity (+/-)', keyboardType: TextInputType.number),
-              const SizedBox(height: 8),
-              CupertinoTextField(controller: noteCtrl, placeholder: 'Adjustment Reason'),
-            ],
-          ),
-          actions: [
-            CupertinoDialogAction(child: const Text('Cancel'), onPressed: () => Navigator.pop(ctx)),
-            CupertinoDialogAction(
-              isDefaultAction: true,
-              child: const Text('Apply'),
-              onPressed: () {
-                final delta = double.tryParse(qtyCtrl.text) ?? 0.0;
-                ref.read(inventoryControllerProvider.notifier).adjustStock(
-                      itemId: item.id,
-                      quantityDelta: delta,
-                      type: type,
-                      note: noteCtrl.text.trim(),
-                    );
-                Navigator.pop(ctx);
-              },
+        builder: (ctx) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: LiquidGlassCard(
+              borderRadius: 28,
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Adjust Stock: ${item.name}',
+                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, letterSpacing: -0.4),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Icon(CupertinoIcons.xmark_circle_fill, color: CupertinoColors.secondaryLabel, size: 22),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey6.resolveFrom(context),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('Current Stock: ${item.currentStockQuantity.toStringAsFixed(0)} ${item.unit}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                  const SizedBox(height: 12),
+                  CupertinoTextField(controller: qtyCtrl, placeholder: 'Adjustment Quantity (+/-)', keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true)),
+                  const SizedBox(height: 10),
+                  CupertinoTextField(controller: noteCtrl, placeholder: 'Adjustment Reason'),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      CupertinoButton(child: const Text('Cancel'), onPressed: () => Navigator.pop(ctx)),
+                      const SizedBox(width: 8),
+                      CupertinoButton.filled(child: const Text('Apply'), onPressed: () => onApply(ctx)),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       );
     } else {
       showDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('Adjust Stock: ${item.name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Current on hand: ${item.currentStockQuantity} ${item.unit}'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: qtyCtrl,
-                keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
-                decoration: const InputDecoration(labelText: 'Quantity Change (e.g. +5 or -2)', border: OutlineInputBorder()),
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Adjust Stock: ${item.name}',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('Current on hand: ${item.currentStockQuantity.toStringAsFixed(0)} ${item.unit}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: qtyCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(signed: true, decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Quantity Change (e.g. +5 or -2)',
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noteCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Reason / Note',
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(child: const Text('Cancel'), onPressed: () => Navigator.pop(ctx)),
+                      const SizedBox(width: 8),
+                      FilledButton(child: const Text('Confirm Adjustment'), onPressed: () => onApply(ctx)),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: noteCtrl,
-                decoration: const InputDecoration(labelText: 'Reason / Note', border: OutlineInputBorder()),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(child: const Text('Cancel'), onPressed: () => Navigator.pop(ctx)),
-            FilledButton(
-              child: const Text('Confirm Adjustment'),
-              onPressed: () {
-                final delta = double.tryParse(qtyCtrl.text) ?? 0.0;
-                ref.read(inventoryControllerProvider.notifier).adjustStock(
-                      itemId: item.id,
-                      quantityDelta: delta,
-                      type: type,
-                      note: noteCtrl.text.trim(),
-                    );
-                Navigator.pop(ctx);
-              },
             ),
-          ],
+          ),
         ),
       );
     }

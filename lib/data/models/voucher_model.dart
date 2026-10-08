@@ -7,6 +7,7 @@ enum VoucherType {
   payment,
   contra,
   journal,
+  expense,
   salesOrder,
   purchaseOrder,
   estimate;
@@ -25,6 +26,8 @@ enum VoucherType {
         return 'Contra (Fund Transfer)';
       case VoucherType.journal:
         return 'Journal Entry';
+      case VoucherType.expense:
+        return 'Expense Voucher';
       case VoucherType.salesOrder:
         return 'Sales Order';
       case VoucherType.purchaseOrder:
@@ -34,19 +37,59 @@ enum VoucherType {
     }
   }
 
+  String get prefix {
+    switch (this) {
+      case VoucherType.sales:
+        return 'INV';
+      case VoucherType.purchase:
+        return 'PUR';
+      case VoucherType.salesOrder:
+        return 'SO';
+      case VoucherType.estimate:
+        return 'EST';
+      case VoucherType.purchaseOrder:
+        return 'PO';
+      case VoucherType.receipt:
+        return 'REC';
+      case VoucherType.payment:
+        return 'PAY';
+      case VoucherType.contra:
+        return 'CON';
+      case VoucherType.journal:
+        return 'JNL';
+      case VoucherType.expense:
+        return 'EXP';
+    }
+  }
+
   bool get isOrderOrEstimate =>
       this == VoucherType.salesOrder ||
       this == VoucherType.purchaseOrder ||
       this == VoucherType.estimate;
 
   bool get isFinancialPosting => !isOrderOrEstimate;
+
+  bool get isSalesDocument =>
+      this == VoucherType.sales ||
+      this == VoucherType.salesOrder ||
+      this == VoucherType.estimate;
+
+  bool get isPurchaseDocument =>
+      this == VoucherType.purchase ||
+      this == VoucherType.purchaseOrder;
 }
 
 enum VoucherStatus {
   draft,
   onHold,
   posted,
+  confirmed,
+  sent,
+  accepted,
+  rejected,
+  expired,
   converted,
+  cancelled,
   voided;
 
   String get displayName {
@@ -57,12 +100,45 @@ enum VoucherStatus {
         return 'On Hold';
       case VoucherStatus.posted:
         return 'Posted';
+      case VoucherStatus.confirmed:
+        return 'Confirmed';
+      case VoucherStatus.sent:
+        return 'Sent';
+      case VoucherStatus.accepted:
+        return 'Accepted';
+      case VoucherStatus.rejected:
+        return 'Rejected';
+      case VoucherStatus.expired:
+        return 'Expired';
       case VoucherStatus.converted:
-        return 'Converted to Invoice';
+        return 'Converted';
+      case VoucherStatus.cancelled:
+        return 'Cancelled';
       case VoucherStatus.voided:
         return 'Voided';
     }
   }
+
+  bool get isDraft => this == VoucherStatus.draft;
+
+  bool get isPosted =>
+      this == VoucherStatus.posted || this == VoucherStatus.confirmed;
+
+  bool get isClosedOrCancelled =>
+      this == VoucherStatus.voided ||
+      this == VoucherStatus.cancelled ||
+      this == VoucherStatus.rejected ||
+      this == VoucherStatus.expired;
+
+  bool get canBeConverted =>
+      (this == VoucherStatus.posted ||
+          this == VoucherStatus.confirmed ||
+          this == VoucherStatus.accepted ||
+          this == VoucherStatus.draft ||
+          this == VoucherStatus.sent) &&
+      this != VoucherStatus.converted &&
+      this != VoucherStatus.voided &&
+      this != VoucherStatus.cancelled;
 }
 
 enum PaymentMode {
@@ -196,7 +272,7 @@ class VoucherModel {
     this.partyId,
     this.partyName,
     this.status = VoucherStatus.posted,
-    this.paymentMode = PaymentMode.cash,
+    this.paymentMode = PaymentMode.credit,
     this.items = const [],
     this.subtotalInCents = 0,
     this.taxInCents = 0,
@@ -343,16 +419,25 @@ class VoucherModel {
       id: map['id'] as String,
       companyId: (map['companyId'] as String?) ?? 'cmp_default',
       voucherNumber: (map['voucherNumber'] as String?) ?? 'VCH-001',
-      type: VoucherType.values.byName(map['type'] as String),
+      type: VoucherType.values.firstWhere(
+        (e) => e.name == map['type'],
+        orElse: () => VoucherType.sales,
+      ),
       date: DateTime.parse(map['date'] as String),
       dueDate: map['dueDate'] != null ? DateTime.parse(map['dueDate'] as String) : null,
       partyId: map['partyId'] as String?,
       partyName: map['partyName'] as String?,
       status: map['status'] != null
-          ? VoucherStatus.values.byName(map['status'] as String)
+          ? VoucherStatus.values.firstWhere(
+              (e) => e.name == map['status'],
+              orElse: () => VoucherStatus.posted,
+            )
           : VoucherStatus.posted,
       paymentMode: map['paymentMode'] != null
-          ? PaymentMode.values.byName(map['paymentMode'] as String)
+          ? PaymentMode.values.firstWhere(
+              (e) => e.name == map['paymentMode'],
+              orElse: () => PaymentMode.cash,
+            )
           : PaymentMode.cash,
       items: parsedItems,
       subtotalInCents: (map['subtotalInCents'] as int?) ?? 0,

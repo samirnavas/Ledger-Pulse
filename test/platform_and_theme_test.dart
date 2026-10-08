@@ -37,7 +37,7 @@ void main() {
 
       // Predictive back page transitions theme check
       final builders = theme.pageTransitionsTheme.builders;
-      expect(builders[TargetPlatform.android], isA<PredictiveBackPageTransitionsBuilder>());
+      expect(builders[TargetPlatform.android], isA<EnhancedPredictiveBackPageTransitionsBuilder>());
       expect(builders[TargetPlatform.iOS], isA<CupertinoPageTransitionsBuilder>());
     });
   });
@@ -348,9 +348,9 @@ void main() {
 
       // Verify DraggableScrollableSheet configuration
       final sheet = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
-      expect(sheet.initialChildSize, equals(0.42));
-      expect(sheet.minChildSize, equals(0.25));
-      expect(sheet.maxChildSize, equals(0.88));
+      expect(sheet.initialChildSize, equals(0.48));
+      expect(sheet.minChildSize, equals(0.28));
+      expect(sheet.maxChildSize, equals(0.90));
       expect(sheet.shouldCloseOnMinExtent, isTrue);
       expect(sheet.snap, isTrue);
       expect(sheet.expand, isFalse);
@@ -461,15 +461,16 @@ void main() {
       expect(find.text('Alice'), findsOneWidget);
 
       final sheet = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
-      expect(sheet.initialChildSize, equals(0.55));
-      expect(sheet.minChildSize, equals(0.25));
-      expect(sheet.maxChildSize, equals(0.95));
+      expect(sheet.initialChildSize, equals(0.95));
+      expect(sheet.minChildSize, equals(0.35));
+      expect(sheet.maxChildSize, equals(0.98));
       expect(sheet.shouldCloseOnMinExtent, isTrue);
       expect(sheet.snap, isTrue);
       expect(sheet.expand, isFalse);
 
-      // Close cleanly when clean
-      await tester.tap(find.byIcon(Icons.close));
+      // Close cleanly when clean via back navigation
+      final dynamic navState = tester.state(find.byType(Navigator));
+      navState.maybePop();
       await tester.pumpAndSettle();
 
       expect(find.text('Alice'), findsNothing);
@@ -511,8 +512,9 @@ void main() {
       await tester.tap(find.text('+₹500'));
       await tester.pumpAndSettle();
 
-      // Tap close -> confirmation dialog appears
-      await tester.tap(find.byIcon(Icons.close));
+      // Trigger back navigation -> confirmation dialog appears
+      final dynamic navState = tester.state(find.byType(Navigator));
+      navState.maybePop();
       await tester.pumpAndSettle();
 
       expect(find.text('Discard unsaved changes?'), findsOneWidget);

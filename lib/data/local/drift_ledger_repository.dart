@@ -8,9 +8,12 @@ import 'package:uuid/uuid.dart';
 import '../../core/network/sync_engine.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
+import '../accounting/voucher_posting_engine.dart';
 import '../mock/mock_seed_data.dart';
+import '../models/account_model.dart';
 import '../models/audit_log_model.dart';
 import '../models/company_model.dart';
+import '../models/journal_model.dart';
 import '../models/party_model.dart';
 import '../models/rbac_model.dart';
 import '../models/sync_model.dart';
@@ -25,6 +28,7 @@ class DriftLedgerRepository implements ILedgerRepository {
   final SyncEngine _syncEngine;
   final String _assetPath;
   final AuditService _auditService;
+  final VoucherPostingEngine _postingEngine;
   final _uuid = const Uuid();
   final StreamController<void> _updateStreamController =
       StreamController<void>.broadcast();
@@ -41,6 +45,7 @@ class DriftLedgerRepository implements ILedgerRepository {
   DriftLedgerRepository({
     AppDatabase? db,
     SyncEngine? syncEngine,
+    VoucherPostingEngine? postingEngine,
     bool autoSync = true,
     String assetPath = 'assets/data/data.json',
     String currentCompanyId = 'cmp_default',
@@ -53,11 +58,13 @@ class DriftLedgerRepository implements ILedgerRepository {
         _currentCompanyId = currentCompanyId,
         _currentUserId = currentUserId,
         _currentRole = currentRole,
-        _auditService = AuditService(db ?? AppDatabase());
+        _auditService = AuditService(db ?? AppDatabase()),
+        _postingEngine = postingEngine ?? VoucherPostingEngine(db ?? AppDatabase(), AuditService(db ?? AppDatabase()));
 
   AppDatabase get db => _db;
   SyncEngine get syncEngine => _syncEngine;
   AuditService get auditService => _auditService;
+  VoucherPostingEngine get postingEngine => _postingEngine;
   String get currentCompanyId => _currentCompanyId;
   String get currentUserId => _currentUserId;
   Role get currentRole => _currentRole;
@@ -903,6 +910,100 @@ class DriftLedgerRepository implements ILedgerRepository {
       );
 
       await _recalculatePartyBalanceInTx(effectiveEntry.partyId);
+
+      // Synchronize standalone ledger entry with double-entry journals & accounts
+      if (!effectiveEntry.id.startsWith('vch_entry_') && !effectiveEntry.id.startsWith('open_')) {
+        await _postingEngine.ensureCompanyAccounts(_currentCompanyId);
+        final isCustomer = party.type == PartyType.customer;
+        final arAccountId = '${_currentCompanyId}_${DefaultAccounts.arId}';
+        final apAccountId = '${_currentCompanyId}_${DefaultAccounts.apId}';
+        final cashAccountId = '${_currentCompanyId}_${DefaultAccounts.cashId}';
+        final salesAccountId = '${_currentCompanyId}_${DefaultAccounts.salesId}';
+        final purchasesAccountId = '${_currentCompanyId}_${DefaultAccounts.purchasesCogsId}';
+
+        String drAcc;
+        String crAcc;
+        String note;
+
+        if (isCustomer) {
+          if (effectiveEntry.type == EntryType.got) {
+            // Customer Receipt: Cash/Bank DR, AR CR
+            drAcc = cashAccountId;
+            crAcc = arAccountId;
+            note = effectiveEntry.note ?? 'Customer Receipt - ${party.name}';
+          } else {
+            // Customer Debit: AR DR, Sales CR
+            drAcc = arAccountId;
+            crAcc = salesAccountId;
+            note = effectiveEntry.note ?? 'Customer Charge - ${party.name}';
+          }
+        } else {
+          if (effectiveEntry.type == EntryType.gave) {
+            // Supplier Payment: AP DR, Cash/Bank CR
+            drAcc = apAccountId;
+            crAcc = cashAccountId;
+            note = effectiveEntry.note ?? 'Supplier Payment - ${party.name}';
+          } else {
+            // Supplier Bill: Purchases DR, AP CR
+            drAcc = purchasesAccountId;
+            crAcc = apAccountId;
+            note = effectiveEntry.note ?? 'Supplier Bill - ${party.name}';
+          }
+        }
+
+        final jnlId = 'jnl_entry_${effectiveEntry.id}';
+        final jnlNumber = 'JNL-ENT-${effectiveEntry.id.length > 8 ? effectiveEntry.id.substring(0, 8) : effectiveEntry.id}';
+        final now = DateTime.now();
+
+        await _db.into(_db.journals).insertOnConflictUpdate(
+          JournalsCompanion.insert(
+            id: jnlId,
+            companyId: Value(_currentCompanyId),
+            journalNumber: jnlNumber,
+            date: effectiveEntry.date,
+            narration: Value(note),
+            totalAmountInCents: Value(effectiveEntry.amountInCents),
+            status: const Value('posted'),
+            createdAt: Value(effectiveEntry.date),
+            updatedAt: Value(now),
+          ),
+        );
+
+        await (_db.delete(_db.journalLines)..where((t) => t.journalId.equals(jnlId))).go();
+
+        await _db.into(_db.journalLines).insert(
+          JournalLinesCompanion.insert(
+            id: '${jnlId}_dr',
+            companyId: Value(_currentCompanyId),
+            journalId: jnlId,
+            accountId: drAcc,
+            partyId: Value(effectiveEntry.partyId),
+            debitInCents: Value(effectiveEntry.amountInCents),
+            creditInCents: const Value(0),
+            narration: Value(note),
+            createdAt: Value(effectiveEntry.date),
+            updatedAt: Value(now),
+          ),
+        );
+
+        await _db.into(_db.journalLines).insert(
+          JournalLinesCompanion.insert(
+            id: '${jnlId}_cr',
+            companyId: Value(_currentCompanyId),
+            journalId: jnlId,
+            accountId: crAcc,
+            partyId: Value(effectiveEntry.partyId),
+            debitInCents: const Value(0),
+            creditInCents: Value(effectiveEntry.amountInCents),
+            narration: Value(note),
+            createdAt: Value(effectiveEntry.date),
+            updatedAt: Value(now),
+          ),
+        );
+
+        await _recalculateAccountBalanceInTx(drAcc);
+        await _recalculateAccountBalanceInTx(crAcc);
+      }
     });
 
     _updateStreamController.add(null);
@@ -1262,6 +1363,223 @@ class DriftLedgerRepository implements ILedgerRepository {
             }),
           ),
         );
+  }
+
+  Future<void> _recalculateAccountBalanceInTx(String accountId) async {
+    final account = await (_db.select(_db.accounts)
+          ..where((t) => t.id.equals(accountId) & t.companyId.equals(_currentCompanyId)))
+        .getSingleOrNull();
+    if (account == null) return;
+
+    final query = _db.select(_db.journalLines).join([
+      innerJoin(_db.journals, _db.journals.id.equalsExp(_db.journalLines.journalId)),
+    ])
+      ..where(_db.journalLines.accountId.equals(accountId) &
+          _db.journalLines.companyId.equals(_currentCompanyId) &
+          _db.journalLines.isDeleted.equals(false) &
+          _db.journals.status.equals('posted'));
+
+    final rows = await query.get();
+
+    int totalDebit = 0;
+    int totalCredit = 0;
+    for (final row in rows) {
+      final line = row.readTable(_db.journalLines);
+      totalDebit += line.debitInCents;
+      totalCredit += line.creditInCents;
+    }
+
+    final accountType = AccountType.values.firstWhere(
+      (e) => e.name.toLowerCase() == account.type.toLowerCase(),
+      orElse: () => AccountType.asset,
+    );
+
+    final netBalance = accountType.isDebitNormal
+        ? (totalDebit - totalCredit)
+        : (totalCredit - totalDebit);
+
+    await (_db.update(_db.accounts)..where((t) => t.id.equals(accountId) & t.companyId.equals(_currentCompanyId))).write(
+      AccountsCompanion(
+        currentBalanceInCents: Value(netBalance),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<List<AccountModel>> getAccounts({AccountType? type}) async {
+    await _ensureInitialized();
+    await _postingEngine.ensureCompanyAccounts(_currentCompanyId);
+
+    final query = _db.select(_db.accounts)
+      ..where((t) => t.companyId.equals(_currentCompanyId) & t.isDeleted.equals(false))
+      ..orderBy([(t) => OrderingTerm.asc(t.code)]);
+
+    if (type != null) {
+      query.where((t) => t.type.equals(type.name));
+    }
+
+    final rows = await query.get();
+    return rows
+        .map((r) => AccountModel(
+              id: r.id,
+              companyId: r.companyId,
+              code: r.code,
+              name: r.name,
+              type: AccountType.values.firstWhere(
+                (e) => e.name.toLowerCase() == r.type.toLowerCase(),
+                orElse: () => AccountType.asset,
+              ),
+              parentAccountId: r.parentAccountId,
+              isSystem: r.isSystem,
+              isActive: r.isActive,
+              description: r.description,
+              currentBalanceInCents: r.currentBalanceInCents,
+              createdAt: r.createdAt,
+              updatedAt: r.updatedAt,
+            ))
+        .toList();
+  }
+
+  Future<AccountModel> getAccountById(String id) async {
+    await _ensureInitialized();
+    final r = await (_db.select(_db.accounts)
+          ..where((t) => t.id.equals(id) & t.companyId.equals(_currentCompanyId) & t.isDeleted.equals(false)))
+        .getSingleOrNull();
+
+    if (r == null) {
+      throw AccountNotFoundException(id);
+    }
+
+    return AccountModel(
+      id: r.id,
+      companyId: r.companyId,
+      code: r.code,
+      name: r.name,
+      type: AccountType.values.firstWhere(
+        (e) => e.name.toLowerCase() == r.type.toLowerCase(),
+        orElse: () => AccountType.asset,
+      ),
+      parentAccountId: r.parentAccountId,
+      isSystem: r.isSystem,
+      isActive: r.isActive,
+      description: r.description,
+      currentBalanceInCents: r.currentBalanceInCents,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    );
+  }
+
+  Future<void> addAccount(AccountModel account) async {
+    await _ensureInitialized();
+    final now = DateTime.now();
+    await _db.into(_db.accounts).insert(
+          AccountsCompanion.insert(
+            id: account.id,
+            companyId: Value(_currentCompanyId),
+            code: account.code,
+            name: account.name,
+            type: account.type.name,
+            parentAccountId: Value(account.parentAccountId),
+            isSystem: Value(account.isSystem),
+            isActive: Value(account.isActive),
+            description: Value(account.description),
+            currentBalanceInCents: Value(account.currentBalanceInCents),
+            createdAt: Value(account.createdAt),
+            updatedAt: Value(now),
+            isDeleted: const Value(false),
+            syncStatus: const Value(SyncRecordStatus.pending),
+          ),
+        );
+    _updateStreamController.add(null);
+  }
+
+  Future<List<JournalModel>> getJournals({DateTime? startDate, DateTime? endDate}) async {
+    await _ensureInitialized();
+    final query = _db.select(_db.journals)
+      ..where((t) => t.companyId.equals(_currentCompanyId) & t.isDeleted.equals(false))
+      ..orderBy([(t) => OrderingTerm.desc(t.date), (t) => OrderingTerm.desc(t.createdAt)]);
+
+    if (startDate != null) {
+      query.where((t) => t.date.isBiggerOrEqualValue(startDate));
+    }
+    if (endDate != null) {
+      query.where((t) => t.date.isSmallerOrEqualValue(endDate));
+    }
+
+    final journals = await query.get();
+    final List<JournalModel> result = [];
+
+    for (final j in journals) {
+      final lines = await (_db.select(_db.journalLines)
+            ..where((t) => t.journalId.equals(j.id) & t.isDeleted.equals(false)))
+          .get();
+
+      result.add(JournalModel(
+        id: j.id,
+        companyId: j.companyId,
+        journalNumber: j.journalNumber,
+        voucherId: j.voucherId,
+        date: j.date,
+        narration: j.narration,
+        totalAmountInCents: j.totalAmountInCents,
+        status: j.status,
+        lines: lines
+            .map((l) => JournalLineModel(
+                  id: l.id,
+                  companyId: l.companyId,
+                  journalId: l.journalId,
+                  accountId: l.accountId,
+                  partyId: l.partyId,
+                  debitInCents: l.debitInCents,
+                  creditInCents: l.creditInCents,
+                  narration: l.narration,
+                  createdAt: l.createdAt,
+                  updatedAt: l.updatedAt,
+                ))
+            .toList(),
+        createdAt: j.createdAt,
+        updatedAt: j.updatedAt,
+      ));
+    }
+
+    return result;
+  }
+
+  Future<JournalModel> postJournalEntry(JournalModel journal) async {
+    await _ensureInitialized();
+    final result = await _postingEngine.postJournalEntry(
+      journal: journal.copyWith(companyId: _currentCompanyId),
+      userId: _currentUserId,
+    );
+    _updateStreamController.add(null);
+    _triggerBackgroundSync();
+    return result;
+  }
+
+  Future<JournalModel> postOpeningBalances({
+    DateTime? date,
+    int cashInCents = 0,
+    int bankInCents = 0,
+    int inventoryInCents = 0,
+    Map<String, int> receivablesByParty = const {},
+    Map<String, int> payablesByParty = const {},
+    int? explicitCapitalInCents,
+  }) async {
+    await _ensureInitialized();
+    final result = await _postingEngine.postOpeningBalances(
+      companyId: _currentCompanyId,
+      userId: _currentUserId,
+      date: date,
+      cashInCents: cashInCents,
+      bankInCents: bankInCents,
+      inventoryInCents: inventoryInCents,
+      receivablesByParty: receivablesByParty,
+      payablesByParty: payablesByParty,
+      explicitCapitalInCents: explicitCapitalInCents,
+    );
+    _updateStreamController.add(null);
+    _triggerBackgroundSync();
+    return result;
   }
 
   void dispose() {

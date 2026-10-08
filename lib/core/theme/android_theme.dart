@@ -126,7 +126,7 @@ class AndroidTheme {
         color: scheme.surfaceContainer,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(shapeCornerLarge),
+          borderRadius: BorderRadius.circular(shapeCornerExtraLarge),
           side: BorderSide(
             color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.6),
             width: 1,
@@ -140,7 +140,7 @@ class AndroidTheme {
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: scheme.primaryContainer,
         foregroundColor: scheme.onPrimaryContainer,
-        elevation: 3, // Level 3 at rest (6dp per MD3)
+        elevation: 2,
         focusElevation: 6,
         hoverElevation: 6,
         highlightElevation: 6,

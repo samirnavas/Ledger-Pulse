@@ -377,16 +377,16 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                             onPressed: _importFromContacts,
                           ),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide(
                               color: Theme.of(context).colorScheme.outlineVariant,
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide(
                               color: Theme.of(context).colorScheme.primary,
                               width: 2,
@@ -417,16 +417,16 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                           ),
                           hintText: '9876543210',
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide(
                               color: Theme.of(context).colorScheme.outlineVariant,
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(16),
                             borderSide: BorderSide(
                               color: Theme.of(context).colorScheme.primary,
                               width: 2,
