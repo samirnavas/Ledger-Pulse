@@ -13,6 +13,7 @@ import 'core/theme/android_theme.dart';
 import 'core/theme/ios_theme.dart';
 import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/company_providers.dart';
+import 'presentation/providers/sync_providers.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/widget_sync_provider.dart';
 import 'presentation/splash/splash_screen.dart';
@@ -66,11 +67,23 @@ class LedgerPulseApp extends ConsumerStatefulWidget {
 }
 
 class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
+  AppLifecycleListener? _lifecycleListener;
+
   @override
   void initState() {
     super.initState();
+    // Setup app lifecycle listener to auto-sync each time app is opened / resumed from background
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () {
+        ref.read(syncControllerProvider.notifier).autoSyncOnAppOpen();
+      },
+    );
+
     // Setup widget click handler for deep linking safely after the initial frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Trigger automatic synchronization on initial app launch (cold start)
+      ref.read(syncControllerProvider.notifier).autoSyncOnAppOpen();
+
       if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
         WidgetSyncService.initialize(
           onWidgetClick: (uri) {
@@ -85,9 +98,17 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
   }
 
   @override
+  void dispose() {
+    _lifecycleListener?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Keep native home screen widget synced with active company & business totals
     ref.watch(widgetSyncProvider);
+    // Keep data synchronized automatically each time the app opens or switches company
+    ref.watch(autoSyncProvider);
 
     final isIos = !kIsWeb && Platform.isIOS;
     final themeMode = ref.watch(appThemeModeProvider);

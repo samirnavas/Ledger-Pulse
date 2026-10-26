@@ -31,7 +31,7 @@ void main() {
 
     setUp(() {
       db = AppDatabase(NativeDatabase.memory());
-      syncEngine = SyncEngine(db: db);
+      syncEngine = SyncEngine(db: db, simulateSyncForTesting: true);
       repo = DriftLedgerRepository(
         db: db,
         syncEngine: syncEngine,

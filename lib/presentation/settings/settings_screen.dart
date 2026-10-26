@@ -148,7 +148,7 @@ class SettingsScreen extends ConsumerWidget {
                         HapticFeedback.lightImpact();
                         Navigator.of(context).push(
                           createAdaptivePageRoute(
-                            builder: (ctx) => const ProfileScreen(),
+                            builder: (ctx) => const ProfileScreen(isStandalone: true),
                           ),
                         );
                       },

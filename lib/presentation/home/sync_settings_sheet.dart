@@ -37,12 +37,14 @@ class SyncSettingsSheet extends ConsumerWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Sync & Backup Center',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: isIos ? CupertinoColors.label : Theme.of(context).colorScheme.onSurface,
+            Expanded(
+              child: Text(
+                'Sync & Backup Center',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: isIos ? CupertinoColors.label : Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
             Container(
@@ -111,7 +113,7 @@ class SyncSettingsSheet extends ConsumerWidget {
                             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                           ),
                           Text(
-                            'Bidirectional real-time PostgreSQL sync',
+                            'Bidirectional PostgreSQL sync (Auto-syncs on app open)',
                             style: TextStyle(fontSize: 12, color: CupertinoColors.secondaryLabel),
                           ),
                         ],
@@ -224,7 +226,7 @@ class SyncSettingsSheet extends ConsumerWidget {
                   const Divider(height: 24),
                   SwitchListTile(
                     title: const Text('Supabase Cloud Sync'),
-                    subtitle: const Text('Bidirectional PostgreSQL real-time sync'),
+                    subtitle: const Text('Bidirectional PostgreSQL real-time sync (Auto-syncs on app open)'),
                     value: activeCompany.isCloudSyncEnabled,
                     onChanged: (val) {
                       ref.read(companyControllerProvider.notifier).updateCompanySettings(

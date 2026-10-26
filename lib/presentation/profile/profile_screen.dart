@@ -19,7 +19,12 @@ import '../inventory/inventory_screen.dart';
 import '../reports/audit_log_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key});
+  final bool? isStandalone;
+
+  const ProfileScreen({
+    super.key,
+    this.isStandalone,
+  });
 
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
@@ -286,7 +291,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     });
 
-    final canPop = ModalRoute.of(context)?.canPop ?? false;
+    final route = ModalRoute.of(context);
+    final isStandalone = widget.isStandalone ?? (route != null && !route.isFirst);
 
     final formContent = Form(
       key: _formKey,
@@ -303,12 +309,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-              // Top Title
-              const Text(
-                'My Profile',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
               // 1. Header Card with Avatar
               _buildHeaderCard(context, profile, isIos, isDark),
 
@@ -665,7 +665,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ),
   );
 
-    if (canPop) {
+    if (isStandalone) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('My Profile'),

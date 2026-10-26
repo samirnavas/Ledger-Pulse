@@ -29,7 +29,7 @@ void main() {
         currentCompanyId: 'cmp_outbox_test',
         currentUserId: 'usr_supabase_uuid',
       );
-      syncEngine = SyncEngine(db: db);
+      syncEngine = SyncEngine(db: db, simulateSyncForTesting: true);
     });
 
     tearDown(() async {

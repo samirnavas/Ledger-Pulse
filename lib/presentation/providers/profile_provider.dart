@@ -30,11 +30,12 @@ class UserProfileNotifier extends Notifier<UserProfile> {
 
   Future<void> _loadFromDatabase(String userId) async {
     try {
+      if (!ref.mounted) return;
       final db = ref.read(appDatabaseProvider);
       final syncEngine = ref.read(syncEngineProvider);
       final repo = DriftLedgerRepository(db: db, syncEngine: syncEngine, currentUserId: userId);
       final loaded = await repo.getUserProfile(userId);
-      if (loaded != null) {
+      if (loaded != null && ref.mounted) {
         state = loaded;
       }
     } catch (e) {
@@ -49,6 +50,7 @@ class UserProfileNotifier extends Notifier<UserProfile> {
 
   Future<void> _saveToDatabase(UserProfile profile) async {
     try {
+      if (!ref.mounted) return;
       final db = ref.read(appDatabaseProvider);
       final syncEngine = ref.read(syncEngineProvider);
       final repo = DriftLedgerRepository(db: db, syncEngine: syncEngine, currentUserId: profile.id);
@@ -60,6 +62,10 @@ class UserProfileNotifier extends Notifier<UserProfile> {
 
   Future<void> syncProfileToDatabase() async {
     await _saveToDatabase(state);
+  }
+
+  Future<void> reloadFromDatabase() async {
+    await _loadFromDatabase(state.id);
   }
 }
 
