@@ -51,28 +51,48 @@ class AdaptiveBottomNav extends StatelessWidget {
       );
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     // Android Material 3 Expressive NavigationBar
-    return NavigationBar(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerHigh,
-      selectedIndex: currentIndex,
-      onDestinationSelected: onTap,
-      destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.people_outline),
-          selectedIcon: Icon(Icons.people),
-          label: 'Customers',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.local_shipping_outlined),
-          selectedIcon: Icon(Icons.local_shipping),
-          label: 'Suppliers',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.account_circle_outlined),
-          selectedIcon: Icon(Icons.account_circle),
-          label: 'Profile',
-        ),
-      ],
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? Colors.black : null,
+        border: isDark
+            ? Border(
+                top: BorderSide(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .outlineVariant
+                      .withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              )
+            : null,
+      ),
+      child: NavigationBar(
+        backgroundColor: isDark
+            ? Colors.black
+            : Theme.of(context).colorScheme.surfaceContainerHigh,
+        selectedIndex: currentIndex,
+        onDestinationSelected: onTap,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Customers',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.local_shipping_outlined),
+            selectedIcon: Icon(Icons.local_shipping),
+            label: 'Suppliers',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.account_circle_outlined),
+            selectedIcon: Icon(Icons.account_circle),
+            label: 'Profile',
+          ),
+        ],
+      ),
     );
   }
 }

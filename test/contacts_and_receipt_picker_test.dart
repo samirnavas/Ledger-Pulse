@@ -55,12 +55,16 @@ void main() {
       await tester.pump();
       expect(find.text('500'), findsOneWidget);
 
-      // Test tapping keypad digits
-      await tester.ensureVisible(find.text('00'));
+      // Test tapping keypad decimal point and digit
+      await tester.ensureVisible(find.text('.'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('00'));
+      await tester.tap(find.text('.'));
       await tester.pump();
-      expect(find.text('50000'), findsOneWidget);
+      expect(find.text('500.'), findsOneWidget);
+
+      await tester.tap(find.text('5'));
+      await tester.pump();
+      expect(find.text('500.5'), findsOneWidget);
     });
   });
 }

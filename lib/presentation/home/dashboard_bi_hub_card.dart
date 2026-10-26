@@ -360,12 +360,12 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: isIos
-            ? (isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9))
+            ? (isDark ? const Color(0xFF141414) : const Color(0xFFF1F5F9))
             : colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isIos
-              ? (isDark ? const Color(0x33475569) : const Color(0x1F000000))
+              ? (isDark ? const Color(0xFF27272A) : const Color(0x1F000000))
               : colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
           width: 1,
         ),
@@ -443,12 +443,12 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isIos
-            ? (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC))
+            ? (isDark ? const Color(0xFF141414) : const Color(0xFFF8FAFC))
             : colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isIos
-              ? (isDark ? const Color(0x33475569) : const Color(0x1F000000))
+              ? (isDark ? const Color(0xFF27272A) : const Color(0x1F000000))
               : colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
           width: 1,
         ),

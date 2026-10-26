@@ -38,8 +38,8 @@ class IosTheme {
     return const CupertinoThemeData(
       brightness: Brightness.dark,
       primaryColor: AppColors.primaryBlue,
-      scaffoldBackgroundColor: Color(0xFF0F172A),
-      barBackgroundColor: Color(0xCC1E293B),
+      scaffoldBackgroundColor: Colors.black,
+      barBackgroundColor: Color(0xCC000000),
       textTheme: CupertinoTextThemeData(
         primaryColor: Colors.white,
         textStyle: TextStyle(

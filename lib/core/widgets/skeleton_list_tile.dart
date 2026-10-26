@@ -13,9 +13,9 @@ class SkeletonListTile extends StatelessWidget {
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
     final baseColor =
-        isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+        isDark ? const Color(0xFF161616) : const Color(0xFFE2E8F0);
     final highlightColor =
-        isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC);
+        isDark ? const Color(0xFF262626) : const Color(0xFFF8FAFC);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -98,9 +98,9 @@ class SkeletonLedgerTile extends StatelessWidget {
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
     final baseColor =
-        isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
+        isDark ? const Color(0xFF161616) : const Color(0xFFE2E8F0);
     final highlightColor =
-        isDark ? const Color(0xFF334155) : const Color(0xFFF8FAFC);
+        isDark ? const Color(0xFF262626) : const Color(0xFFF8FAFC);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

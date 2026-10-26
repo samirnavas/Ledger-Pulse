@@ -22,6 +22,8 @@ import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 import 'package:real_liquid_glass/real_liquid_glass.dart';
 import 'package:shimmer/shimmer.dart';
 
+import 'package:ledger_pulse/core/theme/ios_theme.dart';
+
 void main() {
   group('AndroidTheme M3 Expressive Tests', () {
     test('AndroidTheme has 0 card elevation and 28px border radius', () {
@@ -39,6 +41,39 @@ void main() {
       final builders = theme.pageTransitionsTheme.builders;
       expect(builders[TargetPlatform.android], isA<EnhancedPredictiveBackPageTransitionsBuilder>());
       expect(builders[TargetPlatform.iOS], isA<CupertinoPageTransitionsBuilder>());
+    });
+
+    test('Dark mode uses pure black background with neutral dark surfaces and themed accents', () {
+      final darkTheme = AndroidTheme.getDark();
+
+      // Pure black backgrounds
+      expect(darkTheme.scaffoldBackgroundColor, equals(const Color(0xFF000000)));
+      expect(darkTheme.canvasColor, equals(const Color(0xFF000000)));
+      expect(darkTheme.colorScheme.surface, equals(const Color(0xFF000000)));
+      expect(darkTheme.colorScheme.surfaceContainerLowest, equals(const Color(0xFF000000)));
+      expect(darkTheme.appBarTheme.backgroundColor, equals(const Color(0xFF000000)));
+      expect(darkTheme.navigationBarTheme.backgroundColor, equals(const Color(0xFF000000)));
+
+      // Crisp neutral dark surfaces for cards and elevated components
+      expect(darkTheme.colorScheme.surfaceContainer, equals(const Color(0xFF141414)));
+      expect(darkTheme.colorScheme.surfaceContainerHigh, equals(const Color(0xFF1E1E1E)));
+      expect(darkTheme.colorScheme.surfaceContainerHighest, equals(const Color(0xFF282828)));
+
+      // Themed accents preserved
+      expect(darkTheme.colorScheme.primary, isNotNull);
+      expect(darkTheme.colorScheme.secondaryContainer, isNotNull);
+      expect(darkTheme.navigationBarTheme.indicatorColor, equals(darkTheme.colorScheme.secondaryContainer));
+
+      // iOS Dark Theme verification
+      expect(IosTheme.darkTheme.scaffoldBackgroundColor, equals(Colors.black));
+    });
+
+    test('Light mode preserves adaptive colors with tonal surface elevation', () {
+      final lightTheme = AndroidTheme.getLight();
+
+      expect(lightTheme.brightness, equals(Brightness.light));
+      expect(lightTheme.scaffoldBackgroundColor, equals(lightTheme.colorScheme.surfaceContainerLow));
+      expect(lightTheme.colorScheme.surfaceContainer, isNot(equals(const Color(0xFF000000))));
     });
   });
 

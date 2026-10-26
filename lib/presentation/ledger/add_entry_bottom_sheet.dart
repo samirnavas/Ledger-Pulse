@@ -47,17 +47,18 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
   String? _receiptUrl;
   bool _isSubmitting = false;
   String? _errorMessage;
-  bool _showNoteField = false;
-
   bool get _isClean {
     if (widget.entryToEdit != null) {
-      final initialAmt = (widget.entryToEdit!.amountInCents ~/ 100).toString();
-      final initialNote = widget.entryToEdit!.note ?? '';
+      final entry = widget.entryToEdit!;
+      final initialAmt = (entry.amountInCents % 100 == 0)
+          ? (entry.amountInCents ~/ 100).toString()
+          : (entry.amountInCents / 100.0).toStringAsFixed(2);
+      final initialNote = entry.note ?? '';
       return _amountString == initialAmt &&
           _noteController.text.trim() == initialNote.trim() &&
-          _selectedDate == widget.entryToEdit!.date &&
-          _entryType == widget.entryToEdit!.type &&
-          _receiptUrl == widget.entryToEdit!.receiptPhotoUrl;
+          _selectedDate == entry.date &&
+          _entryType == entry.type &&
+          _receiptUrl == entry.receiptPhotoUrl;
     }
     return (_amountString == '0' || _amountString.isEmpty) &&
         _noteController.text.trim().isEmpty &&
@@ -70,11 +71,14 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     if (widget.entryToEdit != null) {
       final entry = widget.entryToEdit!;
       _entryType = entry.type;
-      _amountString = (entry.amountInCents ~/ 100).toString();
+      if (entry.amountInCents % 100 == 0) {
+        _amountString = (entry.amountInCents ~/ 100).toString();
+      } else {
+        _amountString = (entry.amountInCents / 100.0).toStringAsFixed(2);
+      }
       _noteController.text = entry.note ?? '';
       _selectedDate = entry.date;
       _receiptUrl = entry.receiptPhotoUrl;
-      _showNoteField = entry.note != null && entry.note!.trim().isNotEmpty;
     } else {
       _entryType = widget.initialType;
     }
@@ -96,6 +100,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
 
   void _onKeypadTap(String key) {
     HapticFeedback.lightImpact();
+    FocusScope.of(context).unfocus();
     setState(() {
       _errorMessage = null;
       if (key == 'backspace') {
@@ -104,20 +109,32 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
         } else {
           _amountString = '0';
         }
-      } else if (key == '00') {
-        if (_amountString != '0' && _amountString.length <= 7) {
-          _amountString += '00';
+      } else if (key == '.') {
+        if (!_amountString.contains('.')) {
+          _amountString += '.';
         }
       } else if (key == '0') {
-        if (_amountString != '0' && _amountString.length <= 8) {
-          _amountString += '0';
+        if (_amountString == '0') {
+          // Keep single '0'
+        } else {
+          final parts = _amountString.split('.');
+          if (parts.length > 1 && parts[1].length >= 2) {
+            // max 2 decimal places
+          } else if (_amountString.length <= 9) {
+            _amountString += '0';
+          }
         }
       } else {
         // Digits 1-9
         if (_amountString == '0') {
           _amountString = key;
-        } else if (_amountString.length <= 8) {
-          _amountString += key;
+        } else {
+          final parts = _amountString.split('.');
+          if (parts.length > 1 && parts[1].length >= 2) {
+            // max 2 decimal places
+          } else if (_amountString.length <= 9) {
+            _amountString += key;
+          }
         }
       }
     });
@@ -133,11 +150,16 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
 
   void _addQuickPreset(int amount) {
     HapticFeedback.lightImpact();
+    FocusScope.of(context).unfocus();
     setState(() {
       _errorMessage = null;
-      final current = int.tryParse(_amountString) ?? 0;
+      final current = double.tryParse(_amountString) ?? 0.0;
       final updated = current + amount;
-      _amountString = updated.toString();
+      if (updated == updated.roundToDouble()) {
+        _amountString = updated.toInt().toString();
+      } else {
+        _amountString = updated.toStringAsFixed(2);
+      }
     });
   }
 
@@ -323,14 +345,12 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
   }
 
   void _saveEntry() async {
-    final amountInt = int.tryParse(_amountString) ?? 0;
-    if (amountInt <= 0) {
+    final amountDouble = double.tryParse(_amountString) ?? 0.0;
+    final amountCents = (amountDouble * 100).round();
+    if (amountCents <= 0) {
       setState(() => _errorMessage = 'Please enter an amount greater than ₹0');
       return;
     }
-
-    // Convert rupees to integer cents
-    final amountCents = amountInt * 100;
 
     setState(() {
       _errorMessage = null;
@@ -437,6 +457,20 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     bool isAction = false,
   }) {
     final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark ||
+        CupertinoTheme.of(context).brightness == Brightness.dark;
+
+    final buttonBg = isDark
+        ? (isAction ? const Color(0xFF1C1C1C) : const Color(0xFF242424))
+        : (isAction
+            ? Theme.of(context).colorScheme.surfaceContainerHighest
+            : Theme.of(context).colorScheme.surfaceContainerHigh);
+    final buttonFg = isDark
+        ? Colors.white
+        : Theme.of(context).colorScheme.onSurface;
+    final borderColor = isDark
+        ? const Color(0xFF333333)
+        : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4);
 
     if (isIos) {
       return Expanded(
@@ -445,16 +479,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           height: 52,
           child: RealLiquidGlass(
             borderRadius: 16,
-            glassColor: isAction
-                ? (Theme.of(context).brightness == Brightness.dark
-                    ? CupertinoColors.systemGrey5.darkColor
-                    : CupertinoColors.systemGrey5)
-                : (Theme.of(context).brightness == Brightness.dark
-                    ? const Color(0xFF1E293B).withValues(alpha: 0.6)
-                    : CupertinoColors.white.withValues(alpha: 0.8)),
-            borderColor: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withValues(alpha: 0.12)
-                : Colors.black.withValues(alpha: 0.06),
+            glassColor: buttonBg,
+            borderColor: borderColor,
             child: Material(
               color: Colors.transparent,
               child: InkWell(
@@ -471,15 +497,17 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                 borderRadius: BorderRadius.circular(16),
                 child: Center(
                   child: icon != null
-                      ? Icon(icon,
-                          size: 24,
-                          color: Theme.of(context).colorScheme.onSurface)
+                      ? Icon(
+                          icon,
+                          size: 22,
+                          color: buttonFg,
+                        )
                       : Text(
                           label,
                           style: TextStyle(
-                            fontSize: label == '00' ? 20 : 24,
-                            fontWeight: FontWeight.w800,
-                            color: Theme.of(context).colorScheme.onSurface,
+                            fontSize: label == '.' ? 26 : 24,
+                            fontWeight: FontWeight.w700,
+                            color: buttonFg,
                           ),
                         ),
                 ),
@@ -507,9 +535,14 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                   }
                 : null,
             style: ButtonStyle(
+              backgroundColor: WidgetStatePropertyAll(buttonBg),
+              foregroundColor: WidgetStatePropertyAll(buttonFg),
+              side: WidgetStatePropertyAll(
+                BorderSide(color: borderColor, width: 1),
+              ),
               shape: WidgetStatePropertyAll(
                 RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               padding: const WidgetStatePropertyAll(
@@ -517,13 +550,14 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
               ),
             ),
             child: icon != null
-                ? Icon(icon, size: 24)
+                ? Icon(icon, size: 22, color: buttonFg)
                 : Text(
                     label,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: label == '00' ? 20 : null,
-                        ),
+                    style: TextStyle(
+                      fontSize: label == '.' ? 26 : 24,
+                      fontWeight: FontWeight.w700,
+                      color: buttonFg,
+                    ),
                   ),
           ),
         ),
@@ -533,6 +567,11 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
 
   Widget _buildQuickPresetChip(int amount) {
     final isIos = AdaptiveThemeHelper.isIos(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark ||
+        CupertinoTheme.of(context).brightness == Brightness.dark;
+    final isGave = _entryType == EntryType.gave;
+    final themeColor =
+        isGave ? AppColors.payableRed : AppColors.receivableGreen;
 
     if (isIos) {
       return Expanded(
@@ -540,14 +579,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           onTap: () => _addQuickPreset(amount),
           child: RealLiquidGlass(
             borderRadius: 22,
-            glassColor: Theme.of(context).colorScheme.primary.withValues(
-                alpha: Theme.of(context).brightness == Brightness.dark
-                    ? 0.18
-                    : 0.1),
-            borderColor: Theme.of(context).colorScheme.primary.withValues(
-                alpha: Theme.of(context).brightness == Brightness.dark
-                    ? 0.35
-                    : 0.25),
+            glassColor: themeColor.withValues(alpha: isDark ? 0.18 : 0.1),
+            borderColor: themeColor.withValues(alpha: isDark ? 0.35 : 0.25),
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 3),
               padding: const EdgeInsets.symmetric(vertical: 9),
@@ -557,7 +590,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: themeColor,
                   ),
                 ),
               ),
@@ -578,15 +611,18 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Theme.of(context).colorScheme.primary,
+                color: themeColor,
               ),
             ),
           ),
           side: BorderSide(
-            color: Theme.of(context).colorScheme.outlineVariant,
+            color: isDark
+                ? const Color(0xFF282828)
+                : Theme.of(context).colorScheme.outlineVariant,
           ),
-          backgroundColor:
-              Theme.of(context).colorScheme.surfaceContainerHigh,
+          backgroundColor: isDark
+              ? const Color(0xFF1E1E1E)
+              : Theme.of(context).colorScheme.surfaceContainerHigh,
           shape: const StadiumBorder(),
         ),
       ),
@@ -601,14 +637,17 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     final isGave = _entryType == EntryType.gave;
     final themeColor =
         isGave ? AppColors.payableRed : AppColors.receivableGreen;
-    final rawAmountInt = int.tryParse(_amountString) ?? 0;
-    final formattedDisplay = CurrencyFormatter.format(rawAmountInt * 100);
+    final rawAmountDouble = double.tryParse(_amountString) ?? 0.0;
+    final rawAmountCents = (rawAmountDouble * 100).round();
+    final formattedDisplay = CurrencyFormatter.format(rawAmountCents);
 
     final containerColor = isIos
         ? (isDark
             ? CupertinoColors.systemGroupedBackground.darkColor
             : CupertinoColors.systemGroupedBackground)
-        : Theme.of(context).colorScheme.surfaceContainerHighest;
+        : (isDark
+            ? const Color(0xFF141414)
+            : Theme.of(context).colorScheme.surfaceContainerHighest);
 
     return PopScope(
       canPop: _isClean,
@@ -878,13 +917,15 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                             ),
                           ],
                         ),
-                        if (rawAmountInt > 0)
+                        if (rawAmountCents > 0)
                           Text(
                             formattedDisplay,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppColors.textMutedLight,
+                              color: isDark
+                                  ? const Color(0xFFA1A1AA)
+                                  : AppColors.textMutedLight,
                             ),
                           ),
                       ],
@@ -917,16 +958,94 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                     ],
                   ),
 
+                  // Entry name text box
                   const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _noteController,
+                    textCapitalization: TextCapitalization.sentences,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Entry name',
+                      labelStyle: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      hintText: 'e.g. Chai, Lunch, Bill #104, Quality...',
+                      hintStyle: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                      ),
+                      prefixIcon: Icon(
+                        isIos ? CupertinoIcons.tag : Icons.label_outline_rounded,
+                        size: 20,
+                        color: themeColor,
+                      ),
+                      suffixIcon: _noteController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 18),
+                              onPressed: () {
+                                _noteController.clear();
+                                setState(() {});
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF141414)
+                          : Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.4),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF282828)
+                              : Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: isDark
+                              ? const Color(0xFF282828)
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant
+                                  .withValues(alpha: 0.6),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: themeColor,
+                          width: 1.5,
+                        ),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
 
-                  // Date & Optional Note & Attach Receipt row
+                  const SizedBox(height: 8),
+
+                  // Date & Attach Receipt row
                   Row(
                     children: [
                       // Date Chip
                       OutlinedButton.icon(
                         onPressed: _pickDate,
                         icon: Icon(
-                          isIos ? CupertinoIcons.calendar : Icons.calendar_today_rounded,
+                          isIos
+                              ? CupertinoIcons.calendar
+                              : Icons.calendar_today_rounded,
                           size: 14,
                         ),
                         label: Text(
@@ -935,42 +1054,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                         ),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          minimumSize: const Size(0, 34),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Note Toggle Button
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          HapticFeedback.lightImpact();
-                          setState(
-                              () => _showNoteField = !_showNoteField);
-                        },
-                        icon: Icon(
-                          _showNoteField || _noteController.text.isNotEmpty
-                              ? (isIos ? CupertinoIcons.pencil_ellipsis_rectangle : Icons.edit_note_rounded)
-                              : (isIos ? CupertinoIcons.doc_append : Icons.note_add_outlined),
-                          size: 16,
-                        ),
-                        label: Text(
-                          _noteController.text.isNotEmpty
-                              ? 'Note Added'
-                              : 'Add Note',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
-                          minimumSize: const Size(0, 34),
-                          foregroundColor:
-                              _noteController.text.isNotEmpty
-                                  ? AppColors.primaryBlue
-                                  : AppColors.textSecondaryLight,
+                              horizontal: 12, vertical: 6),
+                          minimumSize: const Size(0, 36),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -984,8 +1069,12 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                           onPressed: _showAttachmentOptions,
                           icon: Icon(
                             _receiptUrl != null
-                                ? (isIos ? CupertinoIcons.checkmark_circle_fill : Icons.check_circle_rounded)
-                                : (isIos ? CupertinoIcons.camera : Icons.camera_alt_outlined),
+                                ? (isIos
+                                    ? CupertinoIcons.checkmark_circle_fill
+                                    : Icons.check_circle_rounded)
+                                : (isIos
+                                    ? CupertinoIcons.camera
+                                    : Icons.camera_alt_outlined),
                             size: 14,
                             color: _receiptUrl != null
                                 ? AppColors.primaryBlue
@@ -1006,8 +1095,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                           ),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 6),
-                            minimumSize: const Size(0, 34),
+                                horizontal: 10, vertical: 6),
+                            minimumSize: const Size(0, 36),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
@@ -1017,65 +1106,9 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                     ],
                   ),
 
-                  // Expandable Note input
-                  if (_showNoteField) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: isIos
-                            ? (Theme.of(context).brightness ==
-                                    Brightness.dark
-                                ? CupertinoColors.systemBackground.darkColor
-                                : CupertinoColors.white)
-                            : Theme.of(context)
-                                .colorScheme
-                                .surfaceContainer,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outlineVariant
-                              .withValues(
-                                  alpha:
-                                      Theme.of(context).brightness ==
-                                              Brightness.dark
-                                          ? 0.35
-                                          : 0.5),
-                          width: 1,
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: TextField(
-                        controller: _noteController,
-                        autofocus: true,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                        decoration: InputDecoration(
-                          hintText:
-                              'Enter optional note (e.g. Bill #104)...',
-                          hintStyle: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding:
-                              const EdgeInsets.symmetric(vertical: 10),
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                  ],
-
                   const SizedBox(height: 10),
 
-                  // Custom Oversized On-Screen Numeric Keypad (0-9, 00, ⌫)
+                  // Custom Oversized On-Screen Numeric Keypad (0-9, ., ⌫)
                   Column(
                     children: [
                       Row(
@@ -1111,15 +1144,17 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                       Row(
                         children: [
                           _buildKeypadButton(
-                            label: '00',
-                            onTap: () => _onKeypadTap('00'),
+                            label: '.',
+                            onTap: () => _onKeypadTap('.'),
                             isAction: true,
                           ),
                           _buildKeypadButton(
                               label: '0', onTap: () => _onKeypadTap('0')),
                           _buildKeypadButton(
                             label: '',
-                            icon: isIos ? CupertinoIcons.delete_left : Icons.backspace_outlined,
+                            icon: isIos
+                                ? CupertinoIcons.delete_left
+                                : Icons.backspace_outlined,
                             onTap: () => _onKeypadTap('backspace'),
                             onLongPress: _onKeypadLongPressBackspace,
                             isAction: true,

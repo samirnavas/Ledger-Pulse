@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:real_liquid_glass/real_liquid_glass.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/constants/typography.dart';
@@ -954,166 +953,6 @@ class PartyLedgerScreen extends ConsumerWidget {
               onPressed: () => _showPartyContextMenu(context, ref, party),
             ),
           ],
-          // Persistent Bottom Action Bar: Side-by-side [ - You Gave ] & [ + You Got ]
-          bottomNavigationBar: isIos
-              ? RealLiquidGlass(
-                  borderRadius: 0,
-                  glassColor: isDark
-                      ? const Color(0xFF0F172A).withValues(alpha: 0.75)
-                      : Colors.white.withValues(alpha: 0.8),
-                  borderColor: isDark
-                      ? Colors.white.withValues(alpha: 0.15)
-                      : Colors.black.withValues(alpha: 0.08),
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
-                    child: Row(
-                      children: [
-                        // - You Gave (Red)
-                        Expanded(
-                          child: AdaptiveButton(
-                            onPressed: () =>
-                                _openAddEntrySheet(context, party, EntryType.gave),
-                            type: AdaptiveButtonType.destructive,
-                            height: 52,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  AppStrings.youGave,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // + You Got (Green)
-                        Expanded(
-                          child: AdaptiveButton(
-                            onPressed: () =>
-                                _openAddEntrySheet(context, party, EntryType.got),
-                            type: AdaptiveButtonType.success,
-                            height: 52,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  AppStrings.youGot,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : Container(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                    border: Border(
-                      top: BorderSide(
-                        color: Theme.of(context).colorScheme.outlineVariant
-                            .withValues(
-                              alpha: Theme.of(context).brightness == Brightness.dark
-                                  ? 0.35
-                                  : 0.5,
-                            ),
-                        width: 1,
-                      ),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 10,
-                        offset: const Offset(0, -3),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      // - You Gave (Red)
-                      Expanded(
-                        child: AdaptiveButton(
-                          onPressed: () =>
-                              _openAddEntrySheet(context, party, EntryType.gave),
-                          type: AdaptiveButtonType.destructive,
-                          height: 52,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
-                                size: 20,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                AppStrings.youGave,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // + You Got (Green)
-                      Expanded(
-                        child: AdaptiveButton(
-                          onPressed: () =>
-                              _openAddEntrySheet(context, party, EntryType.got),
-                          type: AdaptiveButtonType.success,
-                          height: 52,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
-                                size: 20,
-                                color: Colors.white,
-                              ),
-                              SizedBox(width: 8),
-                              Text(
-                                AppStrings.youGot,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
           body: Column(
             children: [
               // 1. Top Sticky Header: Contact info, Quick Call, and Net Balance
@@ -1126,9 +965,11 @@ class PartyLedgerScreen extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: isIos
                       ? (isDark
-                            ? const Color(0xFF1E293B).withValues(alpha: 0.6)
+                            ? const Color(0xFF141414).withValues(alpha: 0.6)
                             : Colors.white.withValues(alpha: 0.8))
-                      : Theme.of(context).colorScheme.surfaceContainerLow,
+                      : (isDark
+                            ? Colors.black
+                            : Theme.of(context).colorScheme.surfaceContainerLow),
                   border: Border(
                     bottom: BorderSide(
                       color: Theme.of(context).colorScheme.outlineVariant
@@ -1268,9 +1109,12 @@ class PartyLedgerScreen extends ConsumerWidget {
                 ),
               ),
 
-              // 2. Chronological Ledger Stream with swipe-down-to-refresh
+              // 2. Chronological Ledger Stream with fading bottom bar
               Expanded(
-                child: RefreshIndicator.adaptive(
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: RefreshIndicator.adaptive(
                   onRefresh: () async {
                     HapticFeedback.lightImpact();
                     ref.invalidate(partyLedgerEntriesProvider(partyId));
@@ -1282,9 +1126,11 @@ class PartyLedgerScreen extends ConsumerWidget {
                   child: entriesAsync.when(
                     loading: () => ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
+                      padding: EdgeInsets.fromLTRB(
+                        16,
+                        12,
+                        16,
+                        110 + MediaQuery.paddingOf(context).bottom,
                       ),
                       itemCount: 6,
                       itemBuilder: (context, index) => const SkeletonLedgerTile(),
@@ -1302,7 +1148,12 @@ class PartyLedgerScreen extends ConsumerWidget {
                       if (entries.isEmpty) {
                         return ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(vertical: 40),
+                          padding: EdgeInsets.fromLTRB(
+                            0,
+                            40,
+                            0,
+                            110 + MediaQuery.paddingOf(context).bottom,
+                          ),
                           children: [
                             EmptyStateView(
                               lottieAsset: 'assets/animations/empty_ledger.json',
@@ -1412,12 +1263,127 @@ class PartyLedgerScreen extends ConsumerWidget {
                     );
                   },
                 ),
+                    ),
+                  ),
+                  // Floating Gradient Fade Bottom Action Bar (You Gave / You Got)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: _buildBottomActionBar(context, party, isDark, isIos),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBottomActionBar(
+    BuildContext context,
+    Party party,
+    bool isDark,
+    bool isIos,
+  ) {
+    final bottomPadding = MediaQuery.paddingOf(context).bottom;
+    final bgColor = isDark
+        ? Colors.black
+        : Theme.of(context).scaffoldBackgroundColor;
+
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        // 1. Non-interactive gradient background that fades the entries list
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    bgColor.withValues(alpha: 0.0),
+                    bgColor.withValues(alpha: 0.45),
+                    bgColor.withValues(alpha: 0.85),
+                    bgColor,
+                    bgColor,
+                  ],
+                  stops: const [0.0, 0.22, 0.45, 0.70, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        // 2. Side-by-side [ - You Gave ] & [ + You Got ] Buttons
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, 36, 16, 16 + bottomPadding),
+          child: Row(
+            children: [
+              // - You Gave (Red)
+              Expanded(
+                child: AdaptiveButton(
+                  onPressed: () =>
+                      _openAddEntrySheet(context, party, EntryType.gave),
+                  type: AdaptiveButtonType.destructive,
+                  height: 52,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        AppStrings.youGave,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // + You Got (Green)
+              Expanded(
+                child: AdaptiveButton(
+                  onPressed: () =>
+                      _openAddEntrySheet(context, party, EntryType.got),
+                  type: AdaptiveButtonType.success,
+                  height: 52,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        AppStrings.youGot,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1468,7 +1434,12 @@ class _AnimatedPartyLedgerListState extends State<_AnimatedPartyLedgerList> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: EdgeInsets.fromLTRB(
+        0,
+        4,
+        0,
+        110 + MediaQuery.paddingOf(context).bottom,
+      ),
       itemCount: widget.entries.length,
       itemBuilder: (context, index) {
         final entry = widget.entries[index];
