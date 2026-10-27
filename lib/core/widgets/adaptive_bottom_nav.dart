@@ -26,32 +26,32 @@ class AdaptiveBottomNav extends StatelessWidget {
     final isIos = AdaptiveThemeHelper.isIos(context);
 
     if (isIos) {
+      if (!isPartiesEnabled && iosItems == null) {
+        return const SizedBox.shrink();
+      }
+
       final items = iosItems ??
-          (isPartiesEnabled
-              ? const [
-                  BottomNavigationBarItem(
-                    icon: Icon(CupertinoIcons.person_2),
-                    activeIcon: Icon(CupertinoIcons.person_2_fill),
-                    label: 'Customers',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(CupertinoIcons.archivebox),
-                    activeIcon: Icon(CupertinoIcons.archivebox_fill),
-                    label: 'Suppliers',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(CupertinoIcons.person_crop_circle),
-                    activeIcon: Icon(CupertinoIcons.person_crop_circle_fill),
-                    label: 'Profile',
-                  ),
-                ]
-              : const [
-                  BottomNavigationBarItem(
-                    icon: Icon(CupertinoIcons.person_crop_circle),
-                    activeIcon: Icon(CupertinoIcons.person_crop_circle_fill),
-                    label: 'Profile',
-                  ),
-                ]);
+          const [
+            BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.person_2),
+              activeIcon: Icon(CupertinoIcons.person_2_fill),
+              label: 'Customers',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.archivebox),
+              activeIcon: Icon(CupertinoIcons.archivebox_fill),
+              label: 'Suppliers',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.person_crop_circle),
+              activeIcon: Icon(CupertinoIcons.person_crop_circle_fill),
+              label: 'Profile',
+            ),
+          ];
+
+      if (items.length < 2) {
+        return const SizedBox.shrink();
+      }
 
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -60,50 +60,43 @@ class AdaptiveBottomNav extends StatelessWidget {
           blur: 24,
           child: CupertinoTabBar(
             backgroundColor: Colors.transparent,
-            currentIndex: iosItems != null
-                ? currentIndex
-                : (isPartiesEnabled ? currentIndex : 0),
-            onTap: (idx) {
-              if (iosItems != null || isPartiesEnabled) {
-                onTap(idx);
-              } else {
-                onTap(2); // Maps to Profile
-              }
-            },
+            currentIndex: currentIndex.clamp(0, items.length - 1),
+            onTap: onTap,
             items: items,
           ),
         ),
       );
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (!isPartiesEnabled && destinations == null) {
+      return const SizedBox.shrink();
+    }
 
     final effectiveDestinations = destinations ??
-        (isPartiesEnabled
-            ? const [
-                NavigationDestination(
-                  icon: Icon(Icons.people_outline),
-                  selectedIcon: Icon(Icons.people),
-                  label: 'Customers',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.local_shipping_outlined),
-                  selectedIcon: Icon(Icons.local_shipping),
-                  label: 'Suppliers',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.account_circle_outlined),
-                  selectedIcon: Icon(Icons.account_circle),
-                  label: 'Profile',
-                ),
-              ]
-            : const [
-                NavigationDestination(
-                  icon: Icon(Icons.account_circle_outlined),
-                  selectedIcon: Icon(Icons.account_circle),
-                  label: 'Profile',
-                ),
-              ]);
+        const [
+          NavigationDestination(
+            icon: Icon(Icons.people_outline),
+            selectedIcon: Icon(Icons.people),
+            label: 'Customers',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.local_shipping_outlined),
+            selectedIcon: Icon(Icons.local_shipping),
+            label: 'Suppliers',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.account_circle_outlined),
+            selectedIcon: Icon(Icons.account_circle),
+            label: 'Profile',
+          ),
+        ];
+
+    // Material 3 NavigationBar requires at least 2 destinations
+    if (effectiveDestinations.length < 2) {
+      return const SizedBox.shrink();
+    }
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Android Material 3 Expressive NavigationBar
     return Container(
@@ -125,16 +118,8 @@ class AdaptiveBottomNav extends StatelessWidget {
         backgroundColor: isDark
             ? Colors.black
             : Theme.of(context).colorScheme.surfaceContainerHigh,
-        selectedIndex: destinations != null
-            ? currentIndex
-            : (isPartiesEnabled ? currentIndex : 0),
-        onDestinationSelected: (idx) {
-          if (destinations != null || isPartiesEnabled) {
-            onTap(idx);
-          } else {
-            onTap(2);
-          }
-        },
+        selectedIndex: currentIndex.clamp(0, effectiveDestinations.length - 1),
+        onDestinationSelected: onTap,
         destinations: effectiveDestinations,
       ),
     );
