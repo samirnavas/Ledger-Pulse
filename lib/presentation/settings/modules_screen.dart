@@ -43,7 +43,6 @@ class ModulesScreen extends ConsumerWidget {
       final missing = ModuleCatalog.missingDependencies(module, enabledModules);
       if (missing.isNotEmpty) {
         final missingLabels = missing.map((m) => ModuleCatalog.labelFor(m)).join(', ');
-        final isIos = AdaptiveThemeHelper.isIos(context);
 
         final shouldEnableBoth = await showAdaptiveConfirmDialog(
           context: context,
