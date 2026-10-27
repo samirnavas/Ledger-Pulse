@@ -229,6 +229,7 @@ class DashboardScreen extends ConsumerWidget {
     bool isIos,
     int tabIndex,
     PartyType? activeFilter,
+    bool isPartiesEnabled,
   ) {
     if (isIos) return null;
 
@@ -237,7 +238,7 @@ class DashboardScreen extends ConsumerWidget {
     final colorScheme = theme.colorScheme;
 
     final Widget fabChild;
-    if (tabIndex == 2) {
+    if (tabIndex == 2 || !isPartiesEnabled) {
       fabChild = SplittingProfileFab(
         key: const ValueKey('profile_splitting_fab'),
         isEditing: isProfileEditing,
@@ -544,21 +545,23 @@ class DashboardScreen extends ConsumerWidget {
             ),
         ],
         // Android / Desktop / Web M3 Expressive Floating Action Button with smooth morphing transitions
-        floatingActionButton: _buildAnimatedFab(context, ref, isIos, tabIndex, activeFilter),
-        bottomNavigationBar: AdaptiveBottomNav(
-          currentIndex: tabIndex,
-          isPartiesEnabled: isPartiesEnabled,
-          onTap: (index) {
-            HapticFeedback.lightImpact();
-            ref.read(dashboardTabProvider.notifier).setTab(index);
-            if (index != 2) {
-              ref.read(isProfileEditingProvider.notifier).setEditing(false);
-              ref.read(selectedPartyTypeFilterProvider.notifier).setFilter(
-                    index == 1 ? PartyType.supplier : PartyType.customer,
-                  );
-            }
-          },
-        ),
+        floatingActionButton: _buildAnimatedFab(context, ref, isIos, tabIndex, activeFilter, isPartiesEnabled),
+        bottomNavigationBar: isPartiesEnabled
+            ? AdaptiveBottomNav(
+                currentIndex: tabIndex,
+                isPartiesEnabled: isPartiesEnabled,
+                onTap: (index) {
+                  HapticFeedback.lightImpact();
+                  ref.read(dashboardTabProvider.notifier).setTab(index);
+                  if (index != 2) {
+                    ref.read(isProfileEditingProvider.notifier).setEditing(false);
+                    ref.read(selectedPartyTypeFilterProvider.notifier).setFilter(
+                          index == 1 ? PartyType.supplier : PartyType.customer,
+                        );
+                  }
+                },
+              )
+            : null,
       body: (tabIndex == 2 || !isPartiesEnabled)
           ? const ProfileScreen(isStandalone: false)
           : Column(
