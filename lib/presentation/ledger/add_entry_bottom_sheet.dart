@@ -5,11 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
-import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
-import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
@@ -310,9 +308,6 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     final isGave = _entryType == EntryType.gave;
     final themeColor =
         isGave ? AppColors.payableRed : AppColors.receivableGreen;
-    final rawAmountDouble = double.tryParse(_amountString) ?? 0.0;
-    final rawAmountCents = (rawAmountDouble * 100).round();
-    final formattedDisplay = CurrencyFormatter.format(rawAmountCents);
 
     final containerColor = isIos
         ? (isDark
