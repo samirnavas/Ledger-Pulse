@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import '../../core/modules/module_catalog.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/rbac_model.dart';
-import '../../data/models/sync_model.dart';
 import '../../data/models/user_profile_model.dart';
 import '../models/audit_log_model.dart';
 import '../security/access_control_service.dart';
