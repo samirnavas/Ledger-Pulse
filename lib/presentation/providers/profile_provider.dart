@@ -9,6 +9,8 @@ class UserProfileNotifier extends Notifier<UserProfile> {
   UserProfile build() {
     final authState = ref.watch(authControllerProvider);
     final phone = authState.phoneNumber ?? '';
+    final prefs = ref.watch(sharedPreferencesProvider);
+    final savedActiveCompanyId = prefs?.getString('last_active_company_id');
     
     final initial = UserProfile(
       id: 'usr_default',
@@ -16,6 +18,9 @@ class UserProfileNotifier extends Notifier<UserProfile> {
       phoneNumber: phone,
       email: '',
       companies: const [],
+      activeCompanyId: (savedActiveCompanyId != null && savedActiveCompanyId.isNotEmpty)
+          ? savedActiveCompanyId
+          : null,
     );
 
     // Asynchronously check and load persistent profile from database
@@ -30,7 +35,20 @@ class UserProfileNotifier extends Notifier<UserProfile> {
       final repo = ref.read(driftLedgerRepositoryProvider);
       final loaded = await repo.getUserProfile(userId);
       if (loaded != null && ref.mounted) {
-        state = loaded;
+        final prefs = ref.read(sharedPreferencesProvider);
+        final savedActiveId = prefs?.getString('last_active_company_id');
+        final effectiveActiveId = (savedActiveId != null && savedActiveId.isNotEmpty)
+            ? savedActiveId
+            : (state.activeCompanyId.isNotEmpty && state.activeCompanyId != 'cmp_default'
+                ? state.activeCompanyId
+                : loaded.activeCompanyId);
+
+        state = loaded.copyWith(activeCompanyId: effectiveActiveId);
+
+        // Keep SharedPreferences in sync if it wasn't saved yet
+        if (savedActiveId == null && effectiveActiveId.isNotEmpty && effectiveActiveId != 'cmp_default') {
+          prefs?.setString('last_active_company_id', effectiveActiveId);
+        }
       }
     } catch (e, st) {
       debugPrint('UserProfileNotifier: Error loading profile from database: $e\n$st');
@@ -39,6 +57,10 @@ class UserProfileNotifier extends Notifier<UserProfile> {
 
   void updateProfile(UserProfile updated) {
     state = updated;
+    if (updated.activeCompanyId.isNotEmpty && updated.activeCompanyId != 'cmp_default') {
+      final prefs = ref.read(sharedPreferencesProvider);
+      prefs?.setString('last_active_company_id', updated.activeCompanyId);
+    }
     _saveToDatabase(updated);
   }
 
