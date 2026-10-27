@@ -8,8 +8,11 @@ import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/rbac_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
+import 'package:ledger_pulse/presentation/providers/company_providers.dart';
 import 'package:ledger_pulse/presentation/providers/database_providers.dart';
 import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
+import 'package:ledger_pulse/presentation/providers/sync_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeAuthController extends AuthController {
   @override
@@ -237,6 +240,60 @@ void main() {
 
       container.read(isProfileEditingProvider.notifier).setEditing(false);
       expect(container.read(isProfileEditingProvider), isFalse);
+    });
+
+    test('Active company selection persists across refreshes and sync pulls without switching back to old company', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      final compOld = Company(
+        id: 'cmp_old',
+        name: 'Old Company',
+        legalName: 'Old Company Ltd',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      final compNew = Company(
+        id: 'cmp_new',
+        name: 'New Company',
+        legalName: 'New Company Ltd',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await repo.createCompany(compOld);
+      await repo.createCompany(compNew);
+
+      final container = ProviderContainer(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(db),
+          syncEngineProvider.overrideWithValue(syncEngine),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          authControllerProvider.overrideWith(() => _FakeAuthController()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // 1. Initially user selects compNew
+      await container.read(companyControllerProvider.notifier).selectCompany(compNew.id);
+      expect(container.read(activeCompanyProvider).id, equals(compNew.id));
+      expect(prefs.getString('last_active_company_id'), equals(compNew.id));
+
+      // 2. Simulate remote sync pull that has old company (cmp_old) in remote user profile
+      syncEngine.fakeRemoteStore?.upsert('user_profiles', 'usr_default', {
+        'id': 'usr_default',
+        'name': 'User Remote',
+        'active_company_id': compOld.id,
+      });
+
+      // 3. Trigger sync / refresh (as happens on app open / swipe to refresh)
+      final syncResult = await container.read(syncControllerProvider.notifier).triggerSync();
+      expect(syncResult.success, isTrue);
+
+      // 4. Verify that after sync & reloadFromDatabase, the active company DID NOT switch back to cmp_old!
+      expect(container.read(activeCompanyProvider).id, equals(compNew.id));
+      expect(prefs.getString('last_active_company_id'), equals(compNew.id));
+      expect(container.read(userProfileProvider).activeCompanyId, equals(compNew.id));
     });
   });
 }
