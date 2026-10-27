@@ -218,6 +218,24 @@ void main() {
       await tester.tap(find.text('Suppliers'));
       expect(selected, equals(1));
     });
+
+    testWidgets('AdaptiveBottomNav renders SizedBox.shrink() without error when isPartiesEnabled is false', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.android),
+          home: Scaffold(
+            bottomNavigationBar: AdaptiveBottomNav(
+              currentIndex: 0,
+              isPartiesEnabled: false,
+              onTap: (_) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('SkeletonLoader Tests', () {
