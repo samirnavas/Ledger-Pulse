@@ -108,7 +108,10 @@ final syncControllerProvider =
 final autoSyncProvider = Provider<void>((ref) {
   // Trigger auto-sync when active company changes
   ref.listen<Company>(activeCompanyProvider, (previous, next) {
-    if (previous != null && previous.id != next.id) {
+    if (previous != null &&
+        previous.id.isNotEmpty &&
+        next.id.isNotEmpty &&
+        previous.id != next.id) {
       ref.read(syncControllerProvider.notifier).autoSyncOnAppOpen();
     }
   });
