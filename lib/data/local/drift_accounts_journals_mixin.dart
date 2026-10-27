@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/journal_model.dart';
-import '../../data/models/sync_model.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import 'database.dart';
 import 'drift_ledger_base.dart';
