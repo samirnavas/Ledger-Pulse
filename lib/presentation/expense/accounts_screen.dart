@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
+import '../../core/widgets/adaptive_text_field_dialog.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/liquid_glass_card.dart';
@@ -136,68 +137,36 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     AccountModel wallet,
     Company company,
   ) async {
-    final balanceController = TextEditingController(
-      text: wallet.currentBalanceInCents > 0
+    final result = await showAdaptiveTextFieldDialog(
+      context: context,
+      title: 'Opening Balance: ${wallet.name}',
+      message: wallet.type == AccountType.liability
+          ? 'Set historical liability / debt owed on this credit card.'
+          : 'Set historical starting balance for this wallet.',
+      initialValue: wallet.currentBalanceInCents > 0
           ? (wallet.currentBalanceInCents / 100.0).toStringAsFixed(2)
           : '',
+      labelText: 'Opening Balance',
+      prefixText: '${CurrencyFormatter.getSymbol(company.currencyCode)} ',
+      textFieldKey: const Key('edit_opening_balance_field'),
+      confirmButtonKey: const Key('save_opening_balance_button'),
+      confirmLabel: 'Save Balance',
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
     );
 
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Opening Balance: ${wallet.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              wallet.type == AccountType.liability
-                  ? 'Set historical liability / debt owed on this credit card.'
-                  : 'Set historical starting balance for this wallet.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              key: const Key('edit_opening_balance_field'),
-              controller: balanceController,
-              autofocus: true,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'Opening Balance',
-                prefixText:
-                    '${CurrencyFormatter.getSymbol(company.currencyCode)} ',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            key: const Key('save_opening_balance_button'),
-            onPressed: () async {
-              final cents =
-                  CurrencyFormatter.parseToCents(balanceController.text);
-              try {
-                final repo = ref.read(expenseRepositoryProvider);
-                await repo.setOpeningBalance(wallet.id, cents);
-                  if (context.mounted) Navigator.of(ctx).pop();
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error updating opening balance: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Save Balance'),
-          ),
-        ],
-      ),
-    );
+    if (result != null) {
+      final cents = CurrencyFormatter.parseToCents(result);
+      try {
+        final repo = ref.read(expenseRepositoryProvider);
+        await repo.setOpeningBalance(wallet.id, cents);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error updating opening balance: $e')),
+          );
+        }
+      }
+    }
   }
 
   // -------------------------------------------------------------
