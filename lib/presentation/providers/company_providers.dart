@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/modules/module_catalog.dart';
 import '../../data/models/company_model.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
+import 'auth_providers.dart';
 import 'ledger_providers.dart';
 import 'profile_provider.dart';
 import 'subscription_providers.dart';
@@ -41,17 +42,30 @@ final activeCompanyProvider = Provider<Company>((ref) {
       updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
     );
   }
-  return companies.firstWhere(
-    (c) => c.id == activeCompanyId,
-    orElse: () => companies.first,
-  );
+
+  // 1. Try to match currently set activeCompanyId
+  final profileMatch = companies.where((c) => c.id == activeCompanyId).firstOrNull;
+  if (profileMatch != null) return profileMatch;
+
+  // 2. Try to match persisted last_active_company_id from SharedPreferences
+  final prefs = ref.watch(sharedPreferencesProvider);
+  final savedId = prefs?.getString('last_active_company_id');
+  if (savedId != null && savedId.isNotEmpty) {
+    final savedMatch = companies.where((c) => c.id == savedId).firstOrNull;
+    if (savedMatch != null) return savedMatch;
+  }
+
+  return companies.first;
 });
 
 class CompanyController extends Notifier<void> {
   @override
   void build() {}
 
-  void selectCompany(String companyId) {
+  Future<void> selectCompany(String companyId) async {
+    final prefs = ref.read(sharedPreferencesProvider);
+    await prefs?.setString('last_active_company_id', companyId);
+
     final profileNotifier = ref.read(userProfileProvider.notifier);
     final currentProfile = ref.read(userProfileProvider);
     profileNotifier.updateProfile(
