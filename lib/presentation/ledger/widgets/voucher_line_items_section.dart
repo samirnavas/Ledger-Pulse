@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/colors.dart';
 import '../../../core/theme/adaptive_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/adaptive_button.dart';
