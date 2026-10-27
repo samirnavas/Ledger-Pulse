@@ -8,6 +8,7 @@ import '../../core/modules/module_catalog.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_button.dart';
+import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/account_model.dart';
@@ -281,18 +282,10 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
     if (!mounted) return;
     final isIos = AdaptiveThemeHelper.isIos(context);
     if (isIos) {
-      showCupertinoDialog(
+      showAdaptiveInfoDialog(
         context: context,
-        builder: (ctx) => CupertinoAlertDialog(
-          title: const Text('Ledger Pulse'),
-          content: Text(message),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text('OK'),
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
+        title: 'Ledger Pulse',
+        message: message,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
