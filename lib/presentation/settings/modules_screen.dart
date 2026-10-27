@@ -7,6 +7,7 @@ import '../../core/constants/colors.dart';
 import '../../core/modules/module_catalog.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
+import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/company_mode.dart';
@@ -44,42 +45,13 @@ class ModulesScreen extends ConsumerWidget {
         final missingLabels = missing.map((m) => ModuleCatalog.labelFor(m)).join(', ');
         final isIos = AdaptiveThemeHelper.isIos(context);
 
-        final shouldEnableBoth = await showAdaptiveDialog<bool>(
+        final shouldEnableBoth = await showAdaptiveConfirmDialog(
           context: context,
-          builder: (ctx) => isIos
-              ? CupertinoAlertDialog(
-                  title: const Text('Dependencies Required'),
-                  content: Text(
-                    '${ModuleCatalog.labelFor(module)} requires $missingLabels to function. Would you like to enable the required dependencies?',
-                  ),
-                  actions: [
-                    CupertinoDialogAction(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
-                    ),
-                    CupertinoDialogAction(
-                      isDefaultAction: true,
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Enable All'),
-                    ),
-                  ],
-                )
-              : AlertDialog(
-                  title: const Text('Dependencies Required'),
-                  content: Text(
-                    '${ModuleCatalog.labelFor(module)} requires $missingLabels to function. Would you like to enable the required dependencies?',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Enable All'),
-                    ),
-                  ],
-                ),
+          title: 'Dependencies Required',
+          message:
+              '${ModuleCatalog.labelFor(module)} requires $missingLabels to function. Would you like to enable the required dependencies?',
+          confirmLabel: 'Enable All',
+          cancelLabel: 'Cancel',
         );
 
         if (shouldEnableBoth != true) return;
@@ -110,36 +82,13 @@ class ModulesScreen extends ConsumerWidget {
       final activeDependents = dependents.intersection(enabledModules);
       if (activeDependents.isNotEmpty) {
         final dependentLabels = activeDependents.map((m) => ModuleCatalog.labelFor(m)).join(', ');
-        final isIos = AdaptiveThemeHelper.isIos(context);
 
-        await showAdaptiveDialog(
+        await showAdaptiveInfoDialog(
           context: context,
-          builder: (ctx) => isIos
-              ? CupertinoAlertDialog(
-                  title: const Text('Cannot Disable Module'),
-                  content: Text(
-                    'The following active modules depend on ${ModuleCatalog.labelFor(module)}: $dependentLabels.\n\nPlease disable dependent modules first.',
-                  ),
-                  actions: [
-                    CupertinoDialogAction(
-                      isDefaultAction: true,
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                )
-              : AlertDialog(
-                  title: const Text('Cannot Disable Module'),
-                  content: Text(
-                    'The following active modules depend on ${ModuleCatalog.labelFor(module)}: $dependentLabels.\n\nPlease disable dependent modules first.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
+          title: 'Cannot Disable Module',
+          message:
+              'The following active modules depend on ${ModuleCatalog.labelFor(module)}: $dependentLabels.\n\nPlease disable dependent modules first.',
+          buttonLabel: 'OK',
         );
         return;
       }
