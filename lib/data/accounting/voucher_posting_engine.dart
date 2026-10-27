@@ -6,6 +6,7 @@ import '../local/audit_service.dart';
 import '../local/database.dart';
 import '../models/account_model.dart';
 import '../models/audit_log_model.dart';
+import '../models/company_model.dart';
 import '../models/journal_model.dart';
 import '../models/stock_ledger_model.dart';
 import '../models/transaction_model.dart';
@@ -18,20 +19,37 @@ class VoucherPostingEngine {
 
   VoucherPostingEngine(this._db, this._auditService);
 
-  /// Ensures that default core Chart of Accounts exist for the specified company.
-  Future<void> ensureCompanyAccounts(String companyId) async {
+  /// Seeds the initial Chart of Accounts for [company].
+  /// Branches on [company.mode] to seed either standard double-entry ledger accounts
+  /// or lightweight expense tracker wallets and categories.
+  Future<void> seedAccountsFor(
+    Company company, {
+    Map<String, int>? initialWalletBalancesInCents,
+  }) async {
     final existingCount = await (_db.select(_db.accounts)
-          ..where((t) => t.companyId.equals(companyId) & t.isDeleted.equals(false)))
+          ..where((t) => t.companyId.equals(company.id) & t.isDeleted.equals(false)))
         .get();
 
     if (existingCount.isNotEmpty) return;
 
-    final defaultAccounts = DefaultAccounts.getDefaultAccounts(companyId);
-    for (final acc in defaultAccounts) {
+    final List<AccountModel> accountsToSeed;
+    switch (company.mode) {
+      case CompanyMode.expenseTracker:
+        accountsToSeed = ExpenseTrackerDefaults.getDefaultAccounts(
+          company.id,
+          initialWalletBalancesInCents: initialWalletBalancesInCents,
+        );
+        break;
+      case CompanyMode.ledger:
+        accountsToSeed = DefaultAccounts.getDefaultAccounts(company.id);
+        break;
+    }
+
+    for (final acc in accountsToSeed) {
       await _db.into(_db.accounts).insertOnConflictUpdate(
             AccountsCompanion.insert(
               id: acc.id,
-              companyId: Value(companyId),
+              companyId: Value(company.id),
               code: acc.code,
               name: acc.name,
               type: acc.type.name,
@@ -43,9 +61,252 @@ class VoucherPostingEngine {
               createdAt: Value(acc.createdAt),
               updatedAt: Value(acc.updatedAt),
               isDeleted: const Value(false),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
+    }
+
+    // If expense tracker wallets have initial balances, post a balanced opening journal entry
+    if (company.mode == CompanyMode.expenseTracker && initialWalletBalancesInCents != null) {
+      final cashId = '${company.id}_${ExpenseTrackerDefaults.walletCashId}';
+      final bankId = '${company.id}_${ExpenseTrackerDefaults.walletBankId}';
+      final equityId = '${company.id}_${ExpenseTrackerDefaults.openingBalanceEquityId}';
+
+      final cashBal = initialWalletBalancesInCents[ExpenseTrackerDefaults.walletCashId] ??
+          initialWalletBalancesInCents[cashId] ??
+          initialWalletBalancesInCents['cash'] ??
+          0;
+      final bankBal = initialWalletBalancesInCents[ExpenseTrackerDefaults.walletBankId] ??
+          initialWalletBalancesInCents[bankId] ??
+          initialWalletBalancesInCents['bank'] ??
+          0;
+
+      final totalEquity = cashBal + bankBal;
+      if (totalEquity > 0) {
+        final journalId = 'jnl_opening_${company.id}';
+        final journalNumber = 'JNL-OPENING-${company.id}';
+        final now = DateTime.now();
+        final List<JournalLinesCompanion> lines = [];
+
+        if (cashBal > 0) {
+          lines.add(JournalLinesCompanion.insert(
+            id: '${journalId}_cash',
+            companyId: Value(company.id),
+            journalId: journalId,
+            accountId: cashId,
+            debitInCents: Value(cashBal),
+            creditInCents: const Value(0),
+            narration: const Value('Opening Wallet Balance - Cash'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+          ));
+        }
+
+        if (bankBal > 0) {
+          lines.add(JournalLinesCompanion.insert(
+            id: '${journalId}_bank',
+            companyId: Value(company.id),
+            journalId: journalId,
+            accountId: bankId,
+            debitInCents: Value(bankBal),
+            creditInCents: const Value(0),
+            narration: const Value('Opening Wallet Balance - Bank'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+          ));
+        }
+
+        lines.add(JournalLinesCompanion.insert(
+          id: '${journalId}_equity',
+          companyId: Value(company.id),
+          journalId: journalId,
+          accountId: equityId,
+          debitInCents: const Value(0),
+          creditInCents: Value(totalEquity),
+          narration: const Value('Opening Balance Equity'),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+        ));
+
+        await _db.into(_db.journals).insertOnConflictUpdate(
+              JournalsCompanion.insert(
+                id: journalId,
+                companyId: Value(company.id),
+                journalNumber: journalNumber,
+                voucherId: const Value(null),
+                date: now,
+                narration: const Value('Opening Wallet Balances'),
+                totalAmountInCents: Value(totalEquity),
+                status: const Value('posted'),
+                createdAt: Value(now),
+                updatedAt: Value(now),
+              ),
+            );
+
+        for (final line in lines) {
+          await _db.into(_db.journalLines).insertOnConflictUpdate(line);
+        }
+
+        for (final line in lines) {
+          await _recalculateAccountBalance(line.accountId.value, company.id);
+        }
+      }
+    }
+  }
+
+  /// Seeds missing standard double-entry ledger accounts (AR, AP, GST Input/Output,
+  /// Sales, Purchases, Inventory, etc.) for [companyId] without modifying any
+  /// existing accounts, wallets, categories, vouchers, or journals.
+  ///
+  /// Idempotent if called multiple times: only missing accounts are inserted.
+  Future<List<AccountModel>> seedMissingLedgerAccountsFor(String companyId) async {
+    final existingAccounts = await (_db.select(_db.accounts)
+          ..where((t) => t.companyId.equals(companyId) & t.isDeleted.equals(false)))
+        .get();
+    final existingIds = existingAccounts.map((a) => a.id).toSet();
+
+    final standardAccounts = DefaultAccounts.getDefaultAccounts(companyId);
+    final missingAccounts = standardAccounts.where((a) => !existingIds.contains(a.id)).toList();
+
+    for (final acc in missingAccounts) {
+      await _db.into(_db.accounts).insertOnConflictUpdate(
+            AccountsCompanion.insert(
+              id: acc.id,
+              companyId: Value(companyId),
+              code: acc.code,
+              name: acc.name,
+              type: acc.type.name,
+              parentAccountId: Value(acc.parentAccountId),
+              isSystem: Value(acc.isSystem),
+              isActive: Value(acc.isActive),
+              description: Value(acc.description),
+              currentBalanceInCents: const Value(0),
+              createdAt: Value(acc.createdAt),
+              updatedAt: Value(acc.updatedAt),
+              isDeleted: const Value(false),
               syncStatus: const Value(SyncRecordStatus.synced),
             ),
           );
+    }
+
+    return missingAccounts;
+  }
+
+  /// Verifies that accounts exist for [companyId].
+  /// If accounts are missing (for legacy companies created before transactional seeding),
+  /// seeds them when first used for backwards compatibility.
+  Future<void> ensureCompanyAccounts(String companyId) async {
+    final existingAccounts = await (_db.select(_db.accounts)
+          ..where((t) => t.companyId.equals(companyId) & t.isDeleted.equals(false)))
+        .get();
+
+    if (existingAccounts.isNotEmpty) return;
+
+    // Backward-compatibility: companies created before transactional seeding get accounts when first used.
+    final companyRow = await (_db.select(_db.companies)
+          ..where((t) => t.id.equals(companyId)))
+        .getSingleOrNull();
+
+    final company = companyRow != null
+        ? Company(
+            id: companyRow.id,
+            name: companyRow.name,
+            legalName: companyRow.legalName,
+            gstin: companyRow.gstin,
+            stateCode: companyRow.stateCode,
+            dealerType: companyRow.dealerType,
+            currencyCode: companyRow.currencyCode,
+            address: companyRow.address,
+            email: companyRow.email,
+            phoneNumber: companyRow.phoneNumber,
+            mode: CompanyMode.fromName(companyRow.mode),
+            createdAt: companyRow.createdAt,
+            updatedAt: companyRow.updatedAt,
+          )
+        : Company(
+            id: companyId,
+            name: 'Company $companyId',
+            legalName: 'Company $companyId',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+
+    await seedAccountsFor(company);
+  }
+
+  /// Validates business and posting rules for a voucher.
+  /// Throws [VoucherValidationException] if any rule is violated.
+  Future<void> _validateVoucher(VoucherModel voucher) async {
+    // 1. Amount must be greater than zero
+    if (voucher.totalAmountInCents <= 0) {
+      throw VoucherValidationException(
+        'Transaction amount must be greater than zero. Received: ${voucher.totalAmountInCents}',
+      );
+    }
+
+    // 2. Transfer source differs from destination
+    if (voucher.type == VoucherType.transfer) {
+      final source = voucher.walletAccountId;
+      final dest = voucher.toWalletAccountId;
+      if (source != null && dest != null && source == dest) {
+        throw const VoucherValidationException(
+          'Transfer source and destination wallet accounts must be different.',
+        );
+      }
+    }
+
+    // 3. Wallet and Category belong to the same company
+    final companyId = voucher.companyId;
+
+    if (voucher.walletAccountId != null) {
+      final walletAcc = await (_db.select(_db.accounts)
+            ..where((t) => t.id.equals(voucher.walletAccountId!) & t.isDeleted.equals(false)))
+          .getSingleOrNull();
+      if (walletAcc == null || walletAcc.companyId != companyId) {
+        throw VoucherValidationException(
+          'Wallet account ${voucher.walletAccountId} does not belong to company $companyId or does not exist.',
+        );
+      }
+    }
+
+    if (voucher.toWalletAccountId != null) {
+      final toWalletAcc = await (_db.select(_db.accounts)
+            ..where((t) => t.id.equals(voucher.toWalletAccountId!) & t.isDeleted.equals(false)))
+          .getSingleOrNull();
+      if (toWalletAcc == null || toWalletAcc.companyId != companyId) {
+        throw VoucherValidationException(
+          'Destination wallet account ${voucher.toWalletAccountId} does not belong to company $companyId or does not exist.',
+        );
+      }
+    }
+
+    if (voucher.categoryAccountId != null) {
+      final categoryAcc = await (_db.select(_db.accounts)
+            ..where((t) => t.id.equals(voucher.categoryAccountId!) & t.isDeleted.equals(false)))
+          .getSingleOrNull();
+      if (categoryAcc == null || categoryAcc.companyId != companyId) {
+        throw VoucherValidationException(
+          'Category account ${voucher.categoryAccountId} does not belong to company $companyId or does not exist.',
+        );
+      }
+
+      // Category type matches the voucher type
+      final catType = AccountType.values.firstWhere(
+        (e) => e.name.toLowerCase() == categoryAcc.type.toLowerCase(),
+        orElse: () => AccountType.expense,
+      );
+
+      if (voucher.type == VoucherType.expense && catType != AccountType.expense) {
+        throw VoucherValidationException(
+          'Category account ${categoryAcc.name} must be of type Expense for an expense voucher. Found: ${catType.name}',
+        );
+      }
+
+      if (voucher.type == VoucherType.income && catType != AccountType.income) {
+        throw VoucherValidationException(
+          'Category account ${categoryAcc.name} must be of type Income for an income voucher. Found: ${catType.name}',
+        );
+      }
     }
   }
 
@@ -60,6 +321,9 @@ class VoucherPostingEngine {
 
       // Ensure accounts exist for this company
       await ensureCompanyAccounts(voucher.companyId);
+
+      // Validate voucher rules before writing
+      await _validateVoucher(voucher);
 
       // 1. Insert or update the voucher record
       final itemsJsonString = jsonEncode(voucher.items.map((i) => i.toMap()).toList());
@@ -84,6 +348,9 @@ class VoucherPostingEngine {
               sourceVoucherId: Value(voucher.sourceVoucherId),
               receiptPhotoUrl: Value(voucher.receiptPhotoUrl),
               itemsJson: Value(itemsJsonString),
+              categoryAccountId: Value(voucher.categoryAccountId),
+              walletAccountId: Value(voucher.walletAccountId),
+              toWalletAccountId: Value(voucher.toWalletAccountId),
               createdAt: Value(voucher.createdAt),
               updatedAt: Value(now),
             ),
@@ -164,9 +431,19 @@ class VoucherPostingEngine {
     final purchasesAccountId = '${companyId}_${DefaultAccounts.purchasesCogsId}';
     final outputGstAccountId = '${companyId}_${DefaultAccounts.outputGstId}';
     final inputGstAccountId = '${companyId}_${DefaultAccounts.inputGstId}';
-    final cashAccountId = '${companyId}_${DefaultAccounts.cashId}';
-    final bankAccountId = '${companyId}_${DefaultAccounts.bankId}';
-    final operatingExpenseAccountId = '${companyId}_${DefaultAccounts.indirectExpensesId}';
+    final companyRow = await (_db.select(_db.companies)..where((t) => t.id.equals(companyId))).getSingleOrNull();
+    final isExpenseCompany = companyRow?.mode == CompanyMode.expenseTracker.name;
+
+    final cashAccountId = isExpenseCompany
+        ? '${companyId}_${ExpenseTrackerDefaults.walletCashId}'
+        : '${companyId}_${DefaultAccounts.cashId}';
+    final bankAccountId = isExpenseCompany
+        ? '${companyId}_${ExpenseTrackerDefaults.walletBankId}'
+        : '${companyId}_${DefaultAccounts.bankId}';
+    final operatingExpenseAccountId = isExpenseCompany
+        ? '${companyId}_${ExpenseTrackerDefaults.otherExpensesId}'
+        : '${companyId}_${DefaultAccounts.indirectExpensesId}';
+    final otherIncomeAccountId = '${companyId}_${DefaultAccounts.otherIncomeId}';
 
     final liquidAccountId = (voucher.paymentMode == PaymentMode.bank || voucher.paymentMode == PaymentMode.upi)
         ? bankAccountId
@@ -361,17 +638,20 @@ class VoucherPostingEngine {
 
       case VoucherType.expense:
         // EXPENSE Posting Rule:
-        // Expense Dr = expense amount
-        // Cash/Bank Cr = expense amount
+        // Debit: categoryAccountId (or operatingExpenseAccountId fallback)
+        // Credit: walletAccountId (or liquidAccountId fallback)
+        final expDrAccId = voucher.categoryAccountId ?? operatingExpenseAccountId;
+        final expCrAccId = voucher.walletAccountId ?? liquidAccountId;
+
         linesToInsert.add(JournalLinesCompanion.insert(
           id: '${journalId}_line_dr',
           companyId: Value(companyId),
           journalId: journalId,
-          accountId: operatingExpenseAccountId,
+          accountId: expDrAccId,
           partyId: Value(voucher.partyId),
           debitInCents: Value(totalAmount),
           creditInCents: const Value(0),
-          narration: Value(voucher.narration ?? 'Operating Expense'),
+          narration: Value(voucher.narration ?? 'Expense'),
           createdAt: Value(voucher.date),
           updatedAt: Value(now),
         ));
@@ -380,11 +660,78 @@ class VoucherPostingEngine {
           id: '${journalId}_line_cr',
           companyId: Value(companyId),
           journalId: journalId,
-          accountId: liquidAccountId,
+          accountId: expCrAccId,
           partyId: Value(voucher.partyId),
           debitInCents: const Value(0),
           creditInCents: Value(totalAmount),
-          narration: Value('Paid via ${voucher.paymentMode.displayName}'),
+          narration: Value(voucher.narration ?? 'Paid from wallet'),
+          createdAt: Value(voucher.date),
+          updatedAt: Value(now),
+        ));
+        break;
+
+      case VoucherType.income:
+        // INCOME Posting Rule:
+        // Debit: walletAccountId (or liquidAccountId fallback)
+        // Credit: categoryAccountId (or otherIncomeAccountId fallback)
+        final incDrAccId = voucher.walletAccountId ?? liquidAccountId;
+        final incCrAccId = voucher.categoryAccountId ?? otherIncomeAccountId;
+
+        linesToInsert.add(JournalLinesCompanion.insert(
+          id: '${journalId}_line_dr',
+          companyId: Value(companyId),
+          journalId: journalId,
+          accountId: incDrAccId,
+          partyId: Value(voucher.partyId),
+          debitInCents: Value(totalAmount),
+          creditInCents: const Value(0),
+          narration: Value(voucher.narration ?? 'Received into wallet'),
+          createdAt: Value(voucher.date),
+          updatedAt: Value(now),
+        ));
+
+        linesToInsert.add(JournalLinesCompanion.insert(
+          id: '${journalId}_line_cr',
+          companyId: Value(companyId),
+          journalId: journalId,
+          accountId: incCrAccId,
+          partyId: Value(voucher.partyId),
+          debitInCents: const Value(0),
+          creditInCents: Value(totalAmount),
+          narration: Value(voucher.narration ?? 'Income'),
+          createdAt: Value(voucher.date),
+          updatedAt: Value(now),
+        ));
+        break;
+
+      case VoucherType.transfer:
+        // TRANSFER Posting Rule:
+        // Debit: toWalletAccountId (or bank/cash fallback based on paymentMode)
+        // Credit: walletAccountId (or cash/bank fallback based on paymentMode)
+        final isTransferCashToBank = voucher.paymentMode == PaymentMode.bank;
+        final trfDrAccId = voucher.toWalletAccountId ?? (isTransferCashToBank ? bankAccountId : cashAccountId);
+        final trfCrAccId = voucher.walletAccountId ?? (isTransferCashToBank ? cashAccountId : bankAccountId);
+
+        linesToInsert.add(JournalLinesCompanion.insert(
+          id: '${journalId}_line_dr',
+          companyId: Value(companyId),
+          journalId: journalId,
+          accountId: trfDrAccId,
+          debitInCents: Value(totalAmount),
+          creditInCents: const Value(0),
+          narration: Value(voucher.narration ?? 'Fund Transfer Inflow'),
+          createdAt: Value(voucher.date),
+          updatedAt: Value(now),
+        ));
+
+        linesToInsert.add(JournalLinesCompanion.insert(
+          id: '${journalId}_line_cr',
+          companyId: Value(companyId),
+          journalId: journalId,
+          accountId: trfCrAccId,
+          debitInCents: const Value(0),
+          creditInCents: Value(totalAmount),
+          narration: Value(voucher.narration ?? 'Fund Transfer Outflow'),
           createdAt: Value(voucher.date),
           updatedAt: Value(now),
         ));
@@ -394,8 +741,8 @@ class VoucherPostingEngine {
         // CONTRA Posting Rule (Cash / Bank transfer):
         // Destination Dr, Source Cr
         final isCashDepositToBank = voucher.paymentMode == PaymentMode.bank;
-        final drAcc = isCashDepositToBank ? bankAccountId : cashAccountId;
-        final crAcc = isCashDepositToBank ? cashAccountId : bankAccountId;
+        final drAcc = voucher.toWalletAccountId ?? (isCashDepositToBank ? bankAccountId : cashAccountId);
+        final crAcc = voucher.walletAccountId ?? (isCashDepositToBank ? cashAccountId : bankAccountId);
 
         linesToInsert.add(JournalLinesCompanion.insert(
           id: '${journalId}_line_dr',
@@ -510,6 +857,10 @@ class VoucherPostingEngine {
           ),
         );
 
+    // Query any previous lines before replacing them (for edit/repost)
+    final previousLines = await (_db.select(_db.journalLines)..where((t) => t.journalId.equals(journalId))).get();
+    final previousAccountIds = previousLines.map((l) => l.accountId).toSet();
+
     // Delete any previous lines if re-posting/updating
     await (_db.delete(_db.journalLines)..where((t) => t.journalId.equals(journalId))).go();
 
@@ -518,8 +869,11 @@ class VoucherPostingEngine {
       await _db.into(_db.journalLines).insertOnConflictUpdate(line);
     }
 
-    // Update affected Account balances
-    final affectedAccountIds = linesToInsert.map((l) => l.accountId.value).toSet();
+    // Update all affected Account balances (both previously affected and newly affected)
+    final affectedAccountIds = {
+      ...previousAccountIds,
+      ...linesToInsert.map((l) => l.accountId.value),
+    };
     for (final accId in affectedAccountIds) {
       await _recalculateAccountBalance(accId, companyId);
     }
@@ -959,7 +1313,22 @@ class VoucherPostingEngine {
     });
   }
 
+  /// Edits an existing voucher, replacing its double-entry journal lines and recalculating balances.
+  Future<VoucherModel> editVoucher({
+    required VoucherModel voucher,
+    required String userId,
+  }) async {
+    return await postVoucher(voucher: voucher, userId: userId);
+  }
+
   Future<void> _postPartyLedgerEntry(VoucherModel voucher) async {
+    // Expense, income, and transfer do not touch party subledger entries
+    if (voucher.type == VoucherType.expense ||
+        voucher.type == VoucherType.income ||
+        voucher.type == VoucherType.transfer) {
+      return;
+    }
+
     if (voucher.partyId == null || voucher.totalAmountInCents == 0) return;
 
     final entryId = 'vch_entry_${voucher.id}';
@@ -983,7 +1352,6 @@ class VoucherPostingEngine {
         // Payment made to party -> Reduces payable -> EntryType.gave
         entryType = EntryType.gave;
         break;
-      case VoucherType.expense:
       case VoucherType.contra:
       case VoucherType.journal:
         entryType = EntryType.gave;
@@ -1101,6 +1469,10 @@ class VoucherPostingEngine {
     );
   }
 
+  /// Recalculates and updates the running balance for an account from posted journal lines.
+  Future<void> recalculateAccountBalance(String accountId, String companyId) =>
+      _recalculateAccountBalance(accountId, companyId);
+
   Future<void> _recalculateAccountBalance(String accountId, String companyId) async {
     final account = await (_db.select(_db.accounts)
           ..where((t) => t.id.equals(accountId) & t.companyId.equals(companyId)))
@@ -1139,6 +1511,7 @@ class VoucherPostingEngine {
       AccountsCompanion(
         currentBalanceInCents: Value(netBalance),
         updatedAt: Value(DateTime.now()),
+        syncStatus: const Value(SyncRecordStatus.pending),
       ),
     );
   }

@@ -1,3 +1,8 @@
+import '../../data/models/company_mode.dart';
+import 'mode_strings.dart';
+
+export 'mode_strings.dart';
+
 class AppStrings {
   static const String appName = 'LedgerPulse';
   static const String tagline = 'Modern Business Bookkeeping';
@@ -44,4 +49,6 @@ class AppStrings {
   static const String allTime = 'All Time';
   static const String shareWhatsApp = 'Share on WhatsApp';
   static const String exportPdf = 'Export PDF';
+
+  static ModeStrings forMode(CompanyMode mode) => ModeStrings.of(mode);
 }

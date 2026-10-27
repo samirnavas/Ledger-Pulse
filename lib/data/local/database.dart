@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'connection/connection.dart' as impl;
+import 'schema_steps.dart' as steps;
 
 import '../models/account_model.dart';
 import '../models/party_model.dart';
@@ -36,6 +37,8 @@ class Companies extends Table {
   BoolColumn get isCloudSyncEnabled => boolean().withDefault(const Constant(true))();
   BoolColumn get isDropboxSyncEnabled => boolean().withDefault(const Constant(false))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  TextColumn get mode => text().withDefault(const Constant('ledger'))();
+  TextColumn get enabledModulesJson => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
@@ -154,7 +157,9 @@ extension SyncOutboxTableDataCompat on SyncOutboxTableData {
       if (map is Map && map['company_id'] != null) {
         return map['company_id'].toString();
       }
-    } catch (_) {}
+    } catch (_) {
+      // Payload might not be JSON or may not contain companyId; fallback to default
+    }
     return 'cmp_default';
   }
 
@@ -233,6 +238,9 @@ class Vouchers extends Table {
   TextColumn get sourceVoucherId => text().nullable()();
   TextColumn get receiptPhotoUrl => text().nullable()();
   TextColumn get itemsJson => text().nullable()();
+  TextColumn get categoryAccountId => text().nullable()();
+  TextColumn get walletAccountId => text().nullable()();
+  TextColumn get toWalletAccountId => text().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
@@ -301,6 +309,44 @@ class JournalLines extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('BudgetTableData')
+class Budgets extends Table {
+  TextColumn get id => text()();
+  TextColumn get companyId => text().withDefault(const Constant('cmp_default'))();
+  TextColumn get categoryAccountId => text()();
+  TextColumn get periodType => text()(); // monthly, quarterly, yearly
+  IntColumn get amountInCents => integer()();
+  DateTimeColumn get startDate => dateTime()();
+  BoolColumn get rolloverEnabled => boolean().withDefault(const Constant(false))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('RecurringRuleTableData')
+class RecurringRules extends Table {
+  TextColumn get id => text()();
+  TextColumn get companyId => text().withDefault(const Constant('cmp_default'))();
+  TextColumn get templateJson => text()();
+  TextColumn get intervalType => text()(); // daily, weekly, monthly, yearly
+  IntColumn get intervalCount => integer().withDefault(const Constant(1))();
+  DateTimeColumn get nextRunDate => dateTime()();
+  DateTimeColumn get endDate => dateTime().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(tables: [
   Companies,
   UserProfiles,
@@ -314,423 +360,195 @@ class JournalLines extends Table {
   Accounts,
   Journals,
   JournalLines,
+  Budgets,
+  RecurringRules,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) async {
           await m.createAll();
-          // Seed initial default company if created freshly
-          await into(companies).insert(
-            CompaniesCompanion.insert(
-              id: 'cmp_default',
-              name: 'Ledger Pulse Enterprise',
-              legalName: 'Ledger Pulse Enterprise Pvt Ltd',
-              gstin: const Value('29ABCDE1234F1ZH'),
-              currencyCode: const Value('INR'),
-              address: const Value('Suite 402, Trade Tower, Bangalore, India'),
-              isCloudSyncEnabled: const Value(true),
-              isDropboxSyncEnabled: const Value(false),
-              isActive: const Value(true),
-              isDeleted: const Value(false),
-              syncStatus: const Value(SyncRecordStatus.synced),
-            ),
-          );
-          // Seed initial default user profile if created freshly
-          await into(userProfiles).insert(
-            UserProfilesCompanion.insert(
-              id: 'usr_default',
-              name: 'Samir Navas',
-              phoneNumber: '+91 98765 43210',
-              email: 'samir.navas@example.com',
-              businessName: const Value('Ledger Pulse Enterprise'),
-              address: const Value('Suite 402, Trade Tower, Bangalore, India'),
-              gstin: const Value('29ABCDE1234F1ZH'),
-              businessType: const Value('Retail & Wholesale'),
-              activeCompanyId: const Value('cmp_default'),
-              role: const Value('admin'),
-              isDeleted: const Value(false),
-              syncStatus: const Value(SyncRecordStatus.synced),
-            ),
-          );
-          // Seed initial chart of accounts for default company
-          final defaultAccounts = DefaultAccounts.getDefaultAccounts('cmp_default');
-          for (final acc in defaultAccounts) {
-            await into(accounts).insertOnConflictUpdate(
-              AccountsCompanion.insert(
-                id: acc.id,
-                companyId: Value(acc.companyId),
-                code: acc.code,
-                name: acc.name,
-                type: acc.type.name,
-                parentAccountId: Value(acc.parentAccountId),
-                isSystem: Value(acc.isSystem),
-                isActive: Value(acc.isActive),
-                description: Value(acc.description),
-                currentBalanceInCents: Value(acc.currentBalanceInCents),
-                createdAt: Value(acc.createdAt),
-                updatedAt: Value(acc.updatedAt),
-                isDeleted: const Value(false),
-                syncStatus: const Value(SyncRecordStatus.synced),
-              ),
-            );
-          }
         },
-        onUpgrade: (Migrator m, int from, int to) async {
-          if (from < 2) {
+        onUpgrade: steps.stepByStep(
+          from1To2: (m, schema) async {
+            await m.addColumn(schema.parties, schema.parties.isDeleted);
+            await m.addColumn(schema.ledgerEntries, schema.ledgerEntries.isVoided);
+          },
+          from2To3: (m, schema) async {
+            await m.createTable(schema.companies);
+            await m.addColumn(schema.parties, schema.parties.companyId);
+            await m.addColumn(schema.ledgerEntries, schema.ledgerEntries.companyId);
+            await m.createTable(schema.auditLogs);
+          },
+          from3To4: (m, schema) async {
+            await m.createTable(schema.inventoryItems);
+            await m.createTable(schema.stockLedger);
+            await m.createTable(schema.vouchers);
+          },
+          from4To5: (m, schema) async {
             try {
-              await m.addColumn(parties, parties.isDeleted);
-            } catch (_) {}
+              await m.addColumn(schema.companies, schema.companies.isDeleted);
+              await m.addColumn(schema.companies, schema.companies.syncStatus);
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
-              await m.addColumn(ledgerEntries, ledgerEntries.isVoided);
-            } catch (_) {}
-          }
-          if (from < 3) {
+              await customStatement(
+                  'ALTER TABLE parties ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;');
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
-              await m.createTable(companies);
-              await into(companies).insert(
-                CompaniesCompanion.insert(
-                  id: 'cmp_default',
-                  name: 'Ledger Pulse Enterprise',
-                  legalName: 'Ledger Pulse Enterprise Pvt Ltd',
-                  gstin: const Value('29ABCDE1234F1ZH'),
-                  currencyCode: const Value('INR'),
-                  address: const Value('Suite 402, Trade Tower, Bangalore, India'),
-                  isCloudSyncEnabled: const Value(true),
-                  isDropboxSyncEnabled: const Value(false),
-                  isActive: const Value(true),
-                  isDeleted: const Value(false),
-                  syncStatus: const Value(SyncRecordStatus.synced),
-                ),
-              );
-            } catch (_) {}
+              await customStatement(
+                  "UPDATE parties SET updated_at = CAST(strftime('%s', updated_at) AS INTEGER) WHERE typeof(updated_at) = 'text';");
+              await customStatement(
+                  "UPDATE parties SET updated_at = CAST(strftime('%s', 'now') AS INTEGER) WHERE updated_at = 0;");
+            } catch (e) {
+              // Ignored if table lacks updated_at
+            }
             try {
-              await m.addColumn(parties, parties.companyId);
-            } catch (_) {}
+              await m.addColumn(schema.parties, schema.parties.syncStatus);
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
-              await m.addColumn(ledgerEntries, ledgerEntries.companyId);
-            } catch (_) {}
+              await customStatement(
+                  'ALTER TABLE ledger_entries ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;');
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
-              await m.createTable(auditLogs);
-            } catch (_) {}
-          }
-          if (from < 4) {
+              await customStatement(
+                  "UPDATE ledger_entries SET updated_at = CAST(strftime('%s', updated_at) AS INTEGER) WHERE typeof(updated_at) = 'text';");
+              await customStatement(
+                  "UPDATE ledger_entries SET updated_at = CAST(strftime('%s', 'now') AS INTEGER) WHERE updated_at = 0;");
+            } catch (e) {
+              // Ignored if table lacks updated_at
+            }
             try {
-              await m.createTable(inventoryItems);
-            } catch (_) {}
+              await m.addColumn(schema.ledgerEntries, schema.ledgerEntries.isDeleted);
+              await m.addColumn(schema.ledgerEntries, schema.ledgerEntries.syncStatus);
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
-              await m.createTable(stockLedger);
-            } catch (_) {}
+              await customStatement(
+                  'ALTER TABLE audit_logs ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;');
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
-              await m.createTable(vouchers);
-            } catch (_) {}
-          }
-          if (from < 5) {
+              await customStatement(
+                  "UPDATE audit_logs SET updated_at = CAST(strftime('%s', updated_at) AS INTEGER) WHERE typeof(updated_at) = 'text';");
+              await customStatement(
+                  "UPDATE audit_logs SET updated_at = CAST(strftime('%s', 'now') AS INTEGER) WHERE updated_at = 0;");
+            } catch (e) {
+              // Ignored if table lacks updated_at
+            }
             try {
-              await m.addColumn(companies, companies.isDeleted);
-              await m.addColumn(companies, companies.syncStatus);
-            } catch (_) {}
+              await m.addColumn(schema.auditLogs, schema.auditLogs.isDeleted);
+              await m.addColumn(schema.auditLogs, schema.auditLogs.syncStatus);
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
-              await m.addColumn(parties, parties.updatedAt);
-              await m.addColumn(parties, parties.syncStatus);
-            } catch (_) {}
+              await m.addColumn(schema.inventoryItems, schema.inventoryItems.isDeleted);
+              await m.addColumn(schema.inventoryItems, schema.inventoryItems.syncStatus);
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
-              await m.addColumn(ledgerEntries, ledgerEntries.updatedAt);
-              await m.addColumn(ledgerEntries, ledgerEntries.isDeleted);
-              await m.addColumn(ledgerEntries, ledgerEntries.syncStatus);
-            } catch (_) {}
+              await customStatement(
+                  'ALTER TABLE stock_ledger ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0;');
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
-              await m.addColumn(auditLogs, auditLogs.updatedAt);
-              await m.addColumn(auditLogs, auditLogs.isDeleted);
-              await m.addColumn(auditLogs, auditLogs.syncStatus);
-            } catch (_) {}
+              await customStatement(
+                  "UPDATE stock_ledger SET updated_at = CAST(strftime('%s', updated_at) AS INTEGER) WHERE typeof(updated_at) = 'text';");
+              await customStatement(
+                  "UPDATE stock_ledger SET updated_at = CAST(strftime('%s', 'now') AS INTEGER) WHERE updated_at = 0;");
+            } catch (e) {
+              // Ignored if table lacks updated_at
+            }
             try {
-              await m.addColumn(inventoryItems, inventoryItems.isDeleted);
-              await m.addColumn(inventoryItems, inventoryItems.syncStatus);
-            } catch (_) {}
+              await m.addColumn(schema.stockLedger, schema.stockLedger.isDeleted);
+              await m.addColumn(schema.stockLedger, schema.stockLedger.syncStatus);
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
-              await m.addColumn(stockLedger, stockLedger.updatedAt);
-              await m.addColumn(stockLedger, stockLedger.isDeleted);
-              await m.addColumn(stockLedger, stockLedger.syncStatus);
-            } catch (_) {}
-            try {
-              await m.addColumn(vouchers, vouchers.isDeleted);
-              await m.addColumn(vouchers, vouchers.syncStatus);
-            } catch (_) {}
+              await m.addColumn(schema.vouchers, schema.vouchers.isDeleted);
+              await m.addColumn(schema.vouchers, schema.vouchers.syncStatus);
+            } catch (e) {
+              // Ignored if column already exists
+            }
             try {
               await m.deleteTable('sync_outbox');
-              await m.createTable(syncOutbox);
-            } catch (_) {}
-          }
-          if (from < 6) {
+            } catch (e) {
+              // Ignored if table does not exist
+            }
             try {
-              await m.createTable(userProfiles);
-              await into(userProfiles).insert(
-                UserProfilesCompanion.insert(
-                  id: 'usr_default',
-                  name: 'Samir Navas',
-                  phoneNumber: '+91 98765 43210',
-                  email: 'samir.navas@example.com',
-                  businessName: const Value('Ledger Pulse Enterprise'),
-                  address: const Value('Suite 402, Trade Tower, Bangalore, India'),
-                  gstin: const Value('29ABCDE1234F1ZH'),
-                  businessType: const Value('Retail & Wholesale'),
-                  activeCompanyId: const Value('cmp_default'),
-                  role: const Value('admin'),
+              await m.createTable(schema.syncOutbox);
+            } catch (e) {
+              // Ignored if table already exists
+            }
+          },
+          from5To6: (m, schema) async {
+            await m.createTable(schema.userProfiles);
+            await m.addColumn(schema.companies, schema.companies.stateCode);
+            await m.addColumn(schema.companies, schema.companies.dealerType);
+            await m.addColumn(schema.companies, schema.companies.logoUrl);
+            await m.addColumn(schema.companies, schema.companies.signatureUrl);
+            await m.addColumn(schema.companies, schema.companies.signatoryName);
+            await m.addColumn(schema.companies, schema.companies.bankName);
+            await m.addColumn(schema.companies, schema.companies.bankAccountNumber);
+            await m.addColumn(schema.companies, schema.companies.bankIfsc);
+            await m.addColumn(schema.companies, schema.companies.upiId);
+          },
+          from6To7: (m, schema) async {
+            await m.createTable(schema.accounts);
+            final defaultAccounts = DefaultAccounts.getDefaultAccounts('cmp_default');
+            for (final acc in defaultAccounts) {
+              await into(accounts).insertOnConflictUpdate(
+                AccountsCompanion.insert(
+                  id: acc.id,
+                  companyId: Value(acc.companyId),
+                  code: acc.code,
+                  name: acc.name,
+                  type: acc.type.name,
+                  parentAccountId: Value(acc.parentAccountId),
+                  isSystem: Value(acc.isSystem),
+                  isActive: Value(acc.isActive),
+                  description: Value(acc.description),
+                  currentBalanceInCents: Value(acc.currentBalanceInCents),
+                  createdAt: Value(acc.createdAt),
+                  updatedAt: Value(acc.updatedAt),
                   isDeleted: const Value(false),
                   syncStatus: const Value(SyncRecordStatus.synced),
                 ),
               );
-            } catch (_) {}
-            try {
-              await m.addColumn(companies, companies.stateCode);
-              await m.addColumn(companies, companies.dealerType);
-              await m.addColumn(companies, companies.logoUrl);
-              await m.addColumn(companies, companies.signatureUrl);
-              await m.addColumn(companies, companies.signatoryName);
-              await m.addColumn(companies, companies.bankName);
-              await m.addColumn(companies, companies.bankAccountNumber);
-              await m.addColumn(companies, companies.bankIfsc);
-              await m.addColumn(companies, companies.upiId);
-            } catch (_) {}
-          }
-          if (from < 7) {
-            try {
-              await m.createTable(accounts);
-              final defaultAccounts = DefaultAccounts.getDefaultAccounts('cmp_default');
-              for (final acc in defaultAccounts) {
-                await into(accounts).insertOnConflictUpdate(
-                  AccountsCompanion.insert(
-                    id: acc.id,
-                    companyId: Value(acc.companyId),
-                    code: acc.code,
-                    name: acc.name,
-                    type: acc.type.name,
-                    parentAccountId: Value(acc.parentAccountId),
-                    isSystem: Value(acc.isSystem),
-                    isActive: Value(acc.isActive),
-                    description: Value(acc.description),
-                    currentBalanceInCents: Value(acc.currentBalanceInCents),
-                    createdAt: Value(acc.createdAt),
-                    updatedAt: Value(acc.updatedAt),
-                    isDeleted: const Value(false),
-                    syncStatus: const Value(SyncRecordStatus.synced),
-                  ),
-                );
-              }
-            } catch (_) {}
-            try {
-              await m.createTable(journals);
-            } catch (_) {}
-            try {
-              await m.createTable(journalLines);
-            } catch (_) {}
-          }
-        },
+            }
+            await m.createTable(schema.journals);
+            await m.createTable(schema.journalLines);
+          },
+          from7To8: (m, schema) async {
+            await m.addColumn(schema.companies, schema.companies.mode);
+            await m.addColumn(schema.companies, schema.companies.enabledModulesJson);
+            await m.addColumn(schema.vouchers, schema.vouchers.categoryAccountId);
+            await m.addColumn(schema.vouchers, schema.vouchers.walletAccountId);
+            await m.addColumn(schema.vouchers, schema.vouchers.toWalletAccountId);
+            await m.createTable(schema.budgets);
+            await m.createTable(schema.recurringRules);
+          },
+        ),
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
-          try {
-            await customStatement(
-                'ALTER TABLE parties ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE ledger_entries ADD COLUMN is_voided INTEGER NOT NULL DEFAULT 0;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE parties ADD COLUMN company_id TEXT NOT NULL DEFAULT 'cmp_default';");
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE ledger_entries ADD COLUMN company_id TEXT NOT NULL DEFAULT 'cmp_default';");
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE companies ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE companies ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'synced';");
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE companies ADD COLUMN state_code TEXT;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE companies ADD COLUMN dealer_type TEXT NOT NULL DEFAULT 'regular';");
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE companies ADD COLUMN logo_url TEXT;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE companies ADD COLUMN signature_url TEXT;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE companies ADD COLUMN signatory_name TEXT;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE companies ADD COLUMN bank_name TEXT;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE companies ADD COLUMN bank_account_number TEXT;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE companies ADD COLUMN bank_ifsc TEXT;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE companies ADD COLUMN upi_id TEXT;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE parties ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP;");
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE parties ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending';");
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE ledger_entries ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP;");
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE ledger_entries ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE ledger_entries ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending';");
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE audit_logs ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP;");
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE audit_logs ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE audit_logs ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending';");
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE inventory_items ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE inventory_items ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending';");
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE stock_ledger ADD COLUMN updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP;");
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE stock_ledger ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE stock_ledger ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending';");
-          } catch (_) {}
-          try {
-            await customStatement(
-                'ALTER TABLE vouchers ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;');
-          } catch (_) {}
-          try {
-            await customStatement(
-                "ALTER TABLE vouchers ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'pending';");
-          } catch (_) {}
-          try {
-            await customStatement(
-                '''CREATE TABLE IF NOT EXISTS user_profiles (
-                  id TEXT NOT NULL PRIMARY KEY,
-                  name TEXT NOT NULL,
-                  phone_number TEXT NOT NULL,
-                  email TEXT NOT NULL,
-                  business_name TEXT,
-                  address TEXT,
-                  gstin TEXT,
-                  business_type TEXT,
-                  bank_name TEXT,
-                  bank_account_number TEXT,
-                  bank_ifsc TEXT,
-                  upi_id TEXT,
-                  active_company_id TEXT NOT NULL DEFAULT 'cmp_default',
-                  role TEXT NOT NULL DEFAULT 'admin',
-                  companies_json TEXT,
-                  is_deleted INTEGER NOT NULL DEFAULT 0,
-                  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-                  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-                  sync_status TEXT NOT NULL DEFAULT 'synced'
-                );''');
-          } catch (_) {}
-          try {
-            await customStatement(
-                '''CREATE TABLE IF NOT EXISTS accounts (
-                  id TEXT NOT NULL PRIMARY KEY,
-                  company_id TEXT NOT NULL DEFAULT 'cmp_default',
-                  code TEXT NOT NULL,
-                  name TEXT NOT NULL,
-                  type TEXT NOT NULL,
-                  parent_account_id TEXT,
-                  is_system INTEGER NOT NULL DEFAULT 0,
-                  is_active INTEGER NOT NULL DEFAULT 1,
-                  description TEXT,
-                  current_balance_in_cents INTEGER NOT NULL DEFAULT 0,
-                  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-                  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-                  is_deleted INTEGER NOT NULL DEFAULT 0,
-                  sync_status TEXT NOT NULL DEFAULT 'pending'
-                );''');
-          } catch (_) {}
-          try {
-            await customStatement(
-                '''CREATE TABLE IF NOT EXISTS journals (
-                  id TEXT NOT NULL PRIMARY KEY,
-                  company_id TEXT NOT NULL DEFAULT 'cmp_default',
-                  journal_number TEXT NOT NULL,
-                  voucher_id TEXT,
-                  date INTEGER NOT NULL,
-                  narration TEXT,
-                  total_amount_in_cents INTEGER NOT NULL DEFAULT 0,
-                  status TEXT NOT NULL DEFAULT 'posted',
-                  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-                  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-                  is_deleted INTEGER NOT NULL DEFAULT 0,
-                  sync_status TEXT NOT NULL DEFAULT 'pending'
-                );''');
-          } catch (_) {}
-          try {
-            await customStatement(
-                '''CREATE TABLE IF NOT EXISTS journal_lines (
-                  id TEXT NOT NULL PRIMARY KEY,
-                  company_id TEXT NOT NULL DEFAULT 'cmp_default',
-                  journal_id TEXT NOT NULL,
-                  account_id TEXT NOT NULL,
-                  party_id TEXT,
-                  debit_in_cents INTEGER NOT NULL DEFAULT 0,
-                  credit_in_cents INTEGER NOT NULL DEFAULT 0,
-                  narration TEXT,
-                  created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-                  updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-                  is_deleted INTEGER NOT NULL DEFAULT 0,
-                  sync_status TEXT NOT NULL DEFAULT 'pending'
-                );''');
-          } catch (_) {}
         },
       );
 }

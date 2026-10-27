@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -369,7 +370,8 @@ class _StatementPreviewScreenState
     } catch (e) {
       try {
         await launchUrl(webUri, mode: LaunchMode.externalApplication);
-      } catch (_) {
+      } catch (webErr) {
+        debugPrint('Web WhatsApp launch fallback failed: $webErr');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

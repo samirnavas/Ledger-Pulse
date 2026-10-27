@@ -11,8 +11,10 @@ import 'core/constants/strings.dart';
 import 'core/services/widget_sync_service.dart';
 import 'core/theme/android_theme.dart';
 import 'core/theme/ios_theme.dart';
+import 'data/models/company_mode.dart';
 import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/company_providers.dart';
+import 'presentation/providers/recurring_providers.dart';
 import 'presentation/providers/sync_providers.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/widget_sync_provider.dart';
@@ -69,6 +71,18 @@ class LedgerPulseApp extends ConsumerStatefulWidget {
 class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
   AppLifecycleListener? _lifecycleListener;
 
+  void _processRecurringIfDue() {
+    try {
+      final company = ref.read(activeCompanyProvider);
+      if (company.mode == CompanyMode.expenseTracker &&
+          company.isModuleEnabled(AppModule.recurring)) {
+        ref.read(recurringServiceProvider).generateDue(DateTime.now());
+      }
+    } catch (e) {
+      debugPrint('Background recurring check failed: $e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -76,6 +90,7 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
     _lifecycleListener = AppLifecycleListener(
       onResume: () {
         ref.read(syncControllerProvider.notifier).autoSyncOnAppOpen();
+        _processRecurringIfDue();
       },
     );
 
@@ -83,6 +98,7 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Trigger automatic synchronization on initial app launch (cold start)
       ref.read(syncControllerProvider.notifier).autoSyncOnAppOpen();
+      _processRecurringIfDue();
 
       if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
         WidgetSyncService.initialize(
@@ -90,6 +106,19 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
             final companyId = uri.queryParameters['company_id'];
             if (companyId != null && companyId.isNotEmpty) {
               ref.read(companyControllerProvider.notifier).selectCompany(companyId);
+            }
+
+            final moduleParam = uri.queryParameters['module'] ??
+                (uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null);
+            if (moduleParam != null) {
+              final module = AppModule.fromName(moduleParam);
+              if (module != null) {
+                final company = ref.read(activeCompanyProvider);
+                if (!company.isModuleEnabled(module)) {
+                  debugPrint('Deep link ignored: module ${module.name} is disabled');
+                  return;
+                }
+              }
             }
           },
         );

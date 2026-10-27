@@ -296,7 +296,8 @@ class FinancialStatementEngine {
             otherIncomeCents += netCredit;
           }
         } else if (acc.type == AccountType.expense) {
-          if (acc.code == '5000' || acc.id.endsWith(DefaultAccounts.purchasesCogsId)) {
+          if (acc.id.endsWith(DefaultAccounts.purchasesCogsId) ||
+              (acc.code == '5000' && !acc.id.contains('acc_exp_'))) {
             cogsCents += netDebit;
           } else {
             operatingExpensesCents += netDebit;
@@ -559,7 +560,7 @@ class FinancialStatementEngine {
         'time': DateFormatter.formatShortDate(v.date),
         'voucherNo': v.voucherNumber,
         'type': v.type.displayName,
-        'particulars': v.partyName ?? 'General Account',
+        'particulars': v.partyName ?? (v.narration?.isNotEmpty == true ? v.narration! : 'General Account'),
         'debit': isDebit ? CurrencyFormatter.format(v.totalAmountInCents) : '-',
         'credit': !isDebit ? CurrencyFormatter.format(v.totalAmountInCents) : '-',
       }));

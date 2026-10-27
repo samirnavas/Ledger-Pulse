@@ -43,11 +43,16 @@ void main() {
     });
 
     test('Active company provider yields active company metadata', () {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          activeCompanyProvider.overrideWithValue(testCompany),
+        ],
+      );
       addTearDown(container.dispose);
 
       final activeCompany = container.read(activeCompanyProvider);
       expect(activeCompany.name, isNotEmpty);
+      expect(activeCompany.id, equals('cmp_enterprise'));
     });
   });
 }

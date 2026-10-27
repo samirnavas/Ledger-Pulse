@@ -8,8 +8,11 @@ import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
+import '../../data/models/company_mode.dart';
+import '../providers/module_providers.dart';
 import '../providers/reporting_providers.dart';
 import '../reports/reporting_hub_screen.dart';
+import '../subscription/subscription_paywall_screen.dart';
 
 /// A sleek, responsive Draggable Modal Sheet presenting Business Intelligence & Cash Flow analytics.
 class BusinessIntelligenceSheet extends ConsumerWidget {
@@ -20,13 +23,58 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
-    final biAsync = ref.watch(dashboardBiMetricsProvider);
 
     final containerColor = isIos
         ? (isDark
             ? CupertinoColors.systemBackground.darkColor
             : CupertinoColors.systemBackground)
         : Theme.of(context).colorScheme.surfaceContainerHighest;
+
+    final isAdvancedReportsEnabled = ref.watch(moduleEnabledProvider(AppModule.advancedReports));
+    if (!isAdvancedReportsEnabled) {
+      return Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          margin: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: containerColor,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isIos ? CupertinoIcons.lock_circle_fill : Icons.lock_rounded,
+                size: 48,
+                color: isIos ? CupertinoColors.systemOrange : Theme.of(context).colorScheme.tertiary,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Advanced Reports & BI Disabled',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'The Advanced Reports & BI module is currently disabled for this company. Enable it in company module settings or upgrade your plan.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()));
+                },
+                child: const Text('View Plans & Licensing'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final biAsync = ref.watch(dashboardBiMetricsProvider);
 
     return Align(
       alignment: Alignment.bottomCenter,

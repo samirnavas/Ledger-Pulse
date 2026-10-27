@@ -188,7 +188,7 @@ void main() {
 
       final notifier = container.read(userProfileProvider.notifier);
       final initial = container.read(userProfileProvider);
-      expect(initial.name, isNotEmpty);
+      expect(initial.name, isEmpty);
 
       final updated = initial.copyWith(
         name: 'Samir Pro Navas',

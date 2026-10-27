@@ -1,25 +1,21 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/local/drift_ledger_repository.dart';
 import '../../data/models/user_profile_model.dart';
 import 'auth_providers.dart';
-import 'database_providers.dart';
+import 'ledger_providers.dart';
 
 class UserProfileNotifier extends Notifier<UserProfile> {
   @override
   UserProfile build() {
     final authState = ref.watch(authControllerProvider);
-    final phone = authState.phoneNumber ?? '+91 98765 43210';
+    final phone = authState.phoneNumber ?? '';
     
     final initial = UserProfile(
       id: 'usr_default',
-      name: 'Samir Navas',
-      businessName: 'Ledger Pulse Enterprise',
+      name: '',
       phoneNumber: phone,
-      email: 'samir.navas@example.com',
-      address: 'Suite 402, Trade Tower, Bangalore, India',
-      gstin: '29ABCDE1234F1ZH',
-      businessType: 'Retail & Wholesale',
+      email: '',
+      companies: const [],
     );
 
     // Asynchronously check and load persistent profile from database
@@ -31,15 +27,13 @@ class UserProfileNotifier extends Notifier<UserProfile> {
   Future<void> _loadFromDatabase(String userId) async {
     try {
       if (!ref.mounted) return;
-      final db = ref.read(appDatabaseProvider);
-      final syncEngine = ref.read(syncEngineProvider);
-      final repo = DriftLedgerRepository(db: db, syncEngine: syncEngine, currentUserId: userId);
+      final repo = ref.read(driftLedgerRepositoryProvider);
       final loaded = await repo.getUserProfile(userId);
       if (loaded != null && ref.mounted) {
         state = loaded;
       }
-    } catch (e) {
-      debugPrint('UserProfileNotifier: Error loading profile from database: $e');
+    } catch (e, st) {
+      debugPrint('UserProfileNotifier: Error loading profile from database: $e\n$st');
     }
   }
 
@@ -51,12 +45,10 @@ class UserProfileNotifier extends Notifier<UserProfile> {
   Future<void> _saveToDatabase(UserProfile profile) async {
     try {
       if (!ref.mounted) return;
-      final db = ref.read(appDatabaseProvider);
-      final syncEngine = ref.read(syncEngineProvider);
-      final repo = DriftLedgerRepository(db: db, syncEngine: syncEngine, currentUserId: profile.id);
+      final repo = ref.read(driftLedgerRepositoryProvider);
       await repo.saveUserProfile(profile);
-    } catch (e) {
-      debugPrint('UserProfileNotifier: Error saving profile to database: $e');
+    } catch (e, st) {
+      debugPrint('UserProfileNotifier: Error saving profile to database: $e\n$st');
     }
   }
 

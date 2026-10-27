@@ -9,7 +9,9 @@ class AdaptiveThemeHelper {
       if (platform == TargetPlatform.iOS || platform == TargetPlatform.macOS) {
         return true;
       }
-    } catch (_) {}
+    } catch (_) {
+      // Fallback to defaultTargetPlatform if context lacks Theme widget (e.g. unmounted in unit tests)
+    }
     return defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS;
   }

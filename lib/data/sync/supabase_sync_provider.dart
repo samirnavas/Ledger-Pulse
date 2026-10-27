@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../core/config/supabase_config.dart';
 import '../local/database.dart';
@@ -7,6 +8,7 @@ import '../models/company_model.dart';
 import '../models/party_model.dart';
 import '../models/sync_model.dart';
 import '../models/transaction_model.dart';
+import '../models/voucher_model.dart';
 import 'sync_engine.dart';
 
 class SupabaseSyncProvider extends SyncEngine {
@@ -129,6 +131,12 @@ class SupabaseSyncProvider extends SyncEngine {
               pulledCount++;
             }
           }
+          if (body['accounts'] is List) {
+            for (final a in body['accounts']) {
+              await _applyRemoteAccount(companyId, a as Map<String, dynamic>);
+              pulledCount++;
+            }
+          }
           if (body['entries'] is List) {
             for (final e in body['entries']) {
               final entry = LedgerEntry.fromMap(e as Map<String, dynamic>);
@@ -136,9 +144,41 @@ class SupabaseSyncProvider extends SyncEngine {
               pulledCount++;
             }
           }
+          if (body['vouchers'] is List) {
+            for (final v in body['vouchers']) {
+              final voucher = VoucherModel.fromMap(v as Map<String, dynamic>);
+              await _applyRemoteVoucher(companyId, voucher);
+              pulledCount++;
+            }
+          }
+          if (body['journals'] is List) {
+            for (final j in body['journals']) {
+              await _applyRemoteJournal(companyId, j as Map<String, dynamic>);
+              pulledCount++;
+            }
+          }
+          if (body['journal_lines'] is List) {
+            for (final jl in body['journal_lines']) {
+              await _applyRemoteJournalLine(companyId, jl as Map<String, dynamic>);
+              pulledCount++;
+            }
+          }
+          if (body['budgets'] is List) {
+            for (final b in body['budgets']) {
+              await _applyRemoteBudget(companyId, b as Map<String, dynamic>);
+              pulledCount++;
+            }
+          }
+          if (body['recurring_rules'] is List) {
+            for (final r in body['recurring_rules']) {
+              await _applyRemoteRecurringRule(companyId, r as Map<String, dynamic>);
+              pulledCount++;
+            }
+          }
         }
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Pull failed for company $companyId: $e');
       // In offline scenario or unconfigured remote, keep existing local state
     }
 
@@ -174,6 +214,8 @@ class SupabaseSyncProvider extends SyncEngine {
               isCloudSyncEnabled: Value(company.isCloudSyncEnabled),
               isDropboxSyncEnabled: Value(company.isDropboxSyncEnabled),
               isActive: Value(company.isActive),
+              mode: Value(company.mode.name),
+              enabledModulesJson: Value(jsonEncode(company.enabledModules.map((m) => m.name).toList())),
               createdAt: Value(company.createdAt),
               updatedAt: Value(company.updatedAt),
               syncStatus: const Value(SyncRecordStatus.synced),
@@ -218,5 +260,165 @@ class SupabaseSyncProvider extends SyncEngine {
             createdAt: Value(entry.date),
           ),
         );
+  }
+
+  Future<void> _applyRemoteVoucher(String companyId, VoucherModel voucher) async {
+    final existing = await (db.select(db.vouchers)..where((t) => t.id.equals(voucher.id))).getSingleOrNull();
+    if (existing == null || voucher.updatedAt.isAfter(existing.updatedAt)) {
+      await db.into(db.vouchers).insertOnConflictUpdate(
+            VouchersCompanion.insert(
+              id: voucher.id,
+              companyId: Value(companyId),
+              voucherNumber: voucher.voucherNumber,
+              type: voucher.type.name,
+              date: voucher.date,
+              dueDate: Value(voucher.dueDate),
+              partyId: Value(voucher.partyId),
+              partyName: Value(voucher.partyName),
+              status: Value(voucher.status.name),
+              paymentMode: Value(voucher.paymentMode.name),
+              subtotalInCents: Value(voucher.subtotalInCents),
+              taxInCents: Value(voucher.taxInCents),
+              discountInCents: Value(voucher.discountInCents),
+              totalAmountInCents: Value(voucher.totalAmountInCents),
+              narration: Value(voucher.narration),
+              referenceNumber: Value(voucher.referenceNumber),
+              sourceVoucherId: Value(voucher.sourceVoucherId),
+              receiptPhotoUrl: Value(voucher.receiptPhotoUrl),
+              itemsJson: Value(jsonEncode(voucher.items.map((i) => i.toMap()).toList())),
+              categoryAccountId: Value(voucher.categoryAccountId),
+              walletAccountId: Value(voucher.walletAccountId),
+              toWalletAccountId: Value(voucher.toWalletAccountId),
+              createdAt: Value(voucher.createdAt),
+              updatedAt: Value(voucher.updatedAt),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+    }
+  }
+
+  Future<void> _applyRemoteBudget(String companyId, Map<String, dynamic> map) async {
+    final id = map['id'] as String;
+    final updatedAt = map['updated_at'] != null ? DateTime.parse(map['updated_at'] as String) : DateTime.now();
+    final existing = await (db.select(db.budgets)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (existing == null || updatedAt.isAfter(existing.updatedAt)) {
+      await db.into(db.budgets).insertOnConflictUpdate(
+            BudgetsCompanion.insert(
+              id: id,
+              companyId: Value(companyId),
+              categoryAccountId: map['category_account_id'] as String? ?? '',
+              periodType: map['period_type'] as String? ?? 'monthly',
+              amountInCents: (map['amount_in_cents'] as num?)?.toInt() ?? 0,
+              startDate: map['start_date'] != null ? DateTime.parse(map['start_date'] as String) : DateTime.now(),
+              rolloverEnabled: Value(map['rollover_enabled'] as bool? ?? false),
+              isActive: Value(map['is_active'] as bool? ?? true),
+              createdAt: Value(map['created_at'] != null ? DateTime.parse(map['created_at'] as String) : DateTime.now()),
+              updatedAt: Value(updatedAt),
+              isDeleted: Value(map['is_deleted'] as bool? ?? false),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+    }
+  }
+
+  Future<void> _applyRemoteRecurringRule(String companyId, Map<String, dynamic> map) async {
+    final id = map['id'] as String;
+    final updatedAt = map['updated_at'] != null ? DateTime.parse(map['updated_at'] as String) : DateTime.now();
+    final existing = await (db.select(db.recurringRules)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (existing == null || updatedAt.isAfter(existing.updatedAt)) {
+      final templateJson = map['template_json'] != null
+          ? (map['template_json'] is String ? map['template_json'] as String : jsonEncode(map['template_json']))
+          : '{}';
+      await db.into(db.recurringRules).insertOnConflictUpdate(
+            RecurringRulesCompanion.insert(
+              id: id,
+              companyId: Value(companyId),
+              templateJson: templateJson,
+              intervalType: map['interval_type'] as String? ?? 'monthly',
+              intervalCount: Value((map['interval_count'] as num?)?.toInt() ?? 1),
+              nextRunDate: map['next_run_date'] != null ? DateTime.parse(map['next_run_date'] as String) : DateTime.now(),
+              endDate: Value(map['end_date'] != null ? DateTime.parse(map['end_date'] as String) : null),
+              isActive: Value(map['is_active'] as bool? ?? true),
+              createdAt: Value(map['created_at'] != null ? DateTime.parse(map['created_at'] as String) : DateTime.now()),
+              updatedAt: Value(updatedAt),
+              isDeleted: Value(map['is_deleted'] as bool? ?? false),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+    }
+  }
+
+  Future<void> _applyRemoteAccount(String companyId, Map<String, dynamic> map) async {
+    final id = map['id'] as String;
+    final updatedAt = map['updated_at'] != null ? DateTime.parse(map['updated_at'] as String) : DateTime.now();
+    final existing = await (db.select(db.accounts)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (existing == null || updatedAt.isAfter(existing.updatedAt)) {
+      await db.into(db.accounts).insertOnConflictUpdate(
+            AccountsCompanion.insert(
+              id: id,
+              companyId: Value(companyId),
+              code: map['code'] as String? ?? '',
+              name: map['name'] as String? ?? '',
+              type: map['type'] as String? ?? 'asset',
+              parentAccountId: Value(map['parent_account_id'] as String?),
+              isSystem: Value(map['is_system'] as bool? ?? false),
+              isActive: Value(map['is_active'] as bool? ?? true),
+              description: Value(map['description'] as String?),
+              currentBalanceInCents: Value((map['current_balance_in_cents'] as num?)?.toInt() ?? 0),
+              createdAt: Value(map['created_at'] != null ? DateTime.parse(map['created_at'] as String) : DateTime.now()),
+              updatedAt: Value(updatedAt),
+              isDeleted: Value(map['is_deleted'] as bool? ?? false),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+    }
+  }
+
+  Future<void> _applyRemoteJournal(String companyId, Map<String, dynamic> map) async {
+    final id = map['id'] as String;
+    final updatedAt = map['updated_at'] != null ? DateTime.parse(map['updated_at'] as String) : DateTime.now();
+    final existing = await (db.select(db.journals)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (existing == null || updatedAt.isAfter(existing.updatedAt)) {
+      await db.into(db.journals).insertOnConflictUpdate(
+            JournalsCompanion.insert(
+              id: id,
+              companyId: Value(companyId),
+              journalNumber: map['journal_number'] as String? ?? 'JRN-001',
+              voucherId: Value(map['voucher_id'] as String?),
+              date: map['date'] != null ? DateTime.parse(map['date'] as String) : DateTime.now(),
+              narration: Value(map['narration'] as String?),
+              totalAmountInCents: Value((map['total_amount_in_cents'] as num?)?.toInt() ?? 0),
+              status: Value(map['status'] as String? ?? 'posted'),
+              createdAt: Value(map['created_at'] != null ? DateTime.parse(map['created_at'] as String) : DateTime.now()),
+              updatedAt: Value(updatedAt),
+              isDeleted: Value(map['is_deleted'] as bool? ?? false),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+    }
+  }
+
+  Future<void> _applyRemoteJournalLine(String companyId, Map<String, dynamic> map) async {
+    final id = map['id'] as String;
+    final updatedAt = map['updated_at'] != null ? DateTime.parse(map['updated_at'] as String) : DateTime.now();
+    final existing = await (db.select(db.journalLines)..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (existing == null || updatedAt.isAfter(existing.updatedAt)) {
+      await db.into(db.journalLines).insertOnConflictUpdate(
+            JournalLinesCompanion.insert(
+              id: id,
+              companyId: Value(companyId),
+              journalId: map['journal_id'] as String,
+              accountId: map['account_id'] as String,
+              partyId: Value(map['party_id'] as String?),
+              debitInCents: Value((map['debit_in_cents'] as num?)?.toInt() ?? 0),
+              creditInCents: Value((map['credit_in_cents'] as num?)?.toInt() ?? 0),
+              narration: Value(map['narration'] as String?),
+              createdAt: Value(map['created_at'] != null ? DateTime.parse(map['created_at'] as String) : DateTime.now()),
+              updatedAt: Value(updatedAt),
+              isDeleted: Value(map['is_deleted'] as bool? ?? false),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+    }
   }
 }

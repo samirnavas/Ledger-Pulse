@@ -18,6 +18,27 @@ Future<bool> showDiscardChangesDialog(BuildContext context) async {
   );
 }
 
+/// Class wrapper for static convenience invocation
+class AdaptiveConfirmDialog {
+  static Future<bool> show({
+    required BuildContext context,
+    required String title,
+    required String message,
+    String confirmText = 'Confirm',
+    String cancelText = 'Cancel',
+    bool isDestructive = false,
+  }) {
+    return showAdaptiveConfirmDialog(
+      context: context,
+      title: title,
+      message: message,
+      confirmLabel: confirmText,
+      cancelLabel: cancelText,
+      isDestructive: isDestructive,
+    );
+  }
+}
+
 /// Displays a generic platform-adaptive confirmation dialog.
 Future<bool> showAdaptiveConfirmDialog({
   required BuildContext context,

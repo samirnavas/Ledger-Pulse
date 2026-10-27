@@ -1,4 +1,6 @@
+import '../../domain/exceptions/ledger_exceptions.dart';
 import '../local/database.dart';
+import '../models/company_model.dart';
 import 'report_models.dart';
 
 class CustomReportXmlTemplate {
@@ -98,12 +100,52 @@ class CustomSqlReportEngine {
     return templates;
   }
 
+  Future<Company?> _fetchActiveCompany() async {
+    final profile = await _db.select(_db.userProfiles).getSingleOrNull();
+    final companyId = profile?.activeCompanyId;
+    if (companyId != null) {
+      final row = await (_db.select(_db.companies)..where((tbl) => tbl.id.equals(companyId))).getSingleOrNull();
+      if (row != null) {
+        return Company(
+          id: row.id,
+          name: row.name,
+          legalName: row.legalName,
+          gstin: row.gstin,
+          stateCode: row.stateCode,
+          dealerType: row.dealerType,
+          currencyCode: row.currencyCode,
+          address: row.address,
+          email: row.email,
+          phoneNumber: row.phoneNumber,
+          logoUrl: row.logoUrl,
+          signatureUrl: row.signatureUrl,
+          signatoryName: row.signatoryName,
+          bankName: row.bankName,
+          bankAccountNumber: row.bankAccountNumber,
+          bankIfsc: row.bankIfsc,
+          upiId: row.upiId,
+          isCloudSyncEnabled: row.isCloudSyncEnabled,
+          isDropboxSyncEnabled: row.isDropboxSyncEnabled,
+          isActive: row.isActive,
+          mode: CompanyMode.fromName(row.mode),
+          enabledModules: row.enabledModulesJson != null
+              ? AppModule.parseSet(row.enabledModulesJson)
+              : AppModule.allModules,
+          createdAt: row.createdAt,
+          updatedAt: row.updatedAt,
+        );
+      }
+    }
+    return null;
+  }
+
   /// Executes raw SQL query with read-only validation
   Future<ReportData> executeRawSql({
     required String sqlQuery,
     String reportTitle = 'Custom SQL Report',
     String reportDescription = 'Executed via Desktop Custom Report Studio',
     List<ReportColumn> columns = const [],
+    Company? company,
   }) async {
     final template = CustomReportXmlTemplate(
       id: 'custom_sql_${DateTime.now().millisecondsSinceEpoch}',
@@ -112,13 +154,19 @@ class CustomSqlReportEngine {
       sqlQuery: sqlQuery,
       columns: columns,
     );
-    return executeReport(template: template);
+    return executeReport(template: template, company: company);
   }
 
   /// Executes a custom SQL query and returns ReportData
   Future<ReportData> executeReport({
     required CustomReportXmlTemplate template,
+    Company? company,
   }) async {
+    final comp = company ?? await _fetchActiveCompany();
+    if (comp != null && !comp.isModuleEnabled(AppModule.sqlStudio)) {
+      throw ModuleDisabledException(AppModule.sqlStudio);
+    }
+
     final sanitizedQuery = template.sqlQuery.trim();
 
     // Safety audit: custom reports should only execute read-only queries

@@ -8,11 +8,17 @@ import '../theme/adaptive_theme.dart';
 class AdaptiveBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final bool isPartiesEnabled;
+  final List<BottomNavigationBarItem>? iosItems;
+  final List<NavigationDestination>? destinations;
 
   const AdaptiveBottomNav({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.isPartiesEnabled = true,
+    this.iosItems,
+    this.destinations,
   });
 
   @override
@@ -20,6 +26,33 @@ class AdaptiveBottomNav extends StatelessWidget {
     final isIos = AdaptiveThemeHelper.isIos(context);
 
     if (isIos) {
+      final items = iosItems ??
+          (isPartiesEnabled
+              ? const [
+                  BottomNavigationBarItem(
+                    icon: Icon(CupertinoIcons.person_2),
+                    activeIcon: Icon(CupertinoIcons.person_2_fill),
+                    label: 'Customers',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(CupertinoIcons.archivebox),
+                    activeIcon: Icon(CupertinoIcons.archivebox_fill),
+                    label: 'Suppliers',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(CupertinoIcons.person_crop_circle),
+                    activeIcon: Icon(CupertinoIcons.person_crop_circle_fill),
+                    label: 'Profile',
+                  ),
+                ]
+              : const [
+                  BottomNavigationBarItem(
+                    icon: Icon(CupertinoIcons.person_crop_circle),
+                    activeIcon: Icon(CupertinoIcons.person_crop_circle_fill),
+                    label: 'Profile',
+                  ),
+                ]);
+
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: RealLiquidGlass(
@@ -27,31 +60,50 @@ class AdaptiveBottomNav extends StatelessWidget {
           blur: 24,
           child: CupertinoTabBar(
             backgroundColor: Colors.transparent,
-            currentIndex: currentIndex,
-            onTap: onTap,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(CupertinoIcons.person_2),
-                activeIcon: Icon(CupertinoIcons.person_2_fill),
-                label: 'Customers',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(CupertinoIcons.archivebox),
-                activeIcon: Icon(CupertinoIcons.archivebox_fill),
-                label: 'Suppliers',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(CupertinoIcons.person_crop_circle),
-                activeIcon: Icon(CupertinoIcons.person_crop_circle_fill),
-                label: 'Profile',
-              ),
-            ],
+            currentIndex: iosItems != null
+                ? currentIndex
+                : (isPartiesEnabled ? currentIndex : 0),
+            onTap: (idx) {
+              if (iosItems != null || isPartiesEnabled) {
+                onTap(idx);
+              } else {
+                onTap(2); // Maps to Profile
+              }
+            },
+            items: items,
           ),
         ),
       );
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final effectiveDestinations = destinations ??
+        (isPartiesEnabled
+            ? const [
+                NavigationDestination(
+                  icon: Icon(Icons.people_outline),
+                  selectedIcon: Icon(Icons.people),
+                  label: 'Customers',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.local_shipping_outlined),
+                  selectedIcon: Icon(Icons.local_shipping),
+                  label: 'Suppliers',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.account_circle_outlined),
+                  selectedIcon: Icon(Icons.account_circle),
+                  label: 'Profile',
+                ),
+              ]
+            : const [
+                NavigationDestination(
+                  icon: Icon(Icons.account_circle_outlined),
+                  selectedIcon: Icon(Icons.account_circle),
+                  label: 'Profile',
+                ),
+              ]);
 
     // Android Material 3 Expressive NavigationBar
     return Container(
@@ -73,25 +125,17 @@ class AdaptiveBottomNav extends StatelessWidget {
         backgroundColor: isDark
             ? Colors.black
             : Theme.of(context).colorScheme.surfaceContainerHigh,
-        selectedIndex: currentIndex,
-        onDestinationSelected: onTap,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.people_outline),
-            selectedIcon: Icon(Icons.people),
-            label: 'Customers',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.local_shipping_outlined),
-            selectedIcon: Icon(Icons.local_shipping),
-            label: 'Suppliers',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.account_circle_outlined),
-            selectedIcon: Icon(Icons.account_circle),
-            label: 'Profile',
-          ),
-        ],
+        selectedIndex: destinations != null
+            ? currentIndex
+            : (isPartiesEnabled ? currentIndex : 0),
+        onDestinationSelected: (idx) {
+          if (destinations != null || isPartiesEnabled) {
+            onTap(idx);
+          } else {
+            onTap(2);
+          }
+        },
+        destinations: effectiveDestinations,
       ),
     );
   }

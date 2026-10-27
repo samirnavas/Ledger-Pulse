@@ -122,7 +122,9 @@ class _VoucherCreationScreenState extends ConsumerState<VoucherCreationScreen> {
           _voucherNumberController.text = nextNumber;
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to initialize document number for $type: $e');
+    }
   }
 
   void _onTypeChanged(VoucherType newType) {

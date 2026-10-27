@@ -3,7 +3,9 @@ import 'package:drift/drift.dart';
 import '../local/audit_service.dart';
 import '../local/database.dart';
 import '../models/audit_log_model.dart';
+import '../models/company_model.dart';
 import '../models/manufacturing_bom_model.dart';
+import '../../domain/exceptions/ledger_exceptions.dart';
 
 import '../models/voucher_model.dart';
 
@@ -33,6 +35,39 @@ class ManufacturingJournalEngine {
 
   ManufacturingJournalEngine(this._db, this._auditService);
 
+  Future<Company?> _fetchCompany(String companyId) async {
+    final row = await (_db.select(_db.companies)..where((tbl) => tbl.id.equals(companyId))).getSingleOrNull();
+    if (row == null) return null;
+    return Company(
+      id: row.id,
+      name: row.name,
+      legalName: row.legalName,
+      gstin: row.gstin,
+      stateCode: row.stateCode,
+      dealerType: row.dealerType,
+      currencyCode: row.currencyCode,
+      address: row.address,
+      email: row.email,
+      phoneNumber: row.phoneNumber,
+      logoUrl: row.logoUrl,
+      signatureUrl: row.signatureUrl,
+      signatoryName: row.signatoryName,
+      bankName: row.bankName,
+      bankAccountNumber: row.bankAccountNumber,
+      bankIfsc: row.bankIfsc,
+      upiId: row.upiId,
+      isCloudSyncEnabled: row.isCloudSyncEnabled,
+      isDropboxSyncEnabled: row.isDropboxSyncEnabled,
+      isActive: row.isActive,
+      mode: CompanyMode.fromName(row.mode),
+      enabledModules: row.enabledModulesJson != null
+          ? AppModule.parseSet(row.enabledModulesJson)
+          : AppModule.allModules,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    );
+  }
+
   /// Executes a production run based on a Bill of Materials
   Future<ManufacturingExecutionResult> executeProductionRun({
     required BillOfMaterials bom,
@@ -40,7 +75,13 @@ class ManufacturingJournalEngine {
     required String companyId,
     required String userId,
     DateTime? productionDate,
+    Company? company,
   }) async {
+    final comp = company ?? await _fetchCompany(companyId);
+    if (comp != null && !comp.isModuleEnabled(AppModule.manufacturing)) {
+      throw ModuleDisabledException(AppModule.manufacturing);
+    }
+
     if (productionQuantity <= 0) {
       return const ManufacturingExecutionResult(
         success: false,

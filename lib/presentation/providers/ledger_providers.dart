@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/drift_ledger_repository.dart';
 import '../../data/models/account_model.dart';
+import '../../data/models/company_model.dart';
 import '../../data/models/journal_model.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
+import 'company_providers.dart';
 import 'database_providers.dart';
 import 'profile_provider.dart';
 
@@ -12,17 +14,33 @@ export 'database_providers.dart';
 export '../../data/models/account_model.dart';
 export '../../data/models/journal_model.dart';
 
-// Single repository instance backed directly by local SQLite (Drift)
-final ledgerRepositoryProvider = Provider<ILedgerRepository>((ref) {
+// Shared DriftLedgerRepository instance backed directly by local SQLite (Drift)
+final driftLedgerRepositoryProvider = Provider<DriftLedgerRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   final syncEngine = ref.watch(syncEngineProvider);
-  final profile = ref.watch(userProfileProvider);
   final repo = DriftLedgerRepository(
     db: db,
     syncEngine: syncEngine,
-    currentCompanyId: profile.activeCompanyId,
-    currentUserId: profile.id,
-    currentRole: profile.role,
+  );
+  ref.onDispose(() {
+    repo.dispose();
+  });
+  return repo;
+});
+
+// ILedgerRepository instance that scopes the active company, user, and role via select
+final ledgerRepositoryProvider = Provider<ILedgerRepository>((ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final syncEngine = ref.watch(syncEngineProvider);
+  final activeCompanyId = ref.watch(userProfileProvider.select((p) => p.activeCompanyId));
+  final userId = ref.watch(userProfileProvider.select((p) => p.id));
+  final role = ref.watch(userProfileProvider.select((p) => p.role));
+  final repo = DriftLedgerRepository(
+    db: db,
+    syncEngine: syncEngine,
+    currentCompanyId: activeCompanyId,
+    currentUserId: userId,
+    currentRole: role,
   );
   ref.onDispose(() {
     repo.dispose();
@@ -32,6 +50,10 @@ final ledgerRepositoryProvider = Provider<ILedgerRepository>((ref) {
 
 // Stream of updates triggered by any add/delete in the repository
 final ledgerUpdatesStreamProvider = StreamProvider<void>((ref) {
+  final company = ref.watch(activeCompanyProvider);
+  if (company.mode == CompanyMode.expenseTracker) {
+    return const Stream.empty();
+  }
   final repo = ref.watch(ledgerRepositoryProvider);
   return repo.repositoryUpdatesStream;
 });
@@ -115,6 +137,10 @@ final partySortOptionProvider =
 
 // Parties list provider, auto-refreshes when repo emits update
 final partyListProvider = FutureProvider<List<Party>>((ref) async {
+  final company = ref.watch(activeCompanyProvider);
+  if (company.mode == CompanyMode.expenseTracker) {
+    return const [];
+  }
   final repo = ref.watch(ledgerRepositoryProvider);
   final sub = repo.repositoryUpdatesStream.listen((_) {
     ref.invalidateSelf();
@@ -160,6 +186,10 @@ final partyListProvider = FutureProvider<List<Party>>((ref) async {
 // Business summary (Total Receivable, Total Payable)
 final businessSummaryProvider =
     FutureProvider<(int totalReceivable, int totalPayable)>((ref) async {
+  final company = ref.watch(activeCompanyProvider);
+  if (company.mode == CompanyMode.expenseTracker) {
+    return (0, 0);
+  }
   final repo = ref.watch(ledgerRepositoryProvider);
   final sub = repo.repositoryUpdatesStream.listen((_) {
     ref.invalidateSelf();
@@ -317,10 +347,6 @@ final ledgerActionControllerProvider = Provider<LedgerActionController>((ref) {
   return LedgerActionController(ref, repo);
 });
 
-final driftLedgerRepositoryProvider = Provider<DriftLedgerRepository>((ref) {
-  final repo = ref.watch(ledgerRepositoryProvider);
-  return repo as DriftLedgerRepository;
-});
 
 final chartOfAccountsProvider = FutureProvider<List<AccountModel>>((ref) async {
   ref.watch(ledgerUpdatesStreamProvider);

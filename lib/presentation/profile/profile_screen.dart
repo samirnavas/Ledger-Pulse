@@ -12,7 +12,9 @@ import '../../data/models/user_profile_model.dart';
 import '../auth/phone_input_screen.dart';
 import '../home/company_switcher_sheet.dart';
 import '../home/sync_settings_sheet.dart';
+import '../../data/models/company_mode.dart';
 import '../providers/auth_providers.dart';
+import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
 import '../providers/sync_providers.dart';
 import '../inventory/inventory_screen.dart';
@@ -48,9 +50,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _isEditing = false;
   bool _hasChanges = false;
 
+  late final ProfileSaveActionNotifier _saveActionNotifier;
+  late final ProfileCancelActionNotifier _cancelActionNotifier;
+  late final IsProfileEditingNotifier _isEditingNotifier;
+  late final HasProfileChangesNotifier _hasChangesNotifier;
+
   @override
   void initState() {
     super.initState();
+    _saveActionNotifier = ref.read(profileSaveActionProvider.notifier);
+    _cancelActionNotifier = ref.read(profileCancelActionProvider.notifier);
+    _isEditingNotifier = ref.read(isProfileEditingProvider.notifier);
+    _hasChangesNotifier = ref.read(hasProfileChangesProvider.notifier);
+
     final profile = ref.read(userProfileProvider);
     _nameController = TextEditingController(text: profile.name);
     _businessNameController = TextEditingController(text: profile.businessName);
@@ -58,7 +70,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _emailController = TextEditingController(text: profile.email);
     _addressController = TextEditingController(text: profile.address);
     _gstinController = TextEditingController(text: profile.gstin);
-    _businessTypeController = TextEditingController(text: profile.businessType);
+    _businessTypeController = TextEditingController(text: profile.businessType ?? '');
     _bankNameController = TextEditingController(text: profile.bankName ?? '');
     _bankAccountController = TextEditingController(text: profile.bankAccountNumber ?? '');
     _bankIfscController = TextEditingController(text: profile.bankIfsc ?? '');
@@ -78,8 +90,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(profileSaveActionProvider.notifier).setAction(_saveProfile);
-        ref.read(profileCancelActionProvider.notifier).setAction(_cancelEditing);
+        _saveActionNotifier.setAction(_saveProfile);
+        _cancelActionNotifier.setAction(_cancelEditing);
       }
     });
   }
@@ -92,7 +104,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _emailController.text != current.email ||
         _addressController.text != current.address ||
         _gstinController.text != current.gstin ||
-        _businessTypeController.text != current.businessType ||
+        _businessTypeController.text != (current.businessType ?? '') ||
         _bankNameController.text != (current.bankName ?? '') ||
         _bankAccountController.text != (current.bankAccountNumber ?? '') ||
         _bankIfscController.text != (current.bankIfsc ?? '') ||
@@ -102,7 +114,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() {
         _hasChanges = changed;
       });
-      ref.read(hasProfileChangesProvider.notifier).setHasChanges(changed);
+      _hasChangesNotifier.setHasChanges(changed);
     }
   }
 
@@ -115,7 +127,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _emailController.text = current.email;
     _addressController.text = current.address;
     _gstinController.text = current.gstin;
-    _businessTypeController.text = current.businessType;
+    _businessTypeController.text = current.businessType ?? '';
     _bankNameController.text = current.bankName ?? '';
     _bankAccountController.text = current.bankAccountNumber ?? '';
     _bankIfscController.text = current.bankIfsc ?? '';
@@ -124,16 +136,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _isEditing = false;
       _hasChanges = false;
     });
-    ref.read(isProfileEditingProvider.notifier).setEditing(false);
-    ref.read(hasProfileChangesProvider.notifier).setHasChanges(false);
+    _isEditingNotifier.setEditing(false);
+    _hasChangesNotifier.setHasChanges(false);
   }
 
   @override
   void dispose() {
-    ref.read(profileSaveActionProvider.notifier).setAction(null);
-    ref.read(profileCancelActionProvider.notifier).setAction(null);
-    ref.read(isProfileEditingProvider.notifier).setEditing(false);
-    ref.read(hasProfileChangesProvider.notifier).setHasChanges(false);
+    try {
+      _saveActionNotifier.setAction(null);
+      _cancelActionNotifier.setAction(null);
+      _isEditingNotifier.setEditing(false);
+      _hasChangesNotifier.setHasChanges(false);
+    } catch (_) {
+      // Notifiers may have already been disposed if widget tree is tearing down
+    }
     _nameController.dispose();
     _businessNameController.dispose();
     _phoneController.dispose();
@@ -281,6 +297,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final profile = ref.watch(userProfileProvider);
+    final activeCompany = ref.watch(activeCompanyProvider);
+    final isExpense = activeCompany.mode == CompanyMode.expenseTracker;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     ref.listen<bool>(isProfileEditingProvider, (previous, next) {
@@ -402,36 +420,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   }
                 },
               ),
-              const SizedBox(height: 10),
-              _buildActionTile(
-                context,
-                title: 'Item Master & Inventory',
-                subtitle: 'SKU tracking, stock valuation & alerts',
-                icon: isIos ? CupertinoIcons.cube_box_fill : Icons.inventory_2_rounded,
-                isIos: isIos,
-                onTap: () {
-                  Navigator.of(context).push(
-                    createAdaptivePageRoute(
-                      builder: (context) => const InventoryScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              _buildActionTile(
-                context,
-                title: 'Statutory Audit Trail',
-                subtitle: 'Tamper-evident SHA-256 mutation log',
-                icon: isIos ? CupertinoIcons.shield_lefthalf_fill : Icons.verified_user_rounded,
-                isIos: isIos,
-                onTap: () {
-                  Navigator.of(context).push(
-                    createAdaptivePageRoute(
-                      builder: (context) => const AuditLogScreen(),
-                    ),
-                  );
-                },
-              ),
+              if (!isExpense) ...[
+                const SizedBox(height: 10),
+                _buildActionTile(
+                  context,
+                  title: 'Item Master & Inventory',
+                  subtitle: 'SKU tracking, stock valuation & alerts',
+                  icon: isIos ? CupertinoIcons.cube_box_fill : Icons.inventory_2_rounded,
+                  isIos: isIos,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      createAdaptivePageRoute(
+                        builder: (context) => const InventoryScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildActionTile(
+                  context,
+                  title: 'Statutory Audit Trail',
+                  subtitle: 'Tamper-evident SHA-256 mutation log',
+                  icon: isIos ? CupertinoIcons.shield_lefthalf_fill : Icons.verified_user_rounded,
+                  isIos: isIos,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      createAdaptivePageRoute(
+                        builder: (context) => const AuditLogScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
 
               const SizedBox(height: 24),
 
@@ -491,73 +511,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 24),
 
               // 3. Business Information Section
-              _buildSectionHeader(context, 'Business Details', Icons.business_outlined, isIos),
-              const SizedBox(height: 12),
-              AnimatedCrossFade(
-                duration: const Duration(milliseconds: 320),
-                firstCurve: Curves.easeInOutCubic,
-                secondCurve: Curves.easeInOutCubic,
-                sizeCurve: Curves.easeInOutCubic,
-                crossFadeState: _isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                firstChild: _buildReadOnlyCard(context, isIos, [
-                  _buildReadOnlyRow(context, 'Business Name', profile.businessName, isIos ? CupertinoIcons.briefcase : Icons.storefront_outlined),
-                  const SizedBox(height: 16),
-                  _buildReadOnlyRow(context, 'Business Type', profile.businessType, isIos ? CupertinoIcons.tag : Icons.category_outlined),
-                  const SizedBox(height: 16),
-                  _buildReadOnlyRow(context, 'GSTIN / Tax ID', profile.gstin, isIos ? CupertinoIcons.doc_text : Icons.badge_outlined),
-                  const SizedBox(height: 16),
-                  _buildReadOnlyRow(context, 'Business Address', profile.address, isIos ? CupertinoIcons.location : Icons.location_on_outlined),
-                ]),
-                secondChild: Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 4),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildInputField(
-                        context,
-                        controller: _businessNameController,
-                        label: 'Business Name',
-                        icon: isIos ? CupertinoIcons.briefcase : Icons.storefront_outlined,
-                        enabled: _isEditing,
-                        validator: (val) => val == null || val.trim().isEmpty ? 'Business name cannot be empty' : null,
-                      ),
-                      const SizedBox(height: 14),
-                      _buildInputField(
-                        context,
-                        controller: _businessTypeController,
-                        label: 'Business Type',
-                        icon: isIos ? CupertinoIcons.tag : Icons.category_outlined,
-                        enabled: _isEditing,
-                      ),
-                      const SizedBox(height: 14),
-                      _buildInputField(
-                        context,
-                        controller: _gstinController,
-                        label: 'GSTIN / Tax ID',
-                        icon: isIos ? CupertinoIcons.doc_text : Icons.badge_outlined,
-                        enabled: _isEditing,
-                      ),
-                      const SizedBox(height: 14),
-                      _buildInputField(
-                        context,
-                        controller: _addressController,
-                        label: 'Business Address',
-                        icon: isIos ? CupertinoIcons.location : Icons.location_on_outlined,
-                        maxLines: 2,
-                        enabled: _isEditing,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Banking & UPI Remittance Details Section (FR-VCH-09)
               _buildSectionHeader(
                 context,
-                'Banking & Remittance (Invoice Payment)',
-                isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_outlined,
+                isExpense ? 'Account Details' : 'Business Details',
+                isExpense
+                    ? (isIos ? CupertinoIcons.person_crop_square : Icons.account_box_outlined)
+                    : Icons.business_outlined,
                 isIos,
               ),
               const SizedBox(height: 12),
@@ -568,13 +527,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 sizeCurve: Curves.easeInOutCubic,
                 crossFadeState: _isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
                 firstChild: _buildReadOnlyCard(context, isIos, [
-                  _buildReadOnlyRow(context, 'Bank Name', profile.bankName ?? '', isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded),
+                  _buildReadOnlyRow(
+                    context,
+                    isExpense ? 'Account Name' : 'Business Name',
+                    profile.businessName.isNotEmpty ? profile.businessName : activeCompany.name,
+                    isIos ? CupertinoIcons.briefcase : Icons.storefront_outlined,
+                  ),
+                  if (!isExpense) ...[
+                    const SizedBox(height: 16),
+                    _buildReadOnlyRow(context, 'Business Type', profile.businessType ?? '', isIos ? CupertinoIcons.tag : Icons.category_outlined),
+                    const SizedBox(height: 16),
+                    _buildReadOnlyRow(context, 'GSTIN / Tax ID', profile.gstin, isIos ? CupertinoIcons.doc_text : Icons.badge_outlined),
+                  ],
                   const SizedBox(height: 16),
-                  _buildReadOnlyRow(context, 'Account Number', profile.bankAccountNumber ?? '', isIos ? CupertinoIcons.number : Icons.credit_card_rounded),
-                  const SizedBox(height: 16),
-                  _buildReadOnlyRow(context, 'IFSC Code', profile.bankIfsc ?? '', isIos ? CupertinoIcons.barcode : Icons.qr_code_2_rounded),
-                  const SizedBox(height: 16),
-                  _buildReadOnlyRow(context, 'UPI ID / VPA', profile.upiId ?? '', isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded),
+                  _buildReadOnlyRow(context, isExpense ? 'Billing Address' : 'Business Address', profile.address, isIos ? CupertinoIcons.location : Icons.location_on_outlined),
                 ]),
                 secondChild: Padding(
                   padding: const EdgeInsets.only(top: 8, bottom: 4),
@@ -583,40 +549,111 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     children: [
                       _buildInputField(
                         context,
-                        controller: _bankNameController,
-                        label: 'Bank Name',
-                        icon: isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded,
+                        controller: _businessNameController,
+                        label: isExpense ? 'Account Name' : 'Business Name',
+                        icon: isIos ? CupertinoIcons.briefcase : Icons.storefront_outlined,
                         enabled: _isEditing,
+                        validator: (val) => val == null || val.trim().isEmpty ? 'Name cannot be empty' : null,
                       ),
+                      if (!isExpense) ...[
+                        const SizedBox(height: 14),
+                        _buildInputField(
+                          context,
+                          controller: _businessTypeController,
+                          label: 'Business Type',
+                          icon: isIos ? CupertinoIcons.tag : Icons.category_outlined,
+                          enabled: _isEditing,
+                        ),
+                        const SizedBox(height: 14),
+                        _buildInputField(
+                          context,
+                          controller: _gstinController,
+                          label: 'GSTIN / Tax ID',
+                          icon: isIos ? CupertinoIcons.doc_text : Icons.badge_outlined,
+                          enabled: _isEditing,
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       _buildInputField(
                         context,
-                        controller: _bankAccountController,
-                        label: 'Account Number',
-                        icon: isIos ? CupertinoIcons.number : Icons.credit_card_rounded,
-                        keyboardType: TextInputType.number,
-                        enabled: _isEditing,
-                      ),
-                      const SizedBox(height: 14),
-                      _buildInputField(
-                        context,
-                        controller: _bankIfscController,
-                        label: 'IFSC Code',
-                        icon: isIos ? CupertinoIcons.barcode : Icons.qr_code_2_rounded,
-                        enabled: _isEditing,
-                      ),
-                      const SizedBox(height: 14),
-                      _buildInputField(
-                        context,
-                        controller: _upiIdController,
-                        label: 'UPI ID / VPA (e.g. business@okhdfcbank)',
-                        icon: isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded,
+                        controller: _addressController,
+                        label: isExpense ? 'Billing Address' : 'Business Address',
+                        icon: isIos ? CupertinoIcons.location : Icons.location_on_outlined,
+                        maxLines: 2,
                         enabled: _isEditing,
                       ),
                     ],
                   ),
                 ),
               ),
+
+              // Banking & UPI Remittance Details Section (FR-VCH-09) - Ledger Only
+              if (!isExpense) ...[
+                const SizedBox(height: 24),
+                _buildSectionHeader(
+                  context,
+                  'Banking & Remittance (Invoice Payment)',
+                  isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_outlined,
+                  isIos,
+                ),
+                const SizedBox(height: 12),
+                AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 320),
+                  firstCurve: Curves.easeInOutCubic,
+                  secondCurve: Curves.easeInOutCubic,
+                  sizeCurve: Curves.easeInOutCubic,
+                  crossFadeState: _isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+                  firstChild: _buildReadOnlyCard(context, isIos, [
+                    _buildReadOnlyRow(context, 'Bank Name', profile.bankName ?? '', isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded),
+                    const SizedBox(height: 16),
+                    _buildReadOnlyRow(context, 'Account Number', profile.bankAccountNumber ?? '', isIos ? CupertinoIcons.number : Icons.credit_card_rounded),
+                    const SizedBox(height: 16),
+                    _buildReadOnlyRow(context, 'IFSC Code', profile.bankIfsc ?? '', isIos ? CupertinoIcons.barcode : Icons.qr_code_2_rounded),
+                    const SizedBox(height: 16),
+                    _buildReadOnlyRow(context, 'UPI ID / VPA', profile.upiId ?? '', isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded),
+                  ]),
+                  secondChild: Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildInputField(
+                          context,
+                          controller: _bankNameController,
+                          label: 'Bank Name',
+                          icon: isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded,
+                          enabled: _isEditing,
+                        ),
+                        const SizedBox(height: 14),
+                        _buildInputField(
+                          context,
+                          controller: _bankAccountController,
+                          label: 'Account Number',
+                          icon: isIos ? CupertinoIcons.number : Icons.credit_card_rounded,
+                          keyboardType: TextInputType.number,
+                          enabled: _isEditing,
+                        ),
+                        const SizedBox(height: 14),
+                        _buildInputField(
+                          context,
+                          controller: _bankIfscController,
+                          label: 'IFSC Code',
+                          icon: isIos ? CupertinoIcons.barcode : Icons.qr_code_2_rounded,
+                          enabled: _isEditing,
+                        ),
+                        const SizedBox(height: 14),
+                        _buildInputField(
+                          context,
+                          controller: _upiIdController,
+                          label: 'UPI ID / VPA (e.g. business@okhdfcbank)',
+                          icon: isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded,
+                          enabled: _isEditing,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 24),
 

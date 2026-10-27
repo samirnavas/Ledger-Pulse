@@ -8,6 +8,8 @@ import 'package:ledger_pulse/data/models/transaction_model.dart';
 import 'package:ledger_pulse/presentation/home/dashboard_screen.dart';
 import 'package:ledger_pulse/presentation/home/party_list_tab.dart';
 import 'package:ledger_pulse/presentation/ledger/party_ledger_screen.dart';
+import 'package:ledger_pulse/data/models/company_model.dart';
+import 'package:ledger_pulse/presentation/providers/company_providers.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 
 void main() {
@@ -211,6 +213,32 @@ void main() {
         ProviderScope(
           overrides: [
             ledgerRepositoryProvider.overrideWithValue(repo),
+            activeCompanyProvider.overrideWithValue(
+              Company(
+                id: 'comp_1',
+                name: 'Alpha Traders',
+                legalName: 'Alpha Traders',
+                gstin: '29ABCDE1234F1ZH',
+                stateCode: '29',
+                currencyCode: 'INR',
+                address: 'Bangalore',
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              ),
+            ),
+            userCompaniesProvider.overrideWithValue([
+              Company(
+                id: 'comp_1',
+                name: 'Alpha Traders',
+                legalName: 'Alpha Traders',
+                gstin: '29ABCDE1234F1ZH',
+                stateCode: '29',
+                currencyCode: 'INR',
+                address: 'Bangalore',
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              ),
+            ]),
           ],
           child: const MaterialApp(
             home: DashboardScreen(),

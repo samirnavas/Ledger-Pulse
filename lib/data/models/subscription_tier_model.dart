@@ -210,4 +210,28 @@ class LicenseState {
 
   String toJson() => jsonEncode(toMap());
   factory LicenseState.fromJson(String source) => LicenseState.fromMap(jsonDecode(source));
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is LicenseState &&
+        other.tier == tier &&
+        other.duration == duration &&
+        other.startDate == startDate &&
+        other.expiryDate == expiryDate &&
+        other.isTrial == isTrial &&
+        other.licenseKey == licenseKey &&
+        other.gstCreditsUsedThisMonth == gstCreditsUsedThisMonth;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        tier,
+        duration,
+        startDate,
+        expiryDate,
+        isTrial,
+        licenseKey,
+        gstCreditsUsedThisMonth,
+      );
 }

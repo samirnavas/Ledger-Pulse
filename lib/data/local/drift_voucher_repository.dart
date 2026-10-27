@@ -76,6 +76,9 @@ class DriftVoucherRepository {
       'sourceVoucherId': r.sourceVoucherId,
       'receiptPhotoUrl': r.receiptPhotoUrl,
       'itemsJson': r.itemsJson,
+      'categoryAccountId': r.categoryAccountId,
+      'walletAccountId': r.walletAccountId,
+      'toWalletAccountId': r.toWalletAccountId,
       'createdAt': r.createdAt.toIso8601String(),
       'updatedAt': r.updatedAt.toIso8601String(),
     })).toList();
@@ -110,6 +113,9 @@ class DriftVoucherRepository {
       'sourceVoucherId': r.sourceVoucherId,
       'receiptPhotoUrl': r.receiptPhotoUrl,
       'itemsJson': r.itemsJson,
+      'categoryAccountId': r.categoryAccountId,
+      'walletAccountId': r.walletAccountId,
+      'toWalletAccountId': r.toWalletAccountId,
       'createdAt': r.createdAt.toIso8601String(),
       'updatedAt': r.updatedAt.toIso8601String(),
     });
@@ -314,6 +320,14 @@ class DriftVoucherRepository {
     } else {
       return await convertSalesOrderToSalesInvoice(orderOrEstimateId);
     }
+  }
+
+  Future<VoucherModel> editVoucher(VoucherModel voucher) async {
+    return await createVoucher(voucher);
+  }
+
+  Future<VoucherModel> updateVoucher(VoucherModel voucher) async {
+    return await createVoucher(voucher);
   }
 
   Future<void> voidVoucher(String voucherId) async {

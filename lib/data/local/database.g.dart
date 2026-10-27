@@ -232,6 +232,27 @@ class $CompaniesTable extends Companies
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+    'mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('ledger'),
+  );
+  static const VerificationMeta _enabledModulesJsonMeta =
+      const VerificationMeta('enabledModulesJson');
+  @override
+  late final GeneratedColumn<String> enabledModulesJson =
+      GeneratedColumn<String>(
+        'enabled_modules_json',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -303,6 +324,8 @@ class $CompaniesTable extends Companies
     isCloudSyncEnabled,
     isDropboxSyncEnabled,
     isActive,
+    mode,
+    enabledModulesJson,
     createdAt,
     updatedAt,
     isDeleted,
@@ -464,6 +487,21 @@ class $CompaniesTable extends Companies
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('mode')) {
+      context.handle(
+        _modeMeta,
+        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
+      );
+    }
+    if (data.containsKey('enabled_modules_json')) {
+      context.handle(
+        _enabledModulesJsonMeta,
+        enabledModulesJson.isAcceptableOrUnknown(
+          data['enabled_modules_json']!,
+          _enabledModulesJsonMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -571,6 +609,14 @@ class $CompaniesTable extends Companies
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      mode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mode'],
+      )!,
+      enabledModulesJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}enabled_modules_json'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -625,6 +671,8 @@ class CompanyTableData extends DataClass
   final bool isCloudSyncEnabled;
   final bool isDropboxSyncEnabled;
   final bool isActive;
+  final String mode;
+  final String? enabledModulesJson;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isDeleted;
@@ -650,6 +698,8 @@ class CompanyTableData extends DataClass
     required this.isCloudSyncEnabled,
     required this.isDropboxSyncEnabled,
     required this.isActive,
+    required this.mode,
+    this.enabledModulesJson,
     required this.createdAt,
     required this.updatedAt,
     required this.isDeleted,
@@ -702,6 +752,10 @@ class CompanyTableData extends DataClass
     map['is_cloud_sync_enabled'] = Variable<bool>(isCloudSyncEnabled);
     map['is_dropbox_sync_enabled'] = Variable<bool>(isDropboxSyncEnabled);
     map['is_active'] = Variable<bool>(isActive);
+    map['mode'] = Variable<String>(mode);
+    if (!nullToAbsent || enabledModulesJson != null) {
+      map['enabled_modules_json'] = Variable<String>(enabledModulesJson);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['is_deleted'] = Variable<bool>(isDeleted);
@@ -759,6 +813,10 @@ class CompanyTableData extends DataClass
       isCloudSyncEnabled: Value(isCloudSyncEnabled),
       isDropboxSyncEnabled: Value(isDropboxSyncEnabled),
       isActive: Value(isActive),
+      mode: Value(mode),
+      enabledModulesJson: enabledModulesJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(enabledModulesJson),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
@@ -796,6 +854,10 @@ class CompanyTableData extends DataClass
         json['isDropboxSyncEnabled'],
       ),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      mode: serializer.fromJson<String>(json['mode']),
+      enabledModulesJson: serializer.fromJson<String?>(
+        json['enabledModulesJson'],
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
@@ -828,6 +890,8 @@ class CompanyTableData extends DataClass
       'isCloudSyncEnabled': serializer.toJson<bool>(isCloudSyncEnabled),
       'isDropboxSyncEnabled': serializer.toJson<bool>(isDropboxSyncEnabled),
       'isActive': serializer.toJson<bool>(isActive),
+      'mode': serializer.toJson<String>(mode),
+      'enabledModulesJson': serializer.toJson<String?>(enabledModulesJson),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'isDeleted': serializer.toJson<bool>(isDeleted),
@@ -858,6 +922,8 @@ class CompanyTableData extends DataClass
     bool? isCloudSyncEnabled,
     bool? isDropboxSyncEnabled,
     bool? isActive,
+    String? mode,
+    Value<String?> enabledModulesJson = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isDeleted,
@@ -887,6 +953,10 @@ class CompanyTableData extends DataClass
     isCloudSyncEnabled: isCloudSyncEnabled ?? this.isCloudSyncEnabled,
     isDropboxSyncEnabled: isDropboxSyncEnabled ?? this.isDropboxSyncEnabled,
     isActive: isActive ?? this.isActive,
+    mode: mode ?? this.mode,
+    enabledModulesJson: enabledModulesJson.present
+        ? enabledModulesJson.value
+        : this.enabledModulesJson,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
@@ -930,6 +1000,10 @@ class CompanyTableData extends DataClass
           ? data.isDropboxSyncEnabled.value
           : this.isDropboxSyncEnabled,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      enabledModulesJson: data.enabledModulesJson.present
+          ? data.enabledModulesJson.value
+          : this.enabledModulesJson,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
@@ -962,6 +1036,8 @@ class CompanyTableData extends DataClass
           ..write('isCloudSyncEnabled: $isCloudSyncEnabled, ')
           ..write('isDropboxSyncEnabled: $isDropboxSyncEnabled, ')
           ..write('isActive: $isActive, ')
+          ..write('mode: $mode, ')
+          ..write('enabledModulesJson: $enabledModulesJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
@@ -992,6 +1068,8 @@ class CompanyTableData extends DataClass
     isCloudSyncEnabled,
     isDropboxSyncEnabled,
     isActive,
+    mode,
+    enabledModulesJson,
     createdAt,
     updatedAt,
     isDeleted,
@@ -1021,6 +1099,8 @@ class CompanyTableData extends DataClass
           other.isCloudSyncEnabled == this.isCloudSyncEnabled &&
           other.isDropboxSyncEnabled == this.isDropboxSyncEnabled &&
           other.isActive == this.isActive &&
+          other.mode == this.mode &&
+          other.enabledModulesJson == this.enabledModulesJson &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
@@ -1048,6 +1128,8 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
   final Value<bool> isCloudSyncEnabled;
   final Value<bool> isDropboxSyncEnabled;
   final Value<bool> isActive;
+  final Value<String> mode;
+  final Value<String?> enabledModulesJson;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
@@ -1074,6 +1156,8 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     this.isCloudSyncEnabled = const Value.absent(),
     this.isDropboxSyncEnabled = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.enabledModulesJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
@@ -1101,6 +1185,8 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     this.isCloudSyncEnabled = const Value.absent(),
     this.isDropboxSyncEnabled = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.enabledModulesJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
@@ -1130,6 +1216,8 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     Expression<bool>? isCloudSyncEnabled,
     Expression<bool>? isDropboxSyncEnabled,
     Expression<bool>? isActive,
+    Expression<String>? mode,
+    Expression<String>? enabledModulesJson,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
@@ -1159,6 +1247,9 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
       if (isDropboxSyncEnabled != null)
         'is_dropbox_sync_enabled': isDropboxSyncEnabled,
       if (isActive != null) 'is_active': isActive,
+      if (mode != null) 'mode': mode,
+      if (enabledModulesJson != null)
+        'enabled_modules_json': enabledModulesJson,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
@@ -1188,6 +1279,8 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     Value<bool>? isCloudSyncEnabled,
     Value<bool>? isDropboxSyncEnabled,
     Value<bool>? isActive,
+    Value<String>? mode,
+    Value<String?>? enabledModulesJson,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
@@ -1215,6 +1308,8 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
       isCloudSyncEnabled: isCloudSyncEnabled ?? this.isCloudSyncEnabled,
       isDropboxSyncEnabled: isDropboxSyncEnabled ?? this.isDropboxSyncEnabled,
       isActive: isActive ?? this.isActive,
+      mode: mode ?? this.mode,
+      enabledModulesJson: enabledModulesJson ?? this.enabledModulesJson,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
@@ -1288,6 +1383,12 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (enabledModulesJson.present) {
+      map['enabled_modules_json'] = Variable<String>(enabledModulesJson.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1331,6 +1432,8 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
           ..write('isCloudSyncEnabled: $isCloudSyncEnabled, ')
           ..write('isDropboxSyncEnabled: $isDropboxSyncEnabled, ')
           ..write('isActive: $isActive, ')
+          ..write('mode: $mode, ')
+          ..write('enabledModulesJson: $enabledModulesJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
@@ -7173,6 +7276,41 @@ class $VouchersTable extends Vouchers
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _categoryAccountIdMeta = const VerificationMeta(
+    'categoryAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryAccountId =
+      GeneratedColumn<String>(
+        'category_account_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _walletAccountIdMeta = const VerificationMeta(
+    'walletAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> walletAccountId = GeneratedColumn<String>(
+    'wallet_account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _toWalletAccountIdMeta = const VerificationMeta(
+    'toWalletAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> toWalletAccountId =
+      GeneratedColumn<String>(
+        'to_wallet_account_id',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -7243,6 +7381,9 @@ class $VouchersTable extends Vouchers
     sourceVoucherId,
     receiptPhotoUrl,
     itemsJson,
+    categoryAccountId,
+    walletAccountId,
+    toWalletAccountId,
     createdAt,
     updatedAt,
     isDeleted,
@@ -7406,6 +7547,33 @@ class $VouchersTable extends Vouchers
         itemsJson.isAcceptableOrUnknown(data['items_json']!, _itemsJsonMeta),
       );
     }
+    if (data.containsKey('category_account_id')) {
+      context.handle(
+        _categoryAccountIdMeta,
+        categoryAccountId.isAcceptableOrUnknown(
+          data['category_account_id']!,
+          _categoryAccountIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('wallet_account_id')) {
+      context.handle(
+        _walletAccountIdMeta,
+        walletAccountId.isAcceptableOrUnknown(
+          data['wallet_account_id']!,
+          _walletAccountIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('to_wallet_account_id')) {
+      context.handle(
+        _toWalletAccountIdMeta,
+        toWalletAccountId.isAcceptableOrUnknown(
+          data['to_wallet_account_id']!,
+          _toWalletAccountIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -7509,6 +7677,18 @@ class $VouchersTable extends Vouchers
         DriftSqlType.string,
         data['${effectivePrefix}items_json'],
       ),
+      categoryAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_account_id'],
+      ),
+      walletAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wallet_account_id'],
+      ),
+      toWalletAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}to_wallet_account_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -7562,6 +7742,9 @@ class VoucherTableData extends DataClass
   final String? sourceVoucherId;
   final String? receiptPhotoUrl;
   final String? itemsJson;
+  final String? categoryAccountId;
+  final String? walletAccountId;
+  final String? toWalletAccountId;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isDeleted;
@@ -7586,6 +7769,9 @@ class VoucherTableData extends DataClass
     this.sourceVoucherId,
     this.receiptPhotoUrl,
     this.itemsJson,
+    this.categoryAccountId,
+    this.walletAccountId,
+    this.toWalletAccountId,
     required this.createdAt,
     required this.updatedAt,
     required this.isDeleted,
@@ -7628,6 +7814,15 @@ class VoucherTableData extends DataClass
     }
     if (!nullToAbsent || itemsJson != null) {
       map['items_json'] = Variable<String>(itemsJson);
+    }
+    if (!nullToAbsent || categoryAccountId != null) {
+      map['category_account_id'] = Variable<String>(categoryAccountId);
+    }
+    if (!nullToAbsent || walletAccountId != null) {
+      map['wallet_account_id'] = Variable<String>(walletAccountId);
+    }
+    if (!nullToAbsent || toWalletAccountId != null) {
+      map['to_wallet_account_id'] = Variable<String>(toWalletAccountId);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -7677,6 +7872,15 @@ class VoucherTableData extends DataClass
       itemsJson: itemsJson == null && nullToAbsent
           ? const Value.absent()
           : Value(itemsJson),
+      categoryAccountId: categoryAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryAccountId),
+      walletAccountId: walletAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(walletAccountId),
+      toWalletAccountId: toWalletAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toWalletAccountId),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
@@ -7709,6 +7913,13 @@ class VoucherTableData extends DataClass
       sourceVoucherId: serializer.fromJson<String?>(json['sourceVoucherId']),
       receiptPhotoUrl: serializer.fromJson<String?>(json['receiptPhotoUrl']),
       itemsJson: serializer.fromJson<String?>(json['itemsJson']),
+      categoryAccountId: serializer.fromJson<String?>(
+        json['categoryAccountId'],
+      ),
+      walletAccountId: serializer.fromJson<String?>(json['walletAccountId']),
+      toWalletAccountId: serializer.fromJson<String?>(
+        json['toWalletAccountId'],
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
@@ -7740,6 +7951,9 @@ class VoucherTableData extends DataClass
       'sourceVoucherId': serializer.toJson<String?>(sourceVoucherId),
       'receiptPhotoUrl': serializer.toJson<String?>(receiptPhotoUrl),
       'itemsJson': serializer.toJson<String?>(itemsJson),
+      'categoryAccountId': serializer.toJson<String?>(categoryAccountId),
+      'walletAccountId': serializer.toJson<String?>(walletAccountId),
+      'toWalletAccountId': serializer.toJson<String?>(toWalletAccountId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'isDeleted': serializer.toJson<bool>(isDeleted),
@@ -7769,6 +7983,9 @@ class VoucherTableData extends DataClass
     Value<String?> sourceVoucherId = const Value.absent(),
     Value<String?> receiptPhotoUrl = const Value.absent(),
     Value<String?> itemsJson = const Value.absent(),
+    Value<String?> categoryAccountId = const Value.absent(),
+    Value<String?> walletAccountId = const Value.absent(),
+    Value<String?> toWalletAccountId = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isDeleted,
@@ -7799,6 +8016,15 @@ class VoucherTableData extends DataClass
         ? receiptPhotoUrl.value
         : this.receiptPhotoUrl,
     itemsJson: itemsJson.present ? itemsJson.value : this.itemsJson,
+    categoryAccountId: categoryAccountId.present
+        ? categoryAccountId.value
+        : this.categoryAccountId,
+    walletAccountId: walletAccountId.present
+        ? walletAccountId.value
+        : this.walletAccountId,
+    toWalletAccountId: toWalletAccountId.present
+        ? toWalletAccountId.value
+        : this.toWalletAccountId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
@@ -7843,6 +8069,15 @@ class VoucherTableData extends DataClass
           ? data.receiptPhotoUrl.value
           : this.receiptPhotoUrl,
       itemsJson: data.itemsJson.present ? data.itemsJson.value : this.itemsJson,
+      categoryAccountId: data.categoryAccountId.present
+          ? data.categoryAccountId.value
+          : this.categoryAccountId,
+      walletAccountId: data.walletAccountId.present
+          ? data.walletAccountId.value
+          : this.walletAccountId,
+      toWalletAccountId: data.toWalletAccountId.present
+          ? data.toWalletAccountId.value
+          : this.toWalletAccountId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
@@ -7874,6 +8109,9 @@ class VoucherTableData extends DataClass
           ..write('sourceVoucherId: $sourceVoucherId, ')
           ..write('receiptPhotoUrl: $receiptPhotoUrl, ')
           ..write('itemsJson: $itemsJson, ')
+          ..write('categoryAccountId: $categoryAccountId, ')
+          ..write('walletAccountId: $walletAccountId, ')
+          ..write('toWalletAccountId: $toWalletAccountId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
@@ -7903,6 +8141,9 @@ class VoucherTableData extends DataClass
     sourceVoucherId,
     receiptPhotoUrl,
     itemsJson,
+    categoryAccountId,
+    walletAccountId,
+    toWalletAccountId,
     createdAt,
     updatedAt,
     isDeleted,
@@ -7931,6 +8172,9 @@ class VoucherTableData extends DataClass
           other.sourceVoucherId == this.sourceVoucherId &&
           other.receiptPhotoUrl == this.receiptPhotoUrl &&
           other.itemsJson == this.itemsJson &&
+          other.categoryAccountId == this.categoryAccountId &&
+          other.walletAccountId == this.walletAccountId &&
+          other.toWalletAccountId == this.toWalletAccountId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
@@ -7957,6 +8201,9 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
   final Value<String?> sourceVoucherId;
   final Value<String?> receiptPhotoUrl;
   final Value<String?> itemsJson;
+  final Value<String?> categoryAccountId;
+  final Value<String?> walletAccountId;
+  final Value<String?> toWalletAccountId;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
@@ -7982,6 +8229,9 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
     this.sourceVoucherId = const Value.absent(),
     this.receiptPhotoUrl = const Value.absent(),
     this.itemsJson = const Value.absent(),
+    this.categoryAccountId = const Value.absent(),
+    this.walletAccountId = const Value.absent(),
+    this.toWalletAccountId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
@@ -8008,6 +8258,9 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
     this.sourceVoucherId = const Value.absent(),
     this.receiptPhotoUrl = const Value.absent(),
     this.itemsJson = const Value.absent(),
+    this.categoryAccountId = const Value.absent(),
+    this.walletAccountId = const Value.absent(),
+    this.toWalletAccountId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
@@ -8037,6 +8290,9 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
     Expression<String>? sourceVoucherId,
     Expression<String>? receiptPhotoUrl,
     Expression<String>? itemsJson,
+    Expression<String>? categoryAccountId,
+    Expression<String>? walletAccountId,
+    Expression<String>? toWalletAccountId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
@@ -8064,6 +8320,9 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
       if (sourceVoucherId != null) 'source_voucher_id': sourceVoucherId,
       if (receiptPhotoUrl != null) 'receipt_photo_url': receiptPhotoUrl,
       if (itemsJson != null) 'items_json': itemsJson,
+      if (categoryAccountId != null) 'category_account_id': categoryAccountId,
+      if (walletAccountId != null) 'wallet_account_id': walletAccountId,
+      if (toWalletAccountId != null) 'to_wallet_account_id': toWalletAccountId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
@@ -8092,6 +8351,9 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
     Value<String?>? sourceVoucherId,
     Value<String?>? receiptPhotoUrl,
     Value<String?>? itemsJson,
+    Value<String?>? categoryAccountId,
+    Value<String?>? walletAccountId,
+    Value<String?>? toWalletAccountId,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
@@ -8118,6 +8380,9 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
       sourceVoucherId: sourceVoucherId ?? this.sourceVoucherId,
       receiptPhotoUrl: receiptPhotoUrl ?? this.receiptPhotoUrl,
       itemsJson: itemsJson ?? this.itemsJson,
+      categoryAccountId: categoryAccountId ?? this.categoryAccountId,
+      walletAccountId: walletAccountId ?? this.walletAccountId,
+      toWalletAccountId: toWalletAccountId ?? this.toWalletAccountId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
@@ -8186,6 +8451,15 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
     if (itemsJson.present) {
       map['items_json'] = Variable<String>(itemsJson.value);
     }
+    if (categoryAccountId.present) {
+      map['category_account_id'] = Variable<String>(categoryAccountId.value);
+    }
+    if (walletAccountId.present) {
+      map['wallet_account_id'] = Variable<String>(walletAccountId.value);
+    }
+    if (toWalletAccountId.present) {
+      map['to_wallet_account_id'] = Variable<String>(toWalletAccountId.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -8228,6 +8502,9 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
           ..write('sourceVoucherId: $sourceVoucherId, ')
           ..write('receiptPhotoUrl: $receiptPhotoUrl, ')
           ..write('itemsJson: $itemsJson, ')
+          ..write('categoryAccountId: $categoryAccountId, ')
+          ..write('walletAccountId: $walletAccountId, ')
+          ..write('toWalletAccountId: $toWalletAccountId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
@@ -10497,6 +10774,1463 @@ class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
   }
 }
 
+class $BudgetsTable extends Budgets
+    with TableInfo<$BudgetsTable, BudgetTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BudgetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyIdMeta = const VerificationMeta(
+    'companyId',
+  );
+  @override
+  late final GeneratedColumn<String> companyId = GeneratedColumn<String>(
+    'company_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('cmp_default'),
+  );
+  static const VerificationMeta _categoryAccountIdMeta = const VerificationMeta(
+    'categoryAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryAccountId =
+      GeneratedColumn<String>(
+        'category_account_id',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _periodTypeMeta = const VerificationMeta(
+    'periodType',
+  );
+  @override
+  late final GeneratedColumn<String> periodType = GeneratedColumn<String>(
+    'period_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountInCentsMeta = const VerificationMeta(
+    'amountInCents',
+  );
+  @override
+  late final GeneratedColumn<int> amountInCents = GeneratedColumn<int>(
+    'amount_in_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+    'start_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _rolloverEnabledMeta = const VerificationMeta(
+    'rolloverEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> rolloverEnabled = GeneratedColumn<bool>(
+    'rollover_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("rollover_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  ).withConverter<SyncRecordStatus>($BudgetsTable.$convertersyncStatus);
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    companyId,
+    categoryAccountId,
+    periodType,
+    amountInCents,
+    startDate,
+    rolloverEnabled,
+    isActive,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'budgets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<BudgetTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('company_id')) {
+      context.handle(
+        _companyIdMeta,
+        companyId.isAcceptableOrUnknown(data['company_id']!, _companyIdMeta),
+      );
+    }
+    if (data.containsKey('category_account_id')) {
+      context.handle(
+        _categoryAccountIdMeta,
+        categoryAccountId.isAcceptableOrUnknown(
+          data['category_account_id']!,
+          _categoryAccountIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_categoryAccountIdMeta);
+    }
+    if (data.containsKey('period_type')) {
+      context.handle(
+        _periodTypeMeta,
+        periodType.isAcceptableOrUnknown(data['period_type']!, _periodTypeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_periodTypeMeta);
+    }
+    if (data.containsKey('amount_in_cents')) {
+      context.handle(
+        _amountInCentsMeta,
+        amountInCents.isAcceptableOrUnknown(
+          data['amount_in_cents']!,
+          _amountInCentsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountInCentsMeta);
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startDateMeta);
+    }
+    if (data.containsKey('rollover_enabled')) {
+      context.handle(
+        _rolloverEnabledMeta,
+        rolloverEnabled.isAcceptableOrUnknown(
+          data['rollover_enabled']!,
+          _rolloverEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BudgetTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BudgetTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      companyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_id'],
+      )!,
+      categoryAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_account_id'],
+      )!,
+      periodType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}period_type'],
+      )!,
+      amountInCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_in_cents'],
+      )!,
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_date'],
+      )!,
+      rolloverEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}rollover_enabled'],
+      )!,
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $BudgetsTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $BudgetsTable createAlias(String alias) {
+    return $BudgetsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
+  final String id;
+  final String companyId;
+  final String categoryAccountId;
+  final String periodType;
+  final int amountInCents;
+  final DateTime startDate;
+  final bool rolloverEnabled;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  const BudgetTableData({
+    required this.id,
+    required this.companyId,
+    required this.categoryAccountId,
+    required this.periodType,
+    required this.amountInCents,
+    required this.startDate,
+    required this.rolloverEnabled,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['company_id'] = Variable<String>(companyId);
+    map['category_account_id'] = Variable<String>(categoryAccountId);
+    map['period_type'] = Variable<String>(periodType);
+    map['amount_in_cents'] = Variable<int>(amountInCents);
+    map['start_date'] = Variable<DateTime>(startDate);
+    map['rollover_enabled'] = Variable<bool>(rolloverEnabled);
+    map['is_active'] = Variable<bool>(isActive);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $BudgetsTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    return map;
+  }
+
+  BudgetsCompanion toCompanion(bool nullToAbsent) {
+    return BudgetsCompanion(
+      id: Value(id),
+      companyId: Value(companyId),
+      categoryAccountId: Value(categoryAccountId),
+      periodType: Value(periodType),
+      amountInCents: Value(amountInCents),
+      startDate: Value(startDate),
+      rolloverEnabled: Value(rolloverEnabled),
+      isActive: Value(isActive),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory BudgetTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BudgetTableData(
+      id: serializer.fromJson<String>(json['id']),
+      companyId: serializer.fromJson<String>(json['companyId']),
+      categoryAccountId: serializer.fromJson<String>(json['categoryAccountId']),
+      periodType: serializer.fromJson<String>(json['periodType']),
+      amountInCents: serializer.fromJson<int>(json['amountInCents']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
+      rolloverEnabled: serializer.fromJson<bool>(json['rolloverEnabled']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $BudgetsTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'companyId': serializer.toJson<String>(companyId),
+      'categoryAccountId': serializer.toJson<String>(categoryAccountId),
+      'periodType': serializer.toJson<String>(periodType),
+      'amountInCents': serializer.toJson<int>(amountInCents),
+      'startDate': serializer.toJson<DateTime>(startDate),
+      'rolloverEnabled': serializer.toJson<bool>(rolloverEnabled),
+      'isActive': serializer.toJson<bool>(isActive),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $BudgetsTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+    };
+  }
+
+  BudgetTableData copyWith({
+    String? id,
+    String? companyId,
+    String? categoryAccountId,
+    String? periodType,
+    int? amountInCents,
+    DateTime? startDate,
+    bool? rolloverEnabled,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+  }) => BudgetTableData(
+    id: id ?? this.id,
+    companyId: companyId ?? this.companyId,
+    categoryAccountId: categoryAccountId ?? this.categoryAccountId,
+    periodType: periodType ?? this.periodType,
+    amountInCents: amountInCents ?? this.amountInCents,
+    startDate: startDate ?? this.startDate,
+    rolloverEnabled: rolloverEnabled ?? this.rolloverEnabled,
+    isActive: isActive ?? this.isActive,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  BudgetTableData copyWithCompanion(BudgetsCompanion data) {
+    return BudgetTableData(
+      id: data.id.present ? data.id.value : this.id,
+      companyId: data.companyId.present ? data.companyId.value : this.companyId,
+      categoryAccountId: data.categoryAccountId.present
+          ? data.categoryAccountId.value
+          : this.categoryAccountId,
+      periodType: data.periodType.present
+          ? data.periodType.value
+          : this.periodType,
+      amountInCents: data.amountInCents.present
+          ? data.amountInCents.value
+          : this.amountInCents,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      rolloverEnabled: data.rolloverEnabled.present
+          ? data.rolloverEnabled.value
+          : this.rolloverEnabled,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetTableData(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('categoryAccountId: $categoryAccountId, ')
+          ..write('periodType: $periodType, ')
+          ..write('amountInCents: $amountInCents, ')
+          ..write('startDate: $startDate, ')
+          ..write('rolloverEnabled: $rolloverEnabled, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    companyId,
+    categoryAccountId,
+    periodType,
+    amountInCents,
+    startDate,
+    rolloverEnabled,
+    isActive,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BudgetTableData &&
+          other.id == this.id &&
+          other.companyId == this.companyId &&
+          other.categoryAccountId == this.categoryAccountId &&
+          other.periodType == this.periodType &&
+          other.amountInCents == this.amountInCents &&
+          other.startDate == this.startDate &&
+          other.rolloverEnabled == this.rolloverEnabled &&
+          other.isActive == this.isActive &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus);
+}
+
+class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
+  final Value<String> id;
+  final Value<String> companyId;
+  final Value<String> categoryAccountId;
+  final Value<String> periodType;
+  final Value<int> amountInCents;
+  final Value<DateTime> startDate;
+  final Value<bool> rolloverEnabled;
+  final Value<bool> isActive;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> rowid;
+  const BudgetsCompanion({
+    this.id = const Value.absent(),
+    this.companyId = const Value.absent(),
+    this.categoryAccountId = const Value.absent(),
+    this.periodType = const Value.absent(),
+    this.amountInCents = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.rolloverEnabled = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BudgetsCompanion.insert({
+    required String id,
+    this.companyId = const Value.absent(),
+    required String categoryAccountId,
+    required String periodType,
+    required int amountInCents,
+    required DateTime startDate,
+    this.rolloverEnabled = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       categoryAccountId = Value(categoryAccountId),
+       periodType = Value(periodType),
+       amountInCents = Value(amountInCents),
+       startDate = Value(startDate);
+  static Insertable<BudgetTableData> custom({
+    Expression<String>? id,
+    Expression<String>? companyId,
+    Expression<String>? categoryAccountId,
+    Expression<String>? periodType,
+    Expression<int>? amountInCents,
+    Expression<DateTime>? startDate,
+    Expression<bool>? rolloverEnabled,
+    Expression<bool>? isActive,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (companyId != null) 'company_id': companyId,
+      if (categoryAccountId != null) 'category_account_id': categoryAccountId,
+      if (periodType != null) 'period_type': periodType,
+      if (amountInCents != null) 'amount_in_cents': amountInCents,
+      if (startDate != null) 'start_date': startDate,
+      if (rolloverEnabled != null) 'rollover_enabled': rolloverEnabled,
+      if (isActive != null) 'is_active': isActive,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BudgetsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? companyId,
+    Value<String>? categoryAccountId,
+    Value<String>? periodType,
+    Value<int>? amountInCents,
+    Value<DateTime>? startDate,
+    Value<bool>? rolloverEnabled,
+    Value<bool>? isActive,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return BudgetsCompanion(
+      id: id ?? this.id,
+      companyId: companyId ?? this.companyId,
+      categoryAccountId: categoryAccountId ?? this.categoryAccountId,
+      periodType: periodType ?? this.periodType,
+      amountInCents: amountInCents ?? this.amountInCents,
+      startDate: startDate ?? this.startDate,
+      rolloverEnabled: rolloverEnabled ?? this.rolloverEnabled,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (companyId.present) {
+      map['company_id'] = Variable<String>(companyId.value);
+    }
+    if (categoryAccountId.present) {
+      map['category_account_id'] = Variable<String>(categoryAccountId.value);
+    }
+    if (periodType.present) {
+      map['period_type'] = Variable<String>(periodType.value);
+    }
+    if (amountInCents.present) {
+      map['amount_in_cents'] = Variable<int>(amountInCents.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (rolloverEnabled.present) {
+      map['rollover_enabled'] = Variable<bool>(rolloverEnabled.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $BudgetsTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetsCompanion(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('categoryAccountId: $categoryAccountId, ')
+          ..write('periodType: $periodType, ')
+          ..write('amountInCents: $amountInCents, ')
+          ..write('startDate: $startDate, ')
+          ..write('rolloverEnabled: $rolloverEnabled, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RecurringRulesTable extends RecurringRules
+    with TableInfo<$RecurringRulesTable, RecurringRuleTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecurringRulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyIdMeta = const VerificationMeta(
+    'companyId',
+  );
+  @override
+  late final GeneratedColumn<String> companyId = GeneratedColumn<String>(
+    'company_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('cmp_default'),
+  );
+  static const VerificationMeta _templateJsonMeta = const VerificationMeta(
+    'templateJson',
+  );
+  @override
+  late final GeneratedColumn<String> templateJson = GeneratedColumn<String>(
+    'template_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _intervalTypeMeta = const VerificationMeta(
+    'intervalType',
+  );
+  @override
+  late final GeneratedColumn<String> intervalType = GeneratedColumn<String>(
+    'interval_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _intervalCountMeta = const VerificationMeta(
+    'intervalCount',
+  );
+  @override
+  late final GeneratedColumn<int> intervalCount = GeneratedColumn<int>(
+    'interval_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _nextRunDateMeta = const VerificationMeta(
+    'nextRunDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextRunDate = GeneratedColumn<DateTime>(
+    'next_run_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  ).withConverter<SyncRecordStatus>($RecurringRulesTable.$convertersyncStatus);
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    companyId,
+    templateJson,
+    intervalType,
+    intervalCount,
+    nextRunDate,
+    endDate,
+    isActive,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recurring_rules';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<RecurringRuleTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('company_id')) {
+      context.handle(
+        _companyIdMeta,
+        companyId.isAcceptableOrUnknown(data['company_id']!, _companyIdMeta),
+      );
+    }
+    if (data.containsKey('template_json')) {
+      context.handle(
+        _templateJsonMeta,
+        templateJson.isAcceptableOrUnknown(
+          data['template_json']!,
+          _templateJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_templateJsonMeta);
+    }
+    if (data.containsKey('interval_type')) {
+      context.handle(
+        _intervalTypeMeta,
+        intervalType.isAcceptableOrUnknown(
+          data['interval_type']!,
+          _intervalTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_intervalTypeMeta);
+    }
+    if (data.containsKey('interval_count')) {
+      context.handle(
+        _intervalCountMeta,
+        intervalCount.isAcceptableOrUnknown(
+          data['interval_count']!,
+          _intervalCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('next_run_date')) {
+      context.handle(
+        _nextRunDateMeta,
+        nextRunDate.isAcceptableOrUnknown(
+          data['next_run_date']!,
+          _nextRunDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_nextRunDateMeta);
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RecurringRuleTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecurringRuleTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      companyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_id'],
+      )!,
+      templateJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}template_json'],
+      )!,
+      intervalType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}interval_type'],
+      )!,
+      intervalCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}interval_count'],
+      )!,
+      nextRunDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_run_date'],
+      )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $RecurringRulesTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+    );
+  }
+
+  @override
+  $RecurringRulesTable createAlias(String alias) {
+    return $RecurringRulesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class RecurringRuleTableData extends DataClass
+    implements Insertable<RecurringRuleTableData> {
+  final String id;
+  final String companyId;
+  final String templateJson;
+  final String intervalType;
+  final int intervalCount;
+  final DateTime nextRunDate;
+  final DateTime? endDate;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  const RecurringRuleTableData({
+    required this.id,
+    required this.companyId,
+    required this.templateJson,
+    required this.intervalType,
+    required this.intervalCount,
+    required this.nextRunDate,
+    this.endDate,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['company_id'] = Variable<String>(companyId);
+    map['template_json'] = Variable<String>(templateJson);
+    map['interval_type'] = Variable<String>(intervalType);
+    map['interval_count'] = Variable<int>(intervalCount);
+    map['next_run_date'] = Variable<DateTime>(nextRunDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $RecurringRulesTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    return map;
+  }
+
+  RecurringRulesCompanion toCompanion(bool nullToAbsent) {
+    return RecurringRulesCompanion(
+      id: Value(id),
+      companyId: Value(companyId),
+      templateJson: Value(templateJson),
+      intervalType: Value(intervalType),
+      intervalCount: Value(intervalCount),
+      nextRunDate: Value(nextRunDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      isActive: Value(isActive),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+    );
+  }
+
+  factory RecurringRuleTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecurringRuleTableData(
+      id: serializer.fromJson<String>(json['id']),
+      companyId: serializer.fromJson<String>(json['companyId']),
+      templateJson: serializer.fromJson<String>(json['templateJson']),
+      intervalType: serializer.fromJson<String>(json['intervalType']),
+      intervalCount: serializer.fromJson<int>(json['intervalCount']),
+      nextRunDate: serializer.fromJson<DateTime>(json['nextRunDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $RecurringRulesTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'companyId': serializer.toJson<String>(companyId),
+      'templateJson': serializer.toJson<String>(templateJson),
+      'intervalType': serializer.toJson<String>(intervalType),
+      'intervalCount': serializer.toJson<int>(intervalCount),
+      'nextRunDate': serializer.toJson<DateTime>(nextRunDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'isActive': serializer.toJson<bool>(isActive),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $RecurringRulesTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+    };
+  }
+
+  RecurringRuleTableData copyWith({
+    String? id,
+    String? companyId,
+    String? templateJson,
+    String? intervalType,
+    int? intervalCount,
+    DateTime? nextRunDate,
+    Value<DateTime?> endDate = const Value.absent(),
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+  }) => RecurringRuleTableData(
+    id: id ?? this.id,
+    companyId: companyId ?? this.companyId,
+    templateJson: templateJson ?? this.templateJson,
+    intervalType: intervalType ?? this.intervalType,
+    intervalCount: intervalCount ?? this.intervalCount,
+    nextRunDate: nextRunDate ?? this.nextRunDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    isActive: isActive ?? this.isActive,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+  );
+  RecurringRuleTableData copyWithCompanion(RecurringRulesCompanion data) {
+    return RecurringRuleTableData(
+      id: data.id.present ? data.id.value : this.id,
+      companyId: data.companyId.present ? data.companyId.value : this.companyId,
+      templateJson: data.templateJson.present
+          ? data.templateJson.value
+          : this.templateJson,
+      intervalType: data.intervalType.present
+          ? data.intervalType.value
+          : this.intervalType,
+      intervalCount: data.intervalCount.present
+          ? data.intervalCount.value
+          : this.intervalCount,
+      nextRunDate: data.nextRunDate.present
+          ? data.nextRunDate.value
+          : this.nextRunDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringRuleTableData(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('templateJson: $templateJson, ')
+          ..write('intervalType: $intervalType, ')
+          ..write('intervalCount: $intervalCount, ')
+          ..write('nextRunDate: $nextRunDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    companyId,
+    templateJson,
+    intervalType,
+    intervalCount,
+    nextRunDate,
+    endDate,
+    isActive,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecurringRuleTableData &&
+          other.id == this.id &&
+          other.companyId == this.companyId &&
+          other.templateJson == this.templateJson &&
+          other.intervalType == this.intervalType &&
+          other.intervalCount == this.intervalCount &&
+          other.nextRunDate == this.nextRunDate &&
+          other.endDate == this.endDate &&
+          other.isActive == this.isActive &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus);
+}
+
+class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
+  final Value<String> id;
+  final Value<String> companyId;
+  final Value<String> templateJson;
+  final Value<String> intervalType;
+  final Value<int> intervalCount;
+  final Value<DateTime> nextRunDate;
+  final Value<DateTime?> endDate;
+  final Value<bool> isActive;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> rowid;
+  const RecurringRulesCompanion({
+    this.id = const Value.absent(),
+    this.companyId = const Value.absent(),
+    this.templateJson = const Value.absent(),
+    this.intervalType = const Value.absent(),
+    this.intervalCount = const Value.absent(),
+    this.nextRunDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RecurringRulesCompanion.insert({
+    required String id,
+    this.companyId = const Value.absent(),
+    required String templateJson,
+    required String intervalType,
+    this.intervalCount = const Value.absent(),
+    required DateTime nextRunDate,
+    this.endDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       templateJson = Value(templateJson),
+       intervalType = Value(intervalType),
+       nextRunDate = Value(nextRunDate);
+  static Insertable<RecurringRuleTableData> custom({
+    Expression<String>? id,
+    Expression<String>? companyId,
+    Expression<String>? templateJson,
+    Expression<String>? intervalType,
+    Expression<int>? intervalCount,
+    Expression<DateTime>? nextRunDate,
+    Expression<DateTime>? endDate,
+    Expression<bool>? isActive,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (companyId != null) 'company_id': companyId,
+      if (templateJson != null) 'template_json': templateJson,
+      if (intervalType != null) 'interval_type': intervalType,
+      if (intervalCount != null) 'interval_count': intervalCount,
+      if (nextRunDate != null) 'next_run_date': nextRunDate,
+      if (endDate != null) 'end_date': endDate,
+      if (isActive != null) 'is_active': isActive,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RecurringRulesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? companyId,
+    Value<String>? templateJson,
+    Value<String>? intervalType,
+    Value<int>? intervalCount,
+    Value<DateTime>? nextRunDate,
+    Value<DateTime?>? endDate,
+    Value<bool>? isActive,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? rowid,
+  }) {
+    return RecurringRulesCompanion(
+      id: id ?? this.id,
+      companyId: companyId ?? this.companyId,
+      templateJson: templateJson ?? this.templateJson,
+      intervalType: intervalType ?? this.intervalType,
+      intervalCount: intervalCount ?? this.intervalCount,
+      nextRunDate: nextRunDate ?? this.nextRunDate,
+      endDate: endDate ?? this.endDate,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (companyId.present) {
+      map['company_id'] = Variable<String>(companyId.value);
+    }
+    if (templateJson.present) {
+      map['template_json'] = Variable<String>(templateJson.value);
+    }
+    if (intervalType.present) {
+      map['interval_type'] = Variable<String>(intervalType.value);
+    }
+    if (intervalCount.present) {
+      map['interval_count'] = Variable<int>(intervalCount.value);
+    }
+    if (nextRunDate.present) {
+      map['next_run_date'] = Variable<DateTime>(nextRunDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $RecurringRulesTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringRulesCompanion(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('templateJson: $templateJson, ')
+          ..write('intervalType: $intervalType, ')
+          ..write('intervalCount: $intervalCount, ')
+          ..write('nextRunDate: $nextRunDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -10512,6 +12246,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AccountsTable accounts = $AccountsTable(this);
   late final $JournalsTable journals = $JournalsTable(this);
   late final $JournalLinesTable journalLines = $JournalLinesTable(this);
+  late final $BudgetsTable budgets = $BudgetsTable(this);
+  late final $RecurringRulesTable recurringRules = $RecurringRulesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10529,6 +12265,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     accounts,
     journals,
     journalLines,
+    budgets,
+    recurringRules,
   ];
 }
 
@@ -10554,6 +12292,8 @@ typedef $$CompaniesTableCreateCompanionBuilder =
       Value<bool> isCloudSyncEnabled,
       Value<bool> isDropboxSyncEnabled,
       Value<bool> isActive,
+      Value<String> mode,
+      Value<String?> enabledModulesJson,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
@@ -10582,6 +12322,8 @@ typedef $$CompaniesTableUpdateCompanionBuilder =
       Value<bool> isCloudSyncEnabled,
       Value<bool> isDropboxSyncEnabled,
       Value<bool> isActive,
+      Value<String> mode,
+      Value<String?> enabledModulesJson,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
@@ -10695,6 +12437,16 @@ class $$CompaniesTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get enabledModulesJson => $composableBuilder(
+    column: $table.enabledModulesJson,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -10829,6 +12581,16 @@ class $$CompaniesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get enabledModulesJson => $composableBuilder(
+    column: $table.enabledModulesJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -10935,6 +12697,14 @@ class $$CompaniesTableAnnotationComposer
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
 
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<String> get enabledModulesJson => $composableBuilder(
+    column: $table.enabledModulesJson,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -11002,6 +12772,8 @@ class $$CompaniesTableTableManager
                 Value<bool> isCloudSyncEnabled = const Value.absent(),
                 Value<bool> isDropboxSyncEnabled = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<String?> enabledModulesJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
@@ -11028,6 +12800,8 @@ class $$CompaniesTableTableManager
                 isCloudSyncEnabled: isCloudSyncEnabled,
                 isDropboxSyncEnabled: isDropboxSyncEnabled,
                 isActive: isActive,
+                mode: mode,
+                enabledModulesJson: enabledModulesJson,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
@@ -11056,6 +12830,8 @@ class $$CompaniesTableTableManager
                 Value<bool> isCloudSyncEnabled = const Value.absent(),
                 Value<bool> isDropboxSyncEnabled = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<String?> enabledModulesJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
@@ -11082,6 +12858,8 @@ class $$CompaniesTableTableManager
                 isCloudSyncEnabled: isCloudSyncEnabled,
                 isDropboxSyncEnabled: isDropboxSyncEnabled,
                 isActive: isActive,
+                mode: mode,
+                enabledModulesJson: enabledModulesJson,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
@@ -14221,6 +15999,9 @@ typedef $$VouchersTableCreateCompanionBuilder =
       Value<String?> sourceVoucherId,
       Value<String?> receiptPhotoUrl,
       Value<String?> itemsJson,
+      Value<String?> categoryAccountId,
+      Value<String?> walletAccountId,
+      Value<String?> toWalletAccountId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
@@ -14248,6 +16029,9 @@ typedef $$VouchersTableUpdateCompanionBuilder =
       Value<String?> sourceVoucherId,
       Value<String?> receiptPhotoUrl,
       Value<String?> itemsJson,
+      Value<String?> categoryAccountId,
+      Value<String?> walletAccountId,
+      Value<String?> toWalletAccountId,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
@@ -14356,6 +16140,21 @@ class $$VouchersTableFilterComposer
 
   ColumnFilters<String> get itemsJson => $composableBuilder(
     column: $table.itemsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryAccountId => $composableBuilder(
+    column: $table.categoryAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get walletAccountId => $composableBuilder(
+    column: $table.walletAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toWalletAccountId => $composableBuilder(
+    column: $table.toWalletAccountId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14485,6 +16284,21 @@ class $$VouchersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get categoryAccountId => $composableBuilder(
+    column: $table.categoryAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get walletAccountId => $composableBuilder(
+    column: $table.walletAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toWalletAccountId => $composableBuilder(
+    column: $table.toWalletAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -14590,6 +16404,21 @@ class $$VouchersTableAnnotationComposer
   GeneratedColumn<String> get itemsJson =>
       $composableBuilder(column: $table.itemsJson, builder: (column) => column);
 
+  GeneratedColumn<String> get categoryAccountId => $composableBuilder(
+    column: $table.categoryAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get walletAccountId => $composableBuilder(
+    column: $table.walletAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get toWalletAccountId => $composableBuilder(
+    column: $table.toWalletAccountId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -14656,6 +16485,9 @@ class $$VouchersTableTableManager
                 Value<String?> sourceVoucherId = const Value.absent(),
                 Value<String?> receiptPhotoUrl = const Value.absent(),
                 Value<String?> itemsJson = const Value.absent(),
+                Value<String?> categoryAccountId = const Value.absent(),
+                Value<String?> walletAccountId = const Value.absent(),
+                Value<String?> toWalletAccountId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
@@ -14681,6 +16513,9 @@ class $$VouchersTableTableManager
                 sourceVoucherId: sourceVoucherId,
                 receiptPhotoUrl: receiptPhotoUrl,
                 itemsJson: itemsJson,
+                categoryAccountId: categoryAccountId,
+                walletAccountId: walletAccountId,
+                toWalletAccountId: toWalletAccountId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
@@ -14708,6 +16543,9 @@ class $$VouchersTableTableManager
                 Value<String?> sourceVoucherId = const Value.absent(),
                 Value<String?> receiptPhotoUrl = const Value.absent(),
                 Value<String?> itemsJson = const Value.absent(),
+                Value<String?> categoryAccountId = const Value.absent(),
+                Value<String?> walletAccountId = const Value.absent(),
+                Value<String?> toWalletAccountId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
@@ -14733,6 +16571,9 @@ class $$VouchersTableTableManager
                 sourceVoucherId: sourceVoucherId,
                 receiptPhotoUrl: receiptPhotoUrl,
                 itemsJson: itemsJson,
+                categoryAccountId: categoryAccountId,
+                walletAccountId: walletAccountId,
+                toWalletAccountId: toWalletAccountId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
@@ -16235,6 +18076,706 @@ typedef $$JournalLinesTableProcessedTableManager =
       JournalLineTableData,
       PrefetchHooks Function({bool journalId, bool accountId})
     >;
+typedef $$BudgetsTableCreateCompanionBuilder =
+    BudgetsCompanion Function({
+      required String id,
+      Value<String> companyId,
+      required String categoryAccountId,
+      required String periodType,
+      required int amountInCents,
+      required DateTime startDate,
+      Value<bool> rolloverEnabled,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$BudgetsTableUpdateCompanionBuilder =
+    BudgetsCompanion Function({
+      Value<String> id,
+      Value<String> companyId,
+      Value<String> categoryAccountId,
+      Value<String> periodType,
+      Value<int> amountInCents,
+      Value<DateTime> startDate,
+      Value<bool> rolloverEnabled,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+
+class $$BudgetsTableFilterComposer
+    extends Composer<_$AppDatabase, $BudgetsTable> {
+  $$BudgetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryAccountId => $composableBuilder(
+    column: $table.categoryAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get periodType => $composableBuilder(
+    column: $table.periodType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountInCents => $composableBuilder(
+    column: $table.amountInCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get rolloverEnabled => $composableBuilder(
+    column: $table.rolloverEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+}
+
+class $$BudgetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $BudgetsTable> {
+  $$BudgetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryAccountId => $composableBuilder(
+    column: $table.categoryAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get periodType => $composableBuilder(
+    column: $table.periodType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountInCents => $composableBuilder(
+    column: $table.amountInCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get rolloverEnabled => $composableBuilder(
+    column: $table.rolloverEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BudgetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $BudgetsTable> {
+  $$BudgetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get companyId =>
+      $composableBuilder(column: $table.companyId, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryAccountId => $composableBuilder(
+    column: $table.categoryAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get periodType => $composableBuilder(
+    column: $table.periodType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get amountInCents => $composableBuilder(
+    column: $table.amountInCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<bool> get rolloverEnabled => $composableBuilder(
+    column: $table.rolloverEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+}
+
+class $$BudgetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $BudgetsTable,
+          BudgetTableData,
+          $$BudgetsTableFilterComposer,
+          $$BudgetsTableOrderingComposer,
+          $$BudgetsTableAnnotationComposer,
+          $$BudgetsTableCreateCompanionBuilder,
+          $$BudgetsTableUpdateCompanionBuilder,
+          (
+            BudgetTableData,
+            BaseReferences<_$AppDatabase, $BudgetsTable, BudgetTableData>,
+          ),
+          BudgetTableData,
+          PrefetchHooks Function()
+        > {
+  $$BudgetsTableTableManager(_$AppDatabase db, $BudgetsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$BudgetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$BudgetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$BudgetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> companyId = const Value.absent(),
+                Value<String> categoryAccountId = const Value.absent(),
+                Value<String> periodType = const Value.absent(),
+                Value<int> amountInCents = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
+                Value<bool> rolloverEnabled = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BudgetsCompanion(
+                id: id,
+                companyId: companyId,
+                categoryAccountId: categoryAccountId,
+                periodType: periodType,
+                amountInCents: amountInCents,
+                startDate: startDate,
+                rolloverEnabled: rolloverEnabled,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String> companyId = const Value.absent(),
+                required String categoryAccountId,
+                required String periodType,
+                required int amountInCents,
+                required DateTime startDate,
+                Value<bool> rolloverEnabled = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => BudgetsCompanion.insert(
+                id: id,
+                companyId: companyId,
+                categoryAccountId: categoryAccountId,
+                periodType: periodType,
+                amountInCents: amountInCents,
+                startDate: startDate,
+                rolloverEnabled: rolloverEnabled,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BudgetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $BudgetsTable,
+      BudgetTableData,
+      $$BudgetsTableFilterComposer,
+      $$BudgetsTableOrderingComposer,
+      $$BudgetsTableAnnotationComposer,
+      $$BudgetsTableCreateCompanionBuilder,
+      $$BudgetsTableUpdateCompanionBuilder,
+      (
+        BudgetTableData,
+        BaseReferences<_$AppDatabase, $BudgetsTable, BudgetTableData>,
+      ),
+      BudgetTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$RecurringRulesTableCreateCompanionBuilder =
+    RecurringRulesCompanion Function({
+      required String id,
+      Value<String> companyId,
+      required String templateJson,
+      required String intervalType,
+      Value<int> intervalCount,
+      required DateTime nextRunDate,
+      Value<DateTime?> endDate,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+typedef $$RecurringRulesTableUpdateCompanionBuilder =
+    RecurringRulesCompanion Function({
+      Value<String> id,
+      Value<String> companyId,
+      Value<String> templateJson,
+      Value<String> intervalType,
+      Value<int> intervalCount,
+      Value<DateTime> nextRunDate,
+      Value<DateTime?> endDate,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> rowid,
+    });
+
+class $$RecurringRulesTableFilterComposer
+    extends Composer<_$AppDatabase, $RecurringRulesTable> {
+  $$RecurringRulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get templateJson => $composableBuilder(
+    column: $table.templateJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get intervalType => $composableBuilder(
+    column: $table.intervalType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get intervalCount => $composableBuilder(
+    column: $table.intervalCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextRunDate => $composableBuilder(
+    column: $table.nextRunDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+}
+
+class $$RecurringRulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $RecurringRulesTable> {
+  $$RecurringRulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get templateJson => $composableBuilder(
+    column: $table.templateJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get intervalType => $composableBuilder(
+    column: $table.intervalType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get intervalCount => $composableBuilder(
+    column: $table.intervalCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextRunDate => $composableBuilder(
+    column: $table.nextRunDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RecurringRulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RecurringRulesTable> {
+  $$RecurringRulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get companyId =>
+      $composableBuilder(column: $table.companyId, builder: (column) => column);
+
+  GeneratedColumn<String> get templateJson => $composableBuilder(
+    column: $table.templateJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get intervalType => $composableBuilder(
+    column: $table.intervalType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get intervalCount => $composableBuilder(
+    column: $table.intervalCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get nextRunDate => $composableBuilder(
+    column: $table.nextRunDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+}
+
+class $$RecurringRulesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RecurringRulesTable,
+          RecurringRuleTableData,
+          $$RecurringRulesTableFilterComposer,
+          $$RecurringRulesTableOrderingComposer,
+          $$RecurringRulesTableAnnotationComposer,
+          $$RecurringRulesTableCreateCompanionBuilder,
+          $$RecurringRulesTableUpdateCompanionBuilder,
+          (
+            RecurringRuleTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $RecurringRulesTable,
+              RecurringRuleTableData
+            >,
+          ),
+          RecurringRuleTableData,
+          PrefetchHooks Function()
+        > {
+  $$RecurringRulesTableTableManager(
+    _$AppDatabase db,
+    $RecurringRulesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RecurringRulesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RecurringRulesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RecurringRulesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> companyId = const Value.absent(),
+                Value<String> templateJson = const Value.absent(),
+                Value<String> intervalType = const Value.absent(),
+                Value<int> intervalCount = const Value.absent(),
+                Value<DateTime> nextRunDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RecurringRulesCompanion(
+                id: id,
+                companyId: companyId,
+                templateJson: templateJson,
+                intervalType: intervalType,
+                intervalCount: intervalCount,
+                nextRunDate: nextRunDate,
+                endDate: endDate,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String> companyId = const Value.absent(),
+                required String templateJson,
+                required String intervalType,
+                Value<int> intervalCount = const Value.absent(),
+                required DateTime nextRunDate,
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RecurringRulesCompanion.insert(
+                id: id,
+                companyId: companyId,
+                templateJson: templateJson,
+                intervalType: intervalType,
+                intervalCount: intervalCount,
+                nextRunDate: nextRunDate,
+                endDate: endDate,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RecurringRulesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RecurringRulesTable,
+      RecurringRuleTableData,
+      $$RecurringRulesTableFilterComposer,
+      $$RecurringRulesTableOrderingComposer,
+      $$RecurringRulesTableAnnotationComposer,
+      $$RecurringRulesTableCreateCompanionBuilder,
+      $$RecurringRulesTableUpdateCompanionBuilder,
+      (
+        RecurringRuleTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $RecurringRulesTable,
+          RecurringRuleTableData
+        >,
+      ),
+      RecurringRuleTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -16263,4 +18804,8 @@ class $AppDatabaseManager {
       $$JournalsTableTableManager(_db, _db.journals);
   $$JournalLinesTableTableManager get journalLines =>
       $$JournalLinesTableTableManager(_db, _db.journalLines);
+  $$BudgetsTableTableManager get budgets =>
+      $$BudgetsTableTableManager(_db, _db.budgets);
+  $$RecurringRulesTableTableManager get recurringRules =>
+      $$RecurringRulesTableTableManager(_db, _db.recurringRules);
 }

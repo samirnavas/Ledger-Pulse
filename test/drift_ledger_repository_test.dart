@@ -23,17 +23,22 @@ void main() {
       await db.close();
     });
 
-    test('initializes and returns seeded parties from fallback/asset', () async {
+    test('fresh install has empty parties, and loadSampleData loads fixtures', () async {
+      expect(await repo.getParties(), isEmpty);
+      await repo.loadSampleData();
       final parties = await repo.getParties();
       expect(parties, isNotEmpty);
       expect(parties.any((p) => p.name == 'Rahul Sharma'), isTrue);
     });
 
     test('filters parties by PartyType correctly', () async {
+      await repo.loadSampleData();
       final customers = await repo.getParties(filter: PartyType.customer);
+      expect(customers, isNotEmpty);
       expect(customers.every((p) => p.type == PartyType.customer), isTrue);
 
       final suppliers = await repo.getParties(filter: PartyType.supplier);
+      expect(suppliers, isNotEmpty);
       expect(suppliers.every((p) => p.type == PartyType.supplier), isTrue);
     });
 

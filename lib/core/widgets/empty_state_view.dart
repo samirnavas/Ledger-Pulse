@@ -22,15 +22,19 @@ class EmptyStateView extends StatelessWidget {
   const EmptyStateView({
     super.key,
     required this.title,
-    required this.subtitle,
+    String? subtitle,
+    String? message,
     this.lottieAsset,
     IconData? fallbackIcon,
     IconData? icon,
     this.actionButton,
     this.actionLabel,
-    this.onActionPressed,
+    VoidCallback? onActionPressed,
+    VoidCallback? onAction,
     this.animationSize = 140,
-  }) : fallbackIcon = fallbackIcon ?? icon;
+  })  : subtitle = subtitle ?? message ?? '',
+        fallbackIcon = fallbackIcon ?? icon,
+        onActionPressed = onActionPressed ?? onAction;
 
   @override
   Widget build(BuildContext context) {

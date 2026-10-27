@@ -906,6 +906,12 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                         variant: AmountVariant.medium,
                         absolute: true,
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.more_vert_rounded),
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'Party Options',
+                        onPressed: () => _showPartyContextMenu(context, party),
+                      ),
                     ],
                   );
 

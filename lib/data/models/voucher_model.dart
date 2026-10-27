@@ -10,7 +10,9 @@ enum VoucherType {
   expense,
   salesOrder,
   purchaseOrder,
-  estimate;
+  estimate,
+  income,
+  transfer;
 
   String get displayName {
     switch (this) {
@@ -34,6 +36,10 @@ enum VoucherType {
         return 'Purchase Order';
       case VoucherType.estimate:
         return 'Estimate / Quotation';
+      case VoucherType.income:
+        return 'Income Voucher';
+      case VoucherType.transfer:
+        return 'Transfer Voucher';
     }
   }
 
@@ -59,6 +65,10 @@ enum VoucherType {
         return 'JNL';
       case VoucherType.expense:
         return 'EXP';
+      case VoucherType.income:
+        return 'INC';
+      case VoucherType.transfer:
+        return 'TRF';
     }
   }
 
@@ -259,6 +269,9 @@ class VoucherModel {
   final String? referenceNumber;
   final String? sourceVoucherId;
   final String? receiptPhotoUrl;
+  final String? categoryAccountId;
+  final String? walletAccountId;
+  final String? toWalletAccountId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -292,6 +305,9 @@ class VoucherModel {
     this.referenceNumber,
     this.sourceVoucherId,
     this.receiptPhotoUrl,
+    this.categoryAccountId,
+    this.walletAccountId,
+    this.toWalletAccountId,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -326,6 +342,9 @@ class VoucherModel {
     String? referenceNumber,
     String? sourceVoucherId,
     String? receiptPhotoUrl,
+    String? categoryAccountId,
+    String? walletAccountId,
+    String? toWalletAccountId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -359,6 +378,9 @@ class VoucherModel {
       referenceNumber: referenceNumber ?? this.referenceNumber,
       sourceVoucherId: sourceVoucherId ?? this.sourceVoucherId,
       receiptPhotoUrl: receiptPhotoUrl ?? this.receiptPhotoUrl,
+      categoryAccountId: categoryAccountId ?? this.categoryAccountId,
+      walletAccountId: walletAccountId ?? this.walletAccountId,
+      toWalletAccountId: toWalletAccountId ?? this.toWalletAccountId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -395,6 +417,9 @@ class VoucherModel {
       'referenceNumber': referenceNumber,
       'sourceVoucherId': sourceVoucherId,
       'receiptPhotoUrl': receiptPhotoUrl,
+      'categoryAccountId': categoryAccountId,
+      'walletAccountId': walletAccountId,
+      'toWalletAccountId': toWalletAccountId,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -459,6 +484,9 @@ class VoucherModel {
       referenceNumber: map['referenceNumber'] as String?,
       sourceVoucherId: map['sourceVoucherId'] as String?,
       receiptPhotoUrl: map['receiptPhotoUrl'] as String?,
+      categoryAccountId: (map['categoryAccountId'] ?? map['category_account_id']) as String?,
+      walletAccountId: (map['walletAccountId'] ?? map['wallet_account_id']) as String?,
+      toWalletAccountId: (map['toWalletAccountId'] ?? map['to_wallet_account_id']) as String?,
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'] as String)
           : DateTime.now(),

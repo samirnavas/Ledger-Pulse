@@ -177,7 +177,8 @@ class _PdfExportModalState extends State<PdfExportModal> {
           await _sharePdf();
         }
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('WhatsApp share launch failed, falling back to direct PDF share: $e');
       await _sharePdf();
     }
   }
@@ -201,7 +202,8 @@ class _PdfExportModalState extends State<PdfExportModal> {
       } else {
         await _sharePdf();
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('SMS share launch failed, falling back to direct PDF share: $e');
       await _sharePdf();
     }
   }

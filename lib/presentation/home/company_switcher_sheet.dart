@@ -3,11 +3,42 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/adaptive_theme.dart';
+import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/company_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
+import '../providers/subscription_providers.dart';
+import '../subscription/subscription_paywall_screen.dart';
+import 'create_company_flow.dart';
+
+void _showErrorMessage(BuildContext context, String message) {
+  if (!context.mounted) return;
+  final isIos = AdaptiveThemeHelper.isIos(context);
+  if (isIos) {
+    showCupertinoDialog(
+      context: context,
+      builder: (dialogCtx) => CupertinoAlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('OK'),
+            onPressed: () => Navigator.pop(dialogCtx),
+          ),
+        ],
+      ),
+    );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
+    );
+  }
+}
 
 class CompanySwitcherSheet extends ConsumerStatefulWidget {
   final ScrollController scrollController;
@@ -24,131 +55,27 @@ class CompanySwitcherSheet extends ConsumerStatefulWidget {
     );
   }
 
+  static void showAddCompanyDialog(BuildContext context, WidgetRef ref) {
+    final tier = ref.read(currentSubscriptionTierProvider);
+    final companies = ref.read(userCompaniesProvider);
+    if (companies.length >= tier.maxCompanies) {
+      Navigator.of(context).push(
+        createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      createAdaptivePageRoute(builder: (_) => const CreateCompanyFlow()),
+    );
+  }
+
   @override
   ConsumerState<CompanySwitcherSheet> createState() => _CompanySwitcherSheetState();
 }
 
 class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
   void _showAddCompanyDialog(BuildContext context) {
-    final nameCtrl = TextEditingController();
-    final gstinCtrl = TextEditingController();
-    final addressCtrl = TextEditingController();
-    final isIos = AdaptiveThemeHelper.isIos(context);
-
-    if (isIos) {
-      showCupertinoDialog(
-        context: context,
-        builder: (ctx) => CupertinoAlertDialog(
-          title: const Text('Add New Company'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 12),
-              CupertinoTextField(
-                controller: nameCtrl,
-                placeholder: 'Company Name *',
-              ),
-              const SizedBox(height: 8),
-              CupertinoTextField(
-                controller: gstinCtrl,
-                placeholder: 'GSTIN (Optional)',
-                textCapitalization: TextCapitalization.characters,
-              ),
-              const SizedBox(height: 8),
-              CupertinoTextField(
-                controller: addressCtrl,
-                placeholder: 'Address (Optional)',
-              ),
-            ],
-          ),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.pop(ctx),
-            ),
-            CupertinoDialogAction(
-              isDefaultAction: true,
-              child: const Text('Create'),
-              onPressed: () {
-                if (nameCtrl.text.trim().isNotEmpty) {
-                  final newCmp = Company(
-                    id: 'cmp_${DateTime.now().millisecondsSinceEpoch}',
-                    name: nameCtrl.text.trim(),
-                    legalName: nameCtrl.text.trim(),
-                    gstin: gstinCtrl.text.trim().isNotEmpty ? gstinCtrl.text.trim().toUpperCase() : null,
-                    address: addressCtrl.text.trim().isNotEmpty ? addressCtrl.text.trim() : null,
-                    createdAt: DateTime.now(),
-                    updatedAt: DateTime.now(),
-                  );
-                  ref.read(companyControllerProvider.notifier).addCompany(newCmp);
-                  Navigator.pop(ctx);
-                }
-              },
-            ),
-          ],
-        ),
-      );
-    } else {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Add New Company'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Company Name *',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: gstinCtrl,
-                textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(
-                  labelText: 'GSTIN',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: addressCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Address',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.pop(ctx),
-            ),
-            FilledButton(
-              child: const Text('Create Company'),
-              onPressed: () {
-                if (nameCtrl.text.trim().isNotEmpty) {
-                  final newCmp = Company(
-                    id: 'cmp_${DateTime.now().millisecondsSinceEpoch}',
-                    name: nameCtrl.text.trim(),
-                    legalName: nameCtrl.text.trim(),
-                    gstin: gstinCtrl.text.trim().isNotEmpty ? gstinCtrl.text.trim().toUpperCase() : null,
-                    address: addressCtrl.text.trim().isNotEmpty ? addressCtrl.text.trim() : null,
-                    createdAt: DateTime.now(),
-                    updatedAt: DateTime.now(),
-                  );
-                  ref.read(companyControllerProvider.notifier).addCompany(newCmp);
-                  Navigator.pop(ctx);
-                }
-              },
-            ),
-          ],
-        ),
-      );
-    }
+    CompanySwitcherSheet.showAddCompanyDialog(context, ref);
   }
 
   void _showEditCompanyDialog(BuildContext context, Company company) {
@@ -159,6 +86,9 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
     final phoneCtrl = TextEditingController(text: company.phoneNumber ?? '');
     final emailCtrl = TextEditingController(text: company.email ?? '');
     final isIos = AdaptiveThemeHelper.isIos(context);
+
+    final isExpense = company.mode == CompanyMode.expenseTracker;
+    final modeLabel = isExpense ? 'Expense Tracker' : 'Business Ledger';
 
     if (isIos) {
       showCupertinoDialog(
@@ -171,6 +101,13 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
               children: [
                 const SizedBox(height: 12),
                 CupertinoTextField(
+                  controller: TextEditingController(text: 'Mode: $modeLabel'),
+                  readOnly: true,
+                  enabled: false,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                CupertinoTextField(
                   controller: nameCtrl,
                   placeholder: 'Company Name *',
                 ),
@@ -179,12 +116,14 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                   controller: legalNameCtrl,
                   placeholder: 'Legal / Trade Name',
                 ),
-                const SizedBox(height: 8),
-                CupertinoTextField(
-                  controller: gstinCtrl,
-                  placeholder: 'GSTIN (Optional)',
-                  textCapitalization: TextCapitalization.characters,
-                ),
+                if (!isExpense) ...[
+                  const SizedBox(height: 8),
+                  CupertinoTextField(
+                    controller: gstinCtrl,
+                    placeholder: 'GSTIN (Optional)',
+                    textCapitalization: TextCapitalization.characters,
+                  ),
+                ],
                 const SizedBox(height: 8),
                 CupertinoTextField(
                   controller: addressCtrl,
@@ -214,14 +153,14 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
             CupertinoDialogAction(
               isDefaultAction: true,
               child: const Text('Save'),
-              onPressed: () {
+              onPressed: () async {
                 if (nameCtrl.text.trim().isNotEmpty) {
                   final updated = company.copyWith(
                     name: nameCtrl.text.trim(),
                     legalName: legalNameCtrl.text.trim().isNotEmpty
                         ? legalNameCtrl.text.trim()
                         : nameCtrl.text.trim(),
-                    gstin: gstinCtrl.text.trim().isNotEmpty
+                    gstin: !isExpense && gstinCtrl.text.trim().isNotEmpty
                         ? gstinCtrl.text.trim().toUpperCase()
                         : null,
                     address: addressCtrl.text.trim().isNotEmpty
@@ -235,8 +174,14 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                         : null,
                     updatedAt: DateTime.now(),
                   );
-                  ref.read(companyControllerProvider.notifier).updateCompany(updated);
-                  Navigator.pop(ctx);
+                  try {
+                    await ref.read(companyControllerProvider.notifier).updateCompany(updated);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  } catch (e) {
+                    if (context.mounted) {
+                      _showErrorMessage(context, 'Failed to update company: $e');
+                    }
+                  }
                 }
               },
             ),
@@ -252,6 +197,17 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                TextField(
+                  controller: TextEditingController(text: modeLabel),
+                  readOnly: true,
+                  enabled: false,
+                  decoration: const InputDecoration(
+                    labelText: 'Company Mode (Read-Only)',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.lock_outline_rounded),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: nameCtrl,
                   decoration: const InputDecoration(
@@ -269,16 +225,18 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                     prefixIcon: Icon(Icons.badge_outlined),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: gstinCtrl,
-                  textCapitalization: TextCapitalization.characters,
-                  decoration: const InputDecoration(
-                    labelText: 'GSTIN',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.receipt_long_outlined),
+                if (!isExpense) ...[
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: gstinCtrl,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      labelText: 'GSTIN',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.receipt_long_outlined),
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 12),
                 TextField(
                   controller: addressCtrl,
@@ -319,14 +277,14 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
             ),
             FilledButton(
               child: const Text('Save Changes'),
-              onPressed: () {
+              onPressed: () async {
                 if (nameCtrl.text.trim().isNotEmpty) {
                   final updated = company.copyWith(
                     name: nameCtrl.text.trim(),
                     legalName: legalNameCtrl.text.trim().isNotEmpty
                         ? legalNameCtrl.text.trim()
                         : nameCtrl.text.trim(),
-                    gstin: gstinCtrl.text.trim().isNotEmpty
+                    gstin: !isExpense && gstinCtrl.text.trim().isNotEmpty
                         ? gstinCtrl.text.trim().toUpperCase()
                         : null,
                     address: addressCtrl.text.trim().isNotEmpty
@@ -340,8 +298,14 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                         : null,
                     updatedAt: DateTime.now(),
                   );
-                  ref.read(companyControllerProvider.notifier).updateCompany(updated);
-                  Navigator.pop(ctx);
+                  try {
+                    await ref.read(companyControllerProvider.notifier).updateCompany(updated);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  } catch (e) {
+                    if (context.mounted) {
+                      _showErrorMessage(context, 'Failed to update company: $e');
+                    }
+                  }
                 }
               },
             ),
@@ -408,9 +372,19 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
             CupertinoDialogAction(
               isDestructiveAction: true,
               child: const Text('Delete'),
-              onPressed: () {
-                ref.read(companyControllerProvider.notifier).deleteCompany(company.id);
-                Navigator.pop(ctx);
+              onPressed: () async {
+                try {
+                  final success = await ref.read(companyControllerProvider.notifier).deleteCompany(company.id);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (!success && context.mounted) {
+                    _showErrorMessage(context, 'Cannot delete the only company.');
+                  }
+                } catch (e) {
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (context.mounted) {
+                    _showErrorMessage(context, 'Failed to delete company: $e');
+                  }
+                }
               },
             ),
           ],
@@ -435,9 +409,19 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 foregroundColor: Theme.of(context).colorScheme.onError,
               ),
               child: const Text('Delete'),
-              onPressed: () {
-                ref.read(companyControllerProvider.notifier).deleteCompany(company.id);
-                Navigator.pop(ctx);
+              onPressed: () async {
+                try {
+                  final success = await ref.read(companyControllerProvider.notifier).deleteCompany(company.id);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (!success && context.mounted) {
+                    _showErrorMessage(context, 'Cannot delete the only company.');
+                  }
+                } catch (e) {
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (context.mounted) {
+                    _showErrorMessage(context, 'Failed to delete company: $e');
+                  }
+                }
               },
             ),
           ],
@@ -460,7 +444,9 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
           message: Text(
             isSelected
                 ? 'Active Company'
-                : (company.gstin != null ? 'GSTIN: ${company.gstin}' : company.currencyCode),
+                : (company.isExpense
+                    ? 'Personal Expense Tracker'
+                    : (company.gstin != null ? 'GSTIN: ${company.gstin}' : company.currencyCode)),
           ),
           actions: [
             if (!isSelected)
@@ -713,7 +699,15 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              if (company.gstin != null)
+                              if (company.isExpense)
+                                const Text(
+                                  'Personal Expense Tracker',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: CupertinoColors.secondaryLabel,
+                                  ),
+                                )
+                              else if (company.gstin != null)
                                 Text(
                                   'GSTIN: ${company.gstin}',
                                   style: const TextStyle(
@@ -777,7 +771,9 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               subtitle: Text(
-                company.gstin != null ? 'GSTIN: ${company.gstin}' : company.currencyCode,
+                company.isExpense
+                    ? 'Personal Expense Tracker'
+                    : (company.gstin != null ? 'GSTIN: ${company.gstin}' : company.currencyCode),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,

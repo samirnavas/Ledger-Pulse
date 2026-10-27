@@ -1,7 +1,9 @@
 import 'package:drift/drift.dart';
+import '../../domain/exceptions/ledger_exceptions.dart';
 import '../local/audit_service.dart';
 import '../local/database.dart';
 import '../models/audit_log_model.dart';
+import '../models/company_model.dart';
 import '../models/inventory_item_model.dart';
 import '../models/rbac_model.dart';
 import '../models/stock_ledger_model.dart';
@@ -13,6 +15,8 @@ class DriftInventoryRepository {
   String _currentCompanyId;
   String _currentUserId;
   Role _currentRole;
+  Company? _cachedCompany;
+  DateTime? _companyCacheTime;
 
   DriftInventoryRepository({
     required AppDatabase db,
@@ -30,10 +34,79 @@ class DriftInventoryRepository {
     String? companyId,
     String? userId,
     Role? role,
+    Company? company,
   }) {
+    if (companyId != null && companyId != _currentCompanyId) {
+      _cachedCompany = null;
+    }
     if (companyId != null) _currentCompanyId = companyId;
     if (userId != null) _currentUserId = userId;
     if (role != null) _currentRole = role;
+    if (company != null) {
+      _cachedCompany = company;
+      _companyCacheTime = DateTime.now();
+    }
+  }
+
+  void invalidateCompanyCache() {
+    _cachedCompany = null;
+    _companyCacheTime = null;
+  }
+
+  Future<Company> _getActiveCompany([Company? override]) async {
+    if (override != null) return override;
+    if (_cachedCompany != null &&
+        _companyCacheTime != null &&
+        DateTime.now().difference(_companyCacheTime!).inSeconds < 10) {
+      return _cachedCompany!;
+    }
+    final row = await (_db.select(_db.companies)..where((t) => t.id.equals(_currentCompanyId))).getSingleOrNull();
+    if (row != null) {
+      _cachedCompany = Company(
+        id: row.id,
+        name: row.name,
+        legalName: row.legalName,
+        gstin: row.gstin,
+        stateCode: row.stateCode,
+        dealerType: row.dealerType,
+        currencyCode: row.currencyCode,
+        address: row.address,
+        email: row.email,
+        phoneNumber: row.phoneNumber,
+        logoUrl: row.logoUrl,
+        signatureUrl: row.signatureUrl,
+        signatoryName: row.signatoryName,
+        bankName: row.bankName,
+        bankAccountNumber: row.bankAccountNumber,
+        bankIfsc: row.bankIfsc,
+        upiId: row.upiId,
+        isCloudSyncEnabled: row.isCloudSyncEnabled,
+        isDropboxSyncEnabled: row.isDropboxSyncEnabled,
+        isActive: row.isActive,
+        mode: CompanyMode.fromName(row.mode),
+        enabledModules: row.enabledModulesJson != null
+            ? AppModule.parseSet(row.enabledModulesJson)
+            : AppModule.allModules,
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      );
+      _companyCacheTime = DateTime.now();
+      return _cachedCompany!;
+    }
+    return Company(
+      id: _currentCompanyId,
+      name: 'Default',
+      legalName: 'Default',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  Future<void> _verifyModuleEnabled([Company? company]) async {
+    final comp = await _getActiveCompany(company);
+    if (!comp.isModuleEnabled(AppModule.inventory)) {
+      throw ModuleDisabledException(AppModule.inventory);
+    }
   }
 
   Future<List<InventoryItem>> getItems({
@@ -103,7 +176,8 @@ class DriftInventoryRepository {
     );
   }
 
-  Future<InventoryItem> addItem(InventoryItem item) async {
+  Future<InventoryItem> addItem(InventoryItem item, {Company? company}) async {
+    await _verifyModuleEnabled(company);
     AccessControlService.verifyPermission(_currentRole, UserAction.createSupplierEntry);
 
     await _db.into(_db.inventoryItems).insertOnConflictUpdate(
@@ -156,7 +230,8 @@ class DriftInventoryRepository {
     return item;
   }
 
-  Future<void> updateItem(InventoryItem item) async {
+  Future<void> updateItem(InventoryItem item, {Company? company}) async {
+    await _verifyModuleEnabled(company);
     AccessControlService.verifyPermission(_currentRole, UserAction.updateEntry);
 
     final existing = await getItemById(item.id);
@@ -192,7 +267,9 @@ class DriftInventoryRepository {
     required double quantityDelta,
     required StockTransactionType type,
     String? note,
+    Company? company,
   }) async {
+    await _verifyModuleEnabled(company);
     AccessControlService.verifyPermission(_currentRole, UserAction.updateEntry);
 
     final item = await getItemById(itemId);

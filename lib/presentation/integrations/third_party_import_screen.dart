@@ -132,19 +132,19 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
 
     switch (_selectedSource) {
       case ImportSourceType.tallyXml:
-        res = DataImportService.parseTallyXml(xmlContent: text, companyId: company.id);
+        res = DataImportService.parseTallyXml(xmlContent: text, companyId: company.id, company: company);
         break;
       case ImportSourceType.busyXml:
-        res = DataImportService.parseBusyXml(xmlContent: text, companyId: company.id);
+        res = DataImportService.parseBusyXml(xmlContent: text, companyId: company.id, company: company);
         break;
       case ImportSourceType.zohoCsv:
-        res = DataImportService.parseZohoCsv(csvContent: text, companyId: company.id);
+        res = DataImportService.parseZohoCsv(csvContent: text, companyId: company.id, company: company);
         break;
       case ImportSourceType.quickBooksIif:
-        res = DataImportService.parseQuickBooksIif(iifContent: text, companyId: company.id);
+        res = DataImportService.parseQuickBooksIif(iifContent: text, companyId: company.id, company: company);
         break;
       case ImportSourceType.excelCsv:
-        res = DataImportService.parseExcelCsvAutoMapped(csvContent: text, companyId: company.id);
+        res = DataImportService.parseExcelCsvAutoMapped(csvContent: text, companyId: company.id, company: company);
         break;
     }
 
@@ -156,6 +156,9 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
     if (result == null || (result.importedParties.isEmpty && result.importedItems.isEmpty)) {
       return;
     }
+
+    final company = ref.read(activeCompanyProvider);
+    DataImportService.verifyModuleEnabled(company);
 
     HapticFeedback.mediumImpact();
     setState(() => _isImporting = true);

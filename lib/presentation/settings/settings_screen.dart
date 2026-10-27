@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,13 +15,19 @@ import '../home/company_switcher_sheet.dart';
 import '../home/sync_settings_sheet.dart';
 import '../profile/profile_screen.dart';
 import '../providers/company_providers.dart';
+import '../providers/ledger_providers.dart';
 import '../providers/profile_provider.dart';
+import '../../data/models/company_model.dart';
+import '../payments/cts2010_cheque_preview_screen.dart';
 import '../providers/sync_providers.dart';
 import '../providers/theme_provider.dart';
 import '../reports/audit_log_screen.dart';
 import '../reports/reporting_hub_screen.dart';
+import '../../core/modules/module_catalog.dart';
+import 'modules_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
+
   const SettingsScreen({super.key});
 
   @override
@@ -30,6 +37,7 @@ class SettingsScreen extends ConsumerWidget {
         CupertinoTheme.of(context).brightness == Brightness.dark;
     final themeMode = ref.watch(appThemeModeProvider);
     final activeCompany = ref.watch(activeCompanyProvider);
+    final isExpense = activeCompany.mode == CompanyMode.expenseTracker;
     final profile = ref.watch(userProfileProvider);
     final syncStatus = ref.watch(syncControllerProvider);
     final isSyncing = syncStatus == SyncStatus.syncing;
@@ -83,9 +91,11 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       ),
                       subtitle: Text(
-                        activeCompany.gstin?.isNotEmpty == true
-                            ? 'GSTIN: ${activeCompany.gstin}'
-                            : 'Personal / Sole Trader',
+                        isExpense
+                            ? 'Personal Expense Tracker'
+                            : (activeCompany.gstin?.isNotEmpty == true
+                                ? 'GSTIN: ${activeCompany.gstin}'
+                                : 'Personal / Sole Trader'),
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context)
@@ -153,8 +163,111 @@ class SettingsScreen extends ConsumerWidget {
                         );
                       },
                     ),
+                    const Divider(height: 1),
+                    ListTile(
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: (isIos ? CupertinoColors.systemIndigo : Theme.of(context).colorScheme.tertiary).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          isIos
+                              ? CupertinoIcons.square_grid_2x2_fill
+                              : Icons.extension_rounded,
+                          color: isIos ? CupertinoColors.systemIndigo : Theme.of(context).colorScheme.tertiary,
+                          size: 22,
+                        ),
+                      ),
+                      title: const Text(
+                        'Company Modules & Features',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Configure ${activeCompany.enabledModules.length} enabled modules & presets',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
+                        ),
+                      ),
+                      trailing: Icon(
+                        isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                        size: isIos ? 14 : 20,
+                        color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      ),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.of(context).push(
+                          createAdaptivePageRoute(
+                            builder: (ctx) => const ModulesScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    if (isExpense) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        key: const Key('upgrade_to_business_ledger_tile'),
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isIos
+                                ? CupertinoIcons.arrow_up_circle_fill
+                                : Icons.upgrade_rounded,
+                            color: Colors.amber.shade800,
+                            size: 22,
+                          ),
+                        ),
+                        title: const Text(
+                          'Upgrade to Business Ledger',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: Colors.amber,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Switch to full double-entry accounting, GST, invoicing & reports',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                          size: isIos ? 14 : 20,
+                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                        onTap: () {
+                          HapticFeedback.mediumImpact();
+                          _showUpgradeConfirmationDialog(
+                            context,
+                            ref,
+                            activeCompany,
+                            isIos,
+                            isDark,
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
+
 
                 const SizedBox(height: 24),
 
@@ -318,6 +431,150 @@ class SettingsScreen extends ConsumerWidget {
                   ],
                 ),
 
+                if (!isExpense) ...[
+                  const SizedBox(height: 24),
+                  _buildSectionHeader(context, 'INVOICING, BRANDING & STATUTORY'),
+                  const SizedBox(height: 8),
+                  _buildCard(
+                    context,
+                    isDark,
+                    isIos,
+                    children: [
+                      ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: (isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isIos ? CupertinoIcons.printer_fill : Icons.print_rounded,
+                            color: isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary,
+                            size: 22,
+                          ),
+                        ),
+                        title: const Text(
+                          'CTS-2010 Cheque Printing',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Bank cheque layout calibration, payee formatting & CTS alignment',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                          size: isIos ? 14 : 20,
+                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.of(context).push(
+                            createAdaptivePageRoute(
+                              builder: (ctx) => const Cts2010ChequePreviewScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: (isIos ? CupertinoColors.systemIndigo : Theme.of(context).colorScheme.tertiary).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isIos ? CupertinoIcons.signature : Icons.draw_rounded,
+                            color: isIos ? CupertinoColors.systemIndigo : Theme.of(context).colorScheme.tertiary,
+                            size: 22,
+                          ),
+                        ),
+                        title: const Text(
+                          'Signature & Company Branding',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Business logo, authorized signatory signature & invoice headers',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                          size: isIos ? 14 : 20,
+                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.of(context).push(
+                            createAdaptivePageRoute(
+                              builder: (ctx) => const ProfileScreen(isStandalone: true),
+                            ),
+                          );
+                        },
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: (isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isIos ? CupertinoIcons.doc_checkmark_fill : Icons.verified_rounded,
+                            color: isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary,
+                            size: 22,
+                          ),
+                        ),
+                        title: const Text(
+                          'e-Invoice & GST Compliance',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'IRP portal connection, e-Way bills & 2026 GSTN regulations',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                          size: isIos ? 14 : 20,
+                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.of(context).push(
+                            createAdaptivePageRoute(
+                              builder: (ctx) => const ReportingHubScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+
                 const SizedBox(height: 24),
 
                 // 5. APP INFO & BUILD
@@ -378,12 +635,224 @@ class SettingsScreen extends ConsumerWidget {
                   ],
                 ),
 
+                if (kDebugMode) ...[
+                  const SizedBox(height: 24),
+                  _buildSectionHeader(context, 'DEVELOPER & DEBUG'),
+                  const SizedBox(height: 8),
+                  _buildCard(
+                    context,
+                    isDark,
+                    isIos,
+                    children: [
+                      ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isIos
+                                ? CupertinoIcons.tray_arrow_down_fill
+                                : Icons.download_rounded,
+                            color: Colors.orange,
+                            size: 22,
+                          ),
+                        ),
+                        title: const Text(
+                          'Load sample data',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Populates sample parties and transactions for development testing',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        onTap: () async {
+                          HapticFeedback.lightImpact();
+                          try {
+                            final repo = ref.read(driftLedgerRepositoryProvider);
+                            await repo.loadSampleData();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Sample data loaded successfully'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error loading sample data: $e'),
+                                  backgroundColor: AppColors.payableRed,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+
                 const SizedBox(height: 32),
               ],
             ),
           ),
         ),
     );
+  }
+
+  Future<void> _showUpgradeConfirmationDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Company company,
+    bool isIos,
+    bool isDark,
+  ) async {
+    String selectedPreset = ModulePresets.billingAndGst;
+    final presets = [
+      ModulePresets.billingAndGst,
+      ModulePresets.simpleKhata,
+      ModulePresets.fullErp,
+    ];
+
+    final result = await showAdaptiveDialog<({bool confirmed, String preset})>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final content = Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Upgrading to Business Ledger will convert this company into a full double-entry accounting workspace.\n\n'
+                  '• This action cannot be undone. A ledger to expense downgrade is not offered anywhere.\n'
+                  '• Existing wallets, categories, vouchers, and journals will be kept intact.\n'
+                  '• Standard ledger accounts (AR, AP, GST Input/Output, Sales, Purchases, Inventory, etc.) will be seeded.\n'
+                  '• Expense-only features (budgets, recurring) will become unavailable, but their data is preserved.',
+                  style: TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Workflow Preset:',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: presets.map((preset) {
+                    final isSelected = selectedPreset == preset;
+                    return ChoiceChip(
+                      label: Text(preset, style: const TextStyle(fontSize: 12)),
+                      selected: isSelected,
+                      onSelected: (val) {
+                        if (val) {
+                          setDialogState(() => selectedPreset = preset);
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            );
+
+            if (isIos) {
+              return CupertinoAlertDialog(
+                title: const Text('Upgrade to Business Ledger'),
+                content: Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: content,
+                ),
+                actions: [
+                  CupertinoDialogAction(
+                    key: const Key('cancel_upgrade_button'),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel'),
+                  ),
+                  CupertinoDialogAction(
+                    key: const Key('confirm_upgrade_button'),
+                    isDestructiveAction: false,
+                    isDefaultAction: true,
+                    onPressed: () => Navigator.pop(
+                      ctx,
+                      (confirmed: true, preset: selectedPreset),
+                    ),
+                    child: const Text('Upgrade'),
+                  ),
+                ],
+              );
+            }
+
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.upgrade_rounded, color: Colors.amber),
+                  SizedBox(width: 8),
+                  Text('Upgrade to Business Ledger'),
+                ],
+              ),
+              content: content,
+              actions: [
+                TextButton(
+                  key: const Key('cancel_upgrade_button'),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  key: const Key('confirm_upgrade_button'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.amber.shade800,
+                  ),
+                  onPressed: () => Navigator.pop(
+                    ctx,
+                    (confirmed: true, preset: selectedPreset),
+                  ),
+                  child: const Text('Upgrade to Business Ledger'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result != null && result.confirmed) {
+      try {
+        await ref.read(companyControllerProvider.notifier).upgradeToLedger(
+              company.id,
+              preset: result.preset,
+            );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Successfully upgraded to Business Ledger'),
+              backgroundColor: AppColors.receivableGreen,
+            ),
+          );
+          if (Navigator.canPop(context)) {
+            Navigator.of(context).pop();
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to upgrade: $e'),
+              backgroundColor: AppColors.payableRed,
+            ),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildSectionHeader(BuildContext context, String title) {

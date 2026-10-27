@@ -40,6 +40,7 @@ class SupabaseAuthRepository implements IAuthRepository {
     try {
       return Supabase.instance.client;
     } catch (_) {
+      // Supabase is not initialized in offline mode or unit tests
       return null;
     }
   }
@@ -50,7 +51,9 @@ class SupabaseAuthRepository implements IAuthRepository {
       _cachedUserId ??= prefs.getString(_keyUserId);
       _cachedSessionToken ??= prefs.getString(_keySessionToken);
       _cachedPhoneNumber ??= prefs.getString(_keyPhoneNumber);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to load cached auth from SharedPreferences: $e');
+    }
 
     final client = _client;
     if (client != null) {
@@ -252,7 +255,9 @@ class SupabaseAuthRepository implements IAuthRepository {
     if (client != null && SupabaseConfig.isConfigured) {
       try {
         await client.auth.signOut();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Remote signOut failed (clearing local session anyway): $e');
+      }
     }
     _cachedUserId = null;
     _cachedSessionToken = null;

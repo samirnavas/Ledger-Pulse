@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../domain/exceptions/ledger_exceptions.dart';
 import '../models/company_model.dart';
 import '../models/payroll_model.dart';
 import '../models/voucher_model.dart';
@@ -79,6 +80,10 @@ class PayrollService {
     required List<Employee> employees,
     required String monthYear,
   }) {
+    if (!company.isModuleEnabled(AppModule.payroll)) {
+      throw ModuleDisabledException(AppModule.payroll);
+    }
+
     final activeEmployees = employees.where((e) => e.isActive).toList();
     final slips = <SalarySlip>[];
 
@@ -119,6 +124,10 @@ class PayrollService {
     required Company company,
     required PayrollBatchResult batchResult,
   }) {
+    if (!company.isModuleEnabled(AppModule.payroll)) {
+      throw ModuleDisabledException(AppModule.payroll);
+    }
+
     final now = DateTime.now();
     final voucherNumber = 'PAYROLL-${DateFormat('yyyyMM').format(now)}-${now.millisecondsSinceEpoch.toString().substring(8)}';
 
@@ -145,6 +154,10 @@ class PayrollService {
     required Company company,
     required Employee employee,
   }) async {
+    if (!company.isModuleEnabled(AppModule.payroll)) {
+      throw ModuleDisabledException(AppModule.payroll);
+    }
+
     final doc = pw.Document();
 
     doc.addPage(

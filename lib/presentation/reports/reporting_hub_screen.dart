@@ -10,10 +10,12 @@ import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
+import '../../data/models/company_mode.dart';
 import '../../data/reporting/gstr_json_engine.dart';
 import '../../data/reporting/report_models.dart';
 import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
+import '../providers/module_providers.dart';
 import '../providers/reporting_providers.dart';
 import '../providers/voucher_providers.dart';
 import 'desktop_custom_report_studio.dart';
@@ -182,9 +184,66 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final isAdvancedReportsEnabled = ref.watch(moduleEnabledProvider(AppModule.advancedReports));
+    if (!isAdvancedReportsEnabled) {
+      return AdaptiveScaffold(
+        title: 'Reporting & Analytics Hub',
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  isIos ? CupertinoIcons.lock_circle_fill : Icons.lock_rounded,
+                  size: 56,
+                  color: isIos ? CupertinoColors.systemOrange : Theme.of(context).colorScheme.tertiary,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Reporting Hub Disabled',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'The Advanced Reports module is disabled for the active company. You can enable it in company module settings or upgrade your subscription tier.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final isGstEnabled = ref.watch(moduleEnabledProvider(AppModule.gst));
+    final isInventoryEnabled = ref.watch(moduleEnabledProvider(AppModule.inventory));
+    final isSqlStudioEnabled = ref.watch(moduleEnabledProvider(AppModule.sqlStudio));
+    final isVouchersEnabled = ref.watch(moduleEnabledProvider(AppModule.vouchers));
+
+    bool isCategoryEnabled(ReportCategory cat) {
+      switch (cat) {
+        case ReportCategory.gstCompliance:
+          return isGstEnabled;
+        case ReportCategory.inventoryWarehouse:
+          return isInventoryEnabled;
+        case ReportCategory.customSql:
+          return isSqlStudioEnabled;
+        case ReportCategory.salesReceivables:
+        case ReportCategory.purchasesPayables:
+          return isVouchersEnabled;
+        default:
+          return true;
+      }
+    }
+
+    final enabledCategories = ReportCategory.values.where(isCategoryEnabled).toList();
+
     final allReports = ref.watch(reportCatalogProvider);
 
     final filteredReports = allReports.where((r) {
+      if (!isCategoryEnabled(r.category)) return false;
       final matchesCat = _selectedCategory == null || r.category == _selectedCategory;
       final matchesSearch = _searchQuery.isEmpty ||
           r.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
@@ -195,18 +254,19 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
     return AdaptiveScaffold(
       title: 'Reporting & Analytics Hub',
       actions: [
-        IconButton(
-          tooltip: 'Custom SQL Studio',
-          icon: Icon(
-            isIos ? CupertinoIcons.chevron_left_slash_chevron_right : Icons.terminal_rounded,
-            color: Theme.of(context).colorScheme.primary,
+        if (isSqlStudioEnabled)
+          IconButton(
+            tooltip: 'Custom SQL Studio',
+            icon: Icon(
+              isIos ? CupertinoIcons.chevron_left_slash_chevron_right : Icons.terminal_rounded,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            onPressed: () {
+              Navigator.of(context).push(
+                createAdaptivePageRoute(builder: (ctx) => const DesktopCustomReportStudio()),
+              );
+            },
           ),
-          onPressed: () {
-            Navigator.of(context).push(
-              createAdaptivePageRoute(builder: (ctx) => const DesktopCustomReportStudio()),
-            );
-          },
-        ),
       ],
       body: Column(
         children: [
@@ -243,13 +303,13 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('All Reports (36)'),
+                  label: Text('All Reports (${filteredReports.length})'),
                   selected: _selectedCategory == null,
                   shape: const StadiumBorder(),
                   onSelected: (_) => setState(() => _selectedCategory = null),
                 ),
                 const SizedBox(width: 8),
-                ...ReportCategory.values.map((cat) {
+                ...enabledCategories.map((cat) {
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(

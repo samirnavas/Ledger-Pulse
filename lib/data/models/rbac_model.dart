@@ -65,6 +65,13 @@ enum UserAction {
   manageUsersAndRoles,
   configureSync,
   triggerSync,
+
+  // Expense Tracker actions
+  viewExpenses,
+  createExpense,
+  editExpense,
+  voidExpense,
+  manageWalletsAndCategories,
 }
 
 class UserCompanyRole {

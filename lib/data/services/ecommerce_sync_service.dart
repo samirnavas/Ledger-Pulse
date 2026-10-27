@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../domain/exceptions/ledger_exceptions.dart';
 import '../models/company_model.dart';
 import '../models/party_model.dart';
 import '../models/voucher_model.dart';
@@ -50,6 +51,10 @@ class EcommerceSyncService {
     required String jsonPayload,
     required Company company,
   }) {
+    if (!company.isModuleEnabled(AppModule.ecommerceSync)) {
+      throw ModuleDisabledException(AppModule.ecommerceSync);
+    }
+
     final Map<String, dynamic> data = jsonDecode(jsonPayload);
     final List<dynamic> ordersList = data['Orders'] ?? data['payload']?['Orders'] ?? [];
 
@@ -131,6 +136,10 @@ class EcommerceSyncService {
     required String jsonPayload,
     required Company company,
   }) {
+    if (!company.isModuleEnabled(AppModule.ecommerceSync)) {
+      throw ModuleDisabledException(AppModule.ecommerceSync);
+    }
+
     final Map<String, dynamic> data = jsonDecode(jsonPayload);
     final List<dynamic> orderItems = data['orderItems'] ?? [];
 

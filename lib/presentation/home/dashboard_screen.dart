@@ -17,16 +17,22 @@ import '../../core/widgets/spring_morphing_fab.dart';
 import '../../data/models/party_model.dart';
 import '../integrations/ecommerce_sync_screen.dart';
 import '../integrations/third_party_import_screen.dart';
+import '../../core/modules/module_catalog.dart';
+import '../inventory/inventory_screen.dart';
 import '../inventory/manufacturing_journal_screen.dart';
 import '../payments/cts2010_cheque_preview_screen.dart';
 import '../payroll/employee_list_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../data/models/company_model.dart';
 import '../../data/models/subscription_tier_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
+import '../providers/module_providers.dart';
 import '../providers/profile_provider.dart';
 import '../providers/subscription_providers.dart';
+import '../reports/desktop_custom_report_studio.dart';
 import '../reports/receivables_payables_screen.dart';
+import '../reports/reporting_hub_screen.dart';
 import '../subscription/subscription_paywall_screen.dart';
 import 'add_party_dialog.dart';
 import 'company_switcher_sheet.dart';
@@ -36,16 +42,26 @@ import '../../data/models/sync_model.dart';
 import '../providers/sync_providers.dart';
 import 'party_list_tab.dart';
 import 'sync_settings_sheet.dart';
+import 'create_company_flow.dart';
 
 class DashboardTabNotifier extends Notifier<int> {
   @override
   int build() {
+    final isPartiesEnabled = ref.watch(moduleEnabledProvider(AppModule.parties));
+    if (!isPartiesEnabled) {
+      return 2; // Default to Profile tab when parties is disabled
+    }
     final activeFilter = ref.watch(selectedPartyTypeFilterProvider);
     return activeFilter == PartyType.supplier ? 1 : 0;
   }
 
   void setTab(int index) {
-    state = index;
+    final isPartiesEnabled = ref.read(moduleEnabledProvider(AppModule.parties));
+    if (!isPartiesEnabled && index != 2) {
+      state = 2;
+    } else {
+      state = index;
+    }
   }
 }
 
@@ -54,7 +70,44 @@ final dashboardTabProvider = NotifierProvider<DashboardTabNotifier, int>(Dashboa
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
-  void _showErpModulesModal(BuildContext context) {
+  static Widget? _routeForModule(AppModule module, [WidgetRef? ref]) {
+    switch (module) {
+      case AppModule.parties:
+        ref?.read(dashboardTabProvider.notifier).setTab(0);
+        return null;
+      case AppModule.vouchers:
+        return const ReceivablesPayablesScreen();
+      case AppModule.payroll:
+        return const EmployeeListScreen();
+      case AppModule.manufacturing:
+        return const ManufacturingJournalScreen();
+      case AppModule.dataImport:
+        return const ThirdPartyImportScreen();
+      case AppModule.ecommerceSync:
+        return const EcommerceSyncScreen();
+      case AppModule.chequePrinting:
+        return const Cts2010ChequePreviewScreen();
+      case AppModule.advancedReports:
+        return const ReportingHubScreen();
+      case AppModule.sqlStudio:
+        return const DesktopCustomReportStudio();
+      case AppModule.inventory:
+        return const InventoryScreen();
+      case AppModule.gst:
+        return const ReportingHubScreen();
+      default:
+        return null;
+    }
+  }
+
+  void _showErpModulesModal(BuildContext context, WidgetRef ref) {
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final enabledCatalogModules = ModuleCatalog.all.values.where((meta) {
+      return ref.read(moduleEnabledProvider(meta.module));
+    }).toList();
+
     showModalBottomSheet(
       context: context,
       showDragHandle: false,
@@ -62,9 +115,6 @@ class DashboardScreen extends ConsumerWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        final isIos = AdaptiveThemeHelper.isIos(ctx);
-        final colorScheme = Theme.of(ctx).colorScheme;
-
         return Container(
           padding: const EdgeInsets.only(left: 20, right: 20, top: 12, bottom: 20),
           decoration: BoxDecoration(
@@ -81,72 +131,22 @@ class DashboardScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
-              _buildModuleTile(
-                context: ctx,
-                icon: isIos ? CupertinoIcons.doc_text_fill : Icons.receipt_long_rounded,
-                title: 'Receivables & Payables Tracking',
-                subtitle: 'Aging buckets (0-30, 31-60, 90+ days), reminders & remittance advice',
-                color: isIos ? CupertinoColors.systemGreen : colorScheme.primary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ReceivablesPayablesScreen()));
-                },
-              ),
-              _buildModuleTile(
-                context: ctx,
-                icon: isIos ? CupertinoIcons.money_dollar_circle_fill : Icons.payments_rounded,
-                title: 'Payroll & Employee Salaries',
-                subtitle: 'Employee master, PF/ESI/PT deductions & PDF salary slips',
-                color: isIos ? CupertinoColors.activeBlue : colorScheme.secondary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const EmployeeListScreen()));
-                },
-              ),
-              _buildModuleTile(
-                context: ctx,
-                icon: isIos ? CupertinoIcons.gear_alt_fill : Icons.precision_manufacturing_rounded,
-                title: 'Manufacturing & BOM Journals',
-                subtitle: 'Bill of Materials, raw material deduction & production cost',
-                color: isIos ? CupertinoColors.systemOrange : colorScheme.tertiary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ManufacturingJournalScreen()));
-                },
-              ),
-              _buildModuleTile(
-                context: ctx,
-                icon: isIos ? CupertinoIcons.arrow_2_circlepath_circle_fill : Icons.sync_alt_rounded,
-                title: 'Third-Party ERP & Excel Import',
-                subtitle: 'Import parties and stock from Tally, Zoho, QuickBooks & Excel',
-                color: isIos ? CupertinoColors.systemTeal : colorScheme.primary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const ThirdPartyImportScreen()));
-                },
-              ),
-              _buildModuleTile(
-                context: ctx,
-                icon: isIos ? CupertinoIcons.cart_fill : Icons.shopping_cart_rounded,
-                title: 'Amazon & Flipkart Sync',
-                subtitle: 'Auto-sync marketplace orders into GST sales invoices',
-                color: isIos ? CupertinoColors.activeOrange : colorScheme.secondary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const EcommerceSyncScreen()));
-                },
-              ),
-              _buildModuleTile(
-                context: ctx,
-                icon: isIos ? CupertinoIcons.printer_fill : Icons.print_rounded,
-                title: 'CTS-2010 Cheque Printing (Windows)',
-                subtitle: 'Pre-calibrated bank cheque printer with MICR zone protection',
-                color: isIos ? CupertinoColors.systemPurple : colorScheme.tertiary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const Cts2010ChequePreviewScreen()));
-                },
-              ),
+              ...enabledCatalogModules.map((meta) {
+                return _buildModuleTile(
+                  context: ctx,
+                  icon: meta.adaptiveIcon(ctx),
+                  title: meta.label,
+                  subtitle: meta.description,
+                  color: isIos ? CupertinoColors.activeBlue : colorScheme.primary,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    final route = _routeForModule(meta.module, ref);
+                    if (route != null) {
+                      Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => route));
+                    }
+                  },
+                );
+              }),
               _buildModuleTile(
                 context: ctx,
                 icon: isIos ? CupertinoIcons.star_fill : Icons.star_rounded,
@@ -283,7 +283,14 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  static Widget _buildSubscriptionAlertBanner(BuildContext context, bool isIos, bool isDark, LicenseState sub) {
+  static Widget _buildSubscriptionAlertBanner(
+    BuildContext context,
+    bool isIos,
+    bool isDark,
+    LicenseState sub, {
+    bool isPayrollEnabled = true,
+    bool isGstEnabled = true,
+  }) {
     if (!sub.isExpired && (!sub.isTrial || sub.daysRemaining > 3)) {
       return const SizedBox.shrink();
     }
@@ -292,9 +299,15 @@ class DashboardScreen extends ConsumerWidget {
     final title = isExpired
         ? 'Subscription Expired'
         : 'Trial Ending in ${sub.daysRemaining} Days';
+
+    final features = <String>[];
+    if (isPayrollEnabled) features.add('payroll');
+    if (isGstEnabled) features.add('GST e-Way bills');
+    features.add('unlimited companies');
+
     final message = isExpired
         ? 'Your access to advanced modules and sync is paused. Tap to renew now.'
-        : 'Upgrade to keep unlimited companies, payroll, and GST e-Way bills.';
+        : 'Upgrade to keep ${features.join(", ")}.';
 
     final content = InkWell(
       onTap: () {
@@ -402,12 +415,22 @@ class DashboardScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subscription = ref.watch(subscriptionStateProvider);
 
+    final isPartiesEnabled = ref.watch(moduleEnabledProvider(AppModule.parties));
+    final isVouchersEnabled = ref.watch(moduleEnabledProvider(AppModule.vouchers));
+    final isPayrollEnabled = ref.watch(moduleEnabledProvider(AppModule.payroll));
+    final isGstEnabled = ref.watch(moduleEnabledProvider(AppModule.gst));
+
     final activeFilter = ref.watch(selectedPartyTypeFilterProvider);
     final summaryAsync = ref.watch(businessSummaryProvider);
     final isSearchActive = ref.watch(isPartySearchActiveProvider) ||
         ref.watch(partySearchQueryProvider).isNotEmpty;
     
     final tabIndex = ref.watch(dashboardTabProvider);
+    final userCompanies = ref.watch(userCompaniesProvider);
+
+    if (userCompanies.isEmpty) {
+      return const CreateCompanyFlow(isOnboarding: true);
+    }
 
     return PopScope(
       canPop: !isSearchActive,
@@ -420,10 +443,10 @@ class DashboardScreen extends ConsumerWidget {
       },
       child: AdaptiveScaffold(
         drawer: DashboardSidebarDrawer(
-          onOpenErpModules: () => _showErpModulesModal(context),
+          onOpenErpModules: () => _showErpModulesModal(context, ref),
           onOpenBiHub: () => _showBiHubModal(context),
         ),
-        titleWidget: tabIndex == 2
+        titleWidget: (tabIndex == 2 || !isPartiesEnabled)
             ? const Text(
                 'My Profile',
                 style: TextStyle(
@@ -510,7 +533,7 @@ class DashboardScreen extends ConsumerWidget {
               },
             ),
           // 2. Add Party Button (iOS)
-          if (isIos && tabIndex != 2)
+          if (isIos && tabIndex != 2 && isPartiesEnabled)
             CupertinoButton(
               padding: const EdgeInsets.symmetric(horizontal: 8),
               onPressed: () => _showAddPartySheet(
@@ -524,6 +547,7 @@ class DashboardScreen extends ConsumerWidget {
         floatingActionButton: _buildAnimatedFab(context, ref, isIos, tabIndex, activeFilter),
         bottomNavigationBar: AdaptiveBottomNav(
           currentIndex: tabIndex,
+          isPartiesEnabled: isPartiesEnabled,
           onTap: (index) {
             HapticFeedback.lightImpact();
             ref.read(dashboardTabProvider.notifier).setTab(index);
@@ -535,15 +559,23 @@ class DashboardScreen extends ConsumerWidget {
             }
           },
         ),
-      body: tabIndex == 2 
+      body: (tabIndex == 2 || !isPartiesEnabled)
           ? const ProfileScreen(isStandalone: false)
           : Column(
               children: [
                 // Subscription / Trial Expiration Alert Banner
-          _buildSubscriptionAlertBanner(context, isIos, isDark, subscription),
+          _buildSubscriptionAlertBanner(
+            context,
+            isIos,
+            isDark,
+            subscription,
+            isPayrollEnabled: isPayrollEnabled,
+            isGstEnabled: isGstEnabled,
+          ),
 
-          // 1. Top Business Metric Cards (collapses smoothly when search is active)
-          AnimatedCrossFade(
+          // 1. Top Business Metric Cards (collapses smoothly when search is active; hidden if vouchers off)
+          if (isVouchersEnabled)
+            AnimatedCrossFade(
             duration: const Duration(milliseconds: 250),
             sizeCurve: Curves.easeInOutCubic,
             firstCurve: Curves.easeIn,
@@ -719,3 +751,5 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 }
+
+

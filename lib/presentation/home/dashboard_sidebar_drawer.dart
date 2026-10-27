@@ -2,14 +2,21 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import '../../core/constants/colors.dart';
+import '../../core/modules/module_catalog.dart';
 import '../../core/constants/strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
-// import '../../core/widgets/liquid_glass_card.dart';
+import '../../data/models/company_mode.dart';
+import '../integrations/ecommerce_sync_screen.dart';
+import '../integrations/third_party_import_screen.dart';
+import '../inventory/inventory_screen.dart';
+import '../inventory/manufacturing_journal_screen.dart';
+import '../payments/cts2010_cheque_preview_screen.dart';
+import '../payroll/employee_list_screen.dart';
 import '../providers/company_providers.dart';
-// import '../providers/profile_provider.dart';
-// import '../providers/subscription_providers.dart';
+import '../providers/module_providers.dart';
+import '../reports/desktop_custom_report_studio.dart';
+import '../reports/receivables_payables_screen.dart';
 import '../reports/reporting_hub_screen.dart';
 import '../settings/settings_screen.dart';
 import 'company_switcher_sheet.dart';
@@ -25,15 +32,46 @@ class DashboardSidebarDrawer extends ConsumerWidget {
     required this.onOpenBiHub,
   });
 
+  static Widget? _routeForModule(AppModule module) {
+    switch (module) {
+      case AppModule.vouchers:
+        return const ReceivablesPayablesScreen();
+      case AppModule.payroll:
+        return const EmployeeListScreen();
+      case AppModule.manufacturing:
+        return const ManufacturingJournalScreen();
+      case AppModule.dataImport:
+        return const ThirdPartyImportScreen();
+      case AppModule.ecommerceSync:
+        return const EcommerceSyncScreen();
+      case AppModule.chequePrinting:
+        return const Cts2010ChequePreviewScreen();
+      case AppModule.advancedReports:
+        return const ReportingHubScreen();
+      case AppModule.sqlStudio:
+        return const DesktopCustomReportStudio();
+      case AppModule.inventory:
+        return const InventoryScreen();
+      case AppModule.gst:
+        return const ReportingHubScreen();
+      default:
+        return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
-    // final profile = ref.watch(userProfileProvider);
     final activeCompany = ref.watch(activeCompanyProvider);
-    // final subscription = ref.watch(subscriptionStateProvider);
+    final isExpense = activeCompany.mode == CompanyMode.expenseTracker;
+    final isAdvancedReportsEnabled = ref.watch(moduleEnabledProvider(AppModule.advancedReports));
+    final enabledCatalogModules = ModuleCatalog.all.values.where((meta) {
+      if (meta.module == AppModule.parties) return false;
+      return ref.watch(moduleEnabledProvider(meta.module));
+    }).toList();
 
     final drawerBg = isIos
         ? (isDark ? const Color(0xEE0F172A) : const Color(0xEEF8FAFC))
@@ -334,171 +372,294 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                     },
                   ),
 
-                  // 3. Business Intelligence & Cash Flow
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color:
-                            (isIos
-                                    ? CupertinoColors.activeBlue
-                                    : colorScheme.primary)
-                                .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(isIos ? 10 : 14),
-                      ),
-                      child: Icon(
-                        isIos
-                            ? CupertinoIcons.chart_bar_alt_fill
-                            : Icons.insights_rounded,
-                        color: isIos
-                            ? CupertinoColors.activeBlue
-                            : colorScheme.primary,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      'Cash Flow & Intelligence',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Telemetry, margins & working capital breakdown',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isIos
-                            ? CupertinoColors.secondaryLabel
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: Icon(
-                      isIos
-                          ? CupertinoIcons.chevron_forward
-                          : Icons.chevron_right_rounded,
-                      size: isIos ? 14 : 20,
-                      color: isIos
-                          ? CupertinoColors.tertiaryLabel
-                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.pop(context);
-                      onOpenBiHub();
-                    },
-                  ),
-
-                  // 3. Reports & Analytics Hub
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color:
-                            (isIos
-                                    ? CupertinoColors.systemPurple
-                                    : colorScheme.tertiary)
-                                .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(isIos ? 10 : 14),
-                      ),
-                      child: Icon(
-                        isIos
-                            ? CupertinoIcons.chart_pie_fill
-                            : Icons.analytics_rounded,
-                        color: isIos
-                            ? CupertinoColors.systemPurple
-                            : colorScheme.tertiary,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      'Reports & Analytics Hub',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Daybook, P&L, GST & Party analytics',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isIos
-                            ? CupertinoColors.secondaryLabel
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: Icon(
-                      isIos
-                          ? CupertinoIcons.chevron_forward
-                          : Icons.chevron_right_rounded,
-                      size: isIos ? 14 : 20,
-                      color: isIos
-                          ? CupertinoColors.tertiaryLabel
-                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.pop(context);
-                      Navigator.of(context).push(
-                        createAdaptivePageRoute(
-                          builder: (context) => const ReportingHubScreen(),
+                  // 3. Export (Visible in Expense Mode)
+                  if (isExpense)
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: (isIos
+                                  ? CupertinoColors.systemGreen
+                                  : colorScheme.secondary)
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                         ),
-                      );
-                    },
-                  ),
+                        child: Icon(
+                          isIos
+                              ? CupertinoIcons.square_arrow_up
+                              : Icons.file_upload_outlined,
+                          color: isIos
+                              ? CupertinoColors.systemGreen
+                              : colorScheme.secondary,
+                          size: 20,
+                        ),
+                      ),
+                      title: const Text(
+                        'Export',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Export expense records, CSV & statements',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isIos
+                              ? CupertinoColors.secondaryLabel
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      trailing: Icon(
+                        isIos
+                            ? CupertinoIcons.chevron_forward
+                            : Icons.chevron_right_rounded,
+                        size: isIos ? 14 : 20,
+                        color: isIos
+                            ? CupertinoColors.tertiaryLabel
+                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                      ),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.pop(context);
+                        Navigator.of(context).push(
+                          createAdaptivePageRoute(
+                            builder: (context) => const ReportingHubScreen(),
+                          ),
+                        );
+                      },
+                    ),
 
-                  // 4. ERP Modules & Paywall
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color:
-                            (isIos
+                  // Ledger-only Navigation Items
+                  if (!isExpense) ...[
+                    // 3. Business Intelligence & Cash Flow (gated by advancedReports)
+                    if (isAdvancedReportsEnabled)
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color:
+                                (isIos
+                                        ? CupertinoColors.activeBlue
+                                        : colorScheme.primary)
+                                    .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(isIos ? 10 : 14),
+                          ),
+                          child: Icon(
+                            isIos
+                                ? CupertinoIcons.chart_bar_alt_fill
+                                : Icons.insights_rounded,
+                            color: isIos
+                                ? CupertinoColors.activeBlue
+                                : colorScheme.primary,
+                            size: 20,
+                          ),
+                        ),
+                        title: const Text(
+                          'Cash Flow & Intelligence',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Telemetry, margins & working capital breakdown',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isIos
+                                ? CupertinoColors.secondaryLabel
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          isIos
+                              ? CupertinoIcons.chevron_forward
+                              : Icons.chevron_right_rounded,
+                          size: isIos ? 14 : 20,
+                          color: isIos
+                              ? CupertinoColors.tertiaryLabel
+                              : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.pop(context);
+                          onOpenBiHub();
+                        },
+                      ),
+
+                    // 4. Reports & Analytics Hub (gated by advancedReports)
+                    if (isAdvancedReportsEnabled)
+                      ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color:
+                                (isIos
+                                        ? CupertinoColors.systemPurple
+                                        : colorScheme.tertiary)
+                                    .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(isIos ? 10 : 14),
+                          ),
+                          child: Icon(
+                            isIos
+                                ? CupertinoIcons.chart_pie_fill
+                                : Icons.analytics_rounded,
+                            color: isIos
+                                ? CupertinoColors.systemPurple
+                                : colorScheme.tertiary,
+                            size: 20,
+                          ),
+                        ),
+                        title: const Text(
+                          'Reports & Analytics Hub',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Daybook, P&L, GST & Party analytics',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isIos
+                                ? CupertinoColors.secondaryLabel
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          isIos
+                              ? CupertinoIcons.chevron_forward
+                              : Icons.chevron_right_rounded,
+                          size: isIos ? 14 : 20,
+                          color: isIos
+                              ? CupertinoColors.tertiaryLabel
+                              : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.pop(context);
+                          Navigator.of(context).push(
+                            createAdaptivePageRoute(
+                              builder: (context) => const ReportingHubScreen(),
+                            ),
+                          );
+                        },
+                      ),
+
+                    // 5. Enabled ERP Modules from catalog
+                    ...enabledCatalogModules.map((meta) {
+                      return ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: (isIos
                                     ? CupertinoColors.activeBlue
                                     : colorScheme.primary)
                                 .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(isIos ? 10 : 14),
+                            borderRadius: BorderRadius.circular(isIos ? 10 : 14),
+                          ),
+                          child: meta.buildAdaptiveIcon(
+                            context,
+                            size: 20,
+                            color: isIos
+                                ? CupertinoColors.activeBlue
+                                : colorScheme.primary,
+                          ),
+                        ),
+                        title: Text(
+                          meta.label,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          meta.description,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isIos
+                                ? CupertinoColors.secondaryLabel
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: Icon(
+                          isIos
+                              ? CupertinoIcons.chevron_forward
+                              : Icons.chevron_right_rounded,
+                          size: isIos ? 14 : 20,
+                          color: isIos
+                              ? CupertinoColors.tertiaryLabel
+                              : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.pop(context);
+                          final route = _routeForModule(meta.module);
+                          if (route != null) {
+                            Navigator.of(context).push(
+                              createAdaptivePageRoute(builder: (_) => route),
+                            );
+                          }
+                        },
+                      );
+                    }),
+
+                    // 6. All ERP Modules & Paywall
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color:
+                              (isIos
+                                      ? CupertinoColors.activeBlue
+                                      : colorScheme.primary)
+                                  .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(isIos ? 10 : 14),
+                        ),
+                        child: Icon(
+                          isIos
+                              ? CupertinoIcons.square_grid_2x2_fill
+                              : Icons.grid_view_rounded,
+                          color: isIos
+                              ? CupertinoColors.activeBlue
+                              : colorScheme.primary,
+                          size: 20,
+                        ),
                       ),
-                      child: Icon(
+                      title: const Text(
+                        'ERP Modules & Licensing',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Payroll, Importers, Cheque printing & Paywall',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isIos
+                              ? CupertinoColors.secondaryLabel
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      trailing: Icon(
                         isIos
-                            ? CupertinoIcons.square_grid_2x2_fill
-                            : Icons.grid_view_rounded,
+                            ? CupertinoIcons.chevron_forward
+                            : Icons.chevron_right_rounded,
+                        size: isIos ? 14 : 20,
                         color: isIos
                             ? CupertinoColors.activeBlue
                             : colorScheme.primary,
-                        size: 20,
                       ),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.pop(context);
+                        onOpenErpModules();
+                      },
                     ),
-                    title: const Text(
-                      'ERP Modules & Licensing',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Payroll, Importers, Cheque printing & Paywall',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isIos
-                            ? CupertinoColors.secondaryLabel
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: Icon(
-                      isIos
-                          ? CupertinoIcons.chevron_forward
-                          : Icons.chevron_right_rounded,
-                      size: isIos ? 14 : 20,
-                      color: isIos
-                          ? CupertinoColors.activeBlue
-                          : colorScheme.primary,
-                    ),
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.pop(context);
-                      onOpenErpModules();
-                    },
-                  ),
+                  ],
 
                   // 5. Settings & Preferences
                   ListTile(

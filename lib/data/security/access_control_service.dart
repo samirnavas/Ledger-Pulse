@@ -39,6 +39,11 @@ class AccessControlService {
       UserAction.manageUsersAndRoles,
       UserAction.configureSync,
       UserAction.triggerSync,
+      UserAction.viewExpenses,
+      UserAction.createExpense,
+      UserAction.editExpense,
+      UserAction.voidExpense,
+      UserAction.manageWalletsAndCategories,
     },
     Role.accountant: {
       UserAction.viewParties,
@@ -56,6 +61,11 @@ class AccessControlService {
       UserAction.viewAuditLogs,
       UserAction.verifyAuditIntegrity,
       UserAction.triggerSync,
+      UserAction.viewExpenses,
+      UserAction.createExpense,
+      UserAction.editExpense,
+      UserAction.voidExpense,
+      UserAction.manageWalletsAndCategories,
     },
     Role.salesStaff: {
       UserAction.viewParties,
@@ -65,6 +75,8 @@ class AccessControlService {
       UserAction.createCustomerEntry,
       UserAction.viewReports,
       UserAction.exportStatements,
+      UserAction.viewExpenses,
+      UserAction.createExpense,
     },
     Role.purchaseStaff: {
       UserAction.viewParties,
@@ -74,10 +86,13 @@ class AccessControlService {
       UserAction.createSupplierEntry,
       UserAction.viewReports,
       UserAction.exportStatements,
+      UserAction.viewExpenses,
+      UserAction.createExpense,
     },
     Role.warehouseOperator: {
       UserAction.viewParties,
       UserAction.viewLedgerEntries,
+      UserAction.viewExpenses,
     },
   };
 

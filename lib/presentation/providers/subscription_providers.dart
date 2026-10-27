@@ -1,12 +1,44 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/modules/module_catalog.dart';
+import '../../data/models/company_mode.dart';
 import '../../data/models/subscription_tier_model.dart';
 import '../../data/services/licensing_service.dart';
+import 'auth_providers.dart';
+
 
 class SubscriptionNotifier extends Notifier<LicenseState> {
+  static const _kLicensePrefsKey = 'ledger_pulse_license_state';
+
   @override
   LicenseState build() {
-    // Default to an active 14-day Diamond trial for initial user onboarding
-    return LicensingService.createFreeTrial();
+    final prefs = ref.watch(sharedPreferencesProvider);
+    if (prefs != null) {
+      final jsonString = prefs.getString(_kLicensePrefsKey);
+      if (jsonString != null && jsonString.isNotEmpty) {
+        try {
+          return LicenseState.fromJson(jsonString);
+        } catch (e) {
+          debugPrint('Error loading license state: $e');
+        }
+      }
+    }
+
+    // Default to an active 14-day Diamond trial for initial user onboarding when nothing is stored
+    final initialTrial = LicensingService.createFreeTrial();
+    _persistLicense(initialTrial);
+    return initialTrial;
+  }
+
+  Future<void> _persistLicense(LicenseState license) async {
+    try {
+      final prefs = ref.read(sharedPreferencesProvider);
+      if (prefs != null) {
+        await prefs.setString(_kLicensePrefsKey, license.toJson());
+      }
+    } catch (e) {
+      debugPrint('Error saving license state: $e');
+    }
   }
 
   void upgradePlan({
@@ -14,6 +46,7 @@ class SubscriptionNotifier extends Notifier<LicenseState> {
     required BillingDuration duration,
   }) {
     state = LicensingService.activatePlan(tier: tier, duration: duration);
+    _persistLicense(state);
   }
 
   bool activateLicenseKey({
@@ -26,6 +59,7 @@ class SubscriptionNotifier extends Notifier<LicenseState> {
     );
     if (activated != null) {
       state = activated;
+      _persistLicense(state);
       return true;
     }
     return false;
@@ -35,10 +69,12 @@ class SubscriptionNotifier extends Notifier<LicenseState> {
     state = state.copyWith(
       gstCreditsUsedThisMonth: state.gstCreditsUsedThisMonth + credits,
     );
+    _persistLicense(state);
   }
 
   void resetTrial() {
     state = LicensingService.createFreeTrial();
+    _persistLicense(state);
   }
 }
 
@@ -66,24 +102,16 @@ final trialDaysRemainingProvider = Provider<int>((ref) {
   return sub.daysRemaining;
 });
 
-final featureAccessProvider = Provider.family<bool, String>((ref, featureKey) {
+/// Checks whether a subscription tier entitles access to an [AppModule].
+bool tierAllows(SubscriptionTier tier, AppModule module) {
+  final minTier = ModuleCatalog.minTierFor(module);
+  return tier.index >= minTier.index;
+}
+
+/// Entitlement provider for an [AppModule] based on current subscription state and expiry.
+final tierAllowsProvider = Provider.family<bool, AppModule>((ref, module) {
   final sub = ref.watch(subscriptionStateProvider);
   if (sub.isExpired) return false;
-
-  switch (featureKey) {
-    case 'payroll':
-      return sub.tier.supportsPayroll;
-    case 'manufacturing':
-      return sub.tier.supportsManufacturing;
-    case 'ecommerce_sync':
-      return sub.tier.supportsEcommerceSync;
-    case 'cheque_printing':
-      return sub.tier.supportsChequePrinting;
-    case 'custom_sql_studio':
-      return sub.tier.supportsCustomSqlStudio;
-    case 'custom_branding':
-      return sub.tier.supportsCustomBranding;
-    default:
-      return true;
-  }
+  return tierAllows(sub.tier, module);
 });
+

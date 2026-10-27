@@ -16,16 +16,24 @@ class AmountText extends StatelessWidget {
   final bool absolute;
   final Color? overrideColor;
   final bool isReceivablePositive; // If true: >0 is Green, <0 is Red.
+  final String currencyCode;
+  final TextStyle? customStyle;
 
-  const AmountText({
+  AmountText({
     super.key,
-    required this.amountInCents,
+    int? amountInCents,
+    double? amount,
     this.variant = AmountVariant.medium,
     this.showSign = false,
     this.absolute = false,
-    this.overrideColor,
+    Color? overrideColor,
+    Color? color,
+    TextStyle? style,
     this.isReceivablePositive = true,
-  });
+    this.currencyCode = 'INR',
+  })  : amountInCents = amountInCents ?? ((amount ?? 0) * 100).round(),
+        overrideColor = overrideColor ?? color,
+        customStyle = style;
 
   @override
   Widget build(BuildContext context) {
@@ -58,8 +66,15 @@ class AmountText extends StatelessWidget {
         break;
     }
 
+    if (customStyle != null) {
+      style = style.merge(customStyle).copyWith(
+            color: overrideColor ?? customStyle!.color ?? textColor,
+          );
+    }
+
     final formatted = CurrencyFormatter.format(
       amountInCents,
+      currencyCode: currencyCode,
       showSign: showSign,
       absolute: absolute,
     );

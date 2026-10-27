@@ -234,8 +234,8 @@ final dashboardBiMetricsProvider = FutureProvider<DashboardBiMetrics>((ref) asyn
   }
 
   for (final v in vouchers) {
-    final isIncome = v.type == VoucherType.sales || v.type == VoucherType.receipt;
-    final isExpense = v.type == VoucherType.purchase || v.type == VoucherType.payment;
+    final isIncome = v.type == VoucherType.sales || v.type == VoucherType.receipt || v.type == VoucherType.income;
+    final isExpense = v.type == VoucherType.purchase || v.type == VoucherType.payment || v.type == VoucherType.expense;
 
     if (isIncome) {
       totalIncome += v.totalAmountInCents;
@@ -251,7 +251,7 @@ final dashboardBiMetricsProvider = FutureProvider<DashboardBiMetrics>((ref) asyn
       }
       final cat = (v.narration != null && v.narration!.trim().isNotEmpty)
           ? v.narration!.trim()
-          : (v.type == VoucherType.purchase ? 'Stock Purchases' : 'Vendor Payments');
+          : (v.type == VoucherType.purchase ? 'Stock Purchases' : (v.type == VoucherType.expense ? 'Expenses' : 'Vendor Payments'));
       expenseCategories[cat] = (expenseCategories[cat] ?? 0) + v.totalAmountInCents;
     }
   }

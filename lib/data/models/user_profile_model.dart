@@ -6,6 +6,7 @@ class UserProfile {
   final String name;
   final String phoneNumber;
   final String email;
+  final String? businessType;
   final List<Company> companies;
   final String activeCompanyId;
   final Role role;
@@ -16,10 +17,10 @@ class UserProfile {
     required this.name,
     required this.phoneNumber,
     required this.email,
+    this.businessType,
     String? businessName,
     String? address,
     String? gstin,
-    String? businessType,
     String? bankName,
     String? bankAccountNumber,
     String? bankIfsc,
@@ -28,40 +29,40 @@ class UserProfile {
     String? activeCompanyId,
     this.role = Role.admin,
     this.companyRoles = const [],
-  })  : activeCompanyId = activeCompanyId ?? (companies != null && companies.isNotEmpty ? companies.first.id : 'cmp_default'),
-        companies = (companies != null && companies.isNotEmpty)
-            ? companies
-            : [
-                Company(
-                  id: activeCompanyId ?? 'cmp_default',
-                  name: businessName ?? 'Ledger Pulse Enterprise',
-                  legalName: businessName ?? 'Ledger Pulse Enterprise Pvt Ltd',
-                  gstin: gstin ?? '29ABCDE1234F1ZH',
-                  address: address ?? 'Suite 402, Trade Tower, Bangalore, India',
-                  phoneNumber: phoneNumber,
-                  email: email,
-                  bankName: bankName,
-                  bankAccountNumber: bankAccountNumber,
-                  bankIfsc: bankIfsc,
-                  upiId: upiId,
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
-                ),
-              ];
+  })  : activeCompanyId = activeCompanyId ??
+            (companies != null && companies.isNotEmpty
+                ? companies.first.id
+                : ''),
+        companies = companies ??
+            ((businessName != null && businessName.isNotEmpty)
+                ? [
+                    Company(
+                      id: activeCompanyId ?? 'cmp_${DateTime.now().millisecondsSinceEpoch}',
+                      name: businessName,
+                      legalName: businessName,
+                      gstin: gstin,
+                      address: address,
+                      phoneNumber: phoneNumber,
+                      email: email,
+                      bankName: bankName,
+                      bankAccountNumber: bankAccountNumber,
+                      bankIfsc: bankIfsc,
+                      upiId: upiId,
+                      createdAt: DateTime.now(),
+                      updatedAt: DateTime.now(),
+                    ),
+                  ]
+                : const []);
 
   // Backwards-compatible getters mapping to active company
   Company get activeCompany {
     if (companies.isEmpty) {
       return Company(
         id: activeCompanyId,
-        name: 'Ledger Pulse Enterprise',
-        legalName: 'Ledger Pulse Enterprise Pvt Ltd',
-        gstin: '29ABCDE1234F1ZH',
-        address: 'Suite 402, Trade Tower, Bangalore, India',
-        phoneNumber: phoneNumber,
-        email: email,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        name: '',
+        legalName: '',
+        createdAt: DateTime.fromMillisecondsSinceEpoch(0),
+        updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
       );
     }
     return companies.firstWhere(
@@ -73,7 +74,6 @@ class UserProfile {
   String get businessName => activeCompany.name;
   String get address => activeCompany.address ?? '';
   String get gstin => activeCompany.gstin ?? '';
-  String get businessType => 'Retail & Wholesale';
   String? get bankName => activeCompany.bankName;
   String? get bankAccountNumber => activeCompany.bankAccountNumber;
   String? get bankIfsc => activeCompany.bankIfsc;
@@ -138,6 +138,7 @@ class UserProfile {
       name: name ?? this.name,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       email: email ?? this.email,
+      businessType: businessType ?? this.businessType,
       companies: updatedCompanies,
       activeCompanyId: activeCompanyId ?? this.activeCompanyId,
       role: role ?? this.role,
@@ -158,6 +159,7 @@ class UserProfile {
       'name': name,
       'phoneNumber': phoneNumber,
       'email': email,
+      'businessType': businessType,
       'companies': companies.map((c) => c.toMap()).toList(),
       'activeCompanyId': activeCompanyId,
       'role': role.name,
@@ -177,13 +179,14 @@ class UserProfile {
         [];
 
     final activeCompId = map['activeCompanyId'] as String? ??
-        (companiesList.isNotEmpty ? companiesList.first.id : 'cmp_default');
+        (companiesList.isNotEmpty ? companiesList.first.id : '');
 
     return UserProfile(
       id: (map['id'] as String?) ?? 'usr_default',
       name: (map['name'] as String?) ?? 'User',
       phoneNumber: (map['phoneNumber'] as String?) ?? '',
       email: (map['email'] as String?) ?? '',
+      businessType: map['businessType'] as String?,
       companies: companiesList,
       activeCompanyId: activeCompId,
       role: map['role'] != null

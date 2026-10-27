@@ -678,7 +678,9 @@ class _ReceivablesPayablesScreenState
           await launchUrl(waWeb, mode: LaunchMode.externalApplication);
           return;
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('WhatsApp launch failed, falling back to system share sheet: $e');
+      }
     }
 
     // Fallback to system share sheet

@@ -1,4 +1,6 @@
 import 'dart:convert';
+import '../../domain/exceptions/ledger_exceptions.dart';
+import '../models/company_model.dart';
 import '../models/inventory_item_model.dart';
 import '../models/party_model.dart';
 
@@ -38,11 +40,22 @@ class ImportParseResult {
 }
 
 class DataImportService {
+  /// Throws [ModuleDisabledException] if data import module is not enabled for company
+  static void verifyModuleEnabled(Company company) {
+    if (!company.isModuleEnabled(AppModule.dataImport)) {
+      throw ModuleDisabledException(AppModule.dataImport);
+    }
+  }
+
   /// Parses Tally XML export payload containing `<LEDGER>` and `<STOCKITEM>` tags
   static ImportParseResult parseTallyXml({
     required String xmlContent,
     required String companyId,
+    Company? company,
   }) {
+    if (company != null) {
+      verifyModuleEnabled(company);
+    }
     final parties = <Party>[];
     final items = <InventoryItem>[];
     final warnings = <String>[];
@@ -124,7 +137,11 @@ class DataImportService {
   static ImportParseResult parseZohoCsv({
     required String csvContent,
     required String companyId,
+    Company? company,
   }) {
+    if (company != null) {
+      verifyModuleEnabled(company);
+    }
     final parties = <Party>[];
     final items = <InventoryItem>[];
     final warnings = <String>[];
@@ -203,7 +220,11 @@ class DataImportService {
   static ImportParseResult parseQuickBooksIif({
     required String iifContent,
     required String companyId,
+    Company? company,
   }) {
+    if (company != null) {
+      verifyModuleEnabled(company);
+    }
     final parties = <Party>[];
     final items = <InventoryItem>[];
     final lines = const LineSplitter().convert(iifContent);
@@ -270,7 +291,11 @@ class DataImportService {
   static ImportParseResult parseBusyXml({
     required String xmlContent,
     required String companyId,
+    Company? company,
   }) {
+    if (company != null) {
+      verifyModuleEnabled(company);
+    }
     final parties = <Party>[];
     final items = <InventoryItem>[];
     final warnings = <String>[];
@@ -371,7 +396,11 @@ class DataImportService {
   static ImportParseResult parseExcelCsvAutoMapped({
     required String csvContent,
     required String companyId,
+    Company? company,
   }) {
+    if (company != null) {
+      verifyModuleEnabled(company);
+    }
     final parties = <Party>[];
     final items = <InventoryItem>[];
     final lines = const LineSplitter().convert(csvContent);

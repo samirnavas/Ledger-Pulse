@@ -7,7 +7,7 @@ import '../../core/constants/strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../auth/phone_input_screen.dart';
-import '../home/dashboard_screen.dart';
+import '../home/home_shell.dart';
 import '../providers/auth_providers.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -38,7 +38,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     final authState = ref.read(authControllerProvider);
     final targetWidget = authState.isAuthenticated
-        ? const DashboardScreen()
+        ? const HomeShell()
         : const PhoneInputScreen();
 
     Navigator.of(context).pushReplacement(

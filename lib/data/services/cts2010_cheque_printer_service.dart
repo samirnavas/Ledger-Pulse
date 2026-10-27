@@ -3,6 +3,9 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../domain/exceptions/ledger_exceptions.dart';
+import '../models/company_model.dart';
+
 enum IndianBankChequeProfile {
   sbi,
   hdfc,
@@ -156,7 +159,12 @@ class Cts2010ChequePrinterService {
     required String companyName,
     Cts2010ChequeConfig config = const Cts2010ChequeConfig(),
     bool showChequeGuidelines = false,
+    Company? company,
   }) async {
+    if (company != null && !company.isModuleEnabled(AppModule.chequePrinting)) {
+      throw ModuleDisabledException(AppModule.chequePrinting);
+    }
+
     final doc = pw.Document();
     final profile = config.bankProfile;
 

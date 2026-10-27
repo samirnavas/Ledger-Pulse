@@ -1,3 +1,8 @@
+import 'dart:convert';
+import 'company_mode.dart';
+
+export 'company_mode.dart';
+
 class Company {
   final String id;
   final String name;
@@ -19,6 +24,8 @@ class Company {
   final bool isCloudSyncEnabled;
   final bool isDropboxSyncEnabled;
   final bool isActive;
+  final CompanyMode mode;
+  final Set<AppModule> enabledModules;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -43,9 +50,15 @@ class Company {
     this.isCloudSyncEnabled = true,
     this.isDropboxSyncEnabled = false,
     this.isActive = true,
+    this.mode = CompanyMode.ledger,
+    this.enabledModules = AppModule.allModules,
     required this.createdAt,
     required this.updatedAt,
   });
+
+  bool isModuleEnabled(AppModule module) => enabledModules.contains(module);
+  bool get isExpense => mode == CompanyMode.expenseTracker;
+  bool get isLedger => mode == CompanyMode.ledger;
 
   Company copyWith({
     String? id,
@@ -68,6 +81,8 @@ class Company {
     bool? isCloudSyncEnabled,
     bool? isDropboxSyncEnabled,
     bool? isActive,
+    CompanyMode? mode,
+    Set<AppModule>? enabledModules,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -92,12 +107,15 @@ class Company {
       isCloudSyncEnabled: isCloudSyncEnabled ?? this.isCloudSyncEnabled,
       isDropboxSyncEnabled: isDropboxSyncEnabled ?? this.isDropboxSyncEnabled,
       isActive: isActive ?? this.isActive,
+      mode: mode ?? this.mode,
+      enabledModules: enabledModules ?? this.enabledModules,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
   Map<String, dynamic> toMap() {
+    final modulesJson = jsonEncode(enabledModules.map((m) => m.name).toList());
     return {
       'id': id,
       'name': name,
@@ -119,6 +137,9 @@ class Company {
       'isCloudSyncEnabled': isCloudSyncEnabled ? 1 : 0,
       'isDropboxSyncEnabled': isDropboxSyncEnabled ? 1 : 0,
       'isActive': isActive ? 1 : 0,
+      'mode': mode.name,
+      'enabledModules': modulesJson,
+      'enabledModulesJson': modulesJson,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -146,6 +167,12 @@ class Company {
       isCloudSyncEnabled: map['isCloudSyncEnabled'] == 1 || map['isCloudSyncEnabled'] == true,
       isDropboxSyncEnabled: map['isDropboxSyncEnabled'] == 1 || map['isDropboxSyncEnabled'] == true,
       isActive: map['isActive'] == null || map['isActive'] == 1 || map['isActive'] == true,
+      mode: map['mode'] != null
+          ? CompanyMode.fromName(map['mode']?.toString())
+          : CompanyMode.ledger,
+      enabledModules: AppModule.parseSet(
+        map['enabled_modules'] ?? map['enabledModules'] ?? map['enabledModulesJson'] ?? map['enabled_modules_json'],
+      ),
       createdAt: map['createdAt'] != null
           ? DateTime.parse(map['createdAt'] as String)
           : DateTime.now(),
@@ -163,21 +190,54 @@ class Company {
         other.name == name &&
         other.legalName == legalName &&
         other.gstin == gstin &&
+        other.stateCode == stateCode &&
+        other.dealerType == dealerType &&
         other.currencyCode == currencyCode &&
+        other.address == address &&
+        other.email == email &&
+        other.phoneNumber == phoneNumber &&
+        other.logoUrl == logoUrl &&
+        other.signatureUrl == signatureUrl &&
+        other.signatoryName == signatoryName &&
+        other.bankName == bankName &&
+        other.bankAccountNumber == bankAccountNumber &&
+        other.bankIfsc == bankIfsc &&
+        other.upiId == upiId &&
         other.isCloudSyncEnabled == isCloudSyncEnabled &&
         other.isDropboxSyncEnabled == isDropboxSyncEnabled &&
-        other.isActive == isActive;
+        other.isActive == isActive &&
+        other.mode == mode &&
+        other.enabledModules.length == enabledModules.length &&
+        other.enabledModules.containsAll(enabledModules) &&
+        other.createdAt == createdAt &&
+        other.updatedAt == updatedAt;
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         name,
         legalName,
         gstin,
+        stateCode,
+        dealerType,
         currencyCode,
+        address,
+        email,
+        phoneNumber,
+        logoUrl,
+        signatureUrl,
+        signatoryName,
+        bankName,
+        bankAccountNumber,
+        bankIfsc,
+        upiId,
         isCloudSyncEnabled,
         isDropboxSyncEnabled,
         isActive,
-      );
+        mode,
+        Object.hashAllUnordered(enabledModules),
+        createdAt,
+        updatedAt,
+      ]);
 }

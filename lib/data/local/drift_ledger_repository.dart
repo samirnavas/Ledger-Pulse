@@ -4,7 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:uuid/uuid.dart';
-
+import '../../core/modules/module_catalog.dart';
 import '../../core/network/sync_engine.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
@@ -94,135 +94,148 @@ class DriftLedgerRepository implements ILedgerRepository {
   }
 
   Future<void> _seedIfEmpty() async {
+    // Fresh installs must have no parties, no entries, and no pre-made company.
+    // Existing rows (like cmp_default on upgraded installs) are preserved untouched.
+  }
+
+  /// Populates the sample dataset on demand for testing / demonstration purposes.
+  Future<void> loadSampleData() async {
+    List<Party> initialParties = [];
+    List<LedgerEntry> initialEntries = [];
+
     try {
-      // Ensure default company exists
-      final existingCompany = await (_db.select(_db.companies)
-            ..where((t) => t.id.equals(_currentCompanyId)))
-          .getSingleOrNull();
+      final jsonString = await rootBundle.loadString(_assetPath);
+      final Map<String, dynamic> data = jsonDecode(jsonString);
 
-      if (existingCompany == null) {
-        await _db.into(_db.companies).insertOnConflictUpdate(
-              CompaniesCompanion.insert(
-                id: _currentCompanyId,
-                name: 'Ledger Pulse Enterprise',
-                legalName: 'Ledger Pulse Enterprise Pvt Ltd',
-                gstin: const Value('29ABCDE1234F1ZH'),
-                currencyCode: const Value('INR'),
-                address: const Value('Suite 402, Trade Tower, Bangalore, India'),
-                isCloudSyncEnabled: const Value(true),
-                isDropboxSyncEnabled: const Value(false),
-                isActive: const Value(true),
-                isDeleted: const Value(false),
-                syncStatus: const Value(SyncRecordStatus.synced),
-              ),
-            );
-      }
-
-      // Ensure default profile exists
-      final existingProfile = await (_db.select(_db.userProfiles)
-            ..where((t) => t.id.equals(_currentUserId)))
-          .getSingleOrNull();
-
-      if (existingProfile == null) {
-        await _db.into(_db.userProfiles).insertOnConflictUpdate(
-              UserProfilesCompanion.insert(
-                id: _currentUserId,
-                name: 'Samir Navas',
-                phoneNumber: '+91 98765 43210',
-                email: 'samir.navas@example.com',
-                businessName: const Value('Ledger Pulse Enterprise'),
-                address: const Value('Suite 402, Trade Tower, Bangalore, India'),
-                gstin: const Value('29ABCDE1234F1ZH'),
-                businessType: const Value('Retail & Wholesale'),
-                activeCompanyId: Value(_currentCompanyId),
-                role: const Value('admin'),
-                isDeleted: const Value(false),
-                syncStatus: const Value(SyncRecordStatus.synced),
-              ),
-            );
-      }
-
-      final existingCount = await (_db.select(_db.parties)
-            ..where((t) => t.companyId.equals(_currentCompanyId)))
-          .get();
-      if (existingCount.isNotEmpty || _currentCompanyId != 'cmp_default') {
-        return;
-      }
-
-      // Database is empty for this company; seed from asset or mock data
-      List<Party> initialParties = [];
-      List<LedgerEntry> initialEntries = [];
-
-      try {
-        final jsonString = await rootBundle.loadString(_assetPath);
-        final Map<String, dynamic> data = jsonDecode(jsonString);
-
-        if (data['parties'] is List) {
-          for (final p in data['parties']) {
-            initialParties.add(Party.fromMap(p as Map<String, dynamic>));
-          }
+      if (data['parties'] is List) {
+        for (final p in data['parties']) {
+          initialParties.add(Party.fromMap(p as Map<String, dynamic>));
         }
-        if (data['entries'] is List) {
-          for (final e in data['entries']) {
-            initialEntries.add(LedgerEntry.fromMap(e as Map<String, dynamic>));
-          }
-        }
-      } catch (_) {
-        initialParties = MockSeedData.initialParties;
-        initialEntries = MockSeedData.initialEntries;
       }
-
-      await _db.transaction(() async {
-        for (final party in initialParties) {
-          await _db.into(_db.parties).insertOnConflictUpdate(
-                PartiesCompanion.insert(
-                  id: party.id,
-                  companyId: Value(_currentCompanyId),
-                  name: party.name,
-                  phoneNumber: party.phoneNumber,
-                  type: party.type,
-                  netBalanceInCents: Value(party.netBalanceInCents),
-                  lastUpdated: party.lastUpdated,
-                ),
-              );
+      if (data['entries'] is List) {
+        for (final e in data['entries']) {
+          initialEntries.add(LedgerEntry.fromMap(e as Map<String, dynamic>));
         }
-
-        for (final entry in initialEntries) {
-          await _db.into(_db.ledgerEntries).insertOnConflictUpdate(
-                LedgerEntriesCompanion.insert(
-                  id: entry.id,
-                  companyId: Value(_currentCompanyId),
-                  partyId: entry.partyId,
-                  amountInCents: entry.amountInCents,
-                  type: entry.type,
-                  date: entry.date,
-                  note: Value(entry.note),
-                  receiptPhotoUrl: Value(entry.receiptPhotoUrl),
-                  isVoided: const Value(false),
-                  createdAt: Value(entry.date),
-                ),
-              );
-        }
-      });
-      if (_autoSync) {
-        _syncEngine.syncAll(companyId: _currentCompanyId).catchError((e) {
-          debugPrint('DriftLedgerRepository initial sync notice: $e');
-          return SyncResult(success: false, errorMessage: e.toString(), timestamp: DateTime.now());
-        });
       }
-    } catch (e) {
-      debugPrint('DriftLedgerRepository: error during initial seeding ($e)');
+    } catch (_) {
+      initialParties = MockSeedData.initialParties;
+      initialEntries = MockSeedData.initialEntries;
     }
+
+    await _db.transaction(() async {
+      for (final party in initialParties) {
+        await _db.into(_db.parties).insertOnConflictUpdate(
+              PartiesCompanion.insert(
+                id: party.id,
+                companyId: Value(_currentCompanyId),
+                name: party.name,
+                phoneNumber: party.phoneNumber,
+                type: party.type,
+                netBalanceInCents: Value(party.netBalanceInCents),
+                lastUpdated: party.lastUpdated,
+              ),
+            );
+      }
+
+      for (final entry in initialEntries) {
+        await _db.into(_db.ledgerEntries).insertOnConflictUpdate(
+              LedgerEntriesCompanion.insert(
+                id: entry.id,
+                companyId: Value(_currentCompanyId),
+                partyId: entry.partyId,
+                amountInCents: entry.amountInCents,
+                type: entry.type,
+                date: entry.date,
+                note: Value(entry.note),
+                receiptPhotoUrl: Value(entry.receiptPhotoUrl),
+                isVoided: const Value(false),
+                createdAt: Value(entry.date),
+              ),
+            );
+      }
+    });
+
+    _updateStreamController.add(null);
   }
 
   @override
   Stream<void> get repositoryUpdatesStream => _updateStreamController.stream;
 
-  // --- Multi-Company Management ---
+  Future<void> seedAccountsFor(
+    Company company, {
+    Map<String, int>? initialWalletBalancesInCents,
+  }) =>
+      _postingEngine.seedAccountsFor(
+        company,
+        initialWalletBalancesInCents: initialWalletBalancesInCents,
+      );
+
+  Future<void> _importCompaniesFromJsonIfEmpty() async {
+    final profileRows = await (_db.select(_db.userProfiles)..where((t) => t.isDeleted.equals(false))).get();
+    for (final profileRow in profileRows) {
+      final jsonStr = profileRow.companiesJson;
+      if (jsonStr != null && jsonStr.trim().isNotEmpty) {
+        try {
+          final decoded = jsonDecode(jsonStr);
+          if (decoded is List) {
+            for (final item in decoded) {
+              if (item is Map<String, dynamic>) {
+                final comp = Company.fromMap(item);
+                await _insertCompanyDirectly(comp);
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Failed to decode companiesJson for profile ${profileRow.id}: $e');
+        }
+      }
+    }
+  }
+
+  Future<void> _insertCompanyDirectly(Company comp) async {
+    await _db.transaction(() async {
+      await _db.into(_db.companies).insertOnConflictUpdate(
+            CompaniesCompanion.insert(
+              id: comp.id,
+              name: comp.name,
+              legalName: comp.legalName,
+              gstin: Value(comp.gstin),
+              stateCode: Value(comp.stateCode),
+              dealerType: Value(comp.dealerType),
+              currencyCode: Value(comp.currencyCode),
+              address: Value(comp.address),
+              email: Value(comp.email),
+              phoneNumber: Value(comp.phoneNumber),
+              logoUrl: Value(comp.logoUrl),
+              signatureUrl: Value(comp.signatureUrl),
+              signatoryName: Value(comp.signatoryName),
+              bankName: Value(comp.bankName),
+              bankAccountNumber: Value(comp.bankAccountNumber),
+              bankIfsc: Value(comp.bankIfsc),
+              upiId: Value(comp.upiId),
+              isCloudSyncEnabled: Value(comp.isCloudSyncEnabled),
+              isDropboxSyncEnabled: Value(comp.isDropboxSyncEnabled),
+              isActive: Value(comp.isActive),
+              isDeleted: const Value(false),
+              createdAt: Value(comp.createdAt),
+              updatedAt: Value(comp.updatedAt),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
+      await _postingEngine.seedAccountsFor(comp);
+    });
+  }
 
   Future<List<Company>> getCompanies() async {
     await _ensureInitialized();
-    final rows = await (_db.select(_db.companies)..where((t) => t.isDeleted.equals(false) & t.isActive.equals(true))).get();
+    var rows = await (_db.select(_db.companies)..where((t) => t.isDeleted.equals(false))).get();
+
+    // One-time compatibility: if the table has no companies but companiesJson has data, import it.
+    if (rows.isEmpty) {
+      await _importCompaniesFromJsonIfEmpty();
+      rows = await (_db.select(_db.companies)..where((t) => t.isDeleted.equals(false))).get();
+    }
+
     return rows.map((r) => Company(
       id: r.id,
       name: r.name,
@@ -244,12 +257,19 @@ class DriftLedgerRepository implements ILedgerRepository {
       isCloudSyncEnabled: r.isCloudSyncEnabled,
       isDropboxSyncEnabled: r.isDropboxSyncEnabled,
       isActive: r.isActive,
+      mode: CompanyMode.fromName(r.mode),
+      enabledModules: r.enabledModulesJson != null
+          ? AppModule.parseSet(r.enabledModulesJson)
+          : AppModule.allModules,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     )).toList();
   }
 
-  Future<Company> createCompany(Company company) async {
+  Future<Company> createCompany(
+    Company company, {
+    Map<String, int>? initialWalletBalancesInCents,
+  }) async {
     await _ensureInitialized();
     AccessControlService.verifyPermission(_currentRole, UserAction.createCompany);
 
@@ -276,12 +296,20 @@ class DriftLedgerRepository implements ILedgerRepository {
               isCloudSyncEnabled: Value(company.isCloudSyncEnabled),
               isDropboxSyncEnabled: Value(company.isDropboxSyncEnabled),
               isActive: Value(company.isActive),
+              mode: Value(company.mode.name),
+              enabledModulesJson: Value(jsonEncode(company.enabledModules.map((m) => m.name).toList())),
               isDeleted: const Value(false),
               createdAt: Value(company.createdAt),
               updatedAt: Value(company.updatedAt),
               syncStatus: const Value(SyncRecordStatus.pending),
             ),
           );
+
+      // Seed chart of accounts inside the same transaction as the company insert
+      await _postingEngine.seedAccountsFor(
+        company,
+        initialWalletBalancesInCents: initialWalletBalancesInCents,
+      );
 
       await _db.into(_db.syncOutbox).insert(
             SyncOutboxCompanion.insert(
@@ -309,6 +337,116 @@ class DriftLedgerRepository implements ILedgerRepository {
     _updateStreamController.add(null);
     _triggerBackgroundSync();
     return company;
+  }
+
+  /// Upgrades an expense tracker company to a business ledger in a single transaction.
+  ///
+  /// In one transaction:
+  /// 1. Updates mode = ledger.
+  /// 2. Applies the chosen preset modules (default Billing & GST).
+  /// 3. Seeds only missing ledger accounts without touching existing wallets, categories, vouchers, or journals.
+  /// 4. Writes sync outbox and audit log.
+  ///
+  /// Completely idempotent if run more than once.
+  Future<Company> upgradeToLedger(
+    String companyId, {
+    String preset = ModulePresets.billingAndGst,
+    Set<AppModule>? modules,
+  }) async {
+    await _ensureInitialized();
+    AccessControlService.verifyPermission(_currentRole, UserAction.createCompany);
+
+    final existing = await (_db.select(_db.companies)..where((t) => t.id.equals(companyId))).getSingleOrNull();
+    if (existing == null) {
+      throw Exception('Company not found: $companyId');
+    }
+
+    final targetModules = modules ?? ModuleCatalog.defaultsFor(CompanyMode.ledger, preset: preset);
+    final now = DateTime.now();
+
+    final oldMap = {
+      'id': existing.id,
+      'name': existing.name,
+      'legalName': existing.legalName,
+      'mode': existing.mode,
+      'enabledModules': existing.enabledModulesJson,
+    };
+
+    late Company updatedCompany;
+
+    await _db.transaction(() async {
+      // 1. Update company record: set mode = ledger, apply preset modules
+      await (_db.update(_db.companies)..where((t) => t.id.equals(companyId))).write(
+        CompaniesCompanion(
+          mode: Value(CompanyMode.ledger.name),
+          enabledModulesJson: Value(jsonEncode(targetModules.map((m) => m.name).toList())),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      // 2. Seed only the missing ledger accounts (AR, AP, GST, etc.)
+      await _postingEngine.seedMissingLedgerAccountsFor(companyId);
+
+      // Build updated company model
+      final row = await (_db.select(_db.companies)..where((t) => t.id.equals(companyId))).getSingle();
+      updatedCompany = Company(
+        id: row.id,
+        name: row.name,
+        legalName: row.legalName,
+        gstin: row.gstin,
+        stateCode: row.stateCode,
+        dealerType: row.dealerType,
+        currencyCode: row.currencyCode,
+        address: row.address,
+        email: row.email,
+        phoneNumber: row.phoneNumber,
+        logoUrl: row.logoUrl,
+        signatureUrl: row.signatureUrl,
+        signatoryName: row.signatoryName,
+        bankName: row.bankName,
+        bankAccountNumber: row.bankAccountNumber,
+        bankIfsc: row.bankIfsc,
+        upiId: row.upiId,
+        isCloudSyncEnabled: row.isCloudSyncEnabled,
+        isDropboxSyncEnabled: row.isDropboxSyncEnabled,
+        isActive: row.isActive,
+        mode: CompanyMode.fromName(row.mode),
+        enabledModules: AppModule.parseSet(row.enabledModulesJson),
+        createdAt: row.createdAt,
+        updatedAt: row.updatedAt,
+      );
+
+      // 3. Write sync outbox entry
+      await _db.into(_db.syncOutbox).insert(
+        SyncOutboxCompanion.insert(
+          id: _uuid.v4(),
+          targetTable: 'companies',
+          recordId: companyId,
+          mutationType: 'UPSERT',
+          payload: jsonEncode({
+            ...updatedCompany.toMap(),
+            'companyId': companyId,
+            'action': 'upgrade_to_ledger',
+          }),
+        ),
+      );
+
+      // 4. Record audit log
+      await _auditService.recordLog(
+        companyId: companyId,
+        userId: _currentUserId,
+        entityType: 'company',
+        entityId: companyId,
+        action: AuditAction.update,
+        oldState: oldMap,
+        newState: updatedCompany.toMap(),
+      );
+    });
+
+    _updateStreamController.add(null);
+    _triggerBackgroundSync();
+    return updatedCompany;
   }
 
   Future<Company> updateCompany(Company company) async {
@@ -347,6 +485,8 @@ class DriftLedgerRepository implements ILedgerRepository {
           isCloudSyncEnabled: Value(updated.isCloudSyncEnabled),
           isDropboxSyncEnabled: Value(updated.isDropboxSyncEnabled),
           isActive: Value(updated.isActive),
+          mode: Value(updated.mode.name),
+          enabledModulesJson: Value(jsonEncode(updated.enabledModules.map((m) => m.name).toList())),
           updatedAt: Value(updated.updatedAt),
           syncStatus: const Value(SyncRecordStatus.pending),
         ),
@@ -443,7 +583,9 @@ class DriftLedgerRepository implements ILedgerRepository {
     Role userRole = Role.admin;
     try {
       userRole = Role.values.byName(profileRow.role);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Unknown user role "${profileRow.role}", defaulting to admin: $e');
+    }
 
     return UserProfile(
       id: profileRow.id,
@@ -482,7 +624,7 @@ class DriftLedgerRepository implements ILedgerRepository {
       upiId: Value(profile.upiId),
       activeCompanyId: Value(profile.activeCompanyId),
       role: Value(profile.role.name),
-      companiesJson: Value(jsonEncode(profile.companies.map((c) => c.toMap()).toList())),
+      companiesJson: const Value.absent(),
       isDeleted: const Value(false),
       updatedAt: Value(DateTime.now()),
       syncStatus: const Value(SyncRecordStatus.pending),
@@ -491,7 +633,7 @@ class DriftLedgerRepository implements ILedgerRepository {
     await _db.transaction(() async {
       await _db.into(_db.userProfiles).insertOnConflictUpdate(profileCompanion);
 
-      // Also persist the company data associated with this profile
+      // Persist any companies directly into the Companies table (single source of truth)
       for (final comp in profile.companies) {
         await _db.into(_db.companies).insertOnConflictUpdate(
               CompaniesCompanion.insert(
@@ -515,11 +657,15 @@ class DriftLedgerRepository implements ILedgerRepository {
                 isCloudSyncEnabled: Value(comp.isCloudSyncEnabled),
                 isDropboxSyncEnabled: Value(comp.isDropboxSyncEnabled),
                 isActive: Value(comp.isActive),
+                mode: Value(comp.mode.name),
+                enabledModulesJson: Value(jsonEncode(comp.enabledModules.map((m) => m.name).toList())),
                 isDeleted: const Value(false),
-                updatedAt: Value(DateTime.now()),
+                createdAt: Value(comp.createdAt),
+                updatedAt: Value(comp.updatedAt),
                 syncStatus: const Value(SyncRecordStatus.pending),
               ),
             );
+        await _postingEngine.seedAccountsFor(comp);
 
         await _db.into(_db.syncOutbox).insert(
               SyncOutboxCompanion.insert(
