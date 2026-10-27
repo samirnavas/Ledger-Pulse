@@ -4,8 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:real_liquid_glass/real_liquid_glass.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
@@ -18,7 +16,13 @@ import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../data/models/transaction_model.dart';
 import '../payments/cts2010_cheque_preview_screen.dart';
 import '../providers/ledger_providers.dart';
-
+import 'widgets/entry_amount_display.dart';
+import 'widgets/entry_attachment_picker_sheet.dart';
+import 'widgets/entry_header.dart';
+import 'widgets/entry_note_and_details.dart';
+import 'widgets/entry_numeric_keypad.dart';
+import 'widgets/entry_quick_presets_row.dart';
+import 'widgets/entry_type_switcher.dart';
 
 class AddEntryBottomSheet extends ConsumerStatefulWidget {
   final String partyId;
@@ -47,6 +51,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
   String? _receiptUrl;
   bool _isSubmitting = false;
   String? _errorMessage;
+
   bool get _isClean {
     if (widget.entryToEdit != null) {
       final entry = widget.entryToEdit!;
@@ -114,14 +119,12 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           _amountString += '.';
         }
       } else if (key == '0') {
-        if (_amountString == '0') {
-          // Keep single '0'
-        } else {
+        if (_amountString != '0') {
           final parts = _amountString.split('.');
-          if (parts.length > 1 && parts[1].length >= 2) {
-            // max 2 decimal places
-          } else if (_amountString.length <= 9) {
-            _amountString += '0';
+          if (parts.length <= 1 || parts[1].length < 2) {
+            if (_amountString.length <= 9) {
+              _amountString += '0';
+            }
           }
         }
       } else {
@@ -130,10 +133,10 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           _amountString = key;
         } else {
           final parts = _amountString.split('.');
-          if (parts.length > 1 && parts[1].length >= 2) {
-            // max 2 decimal places
-          } else if (_amountString.length <= 9) {
-            _amountString += key;
+          if (parts.length <= 1 || parts[1].length < 2) {
+            if (_amountString.length <= 9) {
+              _amountString += key;
+            }
           }
         }
       }
@@ -184,164 +187,14 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     }
   }
 
-  Future<void> _pickImage(ImageSource source) async {
-    HapticFeedback.lightImpact();
-    try {
-      final picker = ImagePicker();
-      final XFile? photo = await picker.pickImage(
-        source: source,
-        maxWidth: 1600,
-        maxHeight: 1600,
-        imageQuality: 85,
-      );
-      if (photo != null) {
-        setState(() {
-          _receiptUrl = photo.path;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Receipt attached successfully!'),
-              backgroundColor: AppColors.primaryBlue,
-              duration: Duration(seconds: 1),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to attach image: $e'),
-            backgroundColor: AppColors.payableRed,
-          ),
-        );
-      }
-    }
-  }
-
-  void _showAttachmentOptions() {
-    HapticFeedback.lightImpact();
-    final isIos = AdaptiveThemeHelper.isIos(context);
-
-    if (isIos) {
-      showCupertinoModalPopup(
-        context: context,
-        builder: (context) => CupertinoActionSheet(
-          title: const Text('Attach Bill / Receipt'),
-          message:
-              const Text('Select an image source for this transaction receipt'),
-          actions: [
-            CupertinoActionSheetAction(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _pickImage(ImageSource.camera);
-              },
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(CupertinoIcons.camera, size: 20),
-                  SizedBox(width: 8),
-                  Text('Take Photo'),
-                ],
-              ),
-            ),
-            CupertinoActionSheetAction(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _pickImage(ImageSource.gallery);
-              },
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(CupertinoIcons.photo, size: 20),
-                  SizedBox(width: 8),
-                  Text('Choose from Gallery'),
-                ],
-              ),
-            ),
-            if (_receiptUrl != null)
-              CupertinoActionSheetAction(
-                isDestructiveAction: true,
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  setState(() => _receiptUrl = null);
-                },
-                child: const Text('Remove Receipt'),
-              ),
-          ],
-          cancelButton: CupertinoActionSheetAction(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-        ),
-      );
-    } else {
-      showModalBottomSheet(
-        context: context,
-        showDragHandle: true,
-        enableDrag: true,
-        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-        barrierColor: Colors.black.withValues(alpha: 0.35),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        builder: (context) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Text(
-                    'Attach Bill / Receipt',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.camera_alt_rounded,
-                      color: AppColors.primaryBlue),
-                  title: const Text('Take Photo',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _pickImage(ImageSource.camera);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.photo_library_rounded,
-                      color: AppColors.primaryBlue),
-                  title: const Text('Choose from Gallery',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _pickImage(ImageSource.gallery);
-                  },
-                ),
-                if (_receiptUrl != null)
-                  ListTile(
-                    leading: const Icon(Icons.delete_outline_rounded,
-                        color: AppColors.payableRed),
-                    title: const Text(
-                      'Remove Receipt',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.payableRed,
-                      ),
-                    ),
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      setState(() => _receiptUrl = null);
-                    },
-                  ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
+  void _openAttachmentPicker() {
+    showEntryAttachmentPicker(
+      context: context,
+      currentReceiptUrl: _receiptUrl,
+      onReceiptChanged: (newUrl) {
+        setState(() => _receiptUrl = newUrl);
+      },
+    );
   }
 
   void _saveEntry() async {
@@ -449,186 +302,6 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     }
   }
 
-  Widget _buildKeypadButton({
-    required String label,
-    required VoidCallback onTap,
-    VoidCallback? onLongPress,
-    IconData? icon,
-    bool isAction = false,
-  }) {
-    final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark ||
-        CupertinoTheme.of(context).brightness == Brightness.dark;
-
-    final buttonBg = isDark
-        ? (isAction ? const Color(0xFF1C1C1C) : const Color(0xFF242424))
-        : (isAction
-            ? Theme.of(context).colorScheme.surfaceContainerHighest
-            : Theme.of(context).colorScheme.surfaceContainerHigh);
-    final buttonFg = isDark
-        ? Colors.white
-        : Theme.of(context).colorScheme.onSurface;
-    final borderColor = isDark
-        ? const Color(0xFF333333)
-        : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4);
-
-    if (isIos) {
-      return Expanded(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          height: 52,
-          child: RealLiquidGlass(
-            borderRadius: 16,
-            glassColor: buttonBg,
-            borderColor: borderColor,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  onTap();
-                },
-                onLongPress: onLongPress != null
-                    ? () {
-                        HapticFeedback.mediumImpact();
-                        onLongPress();
-                      }
-                    : null,
-                borderRadius: BorderRadius.circular(16),
-                child: Center(
-                  child: icon != null
-                      ? Icon(
-                          icon,
-                          size: 22,
-                          color: buttonFg,
-                        )
-                      : Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: label == '.' ? 26 : 24,
-                            fontWeight: FontWeight.w700,
-                            color: buttonFg,
-                          ),
-                        ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-        child: SizedBox(
-          height: 52,
-          child: FilledButton.tonal(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              onTap();
-            },
-            onLongPress: onLongPress != null
-                ? () {
-                    HapticFeedback.mediumImpact();
-                    onLongPress();
-                  }
-                : null,
-            style: ButtonStyle(
-              backgroundColor: WidgetStatePropertyAll(buttonBg),
-              foregroundColor: WidgetStatePropertyAll(buttonFg),
-              side: WidgetStatePropertyAll(
-                BorderSide(color: borderColor, width: 1),
-              ),
-              shape: WidgetStatePropertyAll(
-                RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              padding: const WidgetStatePropertyAll(
-                EdgeInsets.symmetric(vertical: 8),
-              ),
-            ),
-            child: icon != null
-                ? Icon(icon, size: 22, color: buttonFg)
-                : Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: label == '.' ? 26 : 24,
-                      fontWeight: FontWeight.w700,
-                      color: buttonFg,
-                    ),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickPresetChip(int amount) {
-    final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark ||
-        CupertinoTheme.of(context).brightness == Brightness.dark;
-    final isGave = _entryType == EntryType.gave;
-    final themeColor =
-        isGave ? AppColors.payableRed : AppColors.receivableGreen;
-
-    if (isIos) {
-      return Expanded(
-        child: GestureDetector(
-          onTap: () => _addQuickPreset(amount),
-          child: RealLiquidGlass(
-            borderRadius: 22,
-            glassColor: themeColor.withValues(alpha: isDark ? 0.18 : 0.1),
-            borderColor: themeColor.withValues(alpha: isDark ? 0.35 : 0.25),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              padding: const EdgeInsets.symmetric(vertical: 9),
-              child: Center(
-                child: Text(
-                  '+₹$amount',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: themeColor,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: ActionChip(
-          onPressed: () => _addQuickPreset(amount),
-          label: Center(
-            child: Text(
-              '+₹$amount',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: themeColor,
-              ),
-            ),
-          ),
-          side: BorderSide(
-            color: isDark
-                ? const Color(0xFF282828)
-                : Theme.of(context).colorScheme.outlineVariant,
-          ),
-          backgroundColor: isDark
-              ? const Color(0xFF1E1E1E)
-              : Theme.of(context).colorScheme.surfaceContainerHigh,
-          shape: const StadiumBorder(),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
@@ -694,519 +367,110 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                 child: SingleChildScrollView(
                   controller: scrollController,
                   physics: const ClampingScrollPhysics(),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Top Drag Handle (centered on card)
-                        const ModalDragHandle(
-                          margin: EdgeInsets.only(bottom: 12.0),
-                        ),
-
-                        // Top Header: Type Indicator & Party Name
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: themeColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    widget.entryToEdit != null
-                                        ? (isIos ? CupertinoIcons.pencil : Icons.edit_outlined)
-                                        : (isGave
-                                            ? (isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded)
-                                            : (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded)),
-                                    size: 15,
-                                    color: themeColor,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    widget.entryToEdit != null
-                                        ? 'EDIT ENTRY'
-                                        : (isGave ? 'YOU GAVE' : 'YOU GOT'),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      color: themeColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                widget.partyName,
-                                style: AppTypography.titleMedium
-                                    .copyWith(fontSize: 15),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                  const SizedBox(height: 10),
-
-                  // Type Switcher: You Gave vs You Got
-                  Container(
-                    decoration: BoxDecoration(
-                      color: isIos
-                          ? CupertinoColors.systemGrey5
-                          : Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest
-                              .withValues(alpha: 0.5),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.all(4),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              setState(() => _entryType = EntryType.gave);
-                            },
-                            child: Container(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 9),
-                              decoration: BoxDecoration(
-                                color: isGave
-                                    ? AppColors.payableRed
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: isGave
-                                    ? [
-                                        BoxShadow(
-                                          color: AppColors.payableRed
-                                              .withValues(alpha: 0.3),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '- You Gave',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: isGave
-                                        ? Colors.white
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              HapticFeedback.lightImpact();
-                              setState(() => _entryType = EntryType.got);
-                            },
-                            child: Container(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 9),
-                              decoration: BoxDecoration(
-                                color: !isGave
-                                    ? AppColors.receivableGreen
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: !isGave
-                                    ? [
-                                        BoxShadow(
-                                          color: AppColors.receivableGreen
-                                              .withValues(alpha: 0.3),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '+ You Got',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: !isGave
-                                        ? Colors.white
-                                        : Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Giant Typographic Amount Display (No system keyboard popup)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isIos
-                          ? (Theme.of(context).brightness == Brightness.dark
-                              ? CupertinoColors.systemBackground.darkColor
-                              : CupertinoColors.white)
-                          : Theme.of(context)
-                              .colorScheme
-                              .surfaceContainer,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _errorMessage != null
-                            ? AppColors.payableRed
-                            : themeColor.withValues(
-                                alpha: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? 0.4
-                                    : 0.3),
-                        width: 1.5,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Top Drag Handle (centered on card)
+                      const ModalDragHandle(
+                        margin: EdgeInsets.only(bottom: 12.0),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
+
+                      // Top Header: Type Indicator & Party Name
+                      EntryHeader(
+                        partyName: widget.partyName,
+                        isEdit: widget.entryToEdit != null,
+                        entryType: _entryType,
+                        themeColor: themeColor,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Type Switcher: You Gave vs You Got
+                      EntryTypeSwitcher(
+                        entryType: _entryType,
+                        onTypeChanged: (newType) {
+                          setState(() => _entryType = newType);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Giant Typographic Amount Display (No system keyboard popup)
+                      EntryAmountDisplay(
+                        amountString: _amountString,
+                        themeColor: themeColor,
+                        errorMessage: _errorMessage,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Quick Preset Chips (+₹100, +₹500, +₹1000, +₹5000)
+                      EntryQuickPresetsRow(
+                        entryType: _entryType,
+                        onAddPreset: _addQuickPreset,
+                      ),
+
+                      // Entry name text box and date/attachments
+                      const SizedBox(height: 10),
+                      EntryNoteAndDetails(
+                        noteController: _noteController,
+                        selectedDate: _selectedDate,
+                        receiptUrl: _receiptUrl,
+                        themeColor: themeColor,
+                        onPickDate: _pickDate,
+                        onOpenAttachmentPicker: _openAttachmentPicker,
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Custom Oversized On-Screen Numeric Keypad (0-9, ., ⌫)
+                      EntryNumericKeypad(
+                        themeColor: themeColor,
+                        onKeyTap: _onKeypadTap,
+                        onLongPressBackspace: _onKeypadLongPressBackspace,
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Instant Submission Button
+                      AdaptiveButton(
+                        onPressed: _saveEntry,
+                        isFullWidth: true,
+                        height: 52,
+                        type: isGave
+                            ? AdaptiveButtonType.destructive
+                            : AdaptiveButtonType.success,
+                        isLoading: _isSubmitting,
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              '₹',
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w800,
-                                color: themeColor,
-                              ),
+                            Icon(
+                              isGave
+                                  ? (isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded)
+                                  : (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded),
+                              size: 20,
+                              color: Colors.white,
                             ),
                             const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(
-                                _amountString,
-                                style: TextStyle(
-                                  fontSize:
-                                      _amountString.length > 6 ? 34 : 42,
-                                  fontWeight: FontWeight.w900,
-                                  color: themeColor,
-                                  letterSpacing: 0.5,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            Text(
+                              widget.entryToEdit != null
+                                  ? 'Update ${_entryType == EntryType.gave ? "You Gave" : "You Got"} Entry'
+                                  : 'Save ${_entryType == EntryType.gave ? "You Gave" : "You Got"} Entry',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
                               ),
                             ),
                           ],
                         ),
-                        if (rawAmountCents > 0)
-                          Text(
-                            formattedDisplay,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isDark
-                                  ? const Color(0xFFA1A1AA)
-                                  : AppColors.textMutedLight,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 6),
-                    Center(
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(
-                          color: AppColors.payableRed,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 10),
-
-                  // Quick Preset Chips (+₹100, +₹500, +₹1000, +₹5000)
-                  Row(
-                    children: [
-                      _buildQuickPresetChip(100),
-                      _buildQuickPresetChip(500),
-                      _buildQuickPresetChip(1000),
-                      _buildQuickPresetChip(5000),
-                    ],
-                  ),
-
-                  // Entry name text box
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _noteController,
-                    textCapitalization: TextCapitalization.sentences,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: 'Entry name',
-                      labelStyle: TextStyle(
-                        fontSize: 13,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      hintText: 'e.g. Chai, Lunch, Bill #104, Quality...',
-                      hintStyle: TextStyle(
-                        fontSize: 12,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                      ),
-                      prefixIcon: Icon(
-                        isIos ? CupertinoIcons.tag : Icons.label_outline_rounded,
-                        size: 20,
-                        color: themeColor,
-                      ),
-                      suffixIcon: _noteController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 18),
-                              onPressed: () {
-                                _noteController.clear();
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: isDark
-                          ? const Color(0xFF141414)
-                          : Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest
-                              .withValues(alpha: 0.4),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: isDark
-                              ? const Color(0xFF282828)
-                              : Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: isDark
-                              ? const Color(0xFF282828)
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .outlineVariant
-                                  .withValues(alpha: 0.6),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(
-                          color: themeColor,
-                          width: 1.5,
-                        ),
-                      ),
-                      isDense: true,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // Date & Attach Receipt row
-                  Row(
-                    children: [
-                      // Date Chip
-                      OutlinedButton.icon(
-                        onPressed: _pickDate,
-                        icon: Icon(
-                          isIos
-                              ? CupertinoIcons.calendar
-                              : Icons.calendar_today_rounded,
-                          size: 14,
-                        ),
-                        label: Text(
-                          DateFormatter.formatRelative(_selectedDate),
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          minimumSize: const Size(0, 36),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-
-                      // Attach Bill Button
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _showAttachmentOptions,
-                          icon: Icon(
-                            _receiptUrl != null
-                                ? (isIos
-                                    ? CupertinoIcons.checkmark_circle_fill
-                                    : Icons.check_circle_rounded)
-                                : (isIos
-                                    ? CupertinoIcons.camera
-                                    : Icons.camera_alt_outlined),
-                            size: 14,
-                            color: _receiptUrl != null
-                                ? AppColors.primaryBlue
-                                : AppColors.textSecondaryLight,
-                          ),
-                          label: Text(
-                            _receiptUrl != null
-                                ? 'Bill Attached'
-                                : 'Attach Bill',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _receiptUrl != null
-                                  ? AppColors.primaryBlue
-                                  : AppColors.textSecondaryLight,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
-                            minimumSize: const Size(0, 36),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 10),
-
-                  // Custom Oversized On-Screen Numeric Keypad (0-9, ., ⌫)
-                  Column(
-                    children: [
-                      Row(
-                        children: [
-                          _buildKeypadButton(
-                              label: '1', onTap: () => _onKeypadTap('1')),
-                          _buildKeypadButton(
-                              label: '2', onTap: () => _onKeypadTap('2')),
-                          _buildKeypadButton(
-                              label: '3', onTap: () => _onKeypadTap('3')),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          _buildKeypadButton(
-                              label: '4', onTap: () => _onKeypadTap('4')),
-                          _buildKeypadButton(
-                              label: '5', onTap: () => _onKeypadTap('5')),
-                          _buildKeypadButton(
-                              label: '6', onTap: () => _onKeypadTap('6')),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          _buildKeypadButton(
-                              label: '7', onTap: () => _onKeypadTap('7')),
-                          _buildKeypadButton(
-                              label: '8', onTap: () => _onKeypadTap('8')),
-                          _buildKeypadButton(
-                              label: '9', onTap: () => _onKeypadTap('9')),
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          _buildKeypadButton(
-                            label: '.',
-                            onTap: () => _onKeypadTap('.'),
-                            isAction: true,
-                          ),
-                          _buildKeypadButton(
-                              label: '0', onTap: () => _onKeypadTap('0')),
-                          _buildKeypadButton(
-                            label: '',
-                            icon: isIos
-                                ? CupertinoIcons.delete_left
-                                : Icons.backspace_outlined,
-                            onTap: () => _onKeypadTap('backspace'),
-                            onLongPress: _onKeypadLongPressBackspace,
-                            isAction: true,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Instant Submission Button
-                  AdaptiveButton(
-                    onPressed: _saveEntry,
-                    isFullWidth: true,
-                    height: 52,
-                    type: isGave
-                        ? AdaptiveButtonType.destructive
-                        : AdaptiveButtonType.success,
-                    isLoading: _isSubmitting,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          isGave
-                              ? (isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded)
-                              : (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded),
-                          size: 20,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          widget.entryToEdit != null
-                              ? 'Update ${_entryType == EntryType.gave ? "You Gave" : "You Got"} Entry'
-                              : 'Save ${_entryType == EntryType.gave ? "You Gave" : "You Got"} Entry',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+                ),
+              );
+            },
+          ),
+        ),
       ),
-    ),
-  ),
-);
+    );
   }
 }
