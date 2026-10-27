@@ -150,7 +150,7 @@ class _AdaptiveFormSheetWrapper extends StatelessWidget {
                       if (isIos)
                         CupertinoButton(
                           padding: EdgeInsets.zero,
-                          minSize: 32,
+                          minimumSize: const Size.square(32),
                           onPressed: () => Navigator.of(context).pop(),
                           child: const Text('Cancel'),
                         )
@@ -177,7 +177,7 @@ class _AdaptiveFormSheetWrapper extends StatelessWidget {
                         if (isIos)
                           CupertinoButton(
                             padding: EdgeInsets.zero,
-                            minSize: 32,
+                            minimumSize: const Size.square(32),
                             onPressed: onDone ?? () => Navigator.of(context).pop(),
                             child: Text(
                               doneLabel!,
