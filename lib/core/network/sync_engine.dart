@@ -204,7 +204,7 @@ class SyncEngine {
 
       final rows = companyId == null
           ? allRows
-          : allRows.where((r) => r.companyId == companyId).toList();
+          : allRows.where((r) => r.companyId == companyId || r.companyId.isEmpty || r.tableName == 'user_profiles' || r.tableName == 'companies').toList();
 
       if (rows.isEmpty) {
         setStatus(SyncStatus.idle);
@@ -499,7 +499,7 @@ class SyncEngine {
           final bankAccountNumber = (map['bank_account_number'] ?? map['bankAccountNumber']) as String?;
           final bankIfsc = (map['bank_ifsc'] ?? map['bankIfsc']) as String?;
           final upiId = (map['upi_id'] ?? map['upiId']) as String?;
-          final activeCompanyId = (map['active_company_id'] ?? map['activeCompanyId']) as String? ?? 'cmp_default';
+          final remoteActiveCompanyId = (map['active_company_id'] ?? map['activeCompanyId']) as String?;
           final role = map['role'] as String? ?? 'admin';
           final companiesJson = map['companies_json'] != null
               ? (map['companies_json'] is String ? map['companies_json'] as String : jsonEncode(map['companies_json']))
@@ -507,6 +507,16 @@ class SyncEngine {
           final isDeleted = _toBool(map['is_deleted'] ?? map['isDeleted'], defaultValue: false);
           final createdAtStr = map['created_at'] as String?;
           final updatedAtStr = map['updated_at'] as String?;
+
+          // Preserve the local device's active company selection so background sync or pull does not revert it
+          final existingLocalProf = await (db.select(db.userProfiles)..where((t) => t.id.equals(profId))).getSingleOrNull();
+          final effectiveActiveCompanyId = (existingLocalProf != null &&
+                  existingLocalProf.activeCompanyId.isNotEmpty &&
+                  existingLocalProf.activeCompanyId != 'cmp_default')
+              ? existingLocalProf.activeCompanyId
+              : ((remoteActiveCompanyId != null && remoteActiveCompanyId.isNotEmpty)
+                  ? remoteActiveCompanyId
+                  : 'cmp_default');
 
           await db.into(db.userProfiles).insertOnConflictUpdate(
             UserProfilesCompanion(
@@ -522,7 +532,7 @@ class SyncEngine {
               bankAccountNumber: Value(bankAccountNumber),
               bankIfsc: Value(bankIfsc),
               upiId: Value(upiId),
-              activeCompanyId: Value(activeCompanyId),
+              activeCompanyId: Value(effectiveActiveCompanyId),
               role: Value(role),
               companiesJson: Value(companiesJson),
               isDeleted: Value(isDeleted),
