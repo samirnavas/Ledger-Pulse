@@ -303,16 +303,16 @@ void main() {
 
       // Day header and transactions present
       expect(find.text('Today'), findsOneWidget);
-      expect(find.text('Italian Pasta'), findsOneWidget);
-      expect(find.text('Freelance Design'), findsOneWidget);
+      expect(find.textContaining('Italian Pasta'), findsOneWidget);
+      expect(find.textContaining('Freelance Design'), findsOneWidget);
 
       // Search filtering
       final searchField = find.byKey(const Key('transaction_search_field'));
       await tester.enterText(searchField, 'Pasta');
       await tester.pumpAndSettle();
 
-      expect(find.text('Italian Pasta'), findsOneWidget);
-      expect(find.text('Freelance Design'), findsNothing);
+      expect(find.textContaining('Italian Pasta'), findsOneWidget);
+      expect(find.textContaining('Freelance Design'), findsNothing);
 
       // Clear search
       await tester.enterText(searchField, '');
@@ -322,8 +322,8 @@ void main() {
       await tester.tap(find.text('Income'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Freelance Design'), findsOneWidget);
-      expect(find.text('Italian Pasta'), findsNothing);
+      expect(find.textContaining('Freelance Design'), findsOneWidget);
+      expect(find.textContaining('Italian Pasta'), findsNothing);
     });
 
     testWidgets('TransactionsScreen displays EmptyStateView when no transactions match',

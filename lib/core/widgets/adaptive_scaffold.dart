@@ -15,6 +15,7 @@ class AdaptiveScaffold extends StatelessWidget {
   final PreferredSizeWidget? bottomAppBar;
   final Widget? leading;
   final Widget? drawer;
+  final GlobalKey<ScaffoldState>? scaffoldKey;
 
   const AdaptiveScaffold({
     super.key,
@@ -28,6 +29,7 @@ class AdaptiveScaffold extends StatelessWidget {
     this.bottomAppBar,
     this.leading,
     this.drawer,
+    this.scaffoldKey,
   });
 
   @override
@@ -84,6 +86,7 @@ class AdaptiveScaffold extends StatelessWidget {
 
       if (drawer != null) {
         return Scaffold(
+          key: scaffoldKey,
           drawer: drawer,
           backgroundColor: Colors.transparent,
           body: cupertinoScaffold,
@@ -105,6 +108,7 @@ class AdaptiveScaffold extends StatelessWidget {
               isDark ? Brightness.light : Brightness.dark,
         ),
         child: Scaffold(
+          key: scaffoldKey,
           backgroundColor: backgroundColor ?? (isDark ? Colors.black : scheme.surfaceContainerLow),
           appBar: AppBar(
             leading: leading,

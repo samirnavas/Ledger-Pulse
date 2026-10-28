@@ -41,4 +41,29 @@ class AppColors {
   static const Color cupertinoSystemBackground = Color(0xFFF2F2F7);
   static const Color cupertinoGroupedBackground = Color(0xFFFFFFFF);
   static const Color cupertinoBarBackground = Color(0xCCF8FAFC);
+
+  // Semantic Transaction Colors (Income, Expense, Transfer)
+  static const Color incomeLight = Color(0xFF16A34A);
+  static const Color incomeDark = Color(0xFF4ADE80);
+
+  static const Color expenseLight = Color(0xFFDC2626);
+  static const Color expenseDark = Color(0xFFF87171);
+
+  static const Color transferLight = Color(0xFF2563EB);
+  static const Color transferDark = Color(0xFF60A5FA);
+
+  static Color income(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? incomeDark : incomeLight;
+
+  static Color expense(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? expenseDark : expenseLight;
+
+  static Color transfer(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? transferDark : transferLight;
+}
+
+extension SemanticColorScheme on ColorScheme {
+  Color get income => brightness == Brightness.dark ? AppColors.incomeDark : AppColors.incomeLight;
+  Color get expense => brightness == Brightness.dark ? AppColors.expenseDark : AppColors.expenseLight;
+  Color get transfer => brightness == Brightness.dark ? AppColors.transferDark : AppColors.transferLight;
 }

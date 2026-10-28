@@ -144,6 +144,14 @@ class EInvoiceEWayBillService {
     }
 
     // 3. Validate Supplier & Buyer GSTINs
+    if (supplierGstin.trim().isEmpty) {
+      return EInvoiceGenerationResult(
+        success: false,
+        errorMessage:
+            'Company GSTIN is missing. Please add the company GSTIN in company settings before generating e-Invoice.',
+        updatedQuota: _quota,
+      );
+    }
     if (!_gstValidator.isValidGstin(supplierGstin)) {
       return EInvoiceGenerationResult(
         success: false,
@@ -221,6 +229,14 @@ class EInvoiceEWayBillService {
     }
 
     // 2. Enforce Bill-To / Ship-To URP or GSTIN check
+    if (supplierGstin.trim().isEmpty) {
+      return EWayBillGenerationResult(
+        success: false,
+        errorMessage:
+            'Company GSTIN is missing. Please add the company GSTIN in company settings before generating e-Way Bill.',
+        updatedQuota: _quota,
+      );
+    }
     try {
       validateShipToParty(
         isBillToShipToDifferent: isBillToShipToDifferent,

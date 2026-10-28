@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/adaptive_theme.dart';
+import '../../core/constants/colors.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
@@ -42,51 +43,63 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
     Map<String, dynamic> jsonPayload;
     String filePrefix;
 
-    if (report.id == 'rpt_gstr1') {
-      jsonPayload = GstrJsonEngine.generateGstr1Json(
-        company: company,
-        salesVouchers: vouchers,
-        parties: parties,
-        returnPeriod: '092026',
-      );
-      filePrefix = 'GSTR1_Returns';
-    } else if (report.id == 'rpt_gstr2') {
-      jsonPayload = GstrJsonEngine.generateGstr2Json(
-        company: company,
-        purchaseVouchers: vouchers,
-        parties: parties,
-        returnPeriod: '092026',
-      );
-      filePrefix = 'GSTR2_Inward';
-    } else if (report.id == 'rpt_gstr3b') {
-      jsonPayload = GstrJsonEngine.generateGstr3bJson(
-        company: company,
-        salesVouchers: vouchers,
-        purchaseVouchers: vouchers,
-        returnPeriod: '092026',
-      );
-      filePrefix = 'GSTR3B_Monthly';
-    } else if (report.id == 'rpt_gstr4') {
-      jsonPayload = GstrJsonEngine.generateGstr4Json(
-        company: company,
-        vouchers: vouchers,
-        financialYear: '2026-27',
-      );
-      filePrefix = 'GSTR4_Composition';
-    } else if (report.id == 'rpt_gstr9') {
-      jsonPayload = GstrJsonEngine.generateGstr9Json(
-        company: company,
-        salesVouchers: vouchers,
-        purchaseVouchers: vouchers,
-        financialYear: '2026-27',
-      );
-      filePrefix = 'GSTR9_Annual';
-    } else {
-      jsonPayload = GstrJsonEngine.generateGstr2aReconciliationJson(
-        booksPurchases: vouchers,
-        portal2aFeed: [],
-      );
-      filePrefix = 'GSTR2A_Reconciliation';
+    try {
+      if (report.id == 'rpt_gstr1') {
+        jsonPayload = GstrJsonEngine.generateGstr1Json(
+          company: company,
+          salesVouchers: vouchers,
+          parties: parties,
+          returnPeriod: '092026',
+        );
+        filePrefix = 'GSTR1_Returns';
+      } else if (report.id == 'rpt_gstr2') {
+        jsonPayload = GstrJsonEngine.generateGstr2Json(
+          company: company,
+          purchaseVouchers: vouchers,
+          parties: parties,
+          returnPeriod: '092026',
+        );
+        filePrefix = 'GSTR2_Inward';
+      } else if (report.id == 'rpt_gstr3b') {
+        jsonPayload = GstrJsonEngine.generateGstr3bJson(
+          company: company,
+          salesVouchers: vouchers,
+          purchaseVouchers: vouchers,
+          returnPeriod: '092026',
+        );
+        filePrefix = 'GSTR3B_Monthly';
+      } else if (report.id == 'rpt_gstr4') {
+        jsonPayload = GstrJsonEngine.generateGstr4Json(
+          company: company,
+          vouchers: vouchers,
+          financialYear: '2026-27',
+        );
+        filePrefix = 'GSTR4_Composition';
+      } else if (report.id == 'rpt_gstr9') {
+        jsonPayload = GstrJsonEngine.generateGstr9Json(
+          company: company,
+          salesVouchers: vouchers,
+          purchaseVouchers: vouchers,
+          financialYear: '2026-27',
+        );
+        filePrefix = 'GSTR9_Annual';
+      } else {
+        jsonPayload = GstrJsonEngine.generateGstr2aReconciliationJson(
+          booksPurchases: vouchers,
+          portal2aFeed: [],
+        );
+        filePrefix = 'GSTR2A_Reconciliation';
+      }
+    } on GstrValidationException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: AppColors.payableRed,
+          ),
+        );
+      }
+      return;
     }
 
     final formattedJson = GstrJsonEngine.formatJson(jsonPayload);

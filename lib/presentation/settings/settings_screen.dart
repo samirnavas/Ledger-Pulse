@@ -255,12 +255,10 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                         onTap: () {
                           HapticFeedback.mediumImpact();
-                          _showUpgradeConfirmationDialog(
+                          showUpgradeDialog(
                             context,
                             ref,
                             activeCompany,
-                            isIos,
-                            isDark,
                           );
                         },
                       ),
@@ -709,13 +707,12 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showUpgradeConfirmationDialog(
+  static Future<void> showUpgradeDialog(
     BuildContext context,
     WidgetRef ref,
     Company company,
-    bool isIos,
-    bool isDark,
   ) async {
+    final isIos = AdaptiveThemeHelper.isIos(context);
     String selectedPreset = ModulePresets.billingAndGst;
     final presets = [
       ModulePresets.billingAndGst,

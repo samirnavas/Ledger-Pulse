@@ -14,6 +14,7 @@ import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../core/widgets/splitting_fab.dart';
 import '../../core/widgets/spring_morphing_fab.dart';
+import '../../core/widgets/subscription_alert_banner.dart';
 import '../../data/models/party_model.dart';
 import '../integrations/ecommerce_sync_screen.dart';
 import '../integrations/third_party_import_screen.dart';
@@ -292,119 +293,10 @@ class DashboardScreen extends ConsumerWidget {
     bool isPayrollEnabled = true,
     bool isGstEnabled = true,
   }) {
-    if (!sub.isExpired && (!sub.isTrial || sub.daysRemaining > 3)) {
-      return const SizedBox.shrink();
-    }
-
-    final isExpired = sub.isExpired;
-    final title = isExpired
-        ? 'Subscription Expired'
-        : 'Trial Ending in ${sub.daysRemaining} Days';
-
-    final features = <String>[];
-    if (isPayrollEnabled) features.add('payroll');
-    if (isGstEnabled) features.add('GST e-Way bills');
-    features.add('unlimited companies');
-
-    final message = isExpired
-        ? 'Your access to advanced modules and sync is paused. Tap to renew now.'
-        : 'Upgrade to keep ${features.join(", ")}.';
-
-    final content = InkWell(
-      onTap: () {
-        HapticFeedback.mediumImpact();
-        Navigator.of(context).push(
-          createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: (isExpired ? AppColors.payableRed : Colors.amber.shade700).withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                isIos
-                    ? (isExpired ? CupertinoIcons.exclamationmark_triangle_fill : CupertinoIcons.timer)
-                    : (isExpired ? Icons.warning_rounded : Icons.timer_rounded),
-                color: isExpired ? AppColors.payableRed : Colors.amber.shade700,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: isExpired ? AppColors.payableRed : Colors.amber.shade800,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    message,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: (isExpired ? AppColors.payableRed : AppColors.primaryBlue),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'UPGRADE',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 11,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (isIos) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-        child: LiquidGlassCard(
-          borderRadius: 16,
-          padding: EdgeInsets.zero,
-          child: content,
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: (isExpired ? AppColors.payableRed : Colors.amber.shade400).withValues(alpha: 0.6),
-          ),
-        ),
-        color: (isExpired ? AppColors.payableRed : Colors.amber).withValues(alpha: isDark ? 0.12 : 0.06),
-        child: content,
-      ),
+    return SubscriptionAlertBanner(
+      subscription: sub,
+      isPayrollEnabled: isPayrollEnabled,
+      isGstEnabled: isGstEnabled,
     );
   }
 

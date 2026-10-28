@@ -8,6 +8,7 @@ import '../../data/models/company_model.dart';
 import '../../data/models/gst_models.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/voucher_model.dart';
+import '../../data/services/gst_validation_service.dart';
 
 /// Dynamic Invoice PDF Document Generator supporting 4 unique templates,
 /// logo & signature embedding, and full statutory GST reporting.
@@ -324,10 +325,16 @@ class InvoicePdfGenerator {
                         company.address ?? 'Registered Business Address',
                         style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
                       ),
-                      pw.Text(
-                        'GSTIN: ${company.gstin ?? "N/A"} • Email: ${company.email ?? ""}',
-                        style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
-                      ),
+                      if (company.gstin != null && company.gstin!.trim().isNotEmpty)
+                        pw.Text(
+                          'GSTIN: ${company.gstin}${company.email != null && company.email!.isNotEmpty ? " • Email: ${company.email}" : ""}',
+                          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
+                        )
+                      else if (company.email != null && company.email!.isNotEmpty)
+                        pw.Text(
+                          'Email: ${company.email}',
+                          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
+                        ),
                     ],
                   ),
                   pw.Column(
@@ -476,7 +483,7 @@ class InvoicePdfGenerator {
                       company.legalName,
                       style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
                     ),
-                    pw.Text('GSTIN: ${company.gstin ?? "29ABCDE1234F1ZH"} • State: Karnataka (29)', style: const pw.TextStyle(fontSize: 9)),
+                    _buildCompanyGstinAndState(company),
                     if (company.address != null)
                       pw.Text(company.address!, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
                   ],
@@ -894,5 +901,25 @@ class InvoicePdfGenerator {
         pw.Text(config.authorizedSignatoryDesignation, style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey700)),
       ],
     );
+  }
+
+  static pw.Widget _buildCompanyGstinAndState(Company company) {
+    final hasGstin = company.gstin != null && company.gstin!.trim().isNotEmpty;
+    final stateCode = company.stateCode ?? (hasGstin ? GstValidationService.extractStateCode(company.gstin!) : null);
+    final stateName = stateCode != null ? GstValidationService.stateCodeMap[stateCode] : null;
+    final stateText = stateName != null && stateCode != null
+        ? 'State: $stateName ($stateCode)'
+        : (stateName != null
+            ? 'State: $stateName'
+            : (stateCode != null ? 'State: $stateCode' : null));
+
+    if (hasGstin && stateText != null) {
+      return pw.Text('GSTIN: ${company.gstin} • $stateText', style: const pw.TextStyle(fontSize: 9));
+    } else if (hasGstin) {
+      return pw.Text('GSTIN: ${company.gstin}', style: const pw.TextStyle(fontSize: 9));
+    } else if (stateText != null) {
+      return pw.Text(stateText, style: const pw.TextStyle(fontSize: 9));
+    }
+    return pw.SizedBox.shrink();
   }
 }

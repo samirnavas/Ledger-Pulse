@@ -148,5 +148,59 @@ void main() {
       expect(pdfBytes, isNotNull);
       expect(pdfBytes.length, greaterThan(1000));
     });
+
+    test('generates invoices without GSTIN line when GSTIN is missing and uses real stateCode/state name', () async {
+      final companyWithRealStateNoGstin = Company(
+        id: 'cmp_no_gstin_state',
+        name: 'Maharashtra Traders',
+        legalName: 'Maharashtra Traders LLP',
+        gstin: null,
+        stateCode: '27', // Maharashtra
+        currencyCode: 'INR',
+        address: 'Nariman Point, Mumbai, India',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      );
+
+      for (final template in InvoiceTemplateType.values) {
+        final pdfBytes = await InvoicePdfGenerator.generateInvoicePdf(
+          voucher: testVoucher,
+          company: companyWithRealStateNoGstin,
+          party: testParty,
+          templateType: template,
+        );
+
+        expect(pdfBytes, isNotNull);
+        expect(pdfBytes.length, greaterThan(1000));
+        expect(String.fromCharCodes(pdfBytes.sublist(0, 4)), equals('%PDF'));
+      }
+    });
+
+    test('generates invoices without GSTIN or state line when both GSTIN and stateCode are null', () async {
+      final companyNoGstinNoState = Company(
+        id: 'cmp_no_gstin_no_state',
+        name: 'Plain Global Services',
+        legalName: 'Plain Global Services Pvt Ltd',
+        gstin: null,
+        stateCode: null,
+        currencyCode: 'INR',
+        address: 'MG Road, Bangalore, India',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      );
+
+      for (final template in InvoiceTemplateType.values) {
+        final pdfBytes = await InvoicePdfGenerator.generateInvoicePdf(
+          voucher: testVoucher,
+          company: companyNoGstinNoState,
+          party: testParty,
+          templateType: template,
+        );
+
+        expect(pdfBytes, isNotNull);
+        expect(pdfBytes.length, greaterThan(1000));
+        expect(String.fromCharCodes(pdfBytes.sublist(0, 4)), equals('%PDF'));
+      }
+    });
   });
 }

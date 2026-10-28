@@ -3,9 +3,27 @@ import '../models/company_model.dart';
 import '../models/party_model.dart';
 import '../models/voucher_model.dart';
 
+class GstrValidationException implements Exception {
+  final String message;
+  const GstrValidationException(this.message);
+
+  @override
+  String toString() => message;
+}
+
 /// Engine to aggregate transactions and generate statutory GSTR JSON payloads
 /// matching the exact schemas prescribed by the Indian Goods and Services Tax Network (GSTN).
 class GstrJsonEngine {
+  static String _requireCompanyGstin(Company company) {
+    final gstin = company.gstin?.trim() ?? '';
+    if (gstin.isEmpty) {
+      throw const GstrValidationException(
+        'Company GSTIN is missing. Please add the company GSTIN in company settings before generating GSTR reports.',
+      );
+    }
+    return gstin;
+  }
+
   /// Generates official GSTR-1 Outward Supplies JSON for upload to gst.gov.in
   static Map<String, dynamic> generateGstr1Json({
     required Company company,
@@ -15,8 +33,8 @@ class GstrJsonEngine {
     double previousYearGrossTurnover = 15000000.0,
   }) {
     final partyMap = {for (var p in parties) p.id: p};
-    final companyGstin = company.gstin ?? '29ABCDE1234F1ZH';
-    final supplierState = company.stateCode ?? companyGstin.substring(0, 2);
+    final companyGstin = _requireCompanyGstin(company);
+    final supplierState = company.stateCode ?? (companyGstin.length >= 2 ? companyGstin.substring(0, 2) : '29');
 
     final List<Map<String, dynamic>> b2bList = [];
     final List<Map<String, dynamic>> b2clList = [];
@@ -245,7 +263,7 @@ class GstrJsonEngine {
     required String returnPeriod,
   }) {
     final partyMap = {for (var p in parties) p.id: p};
-    final companyGstin = company.gstin ?? '29ABCDE1234F1ZH';
+    final companyGstin = _requireCompanyGstin(company);
 
     final List<Map<String, dynamic>> b2bList = [];
 
@@ -397,7 +415,7 @@ class GstrJsonEngine {
     required List<VoucherModel> purchaseVouchers,
     required String returnPeriod,
   }) {
-    final companyGstin = company.gstin ?? '29ABCDE1234F1ZH';
+    final companyGstin = _requireCompanyGstin(company);
 
     // 1. Table 3.1: Details of Outward Supplies and inward supplies liable to reverse charge
     double osupTaxable = 0.0;
@@ -483,7 +501,7 @@ class GstrJsonEngine {
     required List<VoucherModel> vouchers,
     required String financialYear, // e.g. "2026-27"
   }) {
-    final companyGstin = company.gstin ?? '27AACCS9005K1Z1';
+    final companyGstin = _requireCompanyGstin(company);
 
     double totalTurnover = 0.0;
     for (final v in vouchers) {
@@ -518,7 +536,7 @@ class GstrJsonEngine {
     required List<VoucherModel> purchaseVouchers,
     required String financialYear,
   }) {
-    final companyGstin = company.gstin ?? '29ABCDE1234F1ZH';
+    final companyGstin = _requireCompanyGstin(company);
 
     double totalOutwardTaxable = 0.0;
     double totalCgst = 0.0;

@@ -19,6 +19,15 @@ import '../providers/expense_providers.dart';
 class BudgetsScreen extends ConsumerStatefulWidget {
   const BudgetsScreen({super.key});
 
+  /// Opens the add/edit budget bottom sheet.
+  static Future<void> showAddBudgetSheet(
+    BuildContext context,
+    WidgetRef ref, {
+    BudgetModel? existingBudget,
+  }) =>
+      _BudgetsScreenState.showAddEditBudgetSheetStatic(context, ref,
+          existingBudget: existingBudget);
+
   @override
   ConsumerState<BudgetsScreen> createState() => _BudgetsScreenState();
 }
@@ -27,6 +36,14 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
   // Show Add/Edit Budget Sheet
   Future<void> _showAddEditBudgetSheet(
     BuildContext context, {
+    BudgetModel? existingBudget,
+  }) =>
+      showAddEditBudgetSheetStatic(context, ref,
+          existingBudget: existingBudget);
+
+  static Future<void> showAddEditBudgetSheetStatic(
+    BuildContext context,
+    WidgetRef ref, {
     BudgetModel? existingBudget,
   }) async {
     final company = ref.read(activeCompanyProvider);
@@ -279,10 +296,10 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
 
     // Guard with module check
     if (!company.isModuleEnabled(AppModule.budgets)) {
-      return Scaffold(
-        key: const Key('budgets_module_disabled'),
-        appBar: AppBar(title: const Text('Budgets')),
-        body: const EmptyStateView(
+      return const Material(
+        key: Key('budgets_module_disabled'),
+        color: Colors.transparent,
+        child: EmptyStateView(
           icon: Icons.pie_chart_outline,
           title: 'Budgets Module Disabled',
           message:
@@ -294,19 +311,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     final progressListAsync = ref.watch(budgetsProgressListProvider);
     final overallAsync = ref.watch(overallMonthlyBudgetProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Budgets & Limits'),
-        actions: [
-          IconButton(
-            key: const Key('add_budget_button'),
-            icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'Add Budget',
-            onPressed: () => _showAddEditBudgetSheet(context),
-          ),
-        ],
-      ),
-      body: progressListAsync.when(
+    return Material(
+      color: Colors.transparent,
+      child: progressListAsync.when(
         loading: () => ListView(
           padding: const EdgeInsets.all(16),
           children: const [

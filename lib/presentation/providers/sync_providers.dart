@@ -2,29 +2,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/sync_model.dart';
-import '../../data/sync/sync_coordinator.dart';
 import 'company_providers.dart';
 import 'ledger_providers.dart';
 import 'profile_provider.dart';
 
-final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
-  final db = ref.watch(appDatabaseProvider);
-  final coordinator = SyncCoordinator(db: db);
-  ref.onDispose(() {
-    coordinator.dispose();
-  });
-  return coordinator;
-});
-
 final syncStatusStreamProvider = StreamProvider<SyncStatus>((ref) {
-  final coordinator = ref.watch(syncCoordinatorProvider);
-  return coordinator.statusStream;
+  final engine = ref.watch(syncEngineProvider);
+  return engine.statusStream;
 });
 
 final pendingSyncCountProvider = FutureProvider<int>((ref) async {
-  final coordinator = ref.watch(syncCoordinatorProvider);
+  final engine = ref.watch(syncEngineProvider);
   final activeCompany = ref.watch(activeCompanyProvider);
-  return await coordinator.getPendingOutboxCount(activeCompany.id);
+  return await engine.getPendingCount(companyId: activeCompany.id);
 });
 
 class SyncNotifier extends Notifier<SyncStatus> {

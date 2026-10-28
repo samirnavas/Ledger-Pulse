@@ -175,7 +175,7 @@ void main() {
       expect(find.byType(ExpenseHomeScreen), findsOneWidget);
       expect(find.byType(DashboardScreen), findsNothing);
       expect(find.text('Personal Expenses'), findsWidgets);
-      expect(find.byKey(const Key('expense_balance_placeholder')), findsOneWidget);
+      expect(find.byKey(const Key('expense_balance_card')), findsOneWidget);
       expect(find.byKey(const Key('expense_company_switcher_button')), findsOneWidget);
     });
 

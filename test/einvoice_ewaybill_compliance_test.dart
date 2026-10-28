@@ -162,5 +162,44 @@ void main() {
       expect(ewbResult.success, isFalse);
       expect(ewbResult.errorMessage, contains('Subscription Quota Exceeded'));
     });
+
+    test('returns clear validation error telling user to add company GSTIN in company settings', () async {
+      final now = DateTime(2026, 9, 23);
+      final voucher = VoucherModel(
+        id: 'vch_no_gstin',
+        companyId: 'cmp_default',
+        voucherNumber: 'INV-2026-002',
+        type: VoucherType.sales,
+        date: now,
+        totalAmountInCents: 100000,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      final einvResult = await service.generateEInvoice(
+        voucher: voucher,
+        supplierGstin: '',
+        buyerGstin: '29XYZDE9876K1Z2',
+        overrideNow: now,
+      );
+      expect(einvResult.success, isFalse);
+      expect(
+        einvResult.errorMessage,
+        contains('Company GSTIN is missing. Please add the company GSTIN in company settings before generating e-Invoice.'),
+      );
+
+      final ewbResult = await service.generateEWayBill(
+        voucher: voucher,
+        supplierGstin: '   ',
+        isBillToShipToDifferent: false,
+        shipToGstinOrUrp: null,
+        overrideNow: now,
+      );
+      expect(ewbResult.success, isFalse);
+      expect(
+        ewbResult.errorMessage,
+        contains('Company GSTIN is missing. Please add the company GSTIN in company settings before generating e-Way Bill.'),
+      );
+    });
   });
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/widgets/adaptive_confirm_dialog.dart';
+import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/liquid_glass_card.dart';
@@ -434,10 +435,10 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
 
     // Guard with module check
     if (!company.isModuleEnabled(AppModule.recurring)) {
-      return Scaffold(
-        key: const Key('recurring_module_disabled'),
-        appBar: AppBar(title: const Text('Recurring Transactions')),
-        body: const EmptyStateView(
+      return const AdaptiveScaffold(
+        key: Key('recurring_module_disabled'),
+        title: 'Recurring Transactions',
+        body: EmptyStateView(
           icon: Icons.update,
           title: 'Recurring Module Disabled',
           message:
@@ -448,24 +449,22 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
 
     final rulesListAsync = ref.watch(recurringRulesListProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recurring Rules'),
-        actions: [
-          IconButton(
-            key: const Key('run_due_recurring_button'),
-            icon: const Icon(Icons.play_circle_outline),
-            tooltip: 'Run Due Transactions',
-            onPressed: _runDueRules,
-          ),
-          IconButton(
-            key: const Key('add_recurring_rule_button'),
-            icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'Add Rule',
-            onPressed: () => _showAddEditRuleSheet(context),
-          ),
-        ],
-      ),
+    return AdaptiveScaffold(
+      title: 'Recurring Rules',
+      actions: [
+        IconButton(
+          key: const Key('run_due_recurring_button'),
+          icon: const Icon(Icons.play_circle_outline),
+          tooltip: 'Run Due Transactions',
+          onPressed: _runDueRules,
+        ),
+        IconButton(
+          key: const Key('add_recurring_rule_button'),
+          icon: const Icon(Icons.add_circle_outline),
+          tooltip: 'Add Rule',
+          onPressed: () => _showAddEditRuleSheet(context),
+        ),
+      ],
       body: rulesListAsync.when(
         loading: () => ListView(
           padding: const EdgeInsets.all(16),

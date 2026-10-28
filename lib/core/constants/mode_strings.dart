@@ -32,6 +32,8 @@ class ModeStrings {
   String get secondaryMetricLabel => isExpense ? 'Total Income' : "You'll Give";
   String get primaryBalanceTag => isExpense ? 'SPENT' : 'RECEIVABLE';
   String get secondaryBalanceTag => isExpense ? 'INCOME' : 'PAYABLE';
+  String get spentThisMonth => isExpense ? 'Spent this month' : 'Purchases this month';
+  String get incomeThisMonth => isExpense ? 'Income this month' : 'Sales this month';
   String get netLabel => isExpense ? 'Net Savings' : 'Net Profit';
   String get savingsRateLabel => isExpense ? 'Savings Rate' : 'Gross Margin';
 
@@ -41,6 +43,13 @@ class ModeStrings {
   String get reportsTab => isExpense ? 'Reports' : 'Analytics';
   String get accountsTab => isExpense ? 'Accounts' : 'Chart of Accounts';
   String get budgetsTab => isExpense ? 'Budgets' : 'Inventory';
+  String get allExpensesTab => isExpense ? 'All Expenses' : 'All Vouchers';
+  String get dailyTab => isExpense ? 'Daily' : 'Daily Daybook';
+  String get weeklyTab => isExpense ? 'Weekly' : 'Weekly Summary';
+  String get monthlyTab => isExpense ? 'Monthly' : 'Monthly Summary';
+  String get categoriesTab => isExpense ? 'Categories' : 'Account Groups';
+  String get recurringTab => isExpense ? 'Recurring' : 'Recurring Vouchers';
+  String get budgetsTabTitle => isExpense ? 'Monthly Budgets' : 'Budget Allocations';
 
   // Records / Items
   String get recordsLabel => isExpense ? 'Expenses & Transfers' : 'Customers & Suppliers';
@@ -58,6 +67,66 @@ class ModeStrings {
   String get emptyTransactionsSubtitle => isExpense
       ? 'Record your first expense, income, or transfer'
       : 'Create your first invoice, payment, or receipt';
+  String get emptyBudgetsTitle =>
+      isExpense ? 'No budgets set' : 'No budgets configured';
+  String get emptyBudgetsSubtitle => isExpense
+      ? 'Set monthly spending limits to keep track of expenses'
+      : 'Configure department or project budgets';
+  String get emptyRecurringTitle =>
+      isExpense ? 'No recurring transactions' : 'No recurring vouchers';
+  String get emptyRecurringSubtitle => isExpense
+      ? 'Schedule subscriptions, bills, or regular income'
+      : 'Automate regular invoices, bills, or recurring salaries';
+  String get emptyCategoriesTitle =>
+      isExpense ? 'No categories found' : 'No ledger accounts found';
+  String get emptyCategoriesSubtitle => isExpense
+      ? 'Add categories to organize your expenses'
+      : 'Add accounts to chart of accounts';
+  String get emptyWalletsTitle =>
+      isExpense ? 'No wallets or bank accounts' : 'No cash or bank accounts';
+  String get emptyWalletsSubtitle => isExpense
+      ? 'Add your cash wallets, bank accounts, or cards'
+      : 'Add cash and bank ledgers to track balances';
+
+  // Section Headers
+  String get recentTransactionsHeader =>
+      isExpense ? 'Recent Transactions' : 'Recent Vouchers';
+  String get spendingOverviewHeader =>
+      isExpense ? 'Spending Overview' : 'Business Overview';
+  String get budgetStatusHeader =>
+      isExpense ? 'Budget Status' : 'Budget vs Actual';
+  String get recurringBillsHeader =>
+      isExpense ? 'Upcoming Bills & Subscriptions' : 'Upcoming Recurring Entries';
+  String get topCategoriesHeader =>
+      isExpense ? 'Top Spending Categories' : 'Top Expense Ledgers';
+  String get accountsOverviewHeader =>
+      isExpense ? 'Accounts & Wallets' : 'Cash & Bank Balances';
+  String get analyticsHeader =>
+      isExpense ? 'Spending Analytics' : 'Financial Analytics';
+  String get breakdownHeader =>
+      isExpense ? 'Expense Breakdown' : 'Cost Breakdown';
+
+  // Budget & Recurring
+  String get budgetLabel => isExpense ? 'Budget' : 'Budget Target';
+  String get budgetsLabelPlural => isExpense ? 'Budgets' : 'Budget Allocations';
+  String get createBudget => isExpense ? 'Create Budget' : 'Add Budget Target';
+  String get editBudget => isExpense ? 'Edit Budget' : 'Edit Budget Target';
+  String get budgetRemaining => isExpense ? 'Remaining Budget' : 'Available Budget';
+  String get budgetOverspent => isExpense ? 'Over Budget' : 'Budget Exceeded';
+  String get budgetProgress => isExpense ? 'Budget Spent' : 'Budget Utilized';
+  String get totalBudgeted => isExpense ? 'Total Budgeted' : 'Total Budgeted';
+  String get recurringLabel =>
+      isExpense ? 'Recurring Transaction' : 'Recurring Voucher';
+  String get recurringLabelPlural =>
+      isExpense ? 'Recurring Transactions' : 'Recurring Vouchers';
+  String get addRecurring =>
+      isExpense ? 'Add Recurring' : 'Add Recurring Voucher';
+  String get editRecurring =>
+      isExpense ? 'Edit Recurring' : 'Edit Recurring Voucher';
+  String get nextDueDate => isExpense ? 'Next Due Date' : 'Next Execution Date';
+  String get repeatFrequency => isExpense ? 'Frequency' : 'Recurrence Interval';
+  String get recurringActive => isExpense ? 'Active Schedules' : 'Active Schedules';
+  String get recurringPaused => isExpense ? 'Paused Schedules' : 'Paused Schedules';
 
   // Transaction Actions
   String get addTransaction => isExpense ? 'Add Transaction' : 'Add Voucher';

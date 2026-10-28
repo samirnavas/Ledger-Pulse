@@ -284,5 +284,72 @@ void main() {
       expect(gstr9['part2_outward_supplies']['total_turnover'], equals(1200.0));
       expect(gstr9['part3_itc_details']['itc_availed'], equals(90.0));
     });
+
+    test('Throws GstrValidationException with clear guidance when company GSTIN is missing', () {
+      final noGstinCompany = Company(
+        id: 'cmp_no_gstin',
+        name: 'No GSTIN Enterprises',
+        legalName: 'No GSTIN Enterprises Pvt Ltd',
+        gstin: null,
+        stateCode: '27',
+        createdAt: DateTime(2026, 4, 1),
+        updatedAt: DateTime(2026, 4, 1),
+      );
+
+      expect(
+        () => GstrJsonEngine.generateGstr1Json(
+          company: noGstinCompany,
+          salesVouchers: sampleSales,
+          parties: [b2bParty, b2cParty],
+          returnPeriod: '092026',
+        ),
+        throwsA(
+          isA<GstrValidationException>().having(
+            (e) => e.message,
+            'message',
+            contains('Company GSTIN is missing. Please add the company GSTIN in company settings before generating GSTR reports.'),
+          ),
+        ),
+      );
+
+      expect(
+        () => GstrJsonEngine.generateGstr2Json(
+          company: noGstinCompany,
+          purchaseVouchers: samplePurchases,
+          parties: [b2bParty, b2cParty],
+          returnPeriod: '092026',
+        ),
+        throwsA(isA<GstrValidationException>()),
+      );
+
+      expect(
+        () => GstrJsonEngine.generateGstr3bJson(
+          company: noGstinCompany,
+          salesVouchers: sampleSales,
+          purchaseVouchers: samplePurchases,
+          returnPeriod: '092026',
+        ),
+        throwsA(isA<GstrValidationException>()),
+      );
+
+      expect(
+        () => GstrJsonEngine.generateGstr4Json(
+          company: noGstinCompany,
+          vouchers: sampleSales,
+          financialYear: '2026-27',
+        ),
+        throwsA(isA<GstrValidationException>()),
+      );
+
+      expect(
+        () => GstrJsonEngine.generateGstr9Json(
+          company: noGstinCompany,
+          salesVouchers: sampleSales,
+          purchaseVouchers: samplePurchases,
+          financialYear: '2026-27',
+        ),
+        throwsA(isA<GstrValidationException>()),
+      );
+    });
   });
 }

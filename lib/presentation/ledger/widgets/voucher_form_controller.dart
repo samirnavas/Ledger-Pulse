@@ -396,7 +396,22 @@ class VoucherFormController extends ChangeNotifier {
     final breakdown = calculateBreakdown(company);
     final voucher = buildVoucherModel(company, party, breakdown);
 
-    final supplierGstin = company.gstin ?? '29ABCDE1234F1ZH';
+    final supplierGstin = company.gstin?.trim() ?? '';
+    if (supplierGstin.isEmpty) {
+      _isGeneratingEInvoice = false;
+      _complianceErrorMessage =
+          'Company GSTIN is missing. Please add the company GSTIN in company settings before generating e-Invoice.';
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_complianceErrorMessage!),
+            backgroundColor: AppColors.payableRed,
+          ),
+        );
+      }
+      notifyListeners();
+      return;
+    }
     final buyerGstin = partyGstinController.text.trim().isNotEmpty
         ? partyGstinController.text.trim()
         : '29XYZDE9876K1Z2';
@@ -439,10 +454,26 @@ class VoucherFormController extends ChangeNotifier {
     _complianceErrorMessage = null;
     notifyListeners();
 
+    final supplierGstin = company.gstin?.trim() ?? '';
+    if (supplierGstin.isEmpty) {
+      _isGeneratingEWayBill = false;
+      _complianceErrorMessage =
+          'Company GSTIN is missing. Please add the company GSTIN in company settings before generating e-Way Bill.';
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_complianceErrorMessage!),
+            backgroundColor: AppColors.payableRed,
+          ),
+        );
+      }
+      notifyListeners();
+      return;
+    }
+
     final service = ref.read(einvoiceEwaybillServiceProvider);
     final breakdown = calculateBreakdown(company);
     final voucher = buildVoucherModel(company, party, breakdown);
-    final supplierGstin = company.gstin ?? '29ABCDE1234F1ZH';
 
     final result = await service.generateEWayBill(
       voucher: voucher,

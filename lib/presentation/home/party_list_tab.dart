@@ -11,6 +11,7 @@ import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
+import '../../core/widgets/adaptive_list_row.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
@@ -282,117 +283,11 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
     return false;
   }
 
-  Widget _buildSwipeEditBackground(BuildContext context, bool isIos) {
-    if (isIos) {
-      return Container(
-        color: CupertinoColors.systemBlue,
-        alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(CupertinoIcons.pencil, color: Colors.white, size: 22),
-            SizedBox(width: 8),
-            Text(
-              'Edit',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-                letterSpacing: -0.2,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+  Widget _buildSwipeEditBackground(BuildContext context, bool isIos) =>
+      AdaptiveSwipeBackgrounds.edit(context, isIos: isIos);
 
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      alignment: Alignment.centerLeft,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.edit_rounded,
-            color: theme.colorScheme.onPrimaryContainer,
-            size: 22,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            'Edit',
-            style: TextStyle(
-              color: theme.colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSwipeDeleteBackground(BuildContext context, bool isIos) {
-    if (isIos) {
-      return Container(
-        color: CupertinoColors.destructiveRed,
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Delete',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-                letterSpacing: -0.2,
-              ),
-            ),
-            SizedBox(width: 8),
-            Icon(CupertinoIcons.trash, color: Colors.white, size: 22),
-          ],
-        ),
-      );
-    }
-
-    final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Delete',
-            style: TextStyle(
-              color: theme.colorScheme.onErrorContainer,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Icon(
-            Icons.delete_outline_rounded,
-            color: theme.colorScheme.onErrorContainer,
-            size: 22,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildSwipeDeleteBackground(BuildContext context, bool isIos) =>
+      AdaptiveSwipeBackgrounds.delete(context, isIos: isIos);
 
   void _showPartyContextMenu(BuildContext context, Party party) {
     HapticFeedback.mediumImpact();

@@ -165,69 +165,9 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
     final categoriesAsync = ref.watch(categoriesProvider);
     final walletsAsync = ref.watch(walletsProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reports & Trends'),
-        actions: [
-          if (_isExporting)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator.adaptive(strokeWidth: 2),
-                ),
-              ),
-            )
-          else ...[
-            txnsAsync.maybeWhen(
-              data: (txns) => PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (val) {
-                  if (val == 'csv') _exportCsv(txns);
-                  if (val == 'pdf') _exportPdf(txns);
-                  if (val == 'pnl') _showProfitAndLoss(txns);
-                },
-                itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: 'csv',
-                    child: Row(
-                      children: [
-                        Icon(Icons.table_chart_outlined, size: 20),
-                        SizedBox(width: 10),
-                        Text('Export CSV'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'pdf',
-                    child: Row(
-                      children: [
-                        Icon(Icons.picture_as_pdf_outlined, size: 20),
-                        SizedBox(width: 10),
-                        Text('Print / PDF Statement'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'pnl',
-                    child: Row(
-                      children: [
-                        Icon(Icons.receipt_long_outlined, size: 20),
-                        SizedBox(width: 10),
-                        Text('View Profit & Loss'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              orElse: () => const SizedBox.shrink(),
-            ),
-          ],
-        ],
-      ),
-      body: txnsAsync.when(
+    return Material(
+      color: Colors.transparent,
+      child: txnsAsync.when(
         data: (allTxns) {
           final categories = categoriesAsync.value ?? [];
           final wallets = walletsAsync.value ?? [];
@@ -307,7 +247,7 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _exportCsv(allTxns),
+                      onPressed: _isExporting ? null : () => _exportCsv(allTxns),
                       icon: const Icon(Icons.file_download_outlined),
                       label: const Text('Export CSV'),
                       style: OutlinedButton.styleFrom(
@@ -316,12 +256,24 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showProfitAndLoss(allTxns),
+                      icon: const Icon(Icons.analytics_outlined),
+                      label: const Text('P&L'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _exportPdf(allTxns),
+                      onPressed: _isExporting ? null : () => _exportPdf(allTxns),
                       icon: const Icon(Icons.print_outlined),
-                      label: const Text('PDF / Print'),
+                      label: const Text('PDF'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

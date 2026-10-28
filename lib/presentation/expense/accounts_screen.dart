@@ -13,12 +13,64 @@ import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
-import 'recurring_screen.dart';
 
 /// Screen managing Wallets (with running balances and opening balance editor)
 /// and Categories (hierarchical list with add, edit, and archive operations).
 class ExpenseAccountsScreen extends ConsumerStatefulWidget {
   const ExpenseAccountsScreen({super.key});
+
+  /// Opens dialog to add a wallet or category.
+  static Future<void> showAddAccountOrCategoryDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final company = ref.read(activeCompanyProvider);
+    final categoriesAsync = ref.read(categoriesProvider);
+    final allCats = categoriesAsync.asData?.value ?? [];
+
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.account_balance_wallet_rounded),
+                title: const Text('Add Wallet'),
+                subtitle: const Text('Bank account, cash or credit card'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _ExpenseAccountsScreenState.showAddWalletDialogStatic(
+                    context,
+                    ref,
+                    company,
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.category_rounded),
+                title: const Text('Add Category'),
+                subtitle: const Text('Expense or income category'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _ExpenseAccountsScreenState.showAddCategoryDialogStatic(
+                    context,
+                    ref,
+                    allCats,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   ConsumerState<ExpenseAccountsScreen> createState() =>
@@ -33,7 +85,12 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
   // WALLET DIALOGS & ACTIONS
   // -------------------------------------------------------------
 
-  Future<void> _showAddWalletDialog(BuildContext context, Company company) async {
+
+  static Future<void> showAddWalletDialogStatic(
+    BuildContext context,
+    WidgetRef ref,
+    Company company,
+  ) async {
     final nameController = TextEditingController();
     final balanceController = TextEditingController();
     AccountType walletType = AccountType.asset;
@@ -173,10 +230,13 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
   // CATEGORY DIALOGS & ACTIONS
   // -------------------------------------------------------------
 
-  Future<void> _showAddCategoryDialog(
+
+  static Future<void> showAddCategoryDialogStatic(
     BuildContext context,
-    List<AccountModel> allCategories,
-  ) async {
+    WidgetRef ref,
+    List<AccountModel> allCategories, {
+    AccountType categoryType = AccountType.expense,
+  }) async {
     final nameController = TextEditingController();
     String? selectedParentId;
 
@@ -185,12 +245,12 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final potentialParents = allCategories
-              .where((c) => c.type == _selectedCatType && c.parentAccountId == null)
+              .where((c) => c.type == categoryType && c.parentAccountId == null)
               .toList();
 
           return AlertDialog(
             title: Text(
-              'Add ${_selectedCatType == AccountType.expense ? 'Expense' : 'Income'} Category',
+              'Add ${categoryType == AccountType.expense ? 'Expense' : 'Income'} Category',
             ),
             content: SingleChildScrollView(
               child: Column(
@@ -254,7 +314,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                     final repo = ref.read(expenseRepositoryProvider);
                     await repo.createCategory(
                       name: name,
-                      type: _selectedCatType,
+                      type: categoryType,
                       parentAccountId: selectedParentId,
                     );
                     if (context.mounted) Navigator.of(ctx).pop();
@@ -316,26 +376,12 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     final walletsAsync = ref.watch(walletsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Accounts & Wallets'),
-        actions: [
-          if (company.isModuleEnabled(AppModule.recurring))
-            IconButton(
-              key: const Key('accounts_recurring_rules_button'),
-              icon: const Icon(Icons.update),
-              tooltip: 'Recurring Rules',
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const RecurringScreen()),
-                );
-              },
-            ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+    return Material(
+      color: Colors.transparent,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: AdaptiveSegmentedControl<int>(
               groupValue: _selectedTab,
               children: const {
@@ -345,23 +391,12 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               onValueChanged: (tab) => setState(() => _selectedTab = tab),
             ),
           ),
-        ),
-      ),
-      body: _selectedTab == 0
-          ? _buildWalletsTab(context, company, walletsAsync)
-          : _buildCategoriesTab(context, company, categoriesAsync),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const Key('add_account_or_cat_fab'),
-        icon: const Icon(Icons.add),
-        label: Text(_selectedTab == 0 ? 'Add Wallet' : 'Add Category'),
-        onPressed: () {
-          if (_selectedTab == 0) {
-            _showAddWalletDialog(context, company);
-          } else {
-            final allCats = categoriesAsync.asData?.value ?? [];
-            _showAddCategoryDialog(context, allCats);
-          }
-        },
+          Expanded(
+            child: _selectedTab == 0
+                ? _buildWalletsTab(context, company, walletsAsync)
+                : _buildCategoriesTab(context, company, categoriesAsync),
+          ),
+        ],
       ),
     );
   }
