@@ -4,9 +4,42 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/adaptive_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/adaptive_list_row.dart';
+import '../../../core/widgets/adaptive_section_header.dart';
 import '../../../core/widgets/adaptive_surface_card.dart';
 import '../../../core/widgets/amount_text.dart';
 import '../../../data/models/account_model.dart';
+
+/// Series color palette helper aligned for iOS Cupertino and Material 3 design systems.
+List<Color> getChartPalette(BuildContext context) {
+  final theme = Theme.of(context);
+  final isIos = AdaptiveThemeHelper.isIos(context);
+  if (isIos) {
+    return const [
+      CupertinoColors.systemBlue,
+      CupertinoColors.systemIndigo,
+      CupertinoColors.systemPurple,
+      CupertinoColors.systemPink,
+      CupertinoColors.systemOrange,
+      CupertinoColors.systemTeal,
+      CupertinoColors.systemGreen,
+      CupertinoColors.systemYellow,
+      CupertinoColors.systemRed,
+      CupertinoColors.systemMint,
+      CupertinoColors.systemCyan,
+    ];
+  } else {
+    return [
+      theme.colorScheme.primary,
+      theme.colorScheme.secondary,
+      theme.colorScheme.tertiary,
+      theme.colorScheme.primaryContainer,
+      theme.colorScheme.secondaryContainer,
+      theme.colorScheme.tertiaryContainer,
+      theme.colorScheme.surfaceTint,
+      theme.colorScheme.error,
+    ];
+  }
+}
 
 /// A sleek category spending breakdown widget featuring custom donut chart
 /// rendering, adaptive color swatches, percentage allocations, and currency amounts.
@@ -30,35 +63,7 @@ class CategoryBreakdownCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    // Build palette from colorScheme (primary, secondary, tertiary & containers on Android)
-    // and fixed iOS system palette on iOS.
-    final List<Color> palette = isIos
-        ? const [
-            CupertinoColors.systemBlue,
-            CupertinoColors.systemIndigo,
-            CupertinoColors.systemPurple,
-            CupertinoColors.systemPink,
-            CupertinoColors.systemOrange,
-            CupertinoColors.systemTeal,
-            CupertinoColors.systemGreen,
-            CupertinoColors.systemYellow,
-            CupertinoColors.systemRed,
-            CupertinoColors.systemMint,
-            CupertinoColors.systemCyan,
-          ]
-        : [
-            theme.colorScheme.primary,
-            theme.colorScheme.secondary,
-            theme.colorScheme.tertiary,
-            theme.colorScheme.primaryContainer,
-            theme.colorScheme.secondaryContainer,
-            theme.colorScheme.tertiaryContainer,
-            theme.colorScheme.surfaceTint,
-            theme.colorScheme.error,
-          ];
+    final palette = getChartPalette(context);
 
     // Filter categories that have spending > 0
     final Map<String, AccountModel> catMap = {
@@ -76,11 +81,8 @@ class CategoryBreakdownCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Category Breakdown',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            const AdaptiveSectionHeader(
+              title: 'Category Breakdown',
             ),
             const SizedBox(height: 16),
             Center(
@@ -120,24 +122,17 @@ class CategoryBreakdownCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Category Breakdown',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+          AdaptiveSectionHeader(
+            padding: EdgeInsets.zero,
+            title: 'Category Breakdown',
+            trailing: Text(
+              '${spentEntries.length} ${spentEntries.length == 1 ? 'Category' : 'Categories'}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-              Text(
-                '${spentEntries.length} ${spentEntries.length == 1 ? 'Category' : 'Categories'}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -148,9 +143,7 @@ class CategoryBreakdownCard extends StatelessWidget {
                 child: CustomPaint(
                   painter: _DonutChartPainter(
                     slices: slices,
-                    backgroundColor: isDark
-                        ? const Color(0xFF27272A)
-                        : const Color(0xFFE2E8F0),
+                    backgroundColor: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
                   ),
                   child: Center(
                     child: Column(

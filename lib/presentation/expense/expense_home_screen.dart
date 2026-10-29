@@ -373,6 +373,46 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
             onPressed: () => ExpenseTransactionsScreen.showFilterModal(context, ref),
           ),
 
+      if ((hasBudgets && clampedIndex == 3) || (!hasBudgets && clampedIndex == 2))
+        if (isIos)
+          CupertinoButton(
+            key: const Key('reports_export_button'),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              final txns = ref.read(transactionsProvider).value ?? [];
+              final now = DateTime.now();
+              final start = DateTime(now.year, now.month, 1);
+              final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
+              ExpenseReportsScreen.showExportSheet(
+                context: context,
+                ref: ref,
+                transactions: txns,
+                dateRange: (start, end),
+              );
+            },
+            child: const Icon(CupertinoIcons.square_arrow_up, size: 22),
+          )
+        else
+          IconButton(
+            key: const Key('reports_export_button'),
+            icon: const Icon(Icons.share_rounded),
+            tooltip: 'Export Report',
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              final txns = ref.read(transactionsProvider).value ?? [];
+              final now = DateTime.now();
+              final start = DateTime(now.year, now.month, 1);
+              final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
+              ExpenseReportsScreen.showExportSheet(
+                context: context,
+                ref: ref,
+                transactions: txns,
+                dateRange: (start, end),
+              );
+            },
+          ),
+
       if ((hasBudgets && clampedIndex == 4) || (!hasBudgets && clampedIndex == 3))
         if (company.isModuleEnabled(AppModule.recurring))
           if (isIos)
@@ -767,7 +807,7 @@ class _ExpenseHomeView extends ConsumerWidget {
                             icon: Icon(
                               isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
                               size: 14,
-                              color: isDark ? const Color(0xFFF87171) : AppColors.payableRed,
+                              color: AppColors.expense(context),
                             ),
                             amountVariant: AmountVariant.large,
                             currencyCode: company.currencyCode,
@@ -782,7 +822,7 @@ class _ExpenseHomeView extends ConsumerWidget {
                             icon: Icon(
                               isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
                               size: 14,
-                              color: isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen,
+                              color: AppColors.income(context),
                             ),
                             amountVariant: AmountVariant.large,
                             currencyCode: company.currencyCode,

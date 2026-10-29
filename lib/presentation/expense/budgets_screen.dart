@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/colors.dart';
+import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
+import '../../core/widgets/adaptive_controls.dart';
+import '../../core/widgets/adaptive_form_sheet.dart';
+import '../../core/widgets/adaptive_picker.dart';
+import '../../core/widgets/adaptive_segmented_control.dart';
+import '../../core/widgets/adaptive_surface_card.dart';
 import '../../core/widgets/amount_text.dart';
+import '../../core/widgets/app_feedback.dart';
 import '../../core/widgets/empty_state_view.dart';
-import '../../core/widgets/liquid_glass_card.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/budget_model.dart';
@@ -41,17 +50,26 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
       showAddEditBudgetSheetStatic(context, ref,
           existingBudget: existingBudget);
 
+  static Color _getThresholdColor(BuildContext context, double percentUsed) {
+    if (percentUsed >= 100.0) {
+      return AppColors.expense(context);
+    } else if (percentUsed >= 80.0) {
+      return Colors.amber.shade700;
+    } else {
+      return AppColors.income(context);
+    }
+  }
+
   static Future<void> showAddEditBudgetSheetStatic(
     BuildContext context,
     WidgetRef ref, {
     BudgetModel? existingBudget,
   }) async {
     final company = ref.read(activeCompanyProvider);
-    final categoriesAsync = ref.read(categoriesProvider);
-    final expenseCategories = categoriesAsync.asData?.value
-            .where((c) => c.type == AccountType.expense)
-            .toList() ??
-        [];
+    final allCats = await ref.read(expenseRepositoryProvider).getCategories();
+    final expenseCategories = allCats
+        .where((c) => c.type == AccountType.expense)
+        .toList();
 
     final amountController = TextEditingController(
       text: existingBudget != null
@@ -64,208 +82,163 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
         existingBudget?.period ?? BudgetPeriodType.monthly;
     bool rolloverEnabled = existingBudget?.rolloverEnabled ?? false;
 
-    await showModalBottomSheet<void>(
+    Future<void> doSave(BuildContext sheetCtx) async {
+      final parsedAmount =
+          double.tryParse(amountController.text.trim()) ?? 0;
+      if (parsedAmount <= 0) {
+        showAppFeedback(context, 'Please enter a valid amount', isError: true);
+        return;
+      }
+      if (selectedCategoryId == null) {
+        showAppFeedback(context, 'Please select a category', isError: true);
+        return;
+      }
+
+      final amountInCents = (parsedAmount * 100).round();
+      final budgetRepo = ref.read(budgetRepositoryProvider);
+
+      HapticFeedback.mediumImpact();
+      if (existingBudget == null) {
+        await budgetRepo.createBudget(
+          categoryId: selectedCategoryId!,
+          allocatedInCents: amountInCents,
+          period: selectedPeriod,
+          rolloverEnabled: rolloverEnabled,
+        );
+      } else {
+        await budgetRepo.updateBudget(
+          budget: existingBudget.copyWith(
+            categoryId: selectedCategoryId!,
+            allocatedInCents: amountInCents,
+            period: selectedPeriod,
+            rolloverEnabled: rolloverEnabled,
+          ),
+        );
+      }
+
+      if (context.mounted) {
+        Navigator.of(sheetCtx).pop();
+        showAppFeedback(
+          context,
+          existingBudget == null
+              ? 'Budget created successfully'
+              : 'Budget updated successfully',
+        );
+      }
+    }
+
+    if (!context.mounted) return;
+    await showAdaptiveFormSheet<void>(
       context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (bottomSheetContext) {
+      title: existingBudget == null ? 'Set Budget' : 'Edit Budget',
+      doneLabel: 'Done',
+      builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final theme = Theme.of(context);
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          existingBudget == null ? 'Set Budget' : 'Edit Budget',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
+            final categoryPickerItems = expenseCategories
+                .map((cat) => AdaptivePickerItem<String>(
+                      value: cat.id,
+                      label: cat.name,
+                    ))
+                .toList();
 
-                    // Category dropdown
-                    const Text(
-                      'Expense Category',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Category dropdown
+                  Text(
+                    'Expense Category',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(height: 6),
-                    DropdownButtonFormField<String>(
-                      key: const Key('budget_category_field'),
-                      initialValue: selectedCategoryId,
-                      items: expenseCategories.map((cat) {
-                        return DropdownMenuItem<String>(
-                          value: cat.id,
-                          child: Text(cat.name),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setSheetState(() => selectedCategoryId = val);
-                        }
-                      },
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 12),
+                  ),
+                  const SizedBox(height: 6),
+                  AdaptiveDropdownField<String>(
+                    key: const Key('budget_category_field'),
+                    label: 'Category',
+                    value: selectedCategoryId,
+                    items: categoryPickerItems,
+                    hint: 'Select Category',
+                    onChanged: (val) {
+                      if (val != null) {
+                        setSheetState(() => selectedCategoryId = val);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Amount Field
+                  Text(
+                    'Allocated Amount',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    key: const Key('budget_amount_field'),
+                    controller: amountController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    decoration: InputDecoration(
+                      prefixText: '${company.currencyCode} ',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      hintText: '0.00',
                     ),
-                    const SizedBox(height: 16),
+                  ),
+                  const SizedBox(height: 16),
 
-                    // Amount Field
-                    const Text(
-                      'Allocated Amount',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  // Period Selector
+                  Text(
+                    'Budget Period',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(height: 6),
-                    TextField(
-                      key: const Key('budget_amount_field'),
-                      controller: amountController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      decoration: InputDecoration(
-                        prefixText: '${company.currencyCode} ',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        hintText: '0.00',
-                      ),
+                  ),
+                  const SizedBox(height: 8),
+                  AdaptiveSegmentedControl<BudgetPeriodType>(
+                    key: const Key('budget_period_selector'),
+                    groupValue: selectedPeriod,
+                    children: const {
+                      BudgetPeriodType.weekly: Text('Weekly'),
+                      BudgetPeriodType.monthly: Text('Monthly'),
+                      BudgetPeriodType.yearly: Text('Yearly'),
+                    },
+                    onValueChanged: (val) {
+                      setSheetState(() => selectedPeriod = val);
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Rollover Switch
+                  AdaptiveSwitch(
+                    key: const Key('budget_rollover_switch'),
+                    value: rolloverEnabled,
+                    label: 'Enable Rollover',
+                    subtitle: 'Carry over unspent budget to the next period',
+                    onChanged: (val) {
+                      setSheetState(() => rolloverEnabled = val);
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Save Button
+                  AdaptiveButton(
+                    key: const Key('save_budget_button'),
+                    child: Text(
+                      existingBudget == null
+                          ? 'Set Budget'
+                          : 'Update Budget',
                     ),
-                    const SizedBox(height: 16),
-
-                    // Period Selector
-                    const Text(
-                      'Budget Period',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    SegmentedButton<BudgetPeriodType>(
-                      key: const Key('budget_period_selector'),
-                      segments: const [
-                        ButtonSegment(
-                          value: BudgetPeriodType.weekly,
-                          label: Text('Weekly'),
-                        ),
-                        ButtonSegment(
-                          value: BudgetPeriodType.monthly,
-                          label: Text('Monthly'),
-                        ),
-                        ButtonSegment(
-                          value: BudgetPeriodType.yearly,
-                          label: Text('Yearly'),
-                        ),
-                      ],
-                      selected: {selectedPeriod},
-                      onSelectionChanged: (val) {
-                        setSheetState(() => selectedPeriod = val.first);
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Rollover Switch
-                    SwitchListTile(
-                      key: const Key('budget_rollover_switch'),
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Enable Rollover'),
-                      subtitle: const Text(
-                        'Carry over unspent budget to the next period',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                      value: rolloverEnabled,
-                      onChanged: (val) {
-                        setSheetState(() => rolloverEnabled = val);
-                      },
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Save Button
-                    FilledButton(
-                      key: const Key('save_budget_button'),
-                      onPressed: () async {
-                        final parsedAmount =
-                            double.tryParse(amountController.text.trim()) ?? 0;
-                        if (parsedAmount <= 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please enter a valid amount'),
-                            ),
-                          );
-                          return;
-                        }
-                        if (selectedCategoryId == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please select a category'),
-                            ),
-                          );
-                          return;
-                        }
-
-                        final amountInCents = (parsedAmount * 100).round();
-                        final budgetRepo =
-                            ref.read(budgetRepositoryProvider);
-
-                        if (existingBudget == null) {
-                          await budgetRepo.createBudget(
-                            categoryId: selectedCategoryId!,
-                            allocatedInCents: amountInCents,
-                            period: selectedPeriod,
-                            rolloverEnabled: rolloverEnabled,
-                          );
-                        } else {
-                          await budgetRepo.updateBudget(
-                            budget: existingBudget.copyWith(
-                              categoryId: selectedCategoryId!,
-                              allocatedInCents: amountInCents,
-                              period: selectedPeriod,
-                              rolloverEnabled: rolloverEnabled,
-                            ),
-                          );
-                        }
-
-                        if (context.mounted) {
-                          Navigator.of(context).pop();
-                        }
-                      },
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        existingBudget == null
-                            ? 'Set Budget'
-                            : 'Update Budget',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
+                    onPressed: () => doSave(sheetContext),
+                  ),
+                ],
               ),
             );
           },
@@ -276,16 +249,20 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
 
   // Delete budget confirmation
   Future<void> _deleteBudget(BudgetModel budget) async {
-    final confirmed = await AdaptiveConfirmDialog.show(
+    final confirmed = await showAdaptiveConfirmDialog(
       context: context,
       title: 'Delete Budget',
       message: 'Are you sure you want to remove this budget?',
-      confirmText: 'Delete',
+      confirmLabel: 'Delete',
       isDestructive: true,
     );
 
-    if (confirmed == true) {
+    if (confirmed) {
+      HapticFeedback.mediumImpact();
       await ref.read(budgetRepositoryProvider).deleteBudget(budget.id);
+      if (mounted) {
+        showAppFeedback(context, 'Budget deleted');
+      }
     }
   }
 
@@ -338,7 +315,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
               if (warningBudgets.isNotEmpty)
                 _buildWarningBanner(theme, warningBudgets),
 
-              // Overall Monthly Budget
+              // Overall Monthly Budget Hero Card
               overallAsync.when(
                 data: (overall) =>
                     _buildOverallBudgetCard(theme, company, overall),
@@ -401,9 +378,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.red.withAlpha(30),
+        color: Colors.red.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.red.withAlpha(120)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.45)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,9 +425,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.amber.withAlpha(35),
+        color: Colors.amber.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.amber.shade700.withAlpha(120)),
+        border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.45)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -493,15 +470,12 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
   ) {
     final percentClamped =
         overall.totalAllocatedInCents > 0 ? (overall.percentUsed / 100) : 0.0;
-    final progressColor = overall.isExceeded
-        ? Colors.red
-        : overall.isWarning
-            ? Colors.orange
-            : Colors.green;
+    final progressColor = _getThresholdColor(context, overall.percentUsed);
 
-    return LiquidGlassCard(
+    return AdaptiveSurfaceCard(
       key: const Key('overall_budget_card'),
       padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -517,7 +491,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: progressColor.withAlpha(30),
+                  color: progressColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -532,14 +506,10 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: percentClamped.clamp(0.0, 1.0),
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-              minHeight: 8,
-            ),
+          _AdaptiveProgressBar(
+            value: percentClamped.clamp(0.0, 1.0),
+            color: progressColor,
+            height: 10,
           ),
           const SizedBox(height: 14),
           Row(
@@ -555,11 +525,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     ),
                   ),
                   AmountText(
-                    amount: overall.totalSpentInCents / 100,
+                    amountInCents: overall.totalSpentInCents,
                     currencyCode: company.currencyCode,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    variant: AmountVariant.medium,
                   ),
                 ],
               ),
@@ -573,14 +541,12 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     ),
                   ),
                   AmountText(
-                    amount: overall.remainingInCents / 100,
+                    amountInCents: overall.remainingInCents,
                     currencyCode: company.currencyCode,
-                    color: overall.remainingInCents < 0
-                        ? Colors.red
-                        : Colors.green,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    overrideColor: overall.remainingInCents < 0
+                        ? AppColors.expense(context)
+                        : AppColors.income(context),
+                    variant: AmountVariant.medium,
                   ),
                 ],
               ),
@@ -594,11 +560,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     ),
                   ),
                   AmountText(
-                    amount: overall.totalAllocatedInCents / 100,
+                    amountInCents: overall.totalAllocatedInCents,
                     currencyCode: company.currencyCode,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    variant: AmountVariant.medium,
                   ),
                 ],
               ),
@@ -616,14 +580,10 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     BudgetProgress progress,
   ) {
     final budget = progress.budget;
-    final progressColor = progress.isExceeded
-        ? Colors.red
-        : progress.isWarning
-            ? Colors.orange
-            : Colors.green;
+    final progressColor = _getThresholdColor(context, progress.percentUsed);
     final percentClamped = (progress.percentUsed / 100).clamp(0.0, 1.0);
 
-    return LiquidGlassCard(
+    return AdaptiveSurfaceCard(
       key: Key('budget_card_${budget.id}'),
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -636,47 +596,75 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
               Expanded(
                 child: Row(
                   children: [
-                    Text(
-                      progress.categoryName,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                      width: 36,
+                      height: 36,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(6),
+                        color: progressColor.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
                       ),
-                      child: Text(
-                        budget.period.displayName,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Icon(
+                        Icons.category_rounded,
+                        color: progressColor,
+                        size: 20,
                       ),
                     ),
-                    if (budget.rolloverEnabled) ...[
-                      const SizedBox(width: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withAlpha(30),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'Rollover',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  progress.categoryName,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  budget.period.displayName,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              if (budget.rolloverEnabled) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'Rollover',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -717,25 +705,35 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: percentClamped,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-              minHeight: 6,
-            ),
+          const SizedBox(height: 12),
+          _AdaptiveProgressBar(
+            value: percentClamped,
+            color: progressColor,
+            height: 8,
           ),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${CurrencyFormatter.format(progress.spentInCents, currencyCode: company.currencyCode)} spent of ${CurrencyFormatter.format(progress.effectiveAllocatedInCents, currencyCode: company.currencyCode)}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
+              Row(
+                children: [
+                  AmountText(
+                    amountInCents: progress.spentInCents,
+                    currencyCode: company.currencyCode,
+                    variant: AmountVariant.small,
+                  ),
+                  Text(
+                    ' spent of ',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  AmountText(
+                    amountInCents: progress.effectiveAllocatedInCents,
+                    currencyCode: company.currencyCode,
+                    variant: AmountVariant.small,
+                  ),
+                ],
               ),
               Text(
                 '${progress.percentUsed.toStringAsFixed(1)}%',
@@ -758,6 +756,79 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _AdaptiveProgressBar extends StatelessWidget {
+  final double value;
+  final Color color;
+  final double height;
+
+  const _AdaptiveProgressBar({
+    required this.value,
+    required this.color,
+    this.height = 10,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final clampedValue = value.clamp(0.0, 1.0);
+
+    if (isIos) {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final totalWidth = constraints.maxWidth;
+          final fillWidth = (totalWidth * clampedValue).clamp(0.0, totalWidth);
+
+          return Container(
+            height: height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(height / 2),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : Colors.black.withValues(alpha: 0.08),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.15)
+                    : Colors.black.withValues(alpha: 0.06),
+                width: 0.5,
+              ),
+            ),
+            alignment: Alignment.centerLeft,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              width: fillWidth,
+              height: height,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(height / 2),
+                color: color,
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.35),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(height / 2),
+      child: LinearProgressIndicator(
+        value: clampedValue,
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
+        valueColor: AlwaysStoppedAnimation<Color>(color),
+        minHeight: height,
       ),
     );
   }

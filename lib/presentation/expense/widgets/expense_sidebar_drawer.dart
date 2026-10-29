@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/colors.dart';
 import '../../../core/constants/mode_strings.dart';
 import '../../../core/constants/strings.dart';
 import '../../../core/theme/adaptive_theme.dart';
@@ -36,7 +37,9 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
     final isRecurringEnabled = activeCompany.isModuleEnabled(AppModule.recurring);
 
     final drawerBg = isIos
-        ? (isDark ? const Color(0xEE0F172A) : const Color(0xEEF8FAFC))
+        ? (isDark
+            ? AppColors.surfaceDark.withValues(alpha: 0.93)
+            : AppColors.surfaceLight.withValues(alpha: 0.93))
         : colorScheme.surfaceContainerLow;
 
     return Drawer(
@@ -51,7 +54,7 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: isIos
                     ? (isDark
-                        ? const Color(0x881E293B)
+                        ? AppColors.surfaceCardDark.withValues(alpha: 0.55)
                         : Colors.white.withValues(alpha: 0.8))
                     : colorScheme.surfaceContainer,
                 border: Border(

@@ -12,6 +12,9 @@ class EntryNoteAndDetails extends StatelessWidget {
   final Color themeColor;
   final VoidCallback onPickDate;
   final VoidCallback onOpenAttachmentPicker;
+  final String labelText;
+  final String? hintText;
+  final Key? noteFieldKey;
 
   const EntryNoteAndDetails({
     super.key,
@@ -21,6 +24,9 @@ class EntryNoteAndDetails extends StatelessWidget {
     required this.themeColor,
     required this.onPickDate,
     required this.onOpenAttachmentPicker,
+    this.labelText = 'Entry name',
+    this.hintText,
+    this.noteFieldKey,
   });
 
   @override
@@ -35,6 +41,7 @@ class EntryNoteAndDetails extends StatelessWidget {
       children: [
         // Entry name text box
         TextFormField(
+          key: noteFieldKey,
           controller: noteController,
           textCapitalization: TextCapitalization.sentences,
           style: TextStyle(
@@ -43,12 +50,12 @@ class EntryNoteAndDetails extends StatelessWidget {
             color: Theme.of(context).colorScheme.onSurface,
           ),
           decoration: InputDecoration(
-            labelText: 'Entry name',
+            labelText: labelText,
             labelStyle: TextStyle(
               fontSize: 13,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-            hintText: 'e.g. Chai, Lunch, Bill #104, Quality...',
+            hintText: hintText ?? 'e.g. Chai, Lunch, Bill #104, Quality...',
             hintStyle: TextStyle(
               fontSize: 12,
               color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),

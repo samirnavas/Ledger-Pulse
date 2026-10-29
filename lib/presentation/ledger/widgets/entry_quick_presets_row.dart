@@ -11,13 +11,17 @@ import '../../../data/models/transaction_model.dart';
 /// On iOS: RealLiquidGlass with Cupertino styling.
 class EntryQuickPresetsRow extends StatelessWidget {
   final ValueChanged<int> onAddPreset;
-  final EntryType entryType;
+  final EntryType? entryType;
+  final Color? themeColor;
+  final String currencySymbol;
   final List<int> presets;
 
   const EntryQuickPresetsRow({
     super.key,
     required this.onAddPreset,
-    required this.entryType,
+    this.entryType,
+    this.themeColor,
+    this.currencySymbol = '₹',
     this.presets = const [100, 500, 1000, 5000],
   });
 
@@ -26,8 +30,8 @@ class EntryQuickPresetsRow extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
     final isGave = entryType == EntryType.gave;
-    final themeColor =
-        isGave ? AppColors.payableRed : AppColors.receivableGreen;
+    final effectiveThemeColor = themeColor ??
+        (isGave ? AppColors.payableRed : AppColors.receivableGreen);
 
     if (isIos) {
       return Expanded(
@@ -38,18 +42,18 @@ class EntryQuickPresetsRow extends StatelessWidget {
           },
           child: RealLiquidGlass(
             borderRadius: 22,
-            glassColor: themeColor.withValues(alpha: isDark ? 0.18 : 0.1),
-            borderColor: themeColor.withValues(alpha: isDark ? 0.35 : 0.25),
+            glassColor: effectiveThemeColor.withValues(alpha: isDark ? 0.18 : 0.1),
+            borderColor: effectiveThemeColor.withValues(alpha: isDark ? 0.35 : 0.25),
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 3),
               padding: const EdgeInsets.symmetric(vertical: 9),
               child: Center(
                 child: Text(
-                  '+₹$amount',
+                  '+$currencySymbol$amount',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: themeColor,
+                    color: effectiveThemeColor,
                   ),
                 ),
               ),
@@ -69,11 +73,11 @@ class EntryQuickPresetsRow extends StatelessWidget {
           },
           label: Center(
             child: Text(
-              '+₹$amount',
+              '+$currencySymbol$amount',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: themeColor,
+                color: effectiveThemeColor,
               ),
             ),
           ),

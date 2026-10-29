@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/constants/colors.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/widgets/adaptive_button.dart';
+import '../../core/widgets/adaptive_chip.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
+import '../../core/widgets/adaptive_controls.dart';
+import '../../core/widgets/adaptive_form_sheet.dart';
+import '../../core/widgets/adaptive_list_row.dart';
+import '../../core/widgets/adaptive_picker.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
+import '../../core/widgets/adaptive_surface_card.dart';
 import '../../core/widgets/adaptive_text_field_dialog.dart';
 import '../../core/widgets/amount_text.dart';
+import '../../core/widgets/app_feedback.dart';
 import '../../core/widgets/empty_state_view.dart';
-import '../../core/widgets/liquid_glass_card.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
@@ -56,13 +65,18 @@ class ExpenseAccountsScreen extends ConsumerStatefulWidget {
                 leading: const Icon(Icons.category_rounded),
                 title: const Text('Add Category'),
                 subtitle: const Text('Expense or income category'),
-                onTap: () {
+                onTap: () async {
                   Navigator.pop(ctx);
-                  _ExpenseAccountsScreenState.showAddCategoryDialogStatic(
-                    context,
-                    ref,
-                    allCats,
-                  );
+                  final cats = allCats.isNotEmpty
+                      ? allCats
+                      : (await ref.read(expenseRepositoryProvider).getCategories());
+                  if (context.mounted) {
+                    _ExpenseAccountsScreenState.showAddCategoryDialogStatic(
+                      context,
+                      ref,
+                      cats,
+                    );
+                  }
                 },
               ),
             ],
@@ -85,7 +99,6 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
   // WALLET DIALOGS & ACTIONS
   // -------------------------------------------------------------
 
-
   static Future<void> showAddWalletDialogStatic(
     BuildContext context,
     WidgetRef ref,
@@ -95,15 +108,42 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     final balanceController = TextEditingController();
     AccountType walletType = AccountType.asset;
 
-    await showDialog<void>(
+    Future<void> doSave(BuildContext sheetCtx) async {
+      final name = nameController.text.trim();
+      if (name.isEmpty) return;
+
+      HapticFeedback.mediumImpact();
+      final cents = CurrencyFormatter.parseToCents(balanceController.text);
+      try {
+        final repo = ref.read(expenseRepositoryProvider);
+        await repo.createWallet(
+          name: name,
+          type: walletType,
+          openingBalanceInCents: cents,
+        );
+        if (context.mounted) {
+          Navigator.of(sheetCtx).pop();
+          showAppFeedback(context, 'Wallet saved successfully');
+        }
+      } catch (e) {
+        if (context.mounted) {
+          showAppFeedback(context, 'Error creating wallet: $e', isError: true);
+        }
+      }
+    }
+
+    await showAdaptiveFormSheet<void>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Wallet'),
-          content: SingleChildScrollView(
+      title: 'Add Wallet',
+      doneLabel: 'Done',
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final theme = Theme.of(ctx);
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 TextField(
                   key: const Key('wallet_name_input'),
@@ -112,25 +152,30 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Wallet Name',
                     hintText: 'e.g. ICICI Bank, Petty Cash',
+                    border: OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text('Wallet Type',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(
+                  'Wallet Type',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    ChoiceChip(
-                      label: const Text('Asset (Cash/Bank)'),
-                      selected: walletType == AccountType.asset,
+                    AdaptiveChip(
+                      label: 'Asset (Cash/Bank)',
+                      isSelected: walletType == AccountType.asset,
                       onSelected: (val) {
                         if (val) setDialogState(() => walletType = AccountType.asset);
                       },
                     ),
                     const SizedBox(width: 8),
-                    ChoiceChip(
-                      label: const Text('Liability (Card)'),
-                      selected: walletType == AccountType.liability,
+                    AdaptiveChip(
+                      label: 'Liability (Card)',
+                      isSelected: walletType == AccountType.liability,
                       onSelected: (val) {
                         if (val) setDialogState(() => walletType = AccountType.liability);
                       },
@@ -147,44 +192,19 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                     labelText: 'Opening Balance (Optional)',
                     prefixText:
                         '${CurrencyFormatter.getSymbol(company.currencyCode)} ',
+                    border: const OutlineInputBorder(),
                   ),
+                ),
+                const SizedBox(height: 24),
+                AdaptiveButton(
+                  key: const Key('save_wallet_button'),
+                  child: const Text('Save Wallet'),
+                  onPressed: () => doSave(sheetContext),
                 ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              key: const Key('save_wallet_button'),
-              onPressed: () async {
-                final name = nameController.text.trim();
-                if (name.isEmpty) return;
-
-                final cents =
-                    CurrencyFormatter.parseToCents(balanceController.text);
-                try {
-                  final repo = ref.read(expenseRepositoryProvider);
-                  await repo.createWallet(
-                    name: name,
-                    type: walletType,
-                    openingBalanceInCents: cents,
-                  );
-                  if (context.mounted) Navigator.of(ctx).pop();
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error creating wallet: $e')),
-                    );
-                  }
-                }
-              },
-              child: const Text('Save Wallet'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -202,7 +222,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
           : 'Set historical starting balance for this wallet.',
       initialValue: wallet.currentBalanceInCents > 0
           ? (wallet.currentBalanceInCents / 100.0).toStringAsFixed(2)
-          : '',
+      : '',
       labelText: 'Opening Balance',
       prefixText: '${CurrencyFormatter.getSymbol(company.currencyCode)} ',
       textFieldKey: const Key('edit_opening_balance_field'),
@@ -214,13 +234,47 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     if (result != null) {
       final cents = CurrencyFormatter.parseToCents(result);
       try {
+        HapticFeedback.mediumImpact();
         final repo = ref.read(expenseRepositoryProvider);
         await repo.setOpeningBalance(wallet.id, cents);
+        if (context.mounted) {
+          showAppFeedback(context, 'Opening balance updated');
+        }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error updating opening balance: $e')),
+          showAppFeedback(
+            context,
+            'Error updating opening balance: $e',
+            isError: true,
           );
+        }
+      }
+    }
+  }
+
+  static Future<void> _renameWalletStatic(
+    BuildContext context,
+    WidgetRef ref,
+    AccountModel wallet,
+  ) async {
+    final result = await showAdaptiveTextFieldDialog(
+      context: context,
+      title: 'Rename Wallet',
+      initialValue: wallet.name,
+      labelText: 'Wallet Name',
+      confirmLabel: 'Save',
+    );
+    if (result != null && result.trim().isNotEmpty && result.trim() != wallet.name) {
+      try {
+        final repo = ref.read(expenseRepositoryProvider);
+        await repo.updateWallet(id: wallet.id, name: result.trim());
+        HapticFeedback.lightImpact();
+        if (context.mounted) {
+          showAppFeedback(context, 'Wallet renamed');
+        }
+      } catch (e) {
+        if (context.mounted) {
+          showAppFeedback(context, 'Error renaming wallet: $e', isError: true);
         }
       }
     }
@@ -229,7 +283,6 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
   // -------------------------------------------------------------
   // CATEGORY DIALOGS & ACTIONS
   // -------------------------------------------------------------
-
 
   static Future<void> showAddCategoryDialogStatic(
     BuildContext context,
@@ -240,99 +293,123 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     final nameController = TextEditingController();
     String? selectedParentId;
 
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          final potentialParents = allCategories
-              .where((c) => c.type == categoryType && c.parentAccountId == null)
-              .toList();
+    final effectiveCategories = allCategories.isNotEmpty
+        ? allCategories
+        : (await ref.read(expenseRepositoryProvider).getCategories());
 
-          return AlertDialog(
-            title: Text(
-              'Add ${categoryType == AccountType.expense ? 'Expense' : 'Income'} Category',
+    final potentialParents = effectiveCategories
+        .where((c) => c.type == categoryType && c.parentAccountId == null)
+        .toList();
+
+    Future<void> doSave(BuildContext sheetCtx) async {
+      final name = nameController.text.trim();
+      if (name.isEmpty) return;
+
+      HapticFeedback.mediumImpact();
+      try {
+        final repo = ref.read(expenseRepositoryProvider);
+        await repo.createCategory(
+          name: name,
+          type: categoryType,
+          parentAccountId: selectedParentId,
+        );
+        if (context.mounted) {
+          Navigator.of(sheetCtx).pop();
+          showAppFeedback(context, 'Category saved successfully');
+        }
+      } catch (e) {
+        if (context.mounted) {
+          showAppFeedback(context, 'Error creating category: $e', isError: true);
+        }
+      }
+    }
+
+    if (!context.mounted) return;
+    await showAdaptiveFormSheet<void>(
+      context: context,
+      title:
+          'Add ${categoryType == AccountType.expense ? 'Expense' : 'Income'} Category',
+      doneLabel: 'Done',
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final pickerItems = [
+            const AdaptivePickerItem<String?>(
+              value: null,
+              label: 'None (Top Level)',
             ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TextField(
-                    key: const Key('category_name_input'),
-                    controller: nameController,
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Category Name',
-                      hintText: 'e.g. Subscriptions, Groceries',
-                    ),
+            ...potentialParents.map(
+              (p) => AdaptivePickerItem<String?>(
+                value: p.id,
+                label: p.name,
+              ),
+            ),
+          ];
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  key: const Key('category_name_input'),
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Category Name',
+                    hintText: 'e.g. Subscriptions, Groceries',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (potentialParents.isNotEmpty) ...[
+                  AdaptiveDropdownField<String?>(
+                    label: 'Parent Category',
+                    value: selectedParentId,
+                    hint: 'None (Top Level)',
+                    items: pickerItems,
+                    onChanged: (val) {
+                      setDialogState(() => selectedParentId = val);
+                    },
                   ),
                   const SizedBox(height: 16),
-                  if (potentialParents.isNotEmpty) ...[
-                    const Text('Parent Category (Optional)',
-                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    DropdownButtonFormField<String?>(
-                      initialValue: selectedParentId,
-                      decoration: const InputDecoration(
-                        border: OutlineInputBorder(),
-                        contentPadding:
-                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      ),
-                      hint: const Text('None (Top Level)'),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('None (Top Level)'),
-                        ),
-                        ...potentialParents.map(
-                          (p) => DropdownMenuItem<String?>(
-                            value: p.id,
-                            child: Text(p.name),
-                          ),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        setDialogState(() => selectedParentId = val);
-                      },
-                    ),
-                  ],
                 ],
-              ),
+                const SizedBox(height: 8),
+                AdaptiveButton(
+                  key: const Key('save_category_button'),
+                  child: const Text('Save Category'),
+                  onPressed: () => doSave(sheetContext),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                key: const Key('save_category_button'),
-                onPressed: () async {
-                  final name = nameController.text.trim();
-                  if (name.isEmpty) return;
-
-                  try {
-                    final repo = ref.read(expenseRepositoryProvider);
-                    await repo.createCategory(
-                      name: name,
-                      type: categoryType,
-                      parentAccountId: selectedParentId,
-                    );
-                    if (context.mounted) Navigator.of(ctx).pop();
-                  } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error creating category: $e')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Save Category'),
-              ),
-            ],
           );
         },
       ),
     );
+  }
+
+  Future<void> _renameCategory(AccountModel cat) async {
+    final result = await showAdaptiveTextFieldDialog(
+      context: context,
+      title: 'Rename Category',
+      initialValue: cat.name,
+      labelText: 'Category Name',
+      confirmLabel: 'Save',
+    );
+    if (result != null && result.trim().isNotEmpty && result.trim() != cat.name) {
+      try {
+        final repo = ref.read(expenseRepositoryProvider);
+        await repo.updateCategory(id: cat.id, name: result.trim());
+        HapticFeedback.lightImpact();
+        if (mounted) {
+          showAppFeedback(context, 'Category renamed');
+        }
+      } catch (e) {
+        if (mounted) {
+          showAppFeedback(context, 'Error renaming category: $e', isError: true);
+        }
+      }
+    }
   }
 
   Future<void> _deleteOrArchiveCategory(AccountModel cat) async {
@@ -347,23 +424,23 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
 
     if (confirmed) {
       try {
+        HapticFeedback.mediumImpact();
         final repo = ref.read(expenseRepositoryProvider);
         final wasDeleted = await repo.deleteCategory(cat.id);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                wasDeleted
-                    ? '${cat.name} was deleted'
-                    : '${cat.name} was archived (has transaction history)',
-              ),
-            ),
+          showAppFeedback(
+            context,
+            wasDeleted
+                ? '${cat.name} was deleted'
+                : '${cat.name} was archived (has transaction history)',
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error deleting category: $e')),
+          showAppFeedback(
+            context,
+            'Error deleting category: $e',
+            isError: true,
           );
         }
       }
@@ -438,8 +515,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
           children: [
             // Net Balance Across Wallets Card
-            LiquidGlassCard(
+            AdaptiveSurfaceCard(
               padding: const EdgeInsets.all(18),
+              margin: const EdgeInsets.only(bottom: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -460,14 +538,13 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                     Text(
                       'Includes ${CurrencyFormatter.format(totalLiabilityBalance, currencyCode: company.currencyCode)} credit debt',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.redAccent,
+                        color: AppColors.payableRed,
                       ),
                     ),
                   ],
                 ],
               ),
             ),
-            const SizedBox(height: 16),
 
             Text(
               'Your Wallets',
@@ -487,7 +564,8 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: LiquidGlassCard(
+                child: AdaptiveSurfaceCard(
+                  key: Key('wallet_card_${wallet.id}'),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(
@@ -535,9 +613,17 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                           AmountText(
                             amountInCents: wallet.currentBalanceInCents,
                             currencyCode: company.currencyCode,
-                            overrideColor: isLiability ? Colors.redAccent : null,
+                            overrideColor: isLiability ? AppColors.payableRed : null,
                             variant: AmountVariant.medium,
                           ),
+                          if (isLiability && wallet.currentBalanceInCents > 0)
+                            Text(
+                              'Owed',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: AppColors.payableRed,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           InkWell(
                             key: Key('edit_opening_btn_${wallet.id}'),
                             onTap: () => _showOpeningBalanceDialog(
@@ -551,6 +637,41 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                   decoration: TextDecoration.underline,
                                 ),
                               ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 4),
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, size: 20),
+                        onSelected: (val) {
+                          if (val == 'rename') {
+                            _renameWalletStatic(context, ref, wallet);
+                          } else if (val == 'opening') {
+                            _showOpeningBalanceDialog(context, wallet, company);
+                          }
+                        },
+                        itemBuilder: (ctx) => [
+                          PopupMenuItem(
+                            key: Key('rename_wallet_${wallet.id}'),
+                            value: 'rename',
+                            child: const Row(
+                              children: [
+                                Icon(Icons.edit_outlined, size: 18),
+                                SizedBox(width: 8),
+                                Text('Rename'),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            key: Key('set_opening_wallet_${wallet.id}'),
+                            value: 'opening',
+                            child: const Row(
+                              children: [
+                                Icon(Icons.account_balance_wallet_outlined, size: 18),
+                                SizedBox(width: 8),
+                                Text('Set Opening Balance'),
+                              ],
                             ),
                           ),
                         ],
@@ -580,8 +701,6 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     Company company,
     AsyncValue<List<AccountModel>> categoriesAsync,
   ) {
-    final theme = Theme.of(context);
-
     return categoriesAsync.when(
       data: (allCategories) {
         final filtered =
@@ -618,7 +737,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               child: filtered.isEmpty
                   ? const EmptyStateView(
                       title: 'No Categories',
-                      subtitle: 'Tap the + button below to create a category.',
+                      subtitle: 'Create a category to organize your transactions.',
                       icon: Icons.category_outlined,
                     )
                   : ListView(
@@ -627,75 +746,133 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                         final children = subCats[parent.id] ?? [];
 
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: LiquidGlassCard(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 10),
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: AdaptiveSurfaceCard(
+                            margin: EdgeInsets.zero,
+                            padding: const EdgeInsets.symmetric(vertical: 4),
                             child: Column(
                               children: [
-                                ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  leading: Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      color: _selectedCatType == AccountType.expense
-                                          ? Colors.red.withValues(alpha: 0.1)
-                                          : Colors.green.withValues(alpha: 0.1),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.category,
-                                      size: 18,
-                                      color: _selectedCatType == AccountType.expense
-                                          ? Colors.redAccent
-                                          : Colors.green,
-                                    ),
+                                Dismissible(
+                                  key: Key('cat_dismiss_${parent.id}'),
+                                  direction: DismissDirection.endToStart,
+                                  confirmDismiss: (dir) async {
+                                    await _deleteOrArchiveCategory(parent);
+                                    return false;
+                                  },
+                                  background: const SizedBox.shrink(),
+                                  secondaryBackground:
+                                      AdaptiveSwipeBackgrounds.delete(
+                                    context,
+                                    label: 'Archive',
+                                    icon: Icons.archive_outlined,
                                   ),
-                                  title: Text(
-                                    parent.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                  subtitle: Text(
-                                    children.isNotEmpty
+                                  child: AdaptiveListRow(
+                                    title: parent.name,
+                                    subtitle: children.isNotEmpty
                                         ? '${children.length} subcategories'
                                         : (parent.description ?? ''),
-                                  ),
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.archive_outlined,
-                                        size: 20),
-                                    tooltip: 'Archive category',
-                                    onPressed: () =>
-                                        _deleteOrArchiveCategory(parent),
+                                    avatarColor: _selectedCatType == AccountType.expense
+                                        ? AppColors.expense(context)
+                                        : AppColors.income(context),
+                                    showDivider: children.isNotEmpty,
+                                    onTap: () => _renameCategory(parent),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          key: Key('archive_cat_btn_${parent.id}'),
+                                          icon: const Icon(
+                                            Icons.archive_outlined,
+                                            size: 20,
+                                          ),
+                                          tooltip: 'Archive category',
+                                          onPressed: () =>
+                                              _deleteOrArchiveCategory(parent),
+                                        ),
+                                        PopupMenuButton<String>(
+                                          icon: const Icon(Icons.more_vert, size: 18),
+                                          onSelected: (val) {
+                                            if (val == 'rename') {
+                                              _renameCategory(parent);
+                                            } else if (val == 'archive') {
+                                              _deleteOrArchiveCategory(parent);
+                                            }
+                                          },
+                                          itemBuilder: (ctx) => [
+                                            PopupMenuItem(
+                                              key: Key('rename_cat_${parent.id}'),
+                                              value: 'rename',
+                                              child: const Row(
+                                                children: [
+                                                  Icon(Icons.edit_outlined, size: 18),
+                                                  SizedBox(width: 8),
+                                                  Text('Rename'),
+                                                ],
+                                              ),
+                                            ),
+                                            PopupMenuItem(
+                                              key: Key('archive_cat_${parent.id}'),
+                                              value: 'archive',
+                                              child: const Row(
+                                                children: [
+                                                  Icon(Icons.archive_outlined, size: 18),
+                                                  SizedBox(width: 8),
+                                                  Text('Archive'),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
 
                                 // Subcategories if present
-                                if (children.isNotEmpty) ...[
-                                  const Divider(height: 1),
-                                  ...children.map((sub) => Padding(
+                                if (children.isNotEmpty)
+                                  ...children.map((sub) {
+                                    return Dismissible(
+                                      key: Key('cat_dismiss_${sub.id}'),
+                                      direction: DismissDirection.endToStart,
+                                      confirmDismiss: (dir) async {
+                                        await _deleteOrArchiveCategory(sub);
+                                        return false;
+                                      },
+                                      background: const SizedBox.shrink(),
+                                      secondaryBackground:
+                                          AdaptiveSwipeBackgrounds.delete(
+                                        context,
+                                        label: 'Archive',
+                                        icon: Icons.archive_outlined,
+                                      ),
+                                      child: AdaptiveListRow(
                                         padding: const EdgeInsets.only(
-                                            left: 48, top: 6, bottom: 6),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
+                                            left: 48, right: 16, top: 4, bottom: 4),
+                                        title: sub.name,
+                                        initials: '•',
+                                        avatarColor: _selectedCatType == AccountType.expense
+                                            ? AppColors.expense(context)
+                                            : AppColors.income(context),
+                                        showDivider: false,
+                                        onTap: () => _renameCategory(sub),
+                                        trailing: Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Text(
-                                              '• ${sub.name}',
-                                              style: theme.textTheme.bodyMedium,
-                                            ),
                                             IconButton(
+                                              key: Key('archive_cat_btn_${sub.id}'),
                                               icon: const Icon(
-                                                  Icons.archive_outlined,
-                                                  size: 18),
+                                                Icons.archive_outlined,
+                                                size: 18,
+                                              ),
+                                              tooltip: 'Archive category',
                                               onPressed: () =>
                                                   _deleteOrArchiveCategory(sub),
                                             ),
                                           ],
                                         ),
-                                      )),
-                                ],
+                                      ),
+                                    );
+                                  }),
                               ],
                             ),
                           ),

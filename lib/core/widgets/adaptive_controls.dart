@@ -49,37 +49,46 @@ class AdaptiveSwitch extends StatelessWidget {
       return switchWidget;
     }
 
-    return Padding(
-      padding: padding,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label!,
-                  style: AppTypography.titleMedium.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onChanged != null
+          ? () {
+              HapticFeedback.lightImpact();
+              onChanged!(!value);
+            }
+          : null,
+      child: Padding(
+        padding: padding,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    subtitle!,
-                    style: AppTypography.labelSmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                    label!,
+                    style: AppTypography.titleMedium.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle!,
+                      style: AppTypography.labelSmall.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          switchWidget,
-        ],
+            const SizedBox(width: 12),
+            switchWidget,
+          ],
+        ),
       ),
     );
   }

@@ -9,12 +9,16 @@ class EntryAmountDisplay extends StatelessWidget {
   final String amountString;
   final Color themeColor;
   final String? errorMessage;
+  final String currencyCode;
+  final String? title;
 
   const EntryAmountDisplay({
     super.key,
     required this.amountString,
     required this.themeColor,
     this.errorMessage,
+    this.currencyCode = 'INR',
+    this.title,
   });
 
   @override
@@ -24,7 +28,8 @@ class EntryAmountDisplay extends StatelessWidget {
         CupertinoTheme.of(context).brightness == Brightness.dark;
     final rawAmountDouble = double.tryParse(amountString) ?? 0.0;
     final rawAmountCents = (rawAmountDouble * 100).round();
-    final formattedDisplay = CurrencyFormatter.format(rawAmountCents);
+    final formattedDisplay = CurrencyFormatter.format(rawAmountCents, currencyCode: currencyCode);
+    final currencySymbol = CurrencyFormatter.getSymbol(currencyCode);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -56,11 +61,24 @@ class EntryAmountDisplay extends StatelessWidget {
           ),
           child: Column(
             children: [
+              if (title != null) ...[
+                Text(
+                  title!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? const Color(0xFFA1A1AA)
+                        : AppColors.textMutedLight,
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    '₹',
+                    currencySymbol,
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w800,

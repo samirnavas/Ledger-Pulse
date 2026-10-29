@@ -422,7 +422,7 @@ void main() {
       expect(find.text('Income this month'), findsOneWidget);
       expect(find.byKey(const Key('expense_balance_card')), findsOneWidget);
       expect(find.byType(CategoryBreakdownCard), findsOneWidget);
-      expect(find.byType(AdaptiveSectionHeader), findsOneWidget);
+      expect(find.byType(AdaptiveSectionHeader), findsNWidgets(2));
       expect(find.text('Recent Transactions'), findsOneWidget);
       expect(find.text('Lunch at Cafe'), findsOneWidget);
 
@@ -435,7 +435,7 @@ void main() {
       expect(find.text('Income this month'), findsOneWidget);
       expect(find.byKey(const Key('expense_balance_card')), findsOneWidget);
       expect(find.byType(CategoryBreakdownCard), findsOneWidget);
-      expect(find.byType(AdaptiveSectionHeader), findsOneWidget);
+      expect(find.byType(AdaptiveSectionHeader), findsNWidgets(2));
       expect(find.text('RECENT TRANSACTIONS'), findsOneWidget);
     });
 

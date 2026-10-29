@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/constants/colors.dart';
+import '../../core/constants/mode_strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/widgets/adaptive_chip.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
@@ -15,6 +16,7 @@ import '../../core/widgets/adaptive_list_row.dart';
 import '../../core/widgets/adaptive_search_field.dart';
 import '../../core/widgets/adaptive_section_header.dart';
 import '../../core/widgets/amount_text.dart';
+import '../../core/widgets/app_feedback.dart';
 import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
 import '../../data/models/account_model.dart';
@@ -124,24 +126,18 @@ class _ExpenseTransactionsScreenState
         final repo = ref.read(expenseRepositoryProvider);
         await repo.voidTransaction(txn.id);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${txn.voucherNumber} voided successfully'),
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+          showAppFeedback(
+            context,
+            '${txn.voucherNumber} voided successfully',
           );
         }
         return true;
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error voiding transaction: $e'),
-              backgroundColor: AppColors.payableRed,
-            ),
+          showAppFeedback(
+            context,
+            'Error voiding transaction: $e',
+            isError: true,
           );
         }
         return false;
@@ -188,12 +184,12 @@ class _ExpenseTransactionsScreenState
   @override
   Widget build(BuildContext context) {
     final company = ref.watch(activeCompanyProvider);
+    final modeStrings = ModeStrings.of(company.mode);
     final transactionsAsync = ref.watch(transactionsProvider);
     final filters = ref.watch(transactionFiltersProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final walletsAsync = ref.watch(walletsProvider);
     final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final hasActiveFilters = (filters.categoryIds != null &&
             filters.categoryIds!.isNotEmpty) ||
@@ -237,7 +233,7 @@ class _ExpenseTransactionsScreenState
                       key: const Key('transaction_search_field'),
                       controller: _searchController,
                       focusNode: _searchFocusNode,
-                      hint: 'Search note, voucher # or ref...',
+                      hint: modeStrings.searchHint,
                       onChanged: _onSearchChanged,
                       onClear: _clearSearch,
                     ),
@@ -270,7 +266,7 @@ class _ExpenseTransactionsScreenState
                   icon: Icon(
                     isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
                     size: 14,
-                    color: isDark ? const Color(0xFFF87171) : AppColors.payableRed,
+                    color: AppColors.expense(context),
                   ),
                 ),
                 AdaptiveChipItem(
@@ -279,7 +275,7 @@ class _ExpenseTransactionsScreenState
                   icon: Icon(
                     isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
                     size: 14,
-                    color: isDark ? const Color(0xFF4ADE80) : AppColors.receivableGreen,
+                    color: AppColors.income(context),
                   ),
                 ),
                 AdaptiveChipItem(
@@ -333,11 +329,11 @@ class _ExpenseTransactionsScreenState
                                     : Icons.receipt_long_outlined,
                                 title: currentQuery.isNotEmpty
                                     ? 'No matches for "$currentQuery"'
-                                    : 'No Transactions',
+                                    : modeStrings.emptyTransactionsTitle,
                                 subtitle: currentQuery.isNotEmpty
                                     ? 'Try searching by a different note or voucher number.'
-                                    : 'No transactions match your active filters or date range.',
-                                actionLabel: 'Add Transaction',
+                                    : modeStrings.emptyTransactionsSubtitle,
+                                actionLabel: modeStrings.addTransaction,
                                 onActionPressed: () =>
                                     QuickAddTransactionSheet.show(context),
                               ),
@@ -408,12 +404,8 @@ class _ExpenseTransactionsScreenState
                                   final color = isTransfer
                                       ? AppColors.primaryBlue
                                       : (isIncome
-                                          ? (isDark
-                                              ? const Color(0xFF4ADE80)
-                                              : AppColors.receivableGreen)
-                                          : (isDark
-                                              ? const Color(0xFFF87171)
-                                              : AppColors.payableRed));
+                                          ? AppColors.income(context)
+                                          : AppColors.expense(context));
 
                                   final icon = isTransfer
                                       ? (isIos

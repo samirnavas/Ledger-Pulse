@@ -59,27 +59,31 @@ void showAppFeedback(
   // Material / fallback
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (messenger != null) {
-    final theme = Theme.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: TextStyle(
-            color: isError
-                ? theme.colorScheme.onError
-                : theme.colorScheme.onInverseSurface,
-            fontWeight: FontWeight.w500,
+    try {
+      final theme = Theme.of(context);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: TextStyle(
+              color: isError
+                  ? theme.colorScheme.onError
+                  : theme.colorScheme.onInverseSurface,
+              fontWeight: FontWeight.w500,
+            ),
           ),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: isError
+              ? theme.colorScheme.error
+              : theme.colorScheme.inverseSurface,
+          duration: duration,
         ),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        backgroundColor: isError
-            ? theme.colorScheme.error
-            : theme.colorScheme.inverseSurface,
-        duration: duration,
-      ),
-    );
+      );
+    } catch (_) {
+      // In case there is no descendant Scaffold in the widget tree (e.g. during body-only tests)
+    }
   }
 }
 
