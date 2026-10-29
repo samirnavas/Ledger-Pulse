@@ -9,35 +9,54 @@ import '../../../core/widgets/adaptive_surface_card.dart';
 import '../../../core/widgets/amount_text.dart';
 import '../../../data/models/account_model.dart';
 
-/// Series color palette helper aligned for iOS Cupertino and Material 3 design systems.
+/// Series color palette helper providing distinct, vibrant, high-contrast colors
+/// for data visualization (pie charts, breakdown series) across platforms and themes.
 List<Color> getChartPalette(BuildContext context) {
-  final theme = Theme.of(context);
   final isIos = AdaptiveThemeHelper.isIos(context);
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+
   if (isIos) {
     return const [
       CupertinoColors.systemBlue,
-      CupertinoColors.systemIndigo,
+      CupertinoColors.systemOrange,
+      CupertinoColors.systemGreen,
       CupertinoColors.systemPurple,
       CupertinoColors.systemPink,
-      CupertinoColors.systemOrange,
       CupertinoColors.systemTeal,
-      CupertinoColors.systemGreen,
       CupertinoColors.systemYellow,
+      CupertinoColors.systemIndigo,
       CupertinoColors.systemRed,
       CupertinoColors.systemMint,
       CupertinoColors.systemCyan,
     ];
   } else {
-    return [
-      theme.colorScheme.primary,
-      theme.colorScheme.secondary,
-      theme.colorScheme.tertiary,
-      theme.colorScheme.primaryContainer,
-      theme.colorScheme.secondaryContainer,
-      theme.colorScheme.tertiaryContainer,
-      theme.colorScheme.surfaceTint,
-      theme.colorScheme.error,
-    ];
+    if (isDark) {
+      return const [
+        Color(0xFF818CF8), // Indigo / Periwinkle (Vibrant & crisp on dark)
+        Color(0xFF34D399), // Emerald / Mint
+        Color(0xFFFBBF24), // Amber / Warm Yellow
+        Color(0xFFF472B6), // Pink / Rose
+        Color(0xFFA78BFA), // Purple / Violet
+        Color(0xFF22D3EE), // Cyan / Sky
+        Color(0xFFF87171), // Coral Red
+        Color(0xFF2DD4BF), // Teal
+        Color(0xFF60A5FA), // Bright Blue
+        Color(0xFFA3E635), // Lime
+      ];
+    } else {
+      return const [
+        Color(0xFF4F46E5), // Indigo
+        Color(0xFF059669), // Emerald
+        Color(0xFFD97706), // Amber
+        Color(0xFFDB2777), // Pink
+        Color(0xFF7C3AED), // Purple
+        Color(0xFF0891B2), // Cyan
+        Color(0xFFDC2626), // Coral Red
+        Color(0xFF0D9488), // Teal
+        Color(0xFF2563EB), // Bright Blue
+        Color(0xFF65A30D), // Lime
+      ];
+    }
   }
 }
 
@@ -260,11 +279,19 @@ class _DonutChartPainter extends CustomPainter {
 
       // Draw arc slightly reduced for rounded separator gap
       const gap = 0.04;
-      if (sweepAngle > gap) {
+      if (slices.length > 1 && sweepAngle > gap) {
         canvas.drawArc(
           Rect.fromCircle(center: center, radius: radius - strokeWidth / 2),
           startAngle + gap / 2,
           sweepAngle - gap,
+          false,
+          slicePaint,
+        );
+      } else if (sweepAngle > 0) {
+        canvas.drawArc(
+          Rect.fromCircle(center: center, radius: radius - strokeWidth / 2),
+          startAngle,
+          sweepAngle,
           false,
           slicePaint,
         );

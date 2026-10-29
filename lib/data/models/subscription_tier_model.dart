@@ -28,35 +28,16 @@ enum SubscriptionTier {
     }
   }
 
-  int get maxCompanies {
-    switch (this) {
-      case SubscriptionTier.silver:
-        return 1;
-      case SubscriptionTier.gold:
-        return 5;
-      case SubscriptionTier.diamond:
-        return 50; // Unlimited in practice
-    }
-  }
+  int get maxCompanies => 999;
+  int get monthlyGstCreditLimit => 999999;
 
-  int get monthlyGstCreditLimit {
-    switch (this) {
-      case SubscriptionTier.silver:
-        return 20;
-      case SubscriptionTier.gold:
-        return 200;
-      case SubscriptionTier.diamond:
-        return 1000;
-    }
-  }
-
-  bool get supportsCustomBranding => this == SubscriptionTier.diamond;
-  bool get supportsPayroll => this == SubscriptionTier.diamond;
-  bool get supportsManufacturing => this == SubscriptionTier.diamond;
-  bool get supportsEcommerceSync => this == SubscriptionTier.diamond;
-  bool get supportsChequePrinting => this == SubscriptionTier.diamond;
-  bool get supportsCustomSqlStudio => this != SubscriptionTier.silver;
-  bool get supportsAdvancedReports => this != SubscriptionTier.silver;
+  bool get supportsCustomBranding => true;
+  bool get supportsPayroll => true;
+  bool get supportsManufacturing => true;
+  bool get supportsEcommerceSync => true;
+  bool get supportsChequePrinting => true;
+  bool get supportsCustomSqlStudio => true;
+  bool get supportsAdvancedReports => true;
 }
 
 enum BillingDuration {
@@ -129,33 +110,11 @@ class LicenseState {
     this.gstCreditsUsedThisMonth = 0,
   });
 
-  bool get isExpired => DateTime.now().isAfter(expiryDate);
-
-  int get daysRemaining {
-    final diff = expiryDate.difference(DateTime.now()).inDays;
-    return diff < 0 ? 0 : diff;
-  }
-
-  int get remainingGstCredits {
-    final limit = tier.monthlyGstCreditLimit;
-    final remaining = limit - gstCreditsUsedThisMonth;
-    return remaining < 0 ? 0 : remaining;
-  }
-
-  bool get canCreateCompany {
-    if (isExpired) return false;
-    return true;
-  }
-
-  bool canAccessTemplate(String templateTypeId) {
-    if (isExpired) return false;
-    if (tier == SubscriptionTier.diamond) return true;
-    if (tier == SubscriptionTier.gold) {
-      return templateTypeId != 'custom_branding';
-    }
-    // Silver only allows classic or minimal or gstStatutory
-    return templateTypeId == 'classic' || templateTypeId == 'minimal' || templateTypeId == 'gstStatutory';
-  }
+  bool get isExpired => false;
+  int get daysRemaining => 99999;
+  int get remainingGstCredits => 999999;
+  bool get canCreateCompany => true;
+  bool canAccessTemplate(String templateTypeId) => true;
 
   LicenseState copyWith({
     SubscriptionTier? tier,

@@ -13,14 +13,15 @@ import '../../core/widgets/adaptive_bottom_nav.dart';
 import '../../core/widgets/adaptive_chip.dart';
 import '../../core/widgets/adaptive_list_row.dart';
 import '../../core/widgets/adaptive_metric_card.dart';
+import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_section_header.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
+import '../../core/widgets/smart_fab_switcher.dart';
 import '../../core/widgets/spring_morphing_fab.dart';
-import '../../core/widgets/subscription_alert_banner.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/sync_model.dart';
@@ -30,7 +31,6 @@ import '../home/sync_settings_sheet.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import '../providers/sync_providers.dart';
-import '../providers/subscription_providers.dart';
 import 'accounts_screen.dart';
 import 'budgets_screen.dart';
 import 'expense_reports_screen.dart';
@@ -67,11 +67,11 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       return;
     }
 
-    if (tabIndex == 0 || tabIndex == 1) {
+    if (tabIndex == 0) {
       QuickAddTransactionSheet.show(context);
-    } else if (hasBudgets && tabIndex == 2) {
+    } else if (hasBudgets && tabIndex == 1) {
       BudgetsScreen.showAddBudgetSheet(context, ref);
-    } else if ((hasBudgets && tabIndex == 4) || (!hasBudgets && tabIndex == 3)) {
+    } else if ((hasBudgets && tabIndex == 3) || (!hasBudgets && tabIndex == 2)) {
       ExpenseAccountsScreen.showAddAccountOrCategoryDialog(context, ref);
     }
   }
@@ -95,7 +95,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         foregroundColor: colorScheme.onPrimaryContainer,
         onPressed: tabState.customPrimaryAction!,
       );
-    } else if (tabIndex == 0 || tabIndex == 1) {
+    } else if (tabIndex == 0) {
       fabChild = SpringMorphingFab(
         key: const Key('expense_quick_add_fab'),
         icon: Icons.add,
@@ -107,7 +107,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
           QuickAddTransactionSheet.show(context);
         },
       );
-    } else if (hasBudgets && tabIndex == 2) {
+    } else if (hasBudgets && tabIndex == 1) {
       fabChild = SpringMorphingFab(
         key: const Key('budget_add_fab'),
         icon: Icons.add,
@@ -119,7 +119,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
           BudgetsScreen.showAddBudgetSheet(context, ref);
         },
       );
-    } else if ((hasBudgets && tabIndex == 4) || (!hasBudgets && tabIndex == 3)) {
+    } else if ((hasBudgets && tabIndex == 3) || (!hasBudgets && tabIndex == 2)) {
       fabChild = SpringMorphingFab(
         key: const Key('accounts_add_fab'),
         icon: Icons.add,
@@ -133,23 +133,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       );
     }
 
-    if (fabChild == null) return null;
-
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 250),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (child, animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.85, end: 1.0).animate(animation),
-            child: child,
-          ),
-        );
-      },
-      child: fabChild,
-    );
+    return SmartFabSwitcher(fab: fabChild);
   }
 
   Widget _buildCompanySwitcherTitle(
@@ -230,11 +214,6 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         selectedIcon: const Icon(Icons.home),
         label: modeStrings.homeTab,
       ),
-      NavigationDestination(
-        icon: const Icon(Icons.receipt_long_outlined),
-        selectedIcon: const Icon(Icons.receipt_long),
-        label: modeStrings.transactionsTab,
-      ),
       if (hasBudgets)
         NavigationDestination(
           icon: const Icon(Icons.pie_chart_outline),
@@ -258,10 +237,6 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         icon: const Icon(CupertinoIcons.home),
         label: modeStrings.homeTab,
       ),
-      BottomNavigationBarItem(
-        icon: const Icon(CupertinoIcons.list_bullet),
-        label: modeStrings.transactionsTab,
-      ),
       if (hasBudgets)
         BottomNavigationBarItem(
           icon: const Icon(CupertinoIcons.chart_pie),
@@ -282,11 +257,12 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       _ExpenseHomeView(
         key: const PageStorageKey('expense_tab_home'),
         onViewAllTransactions: () {
-          ref.read(expenseTabControllerProvider.notifier).setTab(1);
+          Navigator.of(context).push(
+            createAdaptivePageRoute(
+              builder: (_) => const ExpenseTransactionsScreen(),
+            ),
+          );
         },
-      ),
-      const ExpenseTransactionsScreen(
-        key: PageStorageKey('expense_tab_transactions'),
       ),
       if (hasBudgets)
         const BudgetsScreen(
@@ -307,21 +283,13 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
     String? titleText;
     if (clampedIndex == 0) {
       titleWidget = _buildCompanySwitcherTitle(context, company, isIos);
-    } else if (clampedIndex == 1) {
-      titleText = modeStrings.transactionsTab;
-    } else if (hasBudgets && clampedIndex == 2) {
+    } else if (hasBudgets && clampedIndex == 1) {
       titleText = modeStrings.budgetsTab;
-    } else if ((hasBudgets && clampedIndex == 3) || (!hasBudgets && clampedIndex == 2)) {
+    } else if ((hasBudgets && clampedIndex == 2) || (!hasBudgets && clampedIndex == 1)) {
       titleText = modeStrings.reportsTab;
     } else {
       titleText = modeStrings.accountsTab;
     }
-
-    // Has primary action in current tab
-    final bool hasPrimaryAction = (clampedIndex == 0 ||
-        clampedIndex == 1 ||
-        (hasBudgets && clampedIndex == 2) ||
-        (hasBudgets ? clampedIndex == 4 : clampedIndex == 3));
 
     // Scaffold actions
     final List<Widget> actions = [
@@ -356,24 +324,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
           },
         ),
 
-      // 2. Tab-specific actions
-      if (clampedIndex == 1)
-        if (isIos)
-          CupertinoButton(
-            key: const Key('transaction_filter_button'),
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            onPressed: () => ExpenseTransactionsScreen.showFilterModal(context, ref),
-            child: const Icon(CupertinoIcons.slider_horizontal_3, size: 22),
-          )
-        else
-          IconButton(
-            key: const Key('transaction_filter_button'),
-            icon: const Icon(Icons.filter_list_rounded),
-            tooltip: 'Filter',
-            onPressed: () => ExpenseTransactionsScreen.showFilterModal(context, ref),
-          ),
-
-      if ((hasBudgets && clampedIndex == 3) || (!hasBudgets && clampedIndex == 2))
+      if ((hasBudgets && clampedIndex == 2) || (!hasBudgets && clampedIndex == 1))
         if (isIos)
           CupertinoButton(
             key: const Key('reports_export_button'),
@@ -413,7 +364,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
             },
           ),
 
-      if ((hasBudgets && clampedIndex == 4) || (!hasBudgets && clampedIndex == 3))
+      if ((hasBudgets && clampedIndex == 3) || (!hasBudgets && clampedIndex == 2))
         if (company.isModuleEnabled(AppModule.recurring))
           if (isIos)
             CupertinoButton(
@@ -435,7 +386,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
             ),
 
       // 3. iOS '+' action button (no FAB on iOS)
-      if (isIos && hasPrimaryAction)
+      if (isIos && (clampedIndex == 0 || (hasBudgets && clampedIndex == 1) || (hasBudgets ? clampedIndex == 3 : clampedIndex == 2)))
         CupertinoButton(
           key: const Key('expense_ios_add_button'),
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -476,9 +427,23 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
           destinations: androidDestinations,
           iosItems: iosItems,
         ),
-        body: IndexedStack(
-          index: clampedIndex,
-          children: screens,
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: child,
+            );
+          },
+          child: KeyedSubtree(
+            key: ValueKey<int>(clampedIndex),
+            child: AdaptivePageEntrance(
+              key: ValueKey<int>(clampedIndex),
+              child: screens[clampedIndex],
+            ),
+          ),
         ),
       ),
     );
@@ -695,7 +660,6 @@ class _ExpenseHomeView extends ConsumerWidget {
     final walletsAsync = ref.watch(walletsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final transactionsAsync = ref.watch(transactionsProvider);
-    final subscription = ref.watch(subscriptionStateProvider);
 
     final monthTitle = DateFormat('MMMM yyyy').format(selectedMonth);
 
@@ -712,17 +676,6 @@ class _ExpenseHomeView extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
           children: [
-            // (a) Subscription / Trial Expiration Alert Banner
-            SubscriptionAlertBanner(
-              subscription: subscription,
-              customFeatures: const [
-                'multi-wallet backup',
-                'advanced reports',
-                'unlimited companies',
-              ],
-            ),
-            const SizedBox(height: 12),
-
             // (b) Month Switcher Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -791,205 +744,42 @@ class _ExpenseHomeView extends ConsumerWidget {
               data: (summary) {
                 final income = summary.totalIncomeInCents;
                 final expense = summary.totalExpenseInCents;
-                final net = summary.netInCents;
-                final savingsRate = income > 0 ? ((net / income) * 100).round() : 0;
+                final primaryColor = theme.colorScheme.primary;
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                return Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: AdaptiveMetricCard(
-                            label: modeStrings.spentThisMonth,
-                            amountInCents: expense,
-                            accentColor: AppColors.payableRed,
-                            icon: Icon(
-                              isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
-                              size: 14,
-                              color: AppColors.expense(context),
-                            ),
-                            amountVariant: AmountVariant.large,
-                            currencyCode: company.currencyCode,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: AdaptiveMetricCard(
-                            label: modeStrings.incomeThisMonth,
-                            amountInCents: income,
-                            accentColor: AppColors.receivableGreen,
-                            icon: Icon(
-                              isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
-                              size: 14,
-                              color: AppColors.income(context),
-                            ),
-                            amountVariant: AmountVariant.large,
-                            currencyCode: company.currencyCode,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // (d) Net and Savings Rate Line
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                net >= 0
-                                    ? (isIos ? CupertinoIcons.arrow_up_right : Icons.trending_up_rounded)
-                                    : (isIos ? CupertinoIcons.arrow_down_right : Icons.trending_down_rounded),
-                                size: 16,
-                                color: net >= 0 ? AppColors.receivableGreen : AppColors.payableRed,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                modeStrings.netLabel,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              AmountText(
-                                amountInCents: net,
-                                currencyCode: company.currencyCode,
-                                variant: AmountVariant.small,
-                                showSign: true,
-                                isReceivablePositive: true,
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: (savingsRate >= 0 ? AppColors.receivableGreen : AppColors.payableRed)
-                                  .withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              '${modeStrings.savingsRateLabel}: $savingsRate%',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: savingsRate >= 0 ? AppColors.receivableGreen : AppColors.payableRed,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // (e) Full-Width Balance Card with up to 3 Wallet Chips
-            walletsAsync.when(
-              data: (wallets) {
-                int totalBalance = 0;
-                for (final w in wallets) {
-                  if (w.type == AccountType.liability) {
-                    totalBalance -= w.currentBalanceInCents;
-                  } else {
-                    totalBalance += w.currentBalanceInCents;
-                  }
-                }
-
-                return AdaptiveSurfaceCard(
-                  key: const Key('expense_balance_card'),
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            modeStrings.balanceTitle,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (wallets.isNotEmpty)
-                            Text(
-                              '${wallets.length} ${wallets.length == 1 ? 'Wallet' : 'Wallets'}',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      AmountText(
-                        amountInCents: totalBalance,
-                        currencyCode: company.currencyCode,
-                        variant: AmountVariant.large,
-                      ),
-                      if (wallets.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: wallets.take(3).map((w) {
-                            final isLiability = w.type == AccountType.liability;
-                            return AdaptiveChip(
-                              label:
-                                  '${w.name}: ${CurrencyFormatter.format(w.currentBalanceInCents, currencyCode: company.currencyCode, showDecimalsAlways: false)}',
-                              isSelected: false,
-                              selectedColor: isLiability ? AppColors.payableRed : null,
-                              onSelected: (_) {
-                                final current = ref.read(transactionFiltersProvider);
-                                ref.read(transactionFiltersProvider.notifier).updateFilters(
-                                      current.copyWith(walletIds: [w.id]),
-                                    );
-                                ref.read(expenseTabControllerProvider.notifier).setTab(1);
-                              },
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-              loading: () => Container(
-                height: 100,
-                decoration: BoxDecoration(
-                  color: isIos
-                      ? (isDark ? Colors.white10 : Colors.black12)
-                      : theme.colorScheme.surfaceContainer,
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: const Center(child: CupertinoActivityIndicator()),
-              ),
-              error: (err, stack) => Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline_rounded, color: theme.colorScheme.error, size: 18),
-                    const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        'Failed to load wallets: $err',
-                        style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
+                      child: AdaptiveMetricCard(
+                        label: modeStrings.spentThisMonth,
+                        amountInCents: expense,
+                        accentColor: primaryColor,
+                        icon: Icon(
+                          isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
+                          size: 14,
+                          color: primaryColor,
+                        ),
+                        amountVariant: AmountVariant.large,
+                        currencyCode: company.currencyCode,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: AdaptiveMetricCard(
+                        label: modeStrings.incomeThisMonth,
+                        amountInCents: income,
+                        accentColor: primaryColor,
+                        icon: Icon(
+                          isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
+                          size: 14,
+                          color: primaryColor,
+                        ),
+                        amountVariant: AmountVariant.large,
+                        currencyCode: company.currencyCode,
                       ),
                     ),
                   ],
-                ),
-              ),
+                );
+              },
             ),
             const SizedBox(height: 16),
 
@@ -1065,9 +855,7 @@ class _ExpenseHomeView extends ConsumerWidget {
                         : null;
                     final isIncome = t.type == VoucherType.income;
                     final isTransfer = t.type == VoucherType.transfer;
-                    final color = isTransfer
-                        ? AppColors.primaryBlue
-                        : (isIncome ? AppColors.receivableGreen : AppColors.payableRed);
+                    final color = theme.colorScheme.primary;
                     final icon = isTransfer
                         ? (isIos ? CupertinoIcons.arrow_right_arrow_left : Icons.swap_horiz_rounded)
                         : (isIncome
@@ -1090,22 +878,14 @@ class _ExpenseHomeView extends ConsumerWidget {
                         ),
                         child: Icon(icon, color: color, size: 18),
                       ),
-                      trailing: isTransfer
-                          ? AmountText(
-                              amountInCents: t.totalAmountInCents,
-                              currencyCode: company.currencyCode,
-                              variant: AmountVariant.medium,
-                              overrideColor: AppColors.primaryBlue,
-                            )
-                          : AmountText(
-                              amountInCents: isIncome
-                                  ? t.totalAmountInCents
-                                  : -t.totalAmountInCents,
-                              currencyCode: company.currencyCode,
-                              variant: AmountVariant.medium,
-                              showSign: true,
-                              isReceivablePositive: true,
-                            ),
+                      trailing: AmountText(
+                        amountInCents: isTransfer
+                            ? t.totalAmountInCents
+                            : (isIncome ? t.totalAmountInCents : -t.totalAmountInCents),
+                        currencyCode: company.currencyCode,
+                        variant: AmountVariant.medium,
+                        overrideColor: color,
+                      ),
                       onTap: onViewAllTransactions,
                     );
                   }).toList(),

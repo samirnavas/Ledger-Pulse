@@ -30,6 +30,8 @@ class TransactionTypeSwitcher extends StatelessWidget {
             .surfaceContainerHighest
             .withValues(alpha: 0.5);
 
+    final primaryColor = Theme.of(context).colorScheme.primary;
+
     return Container(
       decoration: BoxDecoration(
         color: containerColor,
@@ -42,21 +44,21 @@ class TransactionTypeSwitcher extends StatelessWidget {
             context: context,
             type: VoucherType.expense,
             label: 'Expense',
-            color: AppColors.expense(context),
+            color: primaryColor,
             icon: isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
           ),
           _buildItem(
             context: context,
             type: VoucherType.income,
             label: 'Income',
-            color: AppColors.income(context),
+            color: primaryColor,
             icon: isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
           ),
           _buildItem(
             context: context,
             type: VoucherType.transfer,
             label: 'Transfer',
-            color: Theme.of(context).colorScheme.primary,
+            color: primaryColor,
             icon: isIos ? CupertinoIcons.arrow_right_arrow_left : Icons.swap_horiz_rounded,
           ),
         ],

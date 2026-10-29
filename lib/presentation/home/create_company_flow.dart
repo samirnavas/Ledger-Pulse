@@ -15,8 +15,6 @@ import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import '../providers/company_providers.dart';
-import '../providers/subscription_providers.dart';
-import '../subscription/subscription_paywall_screen.dart';
 
 /// Multi-step company creation flow (adaptive Cupertino / Material 3).
 /// Used during first-run onboarding (when no companies exist) and from CompanySwitcherSheet.
@@ -193,19 +191,6 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
   }
 
   Future<void> _submitCompany() async {
-    // 1. Enforce SubscriptionTier.maxCompanies
-    final tier = ref.read(currentSubscriptionTierProvider);
-    final existingCompanies = ref.read(userCompaniesProvider);
-    if (existingCompanies.length >= tier.maxCompanies) {
-      HapticFeedback.heavyImpact();
-      if (mounted) {
-        Navigator.of(context).push(
-          createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()),
-        );
-      }
-      return;
-    }
-
     setState(() => _isSubmitting = true);
     HapticFeedback.mediumImpact();
 
@@ -263,13 +248,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
       }
     } catch (e) {
       if (mounted) {
-        if (e is CompanyLimitExceededException) {
-          Navigator.of(context).push(
-            createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()),
-          );
-        } else {
-          _showToast('Failed to create company: $e');
-        }
+        _showToast('Failed to create company: $e');
       }
     } finally {
       if (mounted) {

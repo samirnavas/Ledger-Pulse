@@ -130,10 +130,36 @@ class AdaptiveScaffold extends StatelessWidget {
           drawer: drawer,
           body: body,
           floatingActionButton: floatingActionButton,
+          floatingActionButtonAnimator: const FabPushUpAnimator(),
           bottomNavigationBar: bottomNavigationBar,
         ),
       );
     }
   }
+}
+
+/// Google Apps style FAB animator that slides straight up from behind the bottom navigation bar without zoom or rotation.
+class FabPushUpAnimator extends FloatingActionButtonAnimator {
+  const FabPushUpAnimator();
+
+  @override
+  Offset getOffset({required Offset begin, required Offset end, required double progress}) {
+    return Offset.lerp(begin, end, progress)!;
+  }
+
+  @override
+  Animation<double> getScaleAnimation({required Animation<double> parent}) {
+    // Fixed scale 1.0: Disable Scaffold's default zoom-in / scale-down animation
+    return const AlwaysStoppedAnimation<double>(1.0);
+  }
+
+  @override
+  Animation<double> getRotationAnimation({required Animation<double> parent}) {
+    // Fixed rotation 1.0: Disable Scaffold's default rotation turns
+    return const AlwaysStoppedAnimation<double>(1.0);
+  }
+
+  @override
+  double getAnimationRestart(double previousValue) => previousValue;
 }
 

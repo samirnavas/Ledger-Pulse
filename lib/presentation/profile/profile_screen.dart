@@ -6,6 +6,7 @@ import '../../core/constants/colors.dart';
 import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
+import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../core/widgets/splitting_fab.dart';
 import '../../data/models/user_profile_model.dart';
@@ -717,11 +718,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           onSave: _saveProfile,
           onCancel: _cancelEditing,
         ),
-        body: formContent,
+        body: AdaptivePageEntrance(child: formContent),
       );
     }
 
-    return formContent;
+    return AdaptivePageEntrance(child: formContent);
   }
 
   Widget _buildHeaderCard(

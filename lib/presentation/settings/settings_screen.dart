@@ -8,6 +8,7 @@ import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
+import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/sync_model.dart';
@@ -44,9 +45,10 @@ class SettingsScreen extends ConsumerWidget {
 
     return AdaptiveScaffold(
       title: 'Settings & Preferences',
-      body: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
+      body: AdaptivePageEntrance(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 700),
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -704,6 +706,7 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
         ),
+      ),
     );
   }
 

@@ -15,7 +15,6 @@ import '../../providers/company_providers.dart';
 import '../../reports/reporting_hub_screen.dart';
 import '../../settings/modules_screen.dart';
 import '../../settings/settings_screen.dart';
-import '../../subscription/subscription_paywall_screen.dart';
 import '../recurring_screen.dart';
 
 /// Platform-adaptive drawer for Expense Tracker mode.
@@ -361,62 +360,7 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                     },
                   ),
 
-                  // 5. Subscription / Plan
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: (isIos
-                                ? CupertinoColors.systemIndigo
-                                : colorScheme.primary)
-                            .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(isIos ? 10 : 14),
-                      ),
-                      child: Icon(
-                        isIos
-                            ? CupertinoIcons.shield_fill
-                            : Icons.workspace_premium_rounded,
-                        color: isIos
-                            ? CupertinoColors.systemIndigo
-                            : colorScheme.primary,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      'Subscription',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Tier limits & upgrades',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isIos
-                            ? CupertinoColors.secondaryLabel
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: Icon(
-                      isIos
-                          ? CupertinoIcons.chevron_forward
-                          : Icons.chevron_right_rounded,
-                      size: isIos ? 14 : 20,
-                      color: isIos
-                          ? CupertinoColors.tertiaryLabel
-                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.pop(context);
-                      Navigator.of(context).push(
-                        createAdaptivePageRoute(
-                          builder: (context) => const SubscriptionPaywallScreen(),
-                        ),
-                      );
-                    },
-                  ),
+
 
                   // 6. Recurring Rules (only if module enabled)
                   if (isRecurringEnabled)

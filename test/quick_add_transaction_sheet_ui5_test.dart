@@ -174,11 +174,16 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Check keypad, presets, and amount display are rendered
-      expect(find.byType(EntryNumericKeypad), findsOneWidget);
+      // Check presets, amount display and type switcher are rendered
       expect(find.byType(EntryQuickPresetsRow), findsOneWidget);
       expect(find.byType(EntryAmountDisplay), findsOneWidget);
       expect(find.byType(TransactionTypeSwitcher), findsOneWidget);
+
+      // Tap amount display box to open custom keyboard modal
+      await tester.tap(find.byType(EntryAmountDisplay));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(EntryNumericKeypad), findsOneWidget);
 
       // Tap numeric keypad keys: 1, 0, 0 -> 100
       await tester.tap(find.text('1'));
@@ -188,7 +193,11 @@ void main() {
       await tester.tap(find.text('0').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('100'), findsOneWidget);
+      expect(find.text('100'), findsWidgets);
+
+      // Tap Done
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
 
       // Tap preset: +500 -> 600
       await tester.tap(find.text('+₹500'));
@@ -232,6 +241,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      // Tap amount display box to open custom keyboard modal
+      await tester.tap(find.byType(EntryAmountDisplay));
+      await tester.pumpAndSettle();
+
       // Keypad entry: 2, 5, 0 -> 250
       await tester.tap(find.text('2'));
       await tester.pumpAndSettle();
@@ -240,7 +253,11 @@ void main() {
       await tester.tap(find.text('0').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('250'), findsOneWidget);
+      expect(find.text('250'), findsWidgets);
+
+      // Tap Done
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
 
       // Select category
       await tester.tap(find.text('Food & Dining'));
@@ -278,6 +295,10 @@ void main() {
       await tester.tap(find.text('Income'));
       await tester.pumpAndSettle();
 
+      // Tap amount display box to open custom keyboard modal
+      await tester.tap(find.byType(EntryAmountDisplay));
+      await tester.pumpAndSettle();
+
       // Keypad: 5, 0, 0, 0
       await tester.tap(find.text('5'));
       await tester.pumpAndSettle();
@@ -288,7 +309,11 @@ void main() {
       await tester.tap(find.text('0').first);
       await tester.pumpAndSettle();
 
-      expect(find.text('5000'), findsOneWidget);
+      expect(find.text('5000'), findsWidgets);
+
+      // Tap Done
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
 
       // Select Salary category
       final salaryChip = find.text('Salary');
@@ -328,12 +353,20 @@ void main() {
       await tester.tap(find.text('Transfer'));
       await tester.pumpAndSettle();
 
+      // Tap amount display box to open custom keyboard modal
+      await tester.tap(find.byType(EntryAmountDisplay));
+      await tester.pumpAndSettle();
+
       // Keypad: 3, 5, 0
       await tester.tap(find.text('3'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('5'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('0').first);
+      await tester.pumpAndSettle();
+
+      // Tap Done
+      await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
 
       // Select destination wallet Bank Account
@@ -452,8 +485,16 @@ void main() {
       await tester.tap(find.text('Open Sheet'));
       await tester.pumpAndSettle();
 
-      // Enter a digit to make the form dirty
+      // Tap amount display box to open custom keyboard modal
+      await tester.tap(find.byType(EntryAmountDisplay));
+      await tester.pumpAndSettle();
+
+      // Enter a digit to make form dirty
       await tester.tap(find.text('9'));
+      await tester.pumpAndSettle();
+
+      // Close modal keypad
+      await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
 
       // Now tap close button
@@ -511,10 +552,18 @@ void main() {
       expect(find.byKey(const Key('quick_add_repeat_interval')), findsOneWidget);
       expect(find.text('Start Date'), findsOneWidget);
 
+      // Tap amount display box to open custom keyboard modal
+      await tester.tap(find.byType(EntryAmountDisplay));
+      await tester.pumpAndSettle();
+
       // Enter amount via keypad
       await tester.tap(find.text('8'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('0').first);
+      await tester.pumpAndSettle();
+
+      // Close modal keypad
+      await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
 
       // Select category
@@ -549,7 +598,14 @@ class _FakeSyncEngineForUI5 extends SyncEngine {
 }
 
 class _TestProfileNotifier extends UserProfileNotifier {
-  _TestProfileNotifier(UserProfile profile) : super() {
-    state = profile;
+  final UserProfile _initial;
+  _TestProfileNotifier(this._initial);
+
+  @override
+  UserProfile build() => _initial;
+
+  @override
+  void updateProfile(UserProfile updated) {
+    state = updated;
   }
 }

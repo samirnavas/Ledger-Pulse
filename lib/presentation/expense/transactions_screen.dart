@@ -13,15 +13,19 @@ import '../../core/widgets/adaptive_date_field.dart';
 import '../../core/widgets/adaptive_form_sheet.dart';
 import '../../core/widgets/adaptive_icon_surface_button.dart';
 import '../../core/widgets/adaptive_list_row.dart';
+import '../../core/widgets/adaptive_page_entrance.dart';
+import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_search_field.dart';
 import '../../core/widgets/adaptive_section_header.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/app_feedback.dart';
 import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
+import '../../core/widgets/spring_morphing_fab.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/voucher_model.dart';
 import '../providers/company_providers.dart';
+import 'quick_add_transaction_sheet.dart';
 import '../providers/expense_providers.dart';
 import '../providers/sync_providers.dart';
 import 'quick_add_transaction_sheet.dart';
@@ -213,7 +217,9 @@ class _ExpenseTransactionsScreenState
     final filterKey =
         '${filters.type}_${filters.categoryIds?.join(",")}_${filters.walletIds?.join(",")}_${filters.startDate?.millisecondsSinceEpoch}_${filters.endDate?.millisecondsSinceEpoch}_${filters.textQuery}';
 
-    return PopScope(
+    final canPop = ModalRoute.of(context)?.canPop ?? false;
+
+    final Widget innerContent = PopScope(
       canPop: !_isSearchActive,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
@@ -534,6 +540,46 @@ class _ExpenseTransactionsScreenState
         ),
       ),
     );
+
+    if (canPop) {
+      return AdaptiveScaffold(
+        title: modeStrings.transactionsTab,
+        actions: [
+          if (isIos)
+            CupertinoButton(
+              key: const Key('transaction_filter_button'),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: () =>
+                  ExpenseTransactionsScreen.showFilterModal(context, ref),
+              child: const Icon(CupertinoIcons.slider_horizontal_3, size: 22),
+            )
+          else
+            IconButton(
+              key: const Key('transaction_filter_button'),
+              icon: const Icon(Icons.filter_list_rounded),
+              tooltip: 'Filter',
+              onPressed: () =>
+                  ExpenseTransactionsScreen.showFilterModal(context, ref),
+            ),
+        ],
+        floatingActionButton: isIos
+            ? null
+            : SpringMorphingFab(
+                key: const Key('transactions_quick_add_fab'),
+                icon: Icons.add,
+                label: 'Add transaction',
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  QuickAddTransactionSheet.show(context);
+                },
+              ),
+        body: AdaptivePageEntrance(child: innerContent),
+      );
+    }
+
+    return AdaptivePageEntrance(child: innerContent);
   }
 }
 

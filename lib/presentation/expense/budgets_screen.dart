@@ -9,6 +9,7 @@ import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_controls.dart';
 import '../../core/widgets/adaptive_form_sheet.dart';
+import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_picker.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
@@ -288,9 +289,10 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     final progressListAsync = ref.watch(budgetsProgressListProvider);
     final overallAsync = ref.watch(overallMonthlyBudgetProvider);
 
-    return Material(
-      color: Colors.transparent,
-      child: progressListAsync.when(
+    return AdaptivePageEntrance(
+      child: Material(
+        color: Colors.transparent,
+        child: progressListAsync.when(
         loading: () => ListView(
           padding: const EdgeInsets.all(16),
           children: const [
@@ -364,6 +366,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
           );
         },
       ),
+    ),
     );
   }
 

@@ -8,13 +8,14 @@ import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_bottom_nav.dart';
+import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../core/widgets/liquid_glass_card.dart';
+import '../../core/widgets/smart_fab_switcher.dart';
 import '../../core/widgets/splitting_fab.dart';
 import '../../core/widgets/spring_morphing_fab.dart';
-import '../../core/widgets/subscription_alert_banner.dart';
 import '../../data/models/party_model.dart';
 import '../integrations/ecommerce_sync_screen.dart';
 import '../integrations/third_party_import_screen.dart';
@@ -25,16 +26,13 @@ import '../payments/cts2010_cheque_preview_screen.dart';
 import '../payroll/employee_list_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../data/models/company_model.dart';
-import '../../data/models/subscription_tier_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
 import '../providers/module_providers.dart';
 import '../providers/profile_provider.dart';
-import '../providers/subscription_providers.dart';
 import '../reports/desktop_custom_report_studio.dart';
 import '../reports/receivables_payables_screen.dart';
 import '../reports/reporting_hub_screen.dart';
-import '../subscription/subscription_paywall_screen.dart';
 import 'add_party_dialog.dart';
 import 'company_switcher_sheet.dart';
 import 'dashboard_bi_hub_card.dart';
@@ -148,17 +146,6 @@ class DashboardScreen extends ConsumerWidget {
                   },
                 );
               }),
-              _buildModuleTile(
-                context: ctx,
-                icon: isIos ? CupertinoIcons.star_fill : Icons.star_rounded,
-                title: 'ERP Plans & Licensing Paywall',
-                subtitle: 'Manage Silver, Gold, Diamond tiers and lifetime licenses',
-                color: isIos ? CupertinoColors.systemIndigo : colorScheme.primary,
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()));
-                },
-              ),
               const SizedBox(height: 10),
             ],
           ),
@@ -268,36 +255,7 @@ class DashboardScreen extends ConsumerWidget {
       );
     }
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 250),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (child, animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.85, end: 1.0).animate(animation),
-            child: child,
-          ),
-        );
-      },
-      child: fabChild,
-    );
-  }
-
-  static Widget _buildSubscriptionAlertBanner(
-    BuildContext context,
-    bool isIos,
-    bool isDark,
-    LicenseState sub, {
-    bool isPayrollEnabled = true,
-    bool isGstEnabled = true,
-  }) {
-    return SubscriptionAlertBanner(
-      subscription: sub,
-      isPayrollEnabled: isPayrollEnabled,
-      isGstEnabled: isGstEnabled,
-    );
+    return SmartFabSwitcher(fab: fabChild);
   }
 
   @override
@@ -306,7 +264,6 @@ class DashboardScreen extends ConsumerWidget {
     final syncStatus = ref.watch(syncControllerProvider);
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final subscription = ref.watch(subscriptionStateProvider);
 
     final isPartiesEnabled = ref.watch(moduleEnabledProvider(AppModule.parties));
     final isVouchersEnabled = ref.watch(moduleEnabledProvider(AppModule.vouchers));
@@ -458,16 +415,6 @@ class DashboardScreen extends ConsumerWidget {
           ? const ProfileScreen(isStandalone: false)
           : Column(
               children: [
-                // Subscription / Trial Expiration Alert Banner
-          _buildSubscriptionAlertBanner(
-            context,
-            isIos,
-            isDark,
-            subscription,
-            isPayrollEnabled: isPayrollEnabled,
-            isGstEnabled: isGstEnabled,
-          ),
-
           // 1. Top Business Metric Cards (collapses smoothly when search is active; hidden if vouchers off)
           if (isVouchersEnabled)
             AnimatedCrossFade(

@@ -12,7 +12,6 @@ import '../../data/models/company_mode.dart';
 import '../providers/module_providers.dart';
 import '../providers/reporting_providers.dart';
 import '../reports/reporting_hub_screen.dart';
-import '../subscription/subscription_paywall_screen.dart';
 
 /// A sleek, responsive Draggable Modal Sheet presenting Business Intelligence & Cash Flow analytics.
 class BusinessIntelligenceSheet extends ConsumerWidget {
@@ -56,17 +55,9 @@ class BusinessIntelligenceSheet extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'The Advanced Reports & BI module is currently disabled for this company. Enable it in company module settings or upgrade your plan.',
+                'The Advanced Reports & BI module is currently disabled for this company. Enable it in company module settings.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.of(context).push(createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()));
-                },
-                child: const Text('View Plans & Licensing'),
               ),
             ],
           ),

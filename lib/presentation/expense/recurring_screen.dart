@@ -13,6 +13,7 @@ import '../../core/widgets/adaptive_controls.dart';
 import '../../core/widgets/adaptive_date_field.dart';
 import '../../core/widgets/adaptive_form_sheet.dart';
 import '../../core/widgets/adaptive_list_row.dart';
+import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_picker.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
@@ -404,7 +405,8 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
               icon: Icons.add_rounded,
               onPressed: () => _showAddEditRuleSheet(context),
             ),
-      body: rulesListAsync.when(
+      body: AdaptivePageEntrance(
+        child: rulesListAsync.when(
         loading: () => ListView(
           padding: const EdgeInsets.all(16),
           children: const [
@@ -442,6 +444,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
           );
         },
       ),
+    ),
     );
   }
 

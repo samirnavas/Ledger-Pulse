@@ -9,6 +9,7 @@ import '../../core/widgets/adaptive_chip.dart';
 import '../../core/widgets/adaptive_date_field.dart';
 import '../../core/widgets/adaptive_form_sheet.dart';
 import '../../core/widgets/adaptive_list_row.dart';
+import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_section_header.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
 import '../../core/widgets/amount_text.dart';
@@ -234,9 +235,10 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
     final categoriesAsync = ref.watch(categoriesProvider);
     final walletsAsync = ref.watch(walletsProvider);
 
-    return Material(
-      color: Colors.transparent,
-      child: txnsAsync.when(
+    return AdaptivePageEntrance(
+      child: Material(
+        color: Colors.transparent,
+        child: txnsAsync.when(
         data: (allTxns) {
           final categories = categoriesAsync.value ?? [];
           final wallets = walletsAsync.value ?? [];
@@ -345,6 +347,7 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
             const Center(child: CircularProgressIndicator.adaptive()),
         error: (e, _) => Center(child: Text('Error loading reports: $e')),
       ),
+    ),
     );
   }
 }
@@ -433,8 +436,8 @@ class _CategoryBreakdownCardState extends State<_CategoryBreakdownCard>
           // Animated Donut Chart
           Center(
             child: SizedBox(
-              width: 140,
-              height: 140,
+              width: 150,
+              height: 150,
               child: AnimatedBuilder(
                 animation: _controller,
                 builder: (context, child) {
@@ -448,7 +451,31 @@ class _CategoryBreakdownCardState extends State<_CategoryBreakdownCard>
                         curve: Curves.easeOutCubic,
                       ).value,
                       backgroundColor:
-                          theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                          theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Total',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            CurrencyFormatter.formatCompact(
+                              widget.report.totalSpentInCents,
+                              includeSymbol: true,
+                            ),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -506,7 +533,7 @@ class _CategoryDonutPainter extends CustomPainter {
 
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
-    const strokeWidth = 20.0;
+    const strokeWidth = 18.0;
     final rect = Rect.fromCircle(
       center: center,
       radius: radius - (strokeWidth / 2),
@@ -520,23 +547,39 @@ class _CategoryDonutPainter extends CustomPainter {
     canvas.drawCircle(center, radius - (strokeWidth / 2), bgPaint);
 
     double startAngle = -math.pi / 2;
+    const double gap = 0.05;
 
     for (int i = 0; i < categories.length; i++) {
       final sweepAngle =
           (categories[i].totalSpentInCents / totalSpend) * 2 * math.pi * progress;
+      if (sweepAngle <= 0) continue;
+
       final paint = Paint()
         ..color = palette[i % palette.length]
         ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth;
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round;
 
-      canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
+      if (categories.length > 1 && sweepAngle > gap) {
+        canvas.drawArc(
+          rect,
+          startAngle + (gap / 2),
+          sweepAngle - gap,
+          false,
+          paint,
+        );
+      } else {
+        canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
+      }
       startAngle += sweepAngle;
     }
   }
 
   @override
   bool shouldRepaint(covariant _CategoryDonutPainter oldDelegate) =>
-      oldDelegate.progress != progress;
+      oldDelegate.progress != progress ||
+      oldDelegate.totalSpend != totalSpend ||
+      oldDelegate.categories != categories;
 }
 
 // ==========================================
@@ -795,29 +838,9 @@ class _IncomeVsExpenseCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AdaptiveSectionHeader(
+          const AdaptiveSectionHeader(
             padding: EdgeInsets.zero,
             title: 'Income vs expense',
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: (report.savingsRate >= 0
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.error)
-                    .withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${report.savingsRate.toStringAsFixed(1)}% Saved',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: report.savingsRate >= 0
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.error,
-                ),
-              ),
-            ),
           ),
           const SizedBox(height: 16),
           Row(
@@ -901,20 +924,6 @@ class _IncomeVsExpenseCard extends StatelessWidget {
           const SizedBox(height: 16),
           Divider(color: theme.colorScheme.outlineVariant, height: 1),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Net Savings',
-                style: theme.textTheme.bodyMedium,
-              ),
-              AmountText(
-                amountInCents: report.netSavingsInCents,
-                variant: AmountVariant.medium,
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

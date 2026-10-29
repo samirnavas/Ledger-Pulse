@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/constants/colors.dart';
 import '../../core/utils/adaptive_page_route.dart';
+import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/company_mode.dart';
@@ -281,8 +282,9 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
             },
           ),
       ],
-      body: Column(
-        children: [
+      body: AdaptivePageEntrance(
+        child: Column(
+          children: [
           // 1. Search Bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -354,6 +356,7 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 

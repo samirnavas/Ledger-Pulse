@@ -9,8 +9,6 @@ import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/company_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
-import '../providers/subscription_providers.dart';
-import '../subscription/subscription_paywall_screen.dart';
 import 'create_company_flow.dart';
 
 void _showErrorMessage(BuildContext context, String message) {
@@ -56,14 +54,6 @@ class CompanySwitcherSheet extends ConsumerStatefulWidget {
   }
 
   static void showAddCompanyDialog(BuildContext context, WidgetRef ref) {
-    final tier = ref.read(currentSubscriptionTierProvider);
-    final companies = ref.read(userCompaniesProvider);
-    if (companies.length >= tier.maxCompanies) {
-      Navigator.of(context).push(
-        createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()),
-      );
-      return;
-    }
     Navigator.of(context).push(
       createAdaptivePageRoute(builder: (_) => const CreateCompanyFlow()),
     );

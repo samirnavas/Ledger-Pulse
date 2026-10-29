@@ -199,6 +199,133 @@ class _QuickAddTransactionSheetState
     });
   }
 
+  void _openKeypadModal() {
+    HapticFeedback.lightImpact();
+    FocusScope.of(context).unfocus();
+    final company = ref.read(activeCompanyProvider);
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.35),
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            final isIos = AdaptiveThemeHelper.isIos(modalCtx);
+            final theme = Theme.of(modalCtx);
+            final isDark = theme.brightness == Brightness.dark ||
+                CupertinoTheme.of(modalCtx).brightness == Brightness.dark;
+            final themeColor = _getTypeColor(context, _selectedType);
+            final currencySymbol =
+                CurrencyFormatter.getSymbol(company.currencyCode);
+
+            final containerColor = isIos
+                ? (isDark
+                    ? CupertinoColors.systemGroupedBackground.darkColor
+                    : CupertinoColors.systemGroupedBackground)
+                : (isDark
+                    ? AppColors.surfaceCardDark
+                    : theme.colorScheme.surfaceContainerHighest);
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              decoration: BoxDecoration(
+                color: containerColor,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Enter Amount',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.check_circle_rounded,
+                            size: 28,
+                            color: themeColor,
+                          ),
+                          onPressed: () => Navigator.of(modalCtx).pop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    EntryAmountDisplay(
+                      amountString: _amountString,
+                      themeColor: themeColor,
+                      errorMessage: _errorMessage,
+                      currencyCode: company.currencyCode,
+                    ),
+                    const SizedBox(height: 12),
+                    EntryQuickPresetsRow(
+                      themeColor: themeColor,
+                      currencySymbol: currencySymbol,
+                      presets: const [100, 500, 1000],
+                      onAddPreset: (amount) {
+                        _addQuickPreset(amount);
+                        setModalState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    EntryNumericKeypad(
+                      themeColor: themeColor,
+                      onKeyTap: (key) {
+                        _onKeypadTap(key);
+                        setModalState(() {});
+                      },
+                      onLongPressBackspace: () {
+                        _onKeypadLongPressBackspace();
+                        setModalState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    AdaptiveButton(
+                      isFullWidth: true,
+                      height: 48,
+                      type: AdaptiveButtonType.primary,
+                      onPressed: () => Navigator.of(modalCtx).pop(),
+                      child: const Text(
+                        'Done',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _addQuickPreset(int amount) {
     HapticFeedback.lightImpact();
     FocusScope.of(context).unfocus();
@@ -419,16 +546,7 @@ class _QuickAddTransactionSheetState
   }
 
   Color _getTypeColor(BuildContext context, VoucherType type) {
-    switch (type) {
-      case VoucherType.expense:
-        return AppColors.expense(context);
-      case VoucherType.income:
-        return AppColors.income(context);
-      case VoucherType.transfer:
-        return Theme.of(context).colorScheme.primary;
-      default:
-        return Theme.of(context).colorScheme.primary;
-    }
+    return Theme.of(context).colorScheme.primary;
   }
 
   IconData _getCategoryIcon(String name) {
@@ -865,12 +983,13 @@ class _QuickAddTransactionSheetState
                         ),
                         const SizedBox(height: 12),
 
-                        // Amount Display
+                        // Amount Display (Tap to open Custom Keyboard Modal)
                         EntryAmountDisplay(
                           amountString: _amountString,
                           themeColor: themeColor,
                           errorMessage: _errorMessage,
                           currencyCode: company.currencyCode,
+                          onTap: _openKeypadModal,
                         ),
                         const SizedBox(height: 10),
 
@@ -1120,14 +1239,6 @@ class _QuickAddTransactionSheetState
                           ],
                           const SizedBox(height: 8),
                         ],
-
-                        // Keypad
-                        EntryNumericKeypad(
-                          themeColor: themeColor,
-                          onKeyTap: _onKeypadTap,
-                          onLongPressBackspace: _onKeypadLongPressBackspace,
-                        ),
-                        const SizedBox(height: 12),
                       ],
                     ),
                   ),
@@ -1143,11 +1254,7 @@ class _QuickAddTransactionSheetState
                       isFullWidth: true,
                       height: 52,
                       isLoading: _isSubmitting,
-                      type: _selectedType == VoucherType.expense
-                          ? AdaptiveButtonType.destructive
-                          : (_selectedType == VoucherType.income
-                              ? AdaptiveButtonType.success
-                              : AdaptiveButtonType.primary),
+                      type: AdaptiveButtonType.primary,
                       onPressed: _isSubmitting
                           ? null
                           : () => _saveTransaction(company),

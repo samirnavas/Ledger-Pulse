@@ -11,21 +11,11 @@ import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/company_mode.dart';
-import '../../data/models/subscription_tier_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/module_providers.dart';
-import '../providers/subscription_providers.dart';
-import '../subscription/subscription_paywall_screen.dart';
 
 class ModulesScreen extends ConsumerWidget {
   const ModulesScreen({super.key});
-
-  void _openPaywall(BuildContext context) {
-    HapticFeedback.mediumImpact();
-    Navigator.of(context).push(
-      createAdaptivePageRoute(builder: (_) => const SubscriptionPaywallScreen()),
-    );
-  }
 
   Future<void> _handleToggle({
     required BuildContext context,
@@ -156,7 +146,6 @@ class ModulesScreen extends ConsumerWidget {
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
     final activeCompany = ref.watch(activeCompanyProvider);
-    final currentTier = ref.watch(currentSubscriptionTierProvider);
 
     // Filter to only modules allowed by the company's mode
     final allowedModules = AppModule.values
@@ -173,7 +162,7 @@ class ModulesScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             children: [
               // 1. Company Mode & Status Header Card
-              _buildHeaderCard(context, activeCompany, currentTier, isIos, isDark),
+              _buildHeaderCard(context, activeCompany, isIos, isDark),
 
               const SizedBox(height: 20),
 
@@ -218,7 +207,6 @@ class ModulesScreen extends ConsumerWidget {
   Widget _buildHeaderCard(
     BuildContext context,
     dynamic company,
-    SubscriptionTier tier,
     bool isIos,
     bool isDark,
   ) {
@@ -253,43 +241,14 @@ class ModulesScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        company.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: tier == SubscriptionTier.diamond
-                            ? Colors.purple.withValues(alpha: 0.15)
-                            : (tier == SubscriptionTier.gold
-                                ? Colors.amber.withValues(alpha: 0.2)
-                                : Colors.blue.withValues(alpha: 0.15)),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        tier.badgeText,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: tier == SubscriptionTier.diamond
-                              ? Colors.purple
-                              : (tier == SubscriptionTier.gold
-                                  ? Colors.amber.shade800
-                                  : Colors.blue.shade700),
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  company.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -384,20 +343,12 @@ class ModulesScreen extends ConsumerWidget {
     required bool isDark,
   }) {
     final meta = ModuleCatalog.metadataFor(module);
-    final tierAllows = ref.watch(tierAllowsProvider(module));
-    final lockReason = ref.watch(moduleLockReasonProvider(module));
     final isEnabled = enabledModules.contains(module);
-    final isTierLocked = lockReason == ModuleLockReason.tierTooLow || !tierAllows;
     final missingDeps = ModuleCatalog.missingDependencies(module, enabledModules);
 
-    final Color iconColor;
-    if (isTierLocked) {
-      iconColor = Colors.grey;
-    } else if (isEnabled) {
-      iconColor = isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary;
-    } else {
-      iconColor = isDark ? Colors.grey.shade400 : Colors.grey.shade600;
-    }
+    final Color iconColor = isEnabled
+        ? (isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary)
+        : (isDark ? Colors.grey.shade400 : Colors.grey.shade600);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -413,64 +364,12 @@ class ModulesScreen extends ConsumerWidget {
           size: 22,
         ),
       ),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              meta.label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: isTierLocked
-                    ? (isDark ? Colors.grey.shade400 : Colors.grey.shade700)
-                    : null,
-              ),
-            ),
-          ),
-          if (isTierLocked) ...[
-            InkWell(
-              onTap: () => _openPaywall(context),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: meta.minTier == SubscriptionTier.diamond
-                      ? Colors.purple.withValues(alpha: 0.15)
-                      : Colors.amber.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: meta.minTier == SubscriptionTier.diamond
-                        ? Colors.purple.withValues(alpha: 0.4)
-                        : Colors.amber.shade700.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isIos ? CupertinoIcons.lock_fill : Icons.lock_rounded,
-                      size: 11,
-                      color: meta.minTier == SubscriptionTier.diamond
-                          ? Colors.purple
-                          : Colors.amber.shade900,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      meta.minTier.badgeText,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        color: meta.minTier == SubscriptionTier.diamond
-                            ? Colors.purple
-                            : Colors.amber.shade900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
+      title: Text(
+        meta.label,
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 15,
+        ),
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4),
@@ -518,28 +417,18 @@ class ModulesScreen extends ConsumerWidget {
           ],
         ),
       ),
-      trailing: isTierLocked
-          ? IconButton(
-              tooltip: 'Upgrade to Unlock',
-              icon: Icon(
-                isIos ? CupertinoIcons.lock_fill : Icons.lock_rounded,
-                color: Colors.amber.shade800,
-              ),
-              onPressed: () => _openPaywall(context),
-            )
-          : Switch.adaptive(
-              value: isEnabled,
-              activeTrackColor: isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary,
-              onChanged: (val) => _handleToggle(
-                context: context,
-                ref: ref,
-                companyId: companyId,
-                module: module,
-                newValue: val,
-                enabledModules: enabledModules,
-              ),
-            ),
-      onTap: isTierLocked ? () => _openPaywall(context) : null,
+      trailing: Switch.adaptive(
+        value: isEnabled,
+        activeTrackColor: isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary,
+        onChanged: (val) => _handleToggle(
+          context: context,
+          ref: ref,
+          companyId: companyId,
+          module: module,
+          newValue: val,
+          enabledModules: enabledModules,
+        ),
+      ),
     );
   }
 

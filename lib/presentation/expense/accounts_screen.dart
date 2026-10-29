@@ -10,6 +10,7 @@ import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_controls.dart';
 import '../../core/widgets/adaptive_form_sheet.dart';
 import '../../core/widgets/adaptive_list_row.dart';
+import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_picker.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
@@ -453,27 +454,29 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     final walletsAsync = ref.watch(walletsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
 
-    return Material(
-      color: Colors.transparent,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: AdaptiveSegmentedControl<int>(
-              groupValue: _selectedTab,
-              children: const {
-                0: Text('Wallets'),
-                1: Text('Categories'),
-              },
-              onValueChanged: (tab) => setState(() => _selectedTab = tab),
+    return AdaptivePageEntrance(
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: AdaptiveSegmentedControl<int>(
+                groupValue: _selectedTab,
+                children: const {
+                  0: Text('Wallets'),
+                  1: Text('Categories'),
+                },
+                onValueChanged: (tab) => setState(() => _selectedTab = tab),
+              ),
             ),
-          ),
-          Expanded(
-            child: _selectedTab == 0
-                ? _buildWalletsTab(context, company, walletsAsync)
-                : _buildCategoriesTab(context, company, categoriesAsync),
-          ),
-        ],
+            Expanded(
+              child: _selectedTab == 0
+                  ? _buildWalletsTab(context, company, walletsAsync)
+                  : _buildCategoriesTab(context, company, categoriesAsync),
+            ),
+          ],
+        ),
       ),
     );
   }
