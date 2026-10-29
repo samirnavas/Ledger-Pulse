@@ -40,8 +40,8 @@ class ExpenseReportsScreen extends ConsumerStatefulWidget {
   static Future<void> showExportSheet({
     required BuildContext context,
     required WidgetRef ref,
-    required List<VoucherModel> transactions,
-    required (DateTime start, DateTime end) dateRange,
+    List<VoucherModel>? transactions,
+    (DateTime start, DateTime end)? dateRange,
   }) {
     return showAdaptiveFormSheet<void>(
       context: context,
@@ -85,24 +85,30 @@ class ExpenseReportsScreen extends ConsumerStatefulWidget {
   static Future<void> _performExportCsv(
     BuildContext context,
     WidgetRef ref,
-    List<VoucherModel> txns,
-    (DateTime start, DateTime end) range,
+    List<VoucherModel>? txns,
+    (DateTime start, DateTime end)? range,
   ) async {
     try {
       final company = ref.read(activeCompanyProvider);
       final repo = ref.read(expenseRepositoryProvider);
+      final transactions = txns ?? await repo.getTransactions();
       final categories = await repo.getCategories(includeArchived: true);
       final wallets = await repo.getWallets(includeArchived: true);
       final catNames = {for (final c in categories) c.id: c.name};
       final walNames = {for (final w in wallets) w.id: w.name};
 
+      final now = DateTime.now();
+      final startDate = range?.$1 ?? DateTime(now.year, now.month, 1);
+      final endDate =
+          range?.$2 ?? DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
+
       final file = await ReportExportService.exportTransactionsCsv(
-        transactions: txns,
+        transactions: transactions,
         company: company,
         categoryNames: catNames,
         walletNames: walNames,
-        startDate: range.$1,
-        endDate: range.$2,
+        startDate: startDate,
+        endDate: endDate,
       );
 
       if (context.mounted) {
@@ -125,24 +131,30 @@ class ExpenseReportsScreen extends ConsumerStatefulWidget {
   static Future<void> _performExportPdf(
     BuildContext context,
     WidgetRef ref,
-    List<VoucherModel> txns,
-    (DateTime start, DateTime end) range,
+    List<VoucherModel>? txns,
+    (DateTime start, DateTime end)? range,
   ) async {
     try {
       final company = ref.read(activeCompanyProvider);
       final repo = ref.read(expenseRepositoryProvider);
+      final transactions = txns ?? await repo.getTransactions();
       final categories = await repo.getCategories(includeArchived: true);
       final wallets = await repo.getWallets(includeArchived: true);
       final catNames = {for (final c in categories) c.id: c.name};
       final walNames = {for (final w in wallets) w.id: w.name};
 
+      final now = DateTime.now();
+      final startDate = range?.$1 ?? DateTime(now.year, now.month, 1);
+      final endDate =
+          range?.$2 ?? DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
+
       await ReportExportService.printTransactions(
-        transactions: txns,
+        transactions: transactions,
         company: company,
         categoryNames: catNames,
         walletNames: walNames,
-        startDate: range.$1,
-        endDate: range.$2,
+        startDate: startDate,
+        endDate: endDate,
       );
     } catch (e) {
       if (context.mounted) {
