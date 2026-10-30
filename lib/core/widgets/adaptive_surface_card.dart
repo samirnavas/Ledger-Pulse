@@ -36,8 +36,25 @@ class AdaptiveSurfaceCard extends StatelessWidget {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    final lightShadows = !isDark
+        ? [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              spreadRadius: 0,
+              offset: const Offset(0, 3),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 4,
+              spreadRadius: 0,
+              offset: const Offset(0, 1),
+            ),
+          ]
+        : null;
+
     if (isIos) {
-      final card = LiquidGlassCard(
+      Widget card = LiquidGlassCard(
         width: width,
         height: height,
         borderRadius: borderRadius ?? 20,
@@ -48,6 +65,16 @@ class AdaptiveSurfaceCard extends StatelessWidget {
         onTap: onTap,
         child: child,
       );
+
+      if (!isDark && lightShadows != null) {
+        card = Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(borderRadius ?? 20),
+            boxShadow: lightShadows,
+          ),
+          child: card,
+        );
+      }
 
       if (onTap == null) return card;
 
@@ -63,12 +90,16 @@ class AdaptiveSurfaceCard extends StatelessWidget {
             color: accentColor!.withValues(alpha: isDark ? 0.35 : 0.2),
             width: 1.5,
           )
-        : null;
+        : Border.all(
+            color: isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04),
+            width: 1.0,
+          );
 
     final containerDecoration = BoxDecoration(
       color: color ?? Theme.of(context).colorScheme.surfaceContainer,
       borderRadius: BorderRadius.circular(effectiveRadius),
       border: cardBorder,
+      boxShadow: lightShadows,
     );
 
     if (onTap != null) {

@@ -345,7 +345,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(
         buildTestApp(
-          child: const ExpenseAccountsScreen(),
+          child: const ExpenseAccountsScreen(initialTab: 1),
         ),
       );
       await tester.pumpAndSettle();
@@ -390,8 +390,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Switch to Categories tab
-      await tester.tap(find.text('Categories'));
+      // Switch to Category tab
+      await tester.tap(find.text('Category'));
       await tester.pumpAndSettle();
 
       // Default to Expense categories

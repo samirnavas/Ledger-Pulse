@@ -41,7 +41,7 @@ class ModeStrings {
   String get homeTab => isExpense ? 'Home' : 'Dashboard';
   String get transactionsTab => isExpense ? 'Transactions' : 'Daybook';
   String get reportsTab => isExpense ? 'Reports' : 'Analytics';
-  String get accountsTab => isExpense ? 'Accounts' : 'Chart of Accounts';
+  String get accountsTab => isExpense ? 'My Profile' : 'Chart of Accounts';
   String get budgetsTab => isExpense ? 'Budgets' : 'Inventory';
   String get allExpensesTab => isExpense ? 'All Expenses' : 'All Vouchers';
   String get dailyTab => isExpense ? 'Daily' : 'Daily Daybook';

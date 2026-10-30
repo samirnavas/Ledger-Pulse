@@ -289,7 +289,7 @@ void main() {
       );
 
       await tester.pumpWidget(buildTestScope(
-        child: const ExpenseAccountsScreen(),
+        child: const ExpenseAccountsScreen(initialTab: 1),
       ));
       await tester.pumpAndSettle();
 
@@ -324,8 +324,8 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      // Switch to Categories tab
-      await tester.tap(find.text('Categories'));
+      // Switch to Category tab
+      await tester.tap(find.text('Category'));
       await tester.pumpAndSettle();
 
       // Verify AdaptiveListRow is used
@@ -333,15 +333,24 @@ void main() {
       expect(find.text('Live Concerts'), findsOneWidget);
       expect(find.text('Indie Music'), findsOneWidget);
 
-      // Tap archive button on parent
-      final archiveBtn = find.byKey(Key('archive_cat_btn_${parent.id}'));
-      expect(archiveBtn, findsOneWidget);
-      await tester.tap(archiveBtn);
+      // Open 3-dot menu on parent
+      final menuBtn = find.descendant(
+        of: find.byKey(Key('cat_dismiss_${parent.id}')),
+        matching: find.byIcon(Icons.more_vert),
+      );
+      expect(menuBtn, findsOneWidget);
+      await tester.tap(menuBtn);
+      await tester.pumpAndSettle();
+
+      // Tap delete button in menu
+      final deleteBtn = find.byKey(Key('delete_cat_${parent.id}'));
+      expect(deleteBtn, findsOneWidget);
+      await tester.tap(deleteBtn);
       await tester.pumpAndSettle();
 
       // Confirmation dialog appears
-      expect(find.text('Delete or Archive Category?'), findsOneWidget);
-      await tester.tap(find.text('Confirm'));
+      expect(find.text('Delete Category?'), findsOneWidget);
+      await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 
       // Verify deleted from repo

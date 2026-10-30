@@ -21,7 +21,6 @@ import '../../data/services/recurring_service.dart';
 import '../ledger/widgets/entry_amount_display.dart';
 import '../ledger/widgets/entry_attachment_picker_sheet.dart';
 import '../ledger/widgets/entry_note_and_details.dart';
-import '../ledger/widgets/entry_numeric_keypad.dart';
 import '../ledger/widgets/entry_quick_presets_row.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
@@ -29,7 +28,7 @@ import '../providers/recurring_providers.dart';
 import 'widgets/transaction_type_switcher.dart';
 
 /// Modal bottom sheet for rapid transaction entry (Expense, Income, Transfer).
-/// Built on [DraggableModalSheet] with ledger keypad, amount display, presets,
+/// Built on [DraggableModalSheet] with device keypad, amount display, presets,
 /// and adaptive chips.
 class QuickAddTransactionSheet extends ConsumerStatefulWidget {
   final VoucherModel? initialVoucher;
@@ -67,7 +66,8 @@ class _QuickAddTransactionSheetState
     extends ConsumerState<QuickAddTransactionSheet> {
   late VoucherType _selectedType;
   String _amountString = '0';
-  late final TextEditingController _hiddenAmountController;
+  late final TextEditingController _amountController;
+  late final FocusNode _amountFocusNode;
   late final TextEditingController _noteController;
   late final TextEditingController _refController;
 
@@ -116,7 +116,7 @@ class _QuickAddTransactionSheetState
       final double amt = v.totalAmountInCents / 100.0;
       _amountString =
           amt % 1 == 0 ? amt.toInt().toString() : amt.toStringAsFixed(2);
-      _hiddenAmountController = TextEditingController();
+      _amountController = TextEditingController(text: _amountString);
       _noteController = TextEditingController(text: v.narration ?? '');
       _refController = TextEditingController(text: v.referenceNumber ?? '');
       _selectedCategoryId = v.categoryAccountId;
@@ -127,14 +127,45 @@ class _QuickAddTransactionSheetState
     } else {
       _selectedType = VoucherType.expense;
       _amountString = '0';
-      _hiddenAmountController = TextEditingController();
+      _amountController = TextEditingController(text: '0');
       _noteController = TextEditingController();
       _refController = TextEditingController();
       _selectedDate = DateTime.now();
     }
+    _amountFocusNode = FocusNode();
 
+    _amountController.addListener(_onAmountControllerChanged);
     _noteController.addListener(_onFieldChanged);
     _refController.addListener(_onFieldChanged);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _amountFocusNode.requestFocus();
+        _amountController.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _amountController.text.length,
+        );
+      }
+    });
+  }
+
+  void _onAmountControllerChanged() {
+    String raw = _amountController.text;
+    if (raw.length > 1 && raw.startsWith('0') && !raw.startsWith('0.')) {
+      final cleaned = raw.replaceFirst(RegExp(r'^0+'), '');
+      final newText = cleaned.isEmpty ? '0' : cleaned;
+      _amountController.value = TextEditingValue(
+        text: newText,
+        selection: TextSelection.collapsed(offset: newText.length),
+      );
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _amountString = raw.isEmpty ? '0' : raw;
+        _errorMessage = null;
+      });
+    }
   }
 
   void _onFieldChanged() {
@@ -143,201 +174,29 @@ class _QuickAddTransactionSheetState
 
   @override
   void dispose() {
+    _amountController.removeListener(_onAmountControllerChanged);
     _noteController.removeListener(_onFieldChanged);
     _refController.removeListener(_onFieldChanged);
-    _hiddenAmountController.dispose();
+    _amountController.dispose();
+    _amountFocusNode.dispose();
     _noteController.dispose();
     _refController.dispose();
     super.dispose();
   }
 
-  void _onKeypadTap(String key) {
-    HapticFeedback.lightImpact();
-    FocusScope.of(context).unfocus();
-    setState(() {
-      _errorMessage = null;
-      if (key == 'backspace') {
-        if (_amountString.length > 1) {
-          _amountString = _amountString.substring(0, _amountString.length - 1);
-        } else {
-          _amountString = '0';
-        }
-      } else if (key == '.') {
-        if (!_amountString.contains('.')) {
-          _amountString += '.';
-        }
-      } else if (key == '0') {
-        if (_amountString != '0') {
-          final parts = _amountString.split('.');
-          if (parts.length <= 1 || parts[1].length < 2) {
-            if (_amountString.length <= 9) {
-              _amountString += '0';
-            }
-          }
-        }
-      } else {
-        // Digits 1-9
-        if (_amountString == '0') {
-          _amountString = key;
-        } else {
-          final parts = _amountString.split('.');
-          if (parts.length <= 1 || parts[1].length < 2) {
-            if (_amountString.length <= 9) {
-              _amountString += key;
-            }
-          }
-        }
-      }
-    });
-  }
-
-  void _onKeypadLongPressBackspace() {
-    HapticFeedback.mediumImpact();
-    setState(() {
-      _amountString = '0';
-      _errorMessage = null;
-    });
-  }
-
-  void _openKeypadModal() {
-    HapticFeedback.lightImpact();
-    FocusScope.of(context).unfocus();
-    final company = ref.read(activeCompanyProvider);
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.35),
-      builder: (modalCtx) {
-        return StatefulBuilder(
-          builder: (modalCtx, setModalState) {
-            final isIos = AdaptiveThemeHelper.isIos(modalCtx);
-            final theme = Theme.of(modalCtx);
-            final isDark = theme.brightness == Brightness.dark ||
-                CupertinoTheme.of(modalCtx).brightness == Brightness.dark;
-            final themeColor = _getTypeColor(context, _selectedType);
-            final currencySymbol =
-                CurrencyFormatter.getSymbol(company.currencyCode);
-
-            final containerColor = isIos
-                ? (isDark
-                    ? CupertinoColors.systemGroupedBackground.darkColor
-                    : CupertinoColors.systemGroupedBackground)
-                : (isDark
-                    ? AppColors.surfaceCardDark
-                    : theme.colorScheme.surfaceContainerHighest);
-
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              decoration: BoxDecoration(
-                color: containerColor,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Enter Amount',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(
-                            Icons.check_circle_rounded,
-                            size: 28,
-                            color: themeColor,
-                          ),
-                          onPressed: () => Navigator.of(modalCtx).pop(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    EntryAmountDisplay(
-                      amountString: _amountString,
-                      themeColor: themeColor,
-                      errorMessage: _errorMessage,
-                      currencyCode: company.currencyCode,
-                    ),
-                    const SizedBox(height: 12),
-                    EntryQuickPresetsRow(
-                      themeColor: themeColor,
-                      currencySymbol: currencySymbol,
-                      presets: const [100, 500, 1000],
-                      onAddPreset: (amount) {
-                        _addQuickPreset(amount);
-                        setModalState(() {});
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    EntryNumericKeypad(
-                      themeColor: themeColor,
-                      onKeyTap: (key) {
-                        _onKeypadTap(key);
-                        setModalState(() {});
-                      },
-                      onLongPressBackspace: () {
-                        _onKeypadLongPressBackspace();
-                        setModalState(() {});
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    AdaptiveButton(
-                      isFullWidth: true,
-                      height: 48,
-                      type: AdaptiveButtonType.primary,
-                      onPressed: () => Navigator.of(modalCtx).pop(),
-                      child: const Text(
-                        'Done',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   void _addQuickPreset(int amount) {
     HapticFeedback.lightImpact();
-    FocusScope.of(context).unfocus();
     setState(() {
       _errorMessage = null;
       final current = double.tryParse(_amountString) ?? 0.0;
       final updated = current + amount;
-      if (updated == updated.roundToDouble()) {
-        _amountString = updated.toInt().toString();
-      } else {
-        _amountString = updated.toStringAsFixed(2);
-      }
+      final newString = updated == updated.roundToDouble()
+          ? updated.toInt().toString()
+          : updated.toStringAsFixed(2);
+      _amountController.text = newString;
+      _amountController.selection =
+          TextSelection.collapsed(offset: newString.length);
+      _amountString = newString;
     });
   }
 
@@ -983,34 +842,20 @@ class _QuickAddTransactionSheetState
                         ),
                         const SizedBox(height: 12),
 
-                        // Amount Display (Tap to open Custom Keyboard Modal)
+                        // Amount Display with Device Keyboard (Numberpad)
                         EntryAmountDisplay(
                           amountString: _amountString,
                           themeColor: themeColor,
                           errorMessage: _errorMessage,
                           currencyCode: company.currencyCode,
-                          onTap: _openKeypadModal,
+                          controller: _amountController,
+                          focusNode: _amountFocusNode,
+                          autofocus: true,
+                          showKeypadIcon: false,
+                          textFieldKey: const Key('quick_add_amount_field'),
+                          onTap: () => _amountFocusNode.requestFocus(),
                         ),
                         const SizedBox(height: 10),
-
-                        // Hidden TextField for test automation backwards compatibility
-                        SizedBox(
-                          width: 0,
-                          height: 0,
-                          child: Opacity(
-                            opacity: 0,
-                            child: TextField(
-                              key: const Key('quick_add_amount_field'),
-                              controller: _hiddenAmountController,
-                              onChanged: (val) {
-                                setState(() {
-                                  _amountString = val.isEmpty ? '0' : val;
-                                  _errorMessage = null;
-                                });
-                              },
-                            ),
-                          ),
-                        ),
 
                         // Quick Presets Row (+100, +500, +1000)
                         EntryQuickPresetsRow(

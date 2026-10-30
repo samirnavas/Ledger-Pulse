@@ -226,8 +226,8 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         label: modeStrings.reportsTab,
       ),
       NavigationDestination(
-        icon: const Icon(Icons.account_balance_wallet_outlined),
-        selectedIcon: const Icon(Icons.account_balance_wallet),
+        icon: const Icon(Icons.person_outline_rounded),
+        selectedIcon: const Icon(Icons.person_rounded),
         label: modeStrings.accountsTab,
       ),
     ];
@@ -247,7 +247,8 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         label: modeStrings.reportsTab,
       ),
       BottomNavigationBarItem(
-        icon: const Icon(CupertinoIcons.creditcard),
+        icon: const Icon(CupertinoIcons.person_crop_circle),
+        activeIcon: const Icon(CupertinoIcons.person_crop_circle_fill),
         label: modeStrings.accountsTab,
       ),
     ];

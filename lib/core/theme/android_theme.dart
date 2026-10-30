@@ -144,7 +144,8 @@ class AndroidTheme {
 
       // --- Card Theme: MD3 Outlined & Tonal Container (Level 0/1) ---
       cardTheme: CardThemeData(
-        elevation: 0,
+        elevation: isDark ? 0 : 2,
+        shadowColor: isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.08),
         color: scheme.surfaceContainer,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
