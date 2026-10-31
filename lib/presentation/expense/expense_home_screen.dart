@@ -884,17 +884,22 @@ class _ExpenseHomeView extends ConsumerWidget {
               data: (categories) {
                 return summaryAsync.when(
                   data: (summary) {
+                    final hasBudgets = company.isModuleEnabled(AppModule.budgets);
+                    final reportsTabIndex = hasBudgets ? 2 : 1;
                     return CategoryBreakdownCard(
                       categoryTotalsInCents: summary.categoryTotalsInCents,
                       categories: categories,
                       currencyCode: company.currencyCode,
                       totalExpenseInCents: summary.totalExpenseInCents,
+                      onCardTap: () {
+                        ref.read(expenseTabControllerProvider.notifier).setTab(reportsTabIndex);
+                      },
                       onCategoryTap: (catId) {
                         final current = ref.read(transactionFiltersProvider);
                         ref.read(transactionFiltersProvider.notifier).updateFilters(
                               current.copyWith(categoryIds: [catId]),
                             );
-                        ref.read(expenseTabControllerProvider.notifier).setTab(1);
+                        ref.read(expenseTabControllerProvider.notifier).setTab(reportsTabIndex);
                       },
                     );
                   },

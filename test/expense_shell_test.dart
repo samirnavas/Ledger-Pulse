@@ -550,8 +550,8 @@ void main() {
       await tester.tap(foodTile);
       await tester.pumpAndSettle();
 
-      // Verify that expenseTabController switched to tab 1 (Transactions)
-      expect(container.read(expenseTabControllerProvider).currentIndex, 1);
+      // Verify that expenseTabController switched to tab 2 (ExpenseReportsScreen)
+      expect(container.read(expenseTabControllerProvider).currentIndex, 2);
       // Verify filter category is set
       final activeFilters = container.read(transactionFiltersProvider);
       expect(activeFilters.categoryIds, contains('${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}'));

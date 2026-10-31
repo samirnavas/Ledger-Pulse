@@ -69,6 +69,7 @@ class CategoryBreakdownCard extends StatelessWidget {
   final String currencyCode;
   final int totalExpenseInCents;
   final void Function(String categoryId)? onCategoryTap;
+  final VoidCallback? onCardTap;
 
   const CategoryBreakdownCard({
     super.key,
@@ -77,6 +78,7 @@ class CategoryBreakdownCard extends StatelessWidget {
     required this.currencyCode,
     required this.totalExpenseInCents,
     this.onCategoryTap,
+    this.onCardTap,
   });
 
   @override
@@ -144,10 +146,26 @@ class CategoryBreakdownCard extends StatelessWidget {
           AdaptiveSectionHeader(
             padding: EdgeInsets.zero,
             title: 'Category Breakdown',
-            trailing: Text(
-              '${spentEntries.length} ${spentEntries.length == 1 ? 'Category' : 'Categories'}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+            trailing: GestureDetector(
+              onTap: onCardTap,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${spentEntries.length} ${spentEntries.length == 1 ? 'Category' : 'Categories'}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (onCardTap != null) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 12,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ],
+                ],
               ),
             ),
           ),

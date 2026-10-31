@@ -4,11 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/constants/colors.dart';
 import '../../core/constants/mode_strings.dart';
 import '../../core/theme/adaptive_theme.dart';
-import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_chip.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_date_field.dart';
@@ -19,6 +18,7 @@ import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_search_field.dart';
 import '../../core/widgets/adaptive_section_header.dart';
+import '../../core/widgets/adaptive_surface_card.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/app_feedback.dart';
 import '../../core/widgets/empty_state_view.dart';
@@ -34,8 +34,9 @@ import 'quick_add_transaction_sheet.dart';
 /// Transactions list tab matching the ledger's party list layout and primitives:
 /// - Sticky top row with [AdaptiveSearchField] and [AdaptiveIconSurfaceButton] (active filter indicator).
 /// - [AdaptiveChipRow] for transaction type filtering (All, Expense, Income, Transfer).
-/// - Day-grouped list with [AdaptiveSectionHeader] (Today, Yesterday, date) and daily total.
-/// - Rows rendered with [AdaptiveListRow] (category avatar, title=category, subtitle=wallet & note, trailing signed AmountText).
+/// - Top summary banner metric card (Inflow, Outflow, Net Total) in app primary theme color.
+/// - Day-grouped list inside themed [AdaptiveSurfaceCard]s.
+/// - Category-specific avatars and signed [AmountText] indicators matching recent transactions styling.
 /// - Swipe actions with [AdaptiveSwipeBackgrounds] (edit & void confirmation).
 /// - Predictive Android back & focus dismissal via [PopScope].
 /// - [RefreshIndicator.adaptive] with [AnimatedSwitcher] keyed on active filters.
@@ -151,24 +152,81 @@ class _ExpenseTransactionsScreenState
     return false;
   }
 
+  IconData _getCategoryIcon(String? categoryName, VoucherType type, bool isIos) {
+    if (type == VoucherType.transfer) {
+      return isIos ? CupertinoIcons.arrow_right_arrow_left : Icons.swap_horiz_rounded;
+    }
+    if (categoryName == null || categoryName.trim().isEmpty) {
+      return type == VoucherType.income
+          ? (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded)
+          : (isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded);
+    }
+    final lower = categoryName.toLowerCase();
+    if (lower.contains('food') ||
+        lower.contains('dining') ||
+        lower.contains('restaurant') ||
+        lower.contains('meal') ||
+        lower.contains('cafe')) {
+      return isIos ? CupertinoIcons.cart : Icons.restaurant_rounded;
+    } else if (lower.contains('salary') ||
+        lower.contains('income') ||
+        lower.contains('wage') ||
+        lower.contains('pay')) {
+      return isIos ? CupertinoIcons.money_dollar : Icons.payments_rounded;
+    } else if (lower.contains('transport') ||
+        lower.contains('travel') ||
+        lower.contains('fuel') ||
+        lower.contains('cab') ||
+        lower.contains('taxi') ||
+        lower.contains('auto')) {
+      return isIos ? CupertinoIcons.car_detailed : Icons.directions_car_rounded;
+    } else if (lower.contains('bill') ||
+        lower.contains('utility') ||
+        lower.contains('electric') ||
+        lower.contains('water') ||
+        lower.contains('recharge') ||
+        lower.contains('internet')) {
+      return isIos ? CupertinoIcons.doc_plaintext : Icons.receipt_long_rounded;
+    } else if (lower.contains('shopping') ||
+        lower.contains('grocer') ||
+        lower.contains('market') ||
+        lower.contains('store')) {
+      return isIos ? CupertinoIcons.bag : Icons.shopping_bag_rounded;
+    } else if (lower.contains('invest') ||
+        lower.contains('dividend') ||
+        lower.contains('stock') ||
+        lower.contains('mutual')) {
+      return isIos ? CupertinoIcons.graph_square : Icons.trending_up_rounded;
+    } else if (lower.contains('rent') ||
+        lower.contains('home') ||
+        lower.contains('house') ||
+        lower.contains('flat')) {
+      return isIos ? CupertinoIcons.house : Icons.home_rounded;
+    } else if (lower.contains('health') ||
+        lower.contains('medical') ||
+        lower.contains('pharma') ||
+        lower.contains('hospital')) {
+      return isIos ? CupertinoIcons.heart : Icons.medical_services_rounded;
+    }
+    return type == VoucherType.income
+        ? (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded)
+        : (isIos ? CupertinoIcons.tag : Icons.category_rounded);
+  }
+
   Widget _buildCategoryAvatar(
       BuildContext context, Color color, IconData icon, bool isIos) {
-    if (isIos) {
-      return CircleAvatar(
-        radius: 22,
-        backgroundColor: color.withValues(alpha: 0.15),
-        child: Icon(icon, color: color, size: 20),
-      );
-    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = color.withValues(alpha: isDark ? 0.22 : 0.14);
+
     return Container(
-      width: 48,
-      height: 48,
+      width: 44,
+      height: 44,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
       ),
       alignment: Alignment.center,
-      child: Icon(icon, color: color, size: 22),
+      child: Icon(icon, color: color, size: 20),
     );
   }
 
@@ -186,6 +244,151 @@ class _ExpenseTransactionsScreenState
     }
   }
 
+  Widget _buildSummaryCard({
+    required BuildContext context,
+    required List<VoucherModel> transactions,
+    required String currencyCode,
+  }) {
+    int totalIncome = 0;
+    int totalExpense = 0;
+    for (final t in transactions) {
+      if (t.type == VoucherType.income) {
+        totalIncome += t.totalAmountInCents;
+      } else if (t.type == VoucherType.expense) {
+        totalExpense += t.totalAmountInCents;
+      }
+    }
+    final netInCents = totalIncome - totalExpense;
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final themeColor = Theme.of(context).colorScheme.primary;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: AdaptiveSurfaceCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            // Total Income
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: themeColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
+                          size: 12,
+                          color: themeColor,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Income',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  AmountText(
+                    amountInCents: totalIncome,
+                    currencyCode: currencyCode,
+                    overrideColor: themeColor,
+                    variant: AmountVariant.medium,
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 32,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 12),
+            // Total Expenses
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: themeColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
+                          size: 12,
+                          color: themeColor,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Expenses',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  AmountText(
+                    amountInCents: totalExpense,
+                    currencyCode: currencyCode,
+                    overrideColor: themeColor,
+                    variant: AmountVariant.medium,
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 32,
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 12),
+            // Net Summary
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Net Total',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  AmountText(
+                    amountInCents: netInCents,
+                    currencyCode: currencyCode,
+                    overrideColor: themeColor,
+                    variant: AmountVariant.medium,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final company = ref.watch(activeCompanyProvider);
@@ -195,6 +398,7 @@ class _ExpenseTransactionsScreenState
     final categoriesAsync = ref.watch(categoriesProvider);
     final walletsAsync = ref.watch(walletsProvider);
     final isIos = AdaptiveThemeHelper.isIos(context);
+    final themeColor = Theme.of(context).colorScheme.primary;
 
     final hasActiveFilters = (filters.categoryIds != null &&
             filters.categoryIds!.isNotEmpty) ||
@@ -230,7 +434,7 @@ class _ExpenseTransactionsScreenState
         color: Colors.transparent,
         child: Column(
           children: [
-            // 1. Top Search & Filter Button Row (matches party_list_tab.dart)
+            // 1. Top Search & Filter Button Row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
@@ -273,7 +477,7 @@ class _ExpenseTransactionsScreenState
                   icon: Icon(
                     isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
                     size: 14,
-                    color: AppColors.expense(context),
+                    color: themeColor,
                   ),
                 ),
                 AdaptiveChipItem(
@@ -282,7 +486,7 @@ class _ExpenseTransactionsScreenState
                   icon: Icon(
                     isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
                     size: 14,
-                    color: AppColors.income(context),
+                    color: themeColor,
                   ),
                 ),
                 AdaptiveChipItem(
@@ -293,7 +497,7 @@ class _ExpenseTransactionsScreenState
                         ? CupertinoIcons.arrow_right_arrow_left
                         : Icons.swap_horiz_rounded,
                     size: 14,
-                    color: AppColors.primaryBlue,
+                    color: themeColor,
                   ),
                 ),
               ],
@@ -302,7 +506,19 @@ class _ExpenseTransactionsScreenState
             ),
             const SizedBox(height: 4),
 
-            // 3. Transactions List with Pull-to-Refresh & Day-grouping
+            // 3. Overview Summary Banner Card
+            transactionsAsync.maybeWhen(
+              data: (txns) => txns.isNotEmpty
+                  ? _buildSummaryCard(
+                      context: context,
+                      transactions: txns,
+                      currencyCode: company.currencyCode,
+                    )
+                  : const SizedBox.shrink(),
+              orElse: () => const SizedBox.shrink(),
+            ),
+
+            // 4. Transactions List with Pull-to-Refresh & Day-grouping
             Expanded(
               child: RefreshIndicator.adaptive(
                 onRefresh: () async {
@@ -369,7 +585,7 @@ class _ExpenseTransactionsScreenState
 
                         return ListView.builder(
                           physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(0, 0, 0, 90),
+                          padding: const EdgeInsets.fromLTRB(0, 8, 0, 90),
                           itemCount: sortedDays.length,
                           itemBuilder: (ctx, dayIndex) {
                             final day = sortedDays[dayIndex];
@@ -386,145 +602,158 @@ class _ExpenseTransactionsScreenState
                               }
                             }
 
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Day Section Header with Total Net
-                                AdaptiveSectionHeader(
-                                  title: dayHeader,
-                                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 6),
-                                  trailing: AmountText(
-                                    amountInCents: dayTotal,
-                                    currencyCode: company.currencyCode,
-                                    showSign: true,
-                                    isReceivablePositive: true,
-                                    variant: AmountVariant.small,
-                                  ),
-                                ),
-
-                                // Transaction List Rows with Swipe Backgrounds & Dividers
-                                ...dayTxns.map((txn) {
-                                  final isIncome = txn.type == VoucherType.income;
-                                  final isTransfer = txn.type == VoucherType.transfer;
-                                  final cat = txn.categoryAccountId != null
-                                      ? catMap[txn.categoryAccountId!]
-                                      : null;
-                                  final sourceWallet = txn.walletAccountId != null
-                                      ? walletMap[txn.walletAccountId!]
-                                      : null;
-                                  final destWallet = txn.toWalletAccountId != null
-                                      ? walletMap[txn.toWalletAccountId!]
-                                      : null;
-
-                                  final color = isTransfer
-                                      ? AppColors.primaryBlue
-                                      : (isIncome
-                                          ? AppColors.income(context)
-                                          : AppColors.expense(context));
-
-                                  final icon = isTransfer
-                                      ? (isIos
-                                          ? CupertinoIcons.arrow_right_arrow_left
-                                          : Icons.swap_horiz_rounded)
-                                      : (isIncome
-                                          ? (isIos
-                                              ? CupertinoIcons.arrow_down
-                                              : Icons.arrow_downward_rounded)
-                                          : (isIos
-                                              ? CupertinoIcons.arrow_up
-                                              : Icons.arrow_upward_rounded));
-
-                                  final title = isTransfer
-                                      ? 'Transfer'
-                                      : (cat?.name ?? (isIncome ? 'Income' : 'Expense'));
-
-                                  final subtitleParts = <String>[];
-                                  if (isTransfer) {
-                                    subtitleParts.add(
-                                        '${sourceWallet?.name ?? 'Wallet'} ➔ ${destWallet?.name ?? 'Wallet'}');
-                                  } else if (sourceWallet != null) {
-                                    subtitleParts.add(sourceWallet.name);
-                                  }
-
-                                  subtitleParts.add(DateFormatter.formatTime(txn.date));
-
-                                  if (txn.narration != null &&
-                                      txn.narration!.trim().isNotEmpty) {
-                                    subtitleParts.add(txn.narration!.trim());
-                                  }
-
-                                  final subtitle = subtitleParts.isNotEmpty
-                                      ? subtitleParts.join(' • ')
-                                      : null;
-
-                                  final trailingAmount = isTransfer
-                                      ? AmountText(
-                                          amountInCents: txn.totalAmountInCents,
+                            return Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 6,
+                              ),
+                              child: AdaptiveSurfaceCard(
+                                padding: EdgeInsets.zero,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Day Header Bar using AdaptiveSectionHeader
+                                    AdaptiveSectionHeader(
+                                      title: dayHeader,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 10,
+                                      ),
+                                      trailing: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: themeColor.withValues(alpha: 0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: AmountText(
+                                          amountInCents: dayTotal,
                                           currencyCode: company.currencyCode,
-                                          overrideColor: AppColors.primaryBlue,
-                                          variant: AmountVariant.medium,
-                                        )
-                                      : AmountText(
-                                          amountInCents: isIncome
-                                              ? txn.totalAmountInCents
-                                              : -txn.totalAmountInCents,
-                                          currencyCode: company.currencyCode,
-                                          showSign: true,
-                                          isReceivablePositive: true,
-                                          variant: AmountVariant.medium,
-                                        );
+                                          variant: AmountVariant.small,
+                                          overrideColor: themeColor,
+                                        ),
+                                      ),
+                                    ),
 
-                                  return Dismissible(
-                                    key: ValueKey('txn_${txn.id}'),
-                                    direction: DismissDirection.horizontal,
-                                    dismissThresholds: const {
-                                      DismissDirection.startToEnd: 0.25,
-                                      DismissDirection.endToStart: 0.25,
-                                    },
-                                    background: AdaptiveSwipeBackgrounds.edit(
-                                      context,
-                                      isIos: isIos,
-                                    ),
-                                    secondaryBackground:
-                                        AdaptiveSwipeBackgrounds.delete(
-                                      context,
-                                      isIos: isIos,
-                                      label: 'Void',
-                                    ),
-                                    confirmDismiss: (direction) async {
-                                      if (direction == DismissDirection.startToEnd) {
-                                        HapticFeedback.lightImpact();
-                                        QuickAddTransactionSheet.show(
-                                          context,
-                                          initialVoucher: txn,
-                                        );
-                                        return false;
-                                      } else if (direction ==
-                                          DismissDirection.endToStart) {
-                                        HapticFeedback.mediumImpact();
-                                        return await _voidTransaction(txn);
-                                      }
-                                      return false;
-                                    },
-                                    child: AdaptiveListRow(
-                                      leading: _buildCategoryAvatar(
-                                        context,
-                                        color,
-                                        icon,
+                                    // Day Transaction Rows
+                                    ...List.generate(dayTxns.length, (i) {
+                                      final txn = dayTxns[i];
+                                      final isLast = i == dayTxns.length - 1;
+                                      final isIncome = txn.type == VoucherType.income;
+                                      final isTransfer = txn.type == VoucherType.transfer;
+                                      final cat = txn.categoryAccountId != null
+                                          ? catMap[txn.categoryAccountId!]
+                                          : null;
+                                      final sourceWallet = txn.walletAccountId != null
+                                          ? walletMap[txn.walletAccountId!]
+                                          : null;
+                                      final destWallet = txn.toWalletAccountId != null
+                                          ? walletMap[txn.toWalletAccountId!]
+                                          : null;
+
+                                      final categoryIcon = _getCategoryIcon(
+                                        cat?.name,
+                                        txn.type,
                                         isIos,
-                                      ),
-                                      title: title,
-                                      subtitle: subtitle,
-                                      trailing: trailingAmount,
-                                      showDivider: true,
-                                      onTap: () => QuickAddTransactionSheet.show(
-                                        context,
-                                        initialVoucher: txn,
-                                      ),
-                                    ),
-                                  );
-                                }),
-                              ],
+                                      );
+
+                                      final title = isTransfer
+                                          ? 'Transfer'
+                                          : (cat?.name ??
+                                              (isIncome ? 'Income' : 'Expense'));
+
+                                      final subtitleParts = <String>[];
+                                      if (isTransfer) {
+                                        subtitleParts.add(
+                                            '${sourceWallet?.name ?? 'Wallet'} ➔ ${destWallet?.name ?? 'Wallet'}');
+                                      } else if (sourceWallet != null) {
+                                        subtitleParts.add(sourceWallet.name);
+                                      }
+
+                                      subtitleParts
+                                          .add(DateFormatter.formatTime(txn.date));
+
+                                      if (txn.narration != null &&
+                                          txn.narration!.trim().isNotEmpty) {
+                                        subtitleParts.add(txn.narration!.trim());
+                                      }
+
+                                      final subtitle = subtitleParts.isNotEmpty
+                                          ? subtitleParts.join(' • ')
+                                          : null;
+
+                                      final trailingAmount = AmountText(
+                                        amountInCents: isTransfer
+                                            ? txn.totalAmountInCents
+                                            : (isIncome
+                                                ? txn.totalAmountInCents
+                                                : -txn.totalAmountInCents),
+                                        currencyCode: company.currencyCode,
+                                        variant: AmountVariant.medium,
+                                        overrideColor: themeColor,
+                                      );
+
+                                      return Dismissible(
+                                        key: ValueKey('txn_${txn.id}'),
+                                        direction: DismissDirection.horizontal,
+                                        dismissThresholds: const {
+                                          DismissDirection.startToEnd: 0.25,
+                                          DismissDirection.endToStart: 0.25,
+                                        },
+                                        background: AdaptiveSwipeBackgrounds.edit(
+                                          context,
+                                          isIos: isIos,
+                                        ),
+                                        secondaryBackground:
+                                            AdaptiveSwipeBackgrounds.delete(
+                                          context,
+                                          isIos: isIos,
+                                          label: 'Void',
+                                        ),
+                                        confirmDismiss: (direction) async {
+                                          if (direction ==
+                                              DismissDirection.startToEnd) {
+                                            HapticFeedback.lightImpact();
+                                            QuickAddTransactionSheet.show(
+                                              context,
+                                              initialVoucher: txn,
+                                            );
+                                            return false;
+                                          } else if (direction ==
+                                              DismissDirection.endToStart) {
+                                            HapticFeedback.mediumImpact();
+                                            return await _voidTransaction(txn);
+                                          }
+                                          return false;
+                                        },
+                                        child: AdaptiveListRow(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 10,
+                                          ),
+                                          leading: _buildCategoryAvatar(
+                                            context,
+                                            themeColor,
+                                            categoryIcon,
+                                            isIos,
+                                          ),
+                                          title: title,
+                                          subtitle: subtitle,
+                                          trailing: trailingAmount,
+                                          showDivider: !isLast,
+                                          onTap: () => QuickAddTransactionSheet.show(
+                                            context,
+                                            initialVoucher: txn,
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ),
                             );
                           },
                         );
@@ -705,6 +934,7 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                   label: 'All Categories',
                   isSelected:
                       filters.categoryIds == null || filters.categoryIds!.isEmpty,
+                  selectedColor: theme.colorScheme.primary,
                   onSelected: (_) {
                     final cur = ref.read(transactionFiltersProvider);
                     ref.read(transactionFiltersProvider.notifier).updateFilters(
@@ -717,6 +947,7 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                   return AdaptiveChip(
                     label: c.name,
                     isSelected: isSel,
+                    selectedColor: theme.colorScheme.primary,
                     onSelected: (selected) {
                       final cur = ref.read(transactionFiltersProvider);
                       final next = selected ? [c.id] : null;
@@ -748,6 +979,7 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                   label: 'All Wallets',
                   isSelected:
                       filters.walletIds == null || filters.walletIds!.isEmpty,
+                  selectedColor: theme.colorScheme.primary,
                   onSelected: (_) {
                     final cur = ref.read(transactionFiltersProvider);
                     ref.read(transactionFiltersProvider.notifier).updateFilters(
@@ -760,6 +992,7 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                   return AdaptiveChip(
                     label: w.name,
                     isSelected: isSel,
+                    selectedColor: theme.colorScheme.primary,
                     onSelected: (selected) {
                       final cur = ref.read(transactionFiltersProvider);
                       final next = selected ? [w.id] : null;
@@ -777,12 +1010,11 @@ class _TransactionFilterModalContent extends ConsumerWidget {
           const SizedBox(height: 24),
 
           if (!isIos)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Apply Filters'),
-              ),
+            AdaptiveButton(
+              onPressed: () => Navigator.of(context).pop(),
+              isFullWidth: true,
+              type: AdaptiveButtonType.primary,
+              child: const Text('Apply Filters'),
             ),
         ],
       ),
