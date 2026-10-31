@@ -188,15 +188,17 @@ class DriftBudgetRepository {
     }
 
     // Verify category exists and belongs to company
-    final cat = await (_db.select(_db.accounts)
-          ..where((t) =>
-              t.id.equals(effCategoryId) &
-              t.companyId.equals(_currentCompanyId) &
-              t.isDeleted.equals(false)))
-        .getSingleOrNull();
+    if (effCategoryId != 'all' && effCategoryId != 'all_categories') {
+      final cat = await (_db.select(_db.accounts)
+            ..where((t) =>
+                t.id.equals(effCategoryId) &
+                t.companyId.equals(_currentCompanyId) &
+                t.isDeleted.equals(false)))
+          .getSingleOrNull();
 
-    if (cat == null) {
-      throw ArgumentError('Category account not found: $effCategoryId');
+      if (cat == null) {
+        throw ArgumentError('Category account not found: $effCategoryId');
+      }
     }
 
     final now = DateTime.now();
@@ -456,6 +458,16 @@ class DriftBudgetRepository {
   /// Recursively collects all category account IDs under [parentCategoryId] (including itself).
   Future<List<String>> _getCategoryAndSubCategoryIds(
       String parentCategoryId) async {
+    if (parentCategoryId == 'all' || parentCategoryId == 'all_categories') {
+      final allCats = await (_db.select(_db.accounts)
+            ..where((t) =>
+                t.companyId.equals(_currentCompanyId) &
+                t.type.equals(AccountType.expense.name) &
+                t.isDeleted.equals(false)))
+          .get();
+      return allCats.map((r) => r.id).toList();
+    }
+
     final result = <String>[parentCategoryId];
     final queue = <String>[parentCategoryId];
 
@@ -512,12 +524,28 @@ class DriftBudgetRepository {
     final bounds = getPeriodBounds(budget.periodType, date);
 
     // Get category account details
-    final catRow = await (_db.select(_db.accounts)
-          ..where((t) =>
-              t.id.equals(budget.categoryAccountId) &
-              t.companyId.equals(_currentCompanyId)))
-        .getSingleOrNull();
-    final catModel = catRow != null ? _accountFromRow(catRow) : null;
+    AccountModel? catModel;
+    if (budget.categoryAccountId == 'all' || budget.categoryAccountId == 'all_categories') {
+      catModel = AccountModel(
+        id: 'all',
+        companyId: _currentCompanyId,
+        code: 'ALL',
+        name: 'All Categories (Overall)',
+        type: AccountType.expense,
+        isSystem: true,
+        isActive: true,
+        currentBalanceInCents: 0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+    } else {
+      final catRow = await (_db.select(_db.accounts)
+            ..where((t) =>
+                t.id.equals(budget.categoryAccountId) &
+                t.companyId.equals(_currentCompanyId)))
+          .getSingleOrNull();
+      catModel = catRow != null ? _accountFromRow(catRow) : null;
+    }
 
     // Collect category and all sub-categories
     final categoryIds =
@@ -595,6 +623,21 @@ class DriftBudgetRepository {
       overallPercentUsed: overallPercent,
       items: items,
     );
+  }
+
+  /// Returns the budget progress set for 'all' categories for [month], or null if none is set.
+  Future<BudgetProgress?> getAllCategoriesBudget({DateTime? month}) async {
+    final targetMonth = month ?? DateTime.now();
+    final activeBudgets = await getBudgets(includeInactive: false);
+    final allCatBudget = activeBudgets
+        .where((b) => b.categoryAccountId == 'all' || b.categoryAccountId == 'all_categories')
+        .firstOrNull;
+
+    if (allCatBudget == null) {
+      return null;
+    }
+
+    return await calculateProgress(allCatBudget, asOfDate: targetMonth);
   }
 
   // ==========================================

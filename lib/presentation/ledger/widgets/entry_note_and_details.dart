@@ -125,7 +125,7 @@ class EntryNoteAndDetails extends StatelessWidget {
                 size: 14,
               ),
               label: Text(
-                DateFormatter.formatRelative(selectedDate),
+                DateFormatter.formatRelativeWithTime(selectedDate),
                 style: const TextStyle(fontSize: 12),
               ),
               style: OutlinedButton.styleFrom(

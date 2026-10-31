@@ -221,6 +221,10 @@ class _QuickAddTransactionSheetState
                     child: const Text('Cancel'),
                     onPressed: () => Navigator.of(ctx).pop(),
                   ),
+                  const Text(
+                    'Select Date & Time',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                  ),
                   CupertinoButton(
                     child: const Text('Done',
                         style: TextStyle(fontWeight: FontWeight.bold)),
@@ -233,7 +237,7 @@ class _QuickAddTransactionSheetState
               ),
               Expanded(
                 child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.date,
+                  mode: CupertinoDatePickerMode.dateAndTime,
                   initialDateTime: _selectedDate,
                   maximumDate: now.add(const Duration(days: 365)),
                   minimumYear: 2020,
@@ -252,7 +256,33 @@ class _QuickAddTransactionSheetState
         lastDate: now.add(const Duration(days: 365)),
       );
       if (picked != null) {
-        setState(() => _selectedDate = picked);
+        final defaultHour = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
+            ? _selectedDate.hour
+            : now.hour;
+        final defaultMinute = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
+            ? _selectedDate.minute
+            : now.minute;
+        final defaultSecond = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
+            ? _selectedDate.second
+            : now.second;
+
+        TimeOfDay? pickedTime;
+        if (mounted) {
+          pickedTime = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay(hour: defaultHour, minute: defaultMinute),
+          );
+        }
+
+        final finalDateTime = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          pickedTime?.hour ?? defaultHour,
+          pickedTime?.minute ?? defaultMinute,
+          pickedTime != null ? 0 : defaultSecond,
+        );
+        setState(() => _selectedDate = finalDateTime);
       }
     }
   }
@@ -1100,29 +1130,18 @@ class _QuickAddTransactionSheetState
                       height: 52,
                       isLoading: _isSubmitting,
                       type: AdaptiveButtonType.primary,
-                      onPressed: _isSubmitting
-                          ? null
-                          : () => _saveTransaction(company),
+                      onPressed: _isSubmitting ? null : () => _saveTransaction(company),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
                             widget.initialVoucher != null
-                                ? (isIos
-                                    ? CupertinoIcons.check_mark
-                                    : Icons.check_rounded)
+                                ? (isIos ? CupertinoIcons.check_mark : Icons.check_rounded)
                                 : (_selectedType == VoucherType.expense
-                                    ? (isIos
-                                        ? CupertinoIcons.arrow_up
-                                        : Icons.arrow_upward_rounded)
+                                    ? (isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded)
                                     : (_selectedType == VoucherType.income
-                                        ? (isIos
-                                            ? CupertinoIcons.arrow_down
-                                            : Icons.arrow_downward_rounded)
-                                        : (isIos
-                                            ? CupertinoIcons
-                                                .arrow_right_arrow_left
-                                            : Icons.swap_horiz_rounded))),
+                                        ? (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded)
+                                        : (isIos ? CupertinoIcons.arrow_right_arrow_left : Icons.swap_horiz_rounded))),
                             size: 20,
                             color: Colors.white,
                           ),

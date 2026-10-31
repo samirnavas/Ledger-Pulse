@@ -16,6 +16,7 @@ class AdaptiveDateField extends StatelessWidget {
   final DateTime? lastDate;
   final Widget? prefixIcon;
   final EdgeInsetsGeometry? margin;
+  final bool enableTime;
 
   const AdaptiveDateField({
     super.key,
@@ -26,6 +27,7 @@ class AdaptiveDateField extends StatelessWidget {
     this.lastDate,
     this.prefixIcon,
     this.margin,
+    this.enableTime = false,
   });
 
   void _openDatePicker(BuildContext context) async {
@@ -66,7 +68,9 @@ class AdaptiveDateField extends StatelessWidget {
               ),
               Expanded(
                 child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.date,
+                  mode: enableTime
+                      ? CupertinoDatePickerMode.dateAndTime
+                      : CupertinoDatePickerMode.date,
                   initialDateTime: selectedDate,
                   minimumDate: minDate,
                   maximumDate: maxDate,
@@ -95,7 +99,54 @@ class AdaptiveDateField extends StatelessWidget {
         ),
       );
       if (picked != null) {
-        onDateSelected(picked);
+        DateTime finalDateTime;
+        final now = DateTime.now();
+        final defaultHour = (selectedDate.hour != 0 || selectedDate.minute != 0)
+            ? selectedDate.hour
+            : now.hour;
+        final defaultMinute = (selectedDate.hour != 0 || selectedDate.minute != 0)
+            ? selectedDate.minute
+            : now.minute;
+        final defaultSecond = (selectedDate.hour != 0 || selectedDate.minute != 0)
+            ? selectedDate.second
+            : now.second;
+
+        if (enableTime && context.mounted) {
+          final pickedTime = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay(hour: defaultHour, minute: defaultMinute),
+          );
+          if (pickedTime != null) {
+            finalDateTime = DateTime(
+              picked.year,
+              picked.month,
+              picked.day,
+              pickedTime.hour,
+              pickedTime.minute,
+            );
+          } else {
+            // Time not selected explicitly: default to current time
+            finalDateTime = DateTime(
+              picked.year,
+              picked.month,
+              picked.day,
+              defaultHour,
+              defaultMinute,
+              defaultSecond,
+            );
+          }
+        } else {
+          // Time not enabled/selected: default time to current time
+          finalDateTime = DateTime(
+            picked.year,
+            picked.month,
+            picked.day,
+            defaultHour,
+            defaultMinute,
+            defaultSecond,
+          );
+        }
+        onDateSelected(finalDateTime);
       }
     }
   }
@@ -105,7 +156,9 @@ class AdaptiveDateField extends StatelessWidget {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final formattedDate = DateFormatter.formatShortDate(selectedDate);
+    final formattedDate = enableTime
+        ? DateFormatter.formatShortDateTime(selectedDate)
+        : DateFormatter.formatShortDate(selectedDate);
 
     if (isIos) {
       return Container(

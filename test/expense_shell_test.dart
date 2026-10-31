@@ -414,7 +414,7 @@ void main() {
 
       expect(find.byType(ExpenseHomeScreen), findsOneWidget);
       expect(find.text('Spent this month'), findsOneWidget);
-      expect(find.text('Income this month'), findsOneWidget);
+      expect(find.text('Income this month'), findsNothing);
       expect(find.byKey(const Key('expense_balance_card')), findsNothing);
       expect(find.byType(CategoryBreakdownCard), findsOneWidget);
       expect(find.byType(AdaptiveSectionHeader), findsNWidgets(2));
@@ -427,14 +427,14 @@ void main() {
 
       expect(find.byType(ExpenseHomeScreen), findsOneWidget);
       expect(find.text('Spent this month'), findsOneWidget);
-      expect(find.text('Income this month'), findsOneWidget);
+      expect(find.text('Income this month'), findsNothing);
       expect(find.byKey(const Key('expense_balance_card')), findsNothing);
       expect(find.byType(CategoryBreakdownCard), findsOneWidget);
       expect(find.byType(AdaptiveSectionHeader), findsNWidgets(2));
       expect(find.text('RECENT TRANSACTIONS'), findsOneWidget);
     });
 
-    testWidgets('correct colours via AppColors for Spent and Income metric cards', (tester) async {
+    testWidgets('displays expanded spent card with daily average', (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -445,13 +445,8 @@ void main() {
       await tester.pumpWidget(buildExpenseShellApp(platform: TargetPlatform.android));
       await tester.pumpAndSettle();
 
-      final metricCards = tester.widgetList<AdaptiveMetricCard>(find.byType(AdaptiveMetricCard)).toList();
-      expect(metricCards.length, greaterThanOrEqualTo(2));
-      final spentCard = metricCards.firstWhere((c) => c.label == 'Spent this month');
-      final incomeCard = metricCards.firstWhere((c) => c.label == 'Income this month');
-
-      expect(spentCard.accentColor, isNotNull);
-      expect(incomeCard.accentColor, isNotNull);
+      expect(find.text('Spent this month'), findsOneWidget);
+      expect(find.textContaining('Daily average:'), findsOneWidget);
     });
 
     testWidgets('empty state shows with no transactions', (tester) async {

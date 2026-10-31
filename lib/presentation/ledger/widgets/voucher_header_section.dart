@@ -60,7 +60,7 @@ class VoucherHeaderSection extends ConsumerWidget {
               ),
               Expanded(
                 child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.date,
+                  mode: CupertinoDatePickerMode.dateAndTime,
                   initialDateTime: initialDate,
                   minimumDate: DateTime(2020),
                   maximumDate: DateTime(2035),
@@ -89,7 +89,34 @@ class VoucherHeaderSection extends ConsumerWidget {
         ),
       );
       if (picked != null) {
-        onDateSelected(picked);
+        final now = DateTime.now();
+        final defaultHour = (initialDate.hour != 0 || initialDate.minute != 0)
+            ? initialDate.hour
+            : now.hour;
+        final defaultMinute = (initialDate.hour != 0 || initialDate.minute != 0)
+            ? initialDate.minute
+            : now.minute;
+        final defaultSecond = (initialDate.hour != 0 || initialDate.minute != 0)
+            ? initialDate.second
+            : now.second;
+
+        TimeOfDay? pickedTime;
+        if (context.mounted) {
+          pickedTime = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay(hour: defaultHour, minute: defaultMinute),
+          );
+        }
+
+        final finalDateTime = DateTime(
+          picked.year,
+          picked.month,
+          picked.day,
+          pickedTime?.hour ?? defaultHour,
+          pickedTime?.minute ?? defaultMinute,
+          pickedTime != null ? 0 : defaultSecond,
+        );
+        onDateSelected(finalDateTime);
       }
     }
   }

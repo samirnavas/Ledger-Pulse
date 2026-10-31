@@ -377,7 +377,12 @@ class ExpenseCsvImportService {
 
     for (final fmt in formats) {
       try {
-        return DateFormat(fmt).parseStrict(cleaned);
+        final parsed = DateFormat(fmt).parseStrict(cleaned);
+        if (parsed.hour == 0 && parsed.minute == 0 && parsed.second == 0) {
+          final now = DateTime.now();
+          return DateTime(parsed.year, parsed.month, parsed.day, now.hour, now.minute, now.second);
+        }
+        return parsed;
       } catch (_) {
         // Intentionally try next date format candidate when parsing CSV dates
       }

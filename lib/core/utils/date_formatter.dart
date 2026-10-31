@@ -33,6 +33,14 @@ class DateFormatter {
     return DateFormat('dd/MM/yyyy').format(date);
   }
 
+  static String formatShortDateTime(DateTime date) {
+    return DateFormat('dd/MM/yyyy, hh:mm a').format(date);
+  }
+
+  static String formatRelativeWithTime(DateTime date) {
+    return '${formatRelative(date)}, ${formatTime(date)}';
+  }
+
   /// Generates a group header string for timeline grouping
   static String getTimelineGroupHeader(DateTime date) {
     final now = DateTime.now();

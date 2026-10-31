@@ -77,8 +77,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
           ? (existingBudget.allocatedInCents / 100).toStringAsFixed(2)
           : '',
     );
-    String? selectedCategoryId = existingBudget?.categoryId ??
-        (expenseCategories.isNotEmpty ? expenseCategories.first.id : null);
+    String? selectedCategoryId = existingBudget?.categoryId ?? 'all';
     BudgetPeriodType selectedPeriod =
         existingBudget?.period ?? BudgetPeriodType.monthly;
     bool rolloverEnabled = existingBudget?.rolloverEnabled ?? false;
@@ -137,12 +136,16 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final theme = Theme.of(context);
-            final categoryPickerItems = expenseCategories
-                .map((cat) => AdaptivePickerItem<String>(
-                      value: cat.id,
-                      label: cat.name,
-                    ))
-                .toList();
+            final categoryPickerItems = [
+              const AdaptivePickerItem<String>(
+                value: 'all',
+                label: 'All Categories (Overall)',
+              ),
+              ...expenseCategories.map((cat) => AdaptivePickerItem<String>(
+                    value: cat.id,
+                    label: cat.name,
+                  )),
+            ];
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),

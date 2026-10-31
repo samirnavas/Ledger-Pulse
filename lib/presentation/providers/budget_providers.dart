@@ -87,3 +87,23 @@ final overallMonthlyBudgetProvider =
 
   return await repo.getOverallMonthlyBudget(month: selectedMonth);
 });
+
+/// Reactive stream for the 'All Categories' overall budget progress.
+final allCategoriesBudgetProvider =
+    FutureProvider<BudgetProgress?>((ref) async {
+  final company = ref.watch(activeCompanyProvider);
+  if (company.mode != CompanyMode.expenseTracker ||
+      !company.isModuleEnabled(AppModule.budgets)) {
+    return null;
+  }
+
+  final repo = ref.watch(budgetRepositoryProvider);
+  final selectedMonth = ref.watch(selectedMonthProvider);
+
+  final sub = repo.repositoryUpdatesStream.listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(sub.cancel);
+
+  return await repo.getAllCategoriesBudget(month: selectedMonth);
+});

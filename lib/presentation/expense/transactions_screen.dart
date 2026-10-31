@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/mode_strings.dart';
 import '../../core/theme/adaptive_theme.dart';
+import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_chip.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_date_field.dart';
@@ -25,7 +27,6 @@ import '../../core/widgets/spring_morphing_fab.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/voucher_model.dart';
 import '../providers/company_providers.dart';
-import 'quick_add_transaction_sheet.dart';
 import '../providers/expense_providers.dart';
 import '../providers/sync_providers.dart';
 import 'quick_add_transaction_sheet.dart';
@@ -355,6 +356,14 @@ class _ExpenseTransactionsScreenState
                           grouped.putIfAbsent(dayKey, () => []).add(txn);
                         }
 
+                        for (final dayKey in grouped.keys) {
+                          grouped[dayKey]!.sort((a, b) {
+                            final cmp = b.date.compareTo(a.date);
+                            if (cmp != 0) return cmp;
+                            return b.createdAt.compareTo(a.createdAt);
+                          });
+                        }
+
                         final sortedDays = grouped.keys.toList()
                           ..sort((a, b) => b.compareTo(a));
 
@@ -436,6 +445,8 @@ class _ExpenseTransactionsScreenState
                                   } else if (sourceWallet != null) {
                                     subtitleParts.add(sourceWallet.name);
                                   }
+
+                                  subtitleParts.add(DateFormatter.formatTime(txn.date));
 
                                   if (txn.narration != null &&
                                       txn.narration!.trim().isNotEmpty) {

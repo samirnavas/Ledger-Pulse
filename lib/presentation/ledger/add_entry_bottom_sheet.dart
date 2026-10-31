@@ -166,22 +166,92 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
 
   void _pickDate() async {
     HapticFeedback.lightImpact();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = DateTime(
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final minDate = DateTime(2020);
+    final maxDate = DateTime.now().add(const Duration(days: 365));
+
+    if (isIos) {
+      DateTime tempPicked = _selectedDate;
+      await showCupertinoModalPopup<void>(
+        context: context,
+        builder: (ctx) => Container(
+          height: 280,
+          color: CupertinoTheme.of(ctx).scaffoldBackgroundColor,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  CupertinoButton(
+                    child: const Text('Cancel'),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                  const Text(
+                    'Select Date & Time',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                  ),
+                  CupertinoButton(
+                    child: const Text('Done', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () {
+                      HapticFeedback.lightImpact();
+                      setState(() => _selectedDate = tempPicked);
+                      Navigator.of(ctx).pop();
+                    },
+                  ),
+                ],
+              ),
+              Expanded(
+                child: CupertinoDatePicker(
+                  mode: CupertinoDatePickerMode.dateAndTime,
+                  initialDateTime: _selectedDate,
+                  minimumDate: minDate,
+                  maximumDate: maxDate,
+                  onDateTimeChanged: (d) => tempPicked = d,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedDate,
+        firstDate: minDate,
+        lastDate: maxDate,
+      );
+      if (picked != null) {
+        final now = DateTime.now();
+        final defaultHour = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
+            ? _selectedDate.hour
+            : now.hour;
+        final defaultMinute = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
+            ? _selectedDate.minute
+            : now.minute;
+        final defaultSecond = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
+            ? _selectedDate.second
+            : now.second;
+
+        TimeOfDay? pickedTime;
+        if (mounted) {
+          pickedTime = await showTimePicker(
+            context: context,
+            initialTime: TimeOfDay(hour: defaultHour, minute: defaultMinute),
+          );
+        }
+
+        final finalDateTime = DateTime(
           picked.year,
           picked.month,
           picked.day,
-          _selectedDate.hour,
-          _selectedDate.minute,
+          pickedTime?.hour ?? defaultHour,
+          pickedTime?.minute ?? defaultMinute,
+          pickedTime != null ? 0 : defaultSecond,
         );
-      });
+        setState(() {
+          _selectedDate = finalDateTime;
+        });
+      }
     }
   }
 

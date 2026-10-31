@@ -12,7 +12,6 @@ import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_bottom_nav.dart';
 import '../../core/widgets/adaptive_chip.dart';
 import '../../core/widgets/adaptive_list_row.dart';
-import '../../core/widgets/adaptive_metric_card.dart';
 import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_section_header.dart';
@@ -28,6 +27,7 @@ import '../../data/models/sync_model.dart';
 import '../../data/models/voucher_model.dart';
 import '../home/company_switcher_sheet.dart';
 import '../home/sync_settings_sheet.dart';
+import '../providers/budget_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import '../providers/sync_providers.dart';
@@ -649,6 +649,17 @@ class _ExpenseHomeView extends ConsumerWidget {
     );
   }
 
+  int _calculateDaysInPeriod(DateTime selectedMonth) {
+    final now = DateTime.now();
+    if (selectedMonth.year == now.year && selectedMonth.month == now.month) {
+      return now.day > 0 ? now.day : 1;
+    }
+    if (selectedMonth.isAfter(DateTime(now.year, now.month))) {
+      return 1;
+    }
+    return DateTime(selectedMonth.year, selectedMonth.month + 1, 0).day;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
@@ -661,6 +672,7 @@ class _ExpenseHomeView extends ConsumerWidget {
     final walletsAsync = ref.watch(walletsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final transactionsAsync = ref.watch(transactionsProvider);
+    final allCategoriesBudgetAsync = ref.watch(allCategoriesBudgetProvider);
 
     final monthTitle = DateFormat('MMMM yyyy').format(selectedMonth);
 
@@ -672,6 +684,7 @@ class _ExpenseHomeView extends ConsumerWidget {
           ref.invalidate(walletsProvider);
           ref.invalidate(categoriesProvider);
           ref.invalidate(transactionsProvider);
+          ref.invalidate(allCategoriesBudgetProvider);
           await ref.read(syncControllerProvider.notifier).triggerSync();
         },
         child: ListView(
@@ -692,36 +705,17 @@ class _ExpenseHomeView extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
 
-            // (c) Top Metric Row: Spent this month & Income this month
+            // (c) Focused Full-Width Expense Card with Daily Average & Budget Progress Bar
             summaryAsync.when(
-              loading: () => Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 90,
-                      decoration: BoxDecoration(
-                        color: isIos
-                            ? (isDark ? Colors.white10 : Colors.black12)
-                            : theme.colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      child: const Center(child: CupertinoActivityIndicator()),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      height: 90,
-                      decoration: BoxDecoration(
-                        color: isIos
-                            ? (isDark ? Colors.white10 : Colors.black12)
-                            : theme.colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(28),
-                      ),
-                      child: const Center(child: CupertinoActivityIndicator()),
-                    ),
-                  ),
-                ],
+              loading: () => Container(
+                height: 110,
+                decoration: BoxDecoration(
+                  color: isIos
+                      ? (isDark ? Colors.white10 : Colors.black12)
+                      : theme.colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: const Center(child: CupertinoActivityIndicator()),
               ),
               error: (err, stack) => Container(
                 padding: const EdgeInsets.all(12),
@@ -743,42 +737,143 @@ class _ExpenseHomeView extends ConsumerWidget {
                 ),
               ),
               data: (summary) {
-                final income = summary.totalIncomeInCents;
                 final expense = summary.totalExpenseInCents;
+                final daysCount = _calculateDaysInPeriod(selectedMonth);
+                final dailyAvgInCents = (expense / daysCount).round();
+
+                final allCatBudget = allCategoriesBudgetAsync.asData?.value;
+                final hasBudget = allCatBudget != null && allCatBudget.effectiveAllocatedInCents > 0;
+                final budgetCents = allCatBudget?.effectiveAllocatedInCents ?? 0;
+                final spentCents = allCatBudget?.spentInCents ?? expense;
+                final rawRatio = hasBudget && budgetCents > 0 ? (spentCents / budgetCents) : 0.0;
+                final budgetPercent = rawRatio.clamp(0.0, 1.0);
+
                 final primaryColor = theme.colorScheme.primary;
 
-                return Row(
-                  children: [
-                    Expanded(
-                      child: AdaptiveMetricCard(
-                        label: modeStrings.spentThisMonth,
+                Color progressColor;
+                if (rawRatio >= 1.0) {
+                  progressColor = theme.colorScheme.error;
+                } else if (rawRatio >= 0.8) {
+                  progressColor = theme.colorScheme.tertiary;
+                } else {
+                  progressColor = primaryColor;
+                }
+
+                return AdaptiveSurfaceCard(
+                  accentColor: primaryColor,
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: primaryColor.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
+                                  size: 16,
+                                  color: primaryColor,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                modeStrings.spentThisMonth,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (hasBudget)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: progressColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                rawRatio >= 1.0
+                                    ? 'Exceeded'
+                                    : (rawRatio >= 0.8 ? 'Warning' : 'On Track'),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: progressColor,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      AmountText(
                         amountInCents: expense,
-                        accentColor: primaryColor,
-                        icon: Icon(
-                          isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
-                          size: 14,
-                          color: primaryColor,
-                        ),
-                        amountVariant: AmountVariant.large,
                         currencyCode: company.currencyCode,
+                        variant: AmountVariant.large,
+                        overrideColor: theme.colorScheme.onSurface,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AdaptiveMetricCard(
-                        label: modeStrings.incomeThisMonth,
-                        amountInCents: income,
-                        accentColor: primaryColor,
-                        icon: Icon(
-                          isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
-                          size: 14,
-                          color: primaryColor,
+                      const SizedBox(height: 6),
+                      Text(
+                        'Daily average: ${CurrencyFormatter.format(dailyAvgInCents)} / day (${daysCount}d)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
-                        amountVariant: AmountVariant.large,
-                        currencyCode: company.currencyCode,
                       ),
-                    ),
-                  ],
+                      if (hasBudget) ...[
+                        const SizedBox(height: 16),
+                        Divider(
+                          height: 1,
+                          thickness: 0.5,
+                          color: theme.colorScheme.outlineVariant.withValues(
+                            alpha: isDark ? 0.25 : 0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Budget: ${CurrencyFormatter.format(spentCents)} of ${CurrencyFormatter.format(budgetCents)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            Text(
+                              '${(rawRatio * 100).round()}%',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: progressColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: budgetPercent,
+                            minHeight: 8,
+                            backgroundColor: progressColor.withValues(alpha: 0.15),
+                            valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 );
               },
             ),

@@ -222,9 +222,13 @@ final partyLedgerEntriesProvider =
 
   final rawEntries = await repo.getEntriesForParty(partyId);
 
-  // Sort ascending by date to compute cumulative running balance chronologically
+  // Sort ascending by date & time to compute cumulative running balance chronologically
   final sortedEntries = List<LedgerEntry>.from(rawEntries)
-    ..sort((a, b) => a.date.compareTo(b.date));
+    ..sort((a, b) {
+      final cmp = a.date.compareTo(b.date);
+      if (cmp != 0) return cmp;
+      return a.id.compareTo(b.id);
+    });
 
   int runningBalance = 0;
   final entriesWithBalance = <LedgerEntry>[];

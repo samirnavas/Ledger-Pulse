@@ -500,47 +500,6 @@ class _EnhancedPredictiveBackPageTransitionState
 }
 
 /// Custom PageTransitionsBuilder providing predictive back with layered drop shadows and rounded corner cards.
-class EnhancedPredictiveBackPageTransitionsBuilder extends PageTransitionsBuilder {
-  const EnhancedPredictiveBackPageTransitionsBuilder();
-
-  @override
-  Widget buildTransitions<T>(
-    PageRoute<T> route,
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    final bool isModal = route.fullscreenDialog ||
-        (route is AdaptivePageRoute && (route as AdaptivePageRoute).effectiveIsModal);
-
-    return _EnhancedPredictiveBackGestureDetector(
-      route: route,
-      builder: (context, phase, startBackEvent, currentBackEvent) {
-        if (route.popGestureInProgress) {
-          return _EnhancedPredictiveBackPageTransition(
-            animation: animation,
-            phase: phase,
-            secondaryAnimation: secondaryAnimation,
-            startBackEvent: startBackEvent,
-            currentBackEvent: currentBackEvent,
-            showShadow: !isModal,
-            child: child,
-          );
-        }
-
-        return FadeForwardsPageTransitionsBuilder().buildTransitions(
-          route,
-          context,
-          animation,
-          secondaryAnimation,
-          child,
-        );
-      },
-    );
-  }
-}
-
 class AdaptivePageRoute<T> extends MaterialPageRoute<T> {
   final SharedAxisTransitionType transitionType;
   final bool useFadeThrough;
@@ -557,80 +516,5 @@ class AdaptivePageRoute<T> extends MaterialPageRoute<T> {
   });
 
   bool get effectiveIsModal => fullscreenDialog || isModal;
-
-  Route<dynamic>? _nextRoute;
-  Route<dynamic>? get nextRoute => _nextRoute;
-
-  @override
-  void didChangeNext(Route<dynamic>? nextRoute) {
-    _nextRoute = nextRoute;
-    super.didChangeNext(nextRoute);
-  }
-
-  /// Whether the route covering this page is a modal, dialog, or bottom sheet.
-  bool get isNextRouteModal {
-    final next = _nextRoute;
-    if (next == null) return false;
-    if (next is PageRoute && next.fullscreenDialog) return true;
-    if (next is AdaptivePageRoute && next.effectiveIsModal) return true;
-    final typeName = next.runtimeType.toString().toLowerCase();
-    if (typeName.contains('modal') ||
-        typeName.contains('dialog') ||
-        typeName.contains('popup') ||
-        typeName.contains('bottomsheet')) {
-      return true;
-    }
-    return false;
-  }
-
-  @override
-  Widget buildTransitions(
-    BuildContext context,
-    Animation<double> animation,
-    Animation<double> secondaryAnimation,
-    Widget child,
-  ) {
-    // For modals (e.g. fullscreenDialog or isModal), remove the shadow and low-exposure background.
-    // Also, if the route pushed on top of this page is a modal or bottom sheet, do not reduce background exposure.
-    final bool shouldApplyShadow = !effectiveIsModal;
-    final bool shouldReduceExposure = !effectiveIsModal && !isNextRouteModal;
-
-    final contrastAdjustedChild = ForegroundPageShadowTransition(
-      animation: animation,
-      enabled: shouldApplyShadow,
-      child: BackgroundExposureTransition(
-        secondaryAnimation: secondaryAnimation,
-        enabled: shouldReduceExposure,
-        child: child,
-      ),
-    );
-
-    if (useFadeThrough) {
-      return FadeThroughTransition(
-        animation: animation,
-        secondaryAnimation: secondaryAnimation,
-        child: contrastAdjustedChild,
-      );
-    }
-
-    final isIos = AdaptiveThemeHelper.isIos(context);
-    if (isIos) {
-      return CupertinoPageTransitionsBuilder().buildTransitions<T>(
-        this,
-        context,
-        animation,
-        secondaryAnimation,
-        contrastAdjustedChild,
-      );
-    }
-
-    final theme = Theme.of(context);
-    return theme.pageTransitionsTheme.buildTransitions<T>(
-      this,
-      context,
-      animation,
-      secondaryAnimation,
-      contrastAdjustedChild,
-    );
-  }
 }
+
