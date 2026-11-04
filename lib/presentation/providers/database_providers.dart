@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/sync_engine.dart';
 import '../../data/local/database.dart';
+import 'auth_providers.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
+  final authRepo = ref.watch(authRepositoryProvider);
+  final uid = authRepo.currentUserId ?? 'usr_default';
+  final db = AppDatabase(null, uid);
   ref.onDispose(() {
     db.close();
   });

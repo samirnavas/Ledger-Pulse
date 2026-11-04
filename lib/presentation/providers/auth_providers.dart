@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/supabase_auth_repository.dart';
 import '../../domain/repositories/i_auth_repository.dart';
+import 'database_providers.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences?>((ref) {
   return null;
@@ -120,8 +122,84 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  Future<bool> signUpWithEmailAndPassword({
+    required String email,
+    required String password,
+    required String name,
+    required bool isCompanyAccount,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final success = await _repository.signUpWithEmailAndPassword(
+        email: email,
+        password: password,
+        name: name,
+        isCompanyAccount: isCompanyAccount,
+      );
+      if (success) {
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: true,
+          phoneNumber: email,
+        );
+        return true;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Failed to create account. Please check your info and try again.',
+        );
+        return false;
+      }
+    } on AuthException catch (e) {
+      state = state.copyWith(isLoading: false, error: e.message);
+      return false;
+    } catch (e) {
+      final cleanMsg = e.toString().replaceFirst('Exception: ', '');
+      state = state.copyWith(isLoading: false, error: cleanMsg);
+      return false;
+    }
+  }
+
+  Future<bool> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final success = await _repository.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      if (success) {
+        state = state.copyWith(
+          isLoading: false,
+          isAuthenticated: true,
+          phoneNumber: email,
+        );
+        return true;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Invalid credentials. Please check your email and password.',
+        );
+        return false;
+      }
+    } on AuthException catch (e) {
+      state = state.copyWith(isLoading: false, error: e.message);
+      return false;
+    } catch (e) {
+      final cleanMsg = e.toString().replaceFirst('Exception: ', '');
+      state = state.copyWith(isLoading: false, error: cleanMsg);
+      return false;
+    }
+  }
+
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
+    try {
+      ref.read(syncEngineProvider).dispose();
+      await ref.read(appDatabaseProvider).close();
+    } catch (_) {}
     await _repository.logout();
     state = const AuthState(isAuthenticated: false);
   }

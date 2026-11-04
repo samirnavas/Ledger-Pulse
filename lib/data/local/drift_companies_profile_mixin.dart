@@ -67,6 +67,7 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
               isCloudSyncEnabled: Value(comp.isCloudSyncEnabled),
               isDropboxSyncEnabled: Value(comp.isDropboxSyncEnabled),
               isActive: Value(comp.isActive),
+              ownerId: Value(currentUserId),
               isDeleted: const Value(false),
               createdAt: Value(comp.createdAt),
               updatedAt: Value(comp.updatedAt),
@@ -150,6 +151,7 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
               isActive: Value(company.isActive),
               mode: Value(company.mode.name),
               enabledModulesJson: Value(jsonEncode(company.enabledModules.map((m) => m.name).toList())),
+              ownerId: Value(currentUserId),
               isDeleted: const Value(false),
               createdAt: Value(company.createdAt),
               updatedAt: Value(company.updatedAt),
@@ -170,6 +172,8 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
         payload: {
           ...company.toMap(),
           'companyId': company.id,
+          'ownerId': currentUserId,
+          'owner_id': currentUserId,
         },
         companyId: company.id,
       );
@@ -360,16 +364,18 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
     await ensureInitialized();
     AccessControlService.verifyPermission(currentRole, UserAction.createCompany);
 
+    final now = DateTime.now();
+
     await db.transaction(() async {
+      // 1. Soft-delete company
       await (db.update(db.companies)..where((t) => t.id.equals(companyId))).write(
         CompaniesCompanion(
           isDeleted: const Value(true),
           isActive: const Value(false),
-          updatedAt: Value(DateTime.now()),
+          updatedAt: Value(now),
           syncStatus: const Value(SyncRecordStatus.pending),
         ),
       );
-
       await recordOutboxEntry(
         targetTable: 'companies',
         recordId: companyId,
@@ -381,6 +387,71 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
         },
         companyId: companyId,
       );
+
+      // 2. Soft-delete all child rows
+      final partiesRows = await (db.select(db.parties)..where((t) => t.companyId.equals(companyId))).get();
+      for (final p in partiesRows) {
+        await (db.update(db.parties)..where((t) => t.id.equals(p.id))).write(
+          PartiesCompanion(isDeleted: const Value(true), syncStatus: const Value(SyncRecordStatus.pending), updatedAt: Value(now)),
+        );
+        await recordOutboxEntry(targetTable: 'parties', recordId: p.id, mutationType: 'DELETE', payload: {'id': p.id, 'companyId': companyId, 'isDeleted': true}, companyId: companyId);
+      }
+
+      final entriesRows = await (db.select(db.ledgerEntries)..where((t) => t.companyId.equals(companyId))).get();
+      for (final e in entriesRows) {
+        await (db.update(db.ledgerEntries)..where((t) => t.id.equals(e.id))).write(
+          LedgerEntriesCompanion(isDeleted: const Value(true), syncStatus: const Value(SyncRecordStatus.pending), updatedAt: Value(now)),
+        );
+        await recordOutboxEntry(targetTable: 'ledger_entries', recordId: e.id, mutationType: 'DELETE', payload: {'id': e.id, 'companyId': companyId, 'isDeleted': true}, companyId: companyId);
+      }
+
+      final voucherRows = await (db.select(db.vouchers)..where((t) => t.companyId.equals(companyId))).get();
+      for (final v in voucherRows) {
+        await (db.update(db.vouchers)..where((t) => t.id.equals(v.id))).write(
+          VouchersCompanion(isDeleted: const Value(true), syncStatus: const Value(SyncRecordStatus.pending), updatedAt: Value(now)),
+        );
+        await recordOutboxEntry(targetTable: 'vouchers', recordId: v.id, mutationType: 'DELETE', payload: {'id': v.id, 'companyId': companyId, 'isDeleted': true}, companyId: companyId);
+      }
+
+      final accountRows = await (db.select(db.accounts)..where((t) => t.companyId.equals(companyId))).get();
+      for (final a in accountRows) {
+        await (db.update(db.accounts)..where((t) => t.id.equals(a.id))).write(
+          AccountsCompanion(isDeleted: const Value(true), syncStatus: const Value(SyncRecordStatus.pending), updatedAt: Value(now)),
+        );
+        await recordOutboxEntry(targetTable: 'accounts', recordId: a.id, mutationType: 'DELETE', payload: {'id': a.id, 'companyId': companyId, 'isDeleted': true}, companyId: companyId);
+      }
+
+      final journalRows = await (db.select(db.journals)..where((t) => t.companyId.equals(companyId))).get();
+      for (final j in journalRows) {
+        await (db.update(db.journals)..where((t) => t.id.equals(j.id))).write(
+          JournalsCompanion(isDeleted: const Value(true), syncStatus: const Value(SyncRecordStatus.pending), updatedAt: Value(now)),
+        );
+        await recordOutboxEntry(targetTable: 'journals', recordId: j.id, mutationType: 'DELETE', payload: {'id': j.id, 'companyId': companyId, 'isDeleted': true}, companyId: companyId);
+      }
+
+      final lineRows = await (db.select(db.journalLines)..where((t) => t.companyId.equals(companyId))).get();
+      for (final l in lineRows) {
+        await (db.update(db.journalLines)..where((t) => t.id.equals(l.id))).write(
+          JournalLinesCompanion(isDeleted: const Value(true), syncStatus: const Value(SyncRecordStatus.pending), updatedAt: Value(now)),
+        );
+        await recordOutboxEntry(targetTable: 'journal_lines', recordId: l.id, mutationType: 'DELETE', payload: {'id': l.id, 'companyId': companyId, 'isDeleted': true}, companyId: companyId);
+      }
+
+      final budgetRows = await (db.select(db.budgets)..where((t) => t.companyId.equals(companyId))).get();
+      for (final b in budgetRows) {
+        await (db.update(db.budgets)..where((t) => t.id.equals(b.id))).write(
+          BudgetsCompanion(isDeleted: const Value(true), syncStatus: const Value(SyncRecordStatus.pending), updatedAt: Value(now)),
+        );
+        await recordOutboxEntry(targetTable: 'budgets', recordId: b.id, mutationType: 'DELETE', payload: {'id': b.id, 'companyId': companyId, 'isDeleted': true}, companyId: companyId);
+      }
+
+      final ruleRows = await (db.select(db.recurringRules)..where((t) => t.companyId.equals(companyId))).get();
+      for (final r in ruleRows) {
+        await (db.update(db.recurringRules)..where((t) => t.id.equals(r.id))).write(
+          RecurringRulesCompanion(isDeleted: const Value(true), syncStatus: const Value(SyncRecordStatus.pending), updatedAt: Value(now)),
+        );
+        await recordOutboxEntry(targetTable: 'recurring_rules', recordId: r.id, mutationType: 'DELETE', payload: {'id': r.id, 'companyId': companyId, 'isDeleted': true}, companyId: companyId);
+      }
     });
 
     updateStreamController.add(null);
@@ -466,7 +537,6 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
     await db.transaction(() async {
       await db.into(db.userProfiles).insertOnConflictUpdate(profileCompanion);
 
-      // Persist any companies directly into the Companies table (single source of truth)
       for (final comp in profile.companies) {
         await db.into(db.companies).insertOnConflictUpdate(
               CompaniesCompanion.insert(
@@ -492,6 +562,7 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
                 isActive: Value(comp.isActive),
                 mode: Value(comp.mode.name),
                 enabledModulesJson: Value(jsonEncode(comp.enabledModules.map((m) => m.name).toList())),
+                ownerId: Value(currentUserId),
                 isDeleted: const Value(false),
                 createdAt: Value(comp.createdAt),
                 updatedAt: Value(comp.updatedAt),
@@ -507,6 +578,8 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
           payload: {
             ...comp.toMap(),
             'companyId': comp.id,
+            'ownerId': currentUserId,
+            'owner_id': currentUserId,
           },
           companyId: comp.id,
         );

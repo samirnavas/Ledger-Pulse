@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/network/sync_engine.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/sync_model.dart';
 import 'company_providers.dart';
@@ -32,9 +33,9 @@ class SyncNotifier extends Notifier<SyncStatus> {
   Future<SyncResult> triggerSync({bool isAutoSync = false}) async {
     if (_isSyncing) {
       return SyncResult(
-        success: true,
-        itemsPushed: 0,
-        itemsPulled: 0,
+        status: SyncEngineStatus.success,
+        pushedCount: 0,
+        pulledCount: 0,
         timestamp: DateTime.now(),
       );
     }
@@ -69,7 +70,7 @@ class SyncNotifier extends Notifier<SyncStatus> {
       debugPrint('SyncNotifier error during sync: $e');
       state = SyncStatus.idle;
       return SyncResult(
-        success: false,
+        status: SyncEngineStatus.error,
         errorMessage: e.toString(),
         timestamp: DateTime.now(),
       );

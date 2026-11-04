@@ -1,22 +1,19 @@
-enum SyncStatus {
-  idle,
-  syncing,
-  success,
-  error,
-  offline;
+import '../../core/network/sync_engine.dart';
 
+export '../../core/network/sync_engine.dart' show SyncEngineStatus, SyncResult, SyncStatus;
+
+extension SyncEngineStatusExt on SyncEngineStatus {
   String get label {
     switch (this) {
-      case SyncStatus.idle:
+      case SyncEngineStatus.idle:
+      case SyncEngineStatus.success:
         return 'Up to date';
-      case SyncStatus.syncing:
+      case SyncEngineStatus.syncing:
         return 'Syncing...';
-      case SyncStatus.success:
-        return 'Sync complete';
-      case SyncStatus.error:
+      case SyncEngineStatus.partial:
+        return 'Partially synced';
+      case SyncEngineStatus.error:
         return 'Sync failed';
-      case SyncStatus.offline:
-        return 'Offline';
     }
   }
 }
@@ -89,20 +86,4 @@ class SyncItem {
       lastError: map['lastError'] as String?,
     );
   }
-}
-
-class SyncResult {
-  final bool success;
-  final int itemsPushed;
-  final int itemsPulled;
-  final String? errorMessage;
-  final DateTime timestamp;
-
-  const SyncResult({
-    required this.success,
-    this.itemsPushed = 0,
-    this.itemsPulled = 0,
-    this.errorMessage,
-    required this.timestamp,
-  });
 }

@@ -7,13 +7,16 @@ import 'ledger_providers.dart';
 class UserProfileNotifier extends Notifier<UserProfile> {
   @override
   UserProfile build() {
+    final authRepo = ref.watch(authRepositoryProvider);
+    final uid = authRepo.currentUserId ?? 'usr_default';
     final authState = ref.watch(authControllerProvider);
     final phone = authState.phoneNumber ?? '';
     final prefs = ref.watch(sharedPreferencesProvider);
-    final savedActiveCompanyId = prefs?.getString('last_active_company_id');
-    
+    final savedActiveCompanyId = prefs?.getString('last_active_company_id_$uid') ??
+        prefs?.getString('last_active_company_id');
+
     final initial = UserProfile(
-      id: 'usr_default',
+      id: uid,
       name: '',
       phoneNumber: phone,
       email: '',
@@ -36,18 +39,18 @@ class UserProfileNotifier extends Notifier<UserProfile> {
       final loaded = await repo.getUserProfile(userId);
       if (loaded != null && ref.mounted) {
         final prefs = ref.read(sharedPreferencesProvider);
-        final savedActiveId = prefs?.getString('last_active_company_id');
+        final savedActiveId = prefs?.getString('last_active_company_id_$userId') ??
+            prefs?.getString('last_active_company_id');
         final effectiveActiveId = (savedActiveId != null && savedActiveId.isNotEmpty)
             ? savedActiveId
-            : (state.activeCompanyId.isNotEmpty && state.activeCompanyId != 'cmp_default'
+            : (state.activeCompanyId.isNotEmpty
                 ? state.activeCompanyId
                 : loaded.activeCompanyId);
 
         state = loaded.copyWith(activeCompanyId: effectiveActiveId);
 
-        // Keep SharedPreferences in sync if it wasn't saved yet
-        if (savedActiveId == null && effectiveActiveId.isNotEmpty && effectiveActiveId != 'cmp_default') {
-          prefs?.setString('last_active_company_id', effectiveActiveId);
+        if (savedActiveId == null && effectiveActiveId.isNotEmpty) {
+          prefs?.setString('last_active_company_id_$userId', effectiveActiveId);
         }
       }
     } catch (e, st) {
@@ -57,9 +60,9 @@ class UserProfileNotifier extends Notifier<UserProfile> {
 
   void updateProfile(UserProfile updated) {
     state = updated;
-    if (updated.activeCompanyId.isNotEmpty && updated.activeCompanyId != 'cmp_default') {
+    if (updated.activeCompanyId.isNotEmpty) {
       final prefs = ref.read(sharedPreferencesProvider);
-      prefs?.setString('last_active_company_id', updated.activeCompanyId);
+      prefs?.setString('last_active_company_id_${updated.id}', updated.activeCompanyId);
     }
     _saveToDatabase(updated);
   }
@@ -125,5 +128,3 @@ class ProfileCancelActionNotifier extends Notifier<VoidCallback?> {
 
 final profileCancelActionProvider =
     NotifierProvider<ProfileCancelActionNotifier, VoidCallback?>(ProfileCancelActionNotifier.new);
-
-

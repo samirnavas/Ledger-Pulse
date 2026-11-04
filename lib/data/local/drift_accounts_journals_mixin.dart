@@ -3,6 +3,7 @@ import '../../data/models/account_model.dart';
 import '../../data/models/journal_model.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import 'database.dart';
+import 'drift_entries_mixin.dart';
 import 'drift_ledger_base.dart';
 
 /// Mixin handling Accounts and Journals for DriftLedgerRepository.
@@ -31,6 +32,7 @@ mixin DriftAccountsJournalsMixin on DriftLedgerRepositoryBase {
                 orElse: () => AccountType.asset,
               ),
               parentAccountId: r.parentAccountId,
+              kind: r.kind,
               isSystem: r.isSystem,
               isActive: r.isActive,
               description: r.description,
@@ -39,6 +41,74 @@ mixin DriftAccountsJournalsMixin on DriftLedgerRepositoryBase {
               updatedAt: r.updatedAt,
             ))
         .toList();
+  }
+
+  Future<void> recomputeAllBalances(String companyId) async {
+    await ensureInitialized();
+    final companyAccounts = await (db.select(db.accounts)
+          ..where((t) => t.companyId.equals(companyId) & t.isDeleted.equals(false)))
+        .get();
+
+    for (final acc in companyAccounts) {
+      final query = db.select(db.journalLines).join([
+        innerJoin(db.journals, db.journals.id.equalsExp(db.journalLines.journalId)),
+      ])
+        ..where(
+          db.journalLines.accountId.equals(acc.id) &
+              db.journalLines.companyId.equals(companyId) &
+              db.journalLines.isDeleted.equals(false) &
+              db.journals.status.equals('posted'),
+        );
+
+      final rows = await query.get();
+      int totalDebit = 0;
+      int totalCredit = 0;
+      for (final r in rows) {
+        final line = r.readTable(db.journalLines);
+        totalDebit += line.debitInCents;
+        totalCredit += line.creditInCents;
+      }
+
+      final accountType = AccountType.values.firstWhere(
+        (e) => e.name.toLowerCase() == acc.type.toLowerCase(),
+        orElse: () => AccountType.asset,
+      );
+
+      final net = accountType.isDebitNormal
+          ? (totalDebit - totalCredit)
+          : (totalCredit - totalDebit);
+
+      await (db.update(db.accounts)..where((t) => t.id.equals(acc.id))).write(
+        AccountsCompanion(
+          currentBalanceInCents: Value(net),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    }
+
+    final companyParties = await (db.select(db.parties)
+          ..where((t) => t.companyId.equals(companyId) & t.isDeleted.equals(false)))
+        .get();
+
+    for (final p in companyParties) {
+      final entries = await (db.select(db.ledgerEntries)
+            ..where((t) =>
+                t.partyId.equals(p.id) &
+                t.companyId.equals(companyId) &
+                t.isDeleted.equals(false) &
+                t.isVoided.equals(false)))
+          .get();
+
+      int netParty = calculatePartyBalanceFromRows(entries);
+      await (db.update(db.parties)..where((t) => t.id.equals(p.id))).write(
+        PartiesCompanion(
+          netBalanceInCents: Value(netParty),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    }
+
+    updateStreamController.add(null);
   }
 
   Future<AccountModel> getAccountById(String id) async {

@@ -1,3 +1,5 @@
+import '../../core/network/sync_codec.dart';
+
 enum EntryType {
   gave, // Debit / You Gave (Receivable increase for Customer, Payable decrease for Supplier)
   got;  // Credit / You Got (Receivable decrease for Customer, Payable increase for Supplier)
@@ -74,7 +76,7 @@ class LedgerEntry {
       'partyId': partyId,
       'amountInCents': amountInCents,
       'type': type.name,
-      'date': date.toIso8601String(),
+      'date': encodeTime(date),
       'note': note,
       'receiptPhotoUrl': receiptPhotoUrl,
       'runningBalanceInCents': runningBalanceInCents,
@@ -88,7 +90,7 @@ class LedgerEntry {
       partyId: map['partyId'] as String,
       amountInCents: map['amountInCents'] as int,
       type: EntryType.values.byName(map['type'] as String),
-      date: DateTime.parse(map['date'] as String),
+      date: decodeTime(map['date']),
       note: map['note'] as String?,
       receiptPhotoUrl: map['receiptPhotoUrl'] as String?,
       runningBalanceInCents: map['runningBalanceInCents'] as int?,

@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/network/sync_engine.dart';
 import '../local/audit_service.dart';
 import '../local/database.dart';
+import '../local/outbox_helper.dart';
 import '../models/account_model.dart';
 import '../models/audit_log_model.dart';
 import '../models/budget_model.dart';
@@ -53,6 +53,7 @@ class DriftBudgetRepository {
   void _notifyUpdates() {
     if (!_isDisposed && !_updateStreamController.isClosed) {
       _updateStreamController.add(null);
+      _syncEngine?.triggerBackgroundSync();
     }
   }
 
@@ -133,28 +134,6 @@ class DriftBudgetRepository {
       throw StateError(
         'Budgets module is disabled for company ${company.name} (${company.id}).',
       );
-    }
-  }
-
-  Future<void> _queueOutbox({
-    required String entityType,
-    required String entityId,
-    required String operation,
-    required Map<String, dynamic> payload,
-  }) async {
-    try {
-      await _db.into(_db.syncOutbox).insert(
-            SyncOutboxCompanion.insert(
-              id: _uuid.v4(),
-              targetTable: entityType,
-              recordId: entityId,
-              mutationType: operation,
-              payload: payload.toString(),
-            ),
-          );
-      _syncEngine?.pushQueue(companyId: _currentCompanyId);
-    } catch (e) {
-      debugPrint('Failed to enqueue sync outbox mutation: $e');
     }
   }
 
@@ -246,11 +225,12 @@ class DriftBudgetRepository {
       newState: model.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'budget',
-      entityId: budgetId,
-      operation: 'insert',
-      payload: model.toMap(),
+    await enqueueMutation(
+      db: _db,
+      table: 'budgets',
+      recordId: budgetId,
+      type: 'INSERT',
+      fullRowMap: model.toMap(),
     );
 
     _notifyUpdates();
@@ -311,11 +291,12 @@ class DriftBudgetRepository {
       newState: updated.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'budget',
-      entityId: effectiveId,
-      operation: 'update',
-      payload: updated.toMap(),
+    await enqueueMutation(
+      db: _db,
+      table: 'budgets',
+      recordId: effectiveId,
+      type: 'UPDATE',
+      fullRowMap: updated.toMap(),
     );
 
     _notifyUpdates();
@@ -329,6 +310,12 @@ class DriftBudgetRepository {
 
     final existing = await getBudgetById(id);
     final now = DateTime.now();
+
+    final updated = existing.copyWith(
+      isDeleted: true,
+      isActive: false,
+      updatedAt: now,
+    );
 
     await (_db.update(_db.budgets)
           ..where((t) =>
@@ -347,14 +334,15 @@ class DriftBudgetRepository {
       entityId: id,
       action: AuditAction.delete,
       oldState: existing.toMap(),
-      newState: {'id': id, 'isDeleted': true},
+      newState: updated.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'budget',
-      entityId: id,
-      operation: 'delete',
-      payload: {'id': id},
+    await enqueueMutation(
+      db: _db,
+      table: 'budgets',
+      recordId: id,
+      type: 'UPDATE',
+      fullRowMap: updated.toMap(),
     );
 
     _notifyUpdates();

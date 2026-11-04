@@ -45,6 +45,32 @@ class MockAuthRepository implements IAuthRepository {
   }
 
   @override
+  Future<bool> signUpWithEmailAndPassword({
+    required String email,
+    required String password,
+    required String name,
+    required bool isCompanyAccount,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    _phoneNumber = email;
+    _isAuthenticated = true;
+    _authStateController.add(true);
+    return true;
+  }
+
+  @override
+  Future<bool> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    _phoneNumber = email;
+    _isAuthenticated = true;
+    _authStateController.add(true);
+    return true;
+  }
+
+  @override
   Future<void> logout() async {
     await Future.delayed(const Duration(milliseconds: 200));
     _isAuthenticated = false;

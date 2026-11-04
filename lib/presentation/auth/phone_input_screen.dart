@@ -10,8 +10,13 @@ import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
+import '../../core/widgets/adaptive_segmented_control.dart';
+import '../home/home_shell.dart';
 import '../providers/auth_providers.dart';
 import 'otp_screen.dart';
+
+enum AuthMode { phoneOtp, emailPassword }
+enum EmailAuthType { signIn, signUp }
 
 class PhoneInputScreen extends ConsumerStatefulWidget {
   const PhoneInputScreen({super.key});
@@ -21,17 +26,28 @@ class PhoneInputScreen extends ConsumerStatefulWidget {
 }
 
 class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
+  AuthMode _authMode = AuthMode.emailPassword;
+  EmailAuthType _emailAuthType = EmailAuthType.signUp;
+  bool _isCompanyAccount = true; // default: Company account
+
   final TextEditingController _phoneController =
       TextEditingController(text: '98765 43210');
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
   String? _errorMessage;
 
   @override
   void dispose() {
     _phoneController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  void _handleSubmit() async {
+  void _handlePhoneOtpSubmit() async {
     final rawNumber = _phoneController.text.replaceAll(RegExp(r'\D'), '');
     if (rawNumber.length != 10) {
       setState(() {
@@ -40,9 +56,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
       return;
     }
 
-    setState(() {
-      _errorMessage = null;
-    });
+    setState(() => _errorMessage = null);
 
     final success = await ref
         .read(authControllerProvider.notifier)
@@ -58,16 +72,73 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
     }
   }
 
+  void _handleEmailSubmit() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _errorMessage = 'Please enter a valid email address');
+      return;
+    }
+    if (password.length < 6) {
+      setState(() => _errorMessage = 'Password must be at least 6 characters');
+      return;
+    }
+
+    setState(() => _errorMessage = null);
+
+    if (_emailAuthType == EmailAuthType.signUp) {
+      if (name.isEmpty) {
+        setState(() => _errorMessage = 'Please enter your name or business name');
+        return;
+      }
+      final success = await ref.read(authControllerProvider.notifier).signUpWithEmailAndPassword(
+            email: email,
+            password: password,
+            name: name,
+            isCompanyAccount: _isCompanyAccount,
+          );
+      if (success && mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          createAdaptivePageRoute(
+            builder: (context) => const HomeShell(),
+            transitionType: SharedAxisTransitionType.scaled,
+          ),
+          (route) => false,
+        );
+      } else if (!success && mounted) {
+        final err = ref.read(authControllerProvider).error;
+        setState(() => _errorMessage = err ?? 'Failed to create account');
+      }
+    } else {
+      final success = await ref.read(authControllerProvider.notifier).signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+      if (success && mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          createAdaptivePageRoute(
+            builder: (context) => const HomeShell(),
+            transitionType: SharedAxisTransitionType.scaled,
+          ),
+          (route) => false,
+        );
+      } else if (!success && mounted) {
+        final err = ref.read(authControllerProvider).error;
+        setState(() => _errorMessage = err ?? 'Sign in failed');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
-
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final inputRow = Row(
+    final phoneInputRow = Row(
       children: [
-        // Country Code Badge
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           decoration: BoxDecoration(
@@ -75,8 +146,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
               right: BorderSide(
                 color: isIos
                     ? (isDark ? Colors.white.withValues(alpha: 0.18) : Colors.black.withValues(alpha: 0.12))
-                    : Theme.of(context).colorScheme.outlineVariant.withValues(
-                        alpha: isDark ? 0.35 : 0.5),
+                    : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
                 width: 1,
               ),
             ),
@@ -100,12 +170,11 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        // Phone Number Input
         Expanded(
           child: TextField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
-            autofocus: true,
+            autofocus: false,
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -122,7 +191,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
               contentPadding: EdgeInsets.zero,
               fillColor: Colors.transparent,
             ),
-            onSubmitted: (_) => _handleSubmit(),
+            onSubmitted: (_) => _handlePhoneOtpSubmit(),
           ),
         ),
       ],
@@ -131,153 +200,314 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
     return AdaptiveScaffold(
       title: AppStrings.appName,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // App Branding Icon
-            Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(22),
-                child: Image.asset(
-                  'assets/icons/app_icon.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, _, _) => Container(
-                    color: AppColors.primaryBlue,
-                    child: Icon(
-                      isIos
-                          ? CupertinoIcons.money_dollar_circle_fill
-                          : Icons.account_balance_wallet_rounded,
-                      color: Colors.white,
-                      size: 36,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Header Titles
-            const Text(
-              AppStrings.enterPhoneTitle,
-              style: AppTypography.displayMedium,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              AppStrings.enterPhoneSubtitle,
-              style: AppTypography.bodyMedium,
-            ),
-            const SizedBox(height: 36),
-
-            // Phone Input Field (Liquid Glass on iOS, M3 Expressive Container on Android)
-            isIos
-                ? LiquidGlassContainer(
-                    borderRadius: 20,
-                    blur: 24,
-                    borderColor: _errorMessage != null
-                        ? AppColors.payableRed
-                        : (isDark ? Colors.white.withValues(alpha: 0.22) : Colors.black.withValues(alpha: 0.15)),
-                    child: inputRow,
-                  )
-                : Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: _errorMessage != null
-                            ? AppColors.payableRed
-                            : Theme.of(context).colorScheme.outlineVariant.withValues(
-                                alpha: isDark ? 0.35 : 0.5),
-                        width: 1.5,
+            // App Branding Header
+            Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.asset(
+                      'assets/icons/app_icon.png',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, _, _) => Container(
+                        color: AppColors.primaryBlue,
+                        child: Icon(
+                          isIos ? CupertinoIcons.money_dollar_circle_fill : Icons.account_balance_wallet_rounded,
+                          color: Colors.white,
+                          size: 32,
                         ),
-                      ],
-                    ),
-                    child: inputRow,
-                  ),
-
-            if (_errorMessage != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _errorMessage!,
-                style: const TextStyle(
-                  color: AppColors.payableRed,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-
-            const SizedBox(height: 16),
-
-            // Demo Hint Chip
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.lightImpact();
-                _phoneController.text = '98765 43210';
-                setState(() => _errorMessage = null);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isIos ? CupertinoIcons.bolt_fill : Icons.bolt,
-                      size: 16,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Use demo: 98765 43210',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
                       ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      AppStrings.appName,
+                      style: AppTypography.titleLarge,
+                    ),
+                    Text(
+                      'Secure Cloud Accounting & Sync',
+                      style: AppTypography.bodySmall.copyWith(fontSize: 13),
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
+            const SizedBox(height: 24),
 
-            const SizedBox(height: 36),
+            // Auth Method Selector (Phone OTP vs Email/Password)
+            AdaptiveSegmentedControl<AuthMode>(
+              groupValue: _authMode,
+              children: const {
+                AuthMode.phoneOtp: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.phone_android_rounded, size: 16),
+                    SizedBox(width: 6),
+                    Text('Phone OTP'),
+                  ],
+                ),
+                AuthMode.emailPassword: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.email_rounded, size: 16),
+                    SizedBox(width: 6),
+                    Text('Email & Password'),
+                  ],
+                ),
+              },
+              onValueChanged: (val) {
+                HapticFeedback.lightImpact();
+                setState(() {
+                  _authMode = val;
+                  _errorMessage = null;
+                });
+              },
+            ),
+            const SizedBox(height: 24),
 
-            // Submit Button
-            AdaptiveButton(
-              onPressed: _handleSubmit,
-              isFullWidth: true,
-              height: 52,
-              isLoading: authState.isLoading,
-              child: const Text(
-                AppStrings.getOtpButton,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+            if (_authMode == AuthMode.phoneOtp) ...[
+              const Text(
+                AppStrings.enterPhoneTitle,
+                style: AppTypography.displayMedium,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                AppStrings.enterPhoneSubtitle,
+                style: AppTypography.bodyMedium,
+              ),
+              const SizedBox(height: 24),
+
+              isIos
+                  ? LiquidGlassContainer(
+                      borderRadius: 20,
+                      blur: 24,
+                      borderColor: _errorMessage != null
+                          ? AppColors.payableRed
+                          : (isDark ? Colors.white.withValues(alpha: 0.22) : Colors.black.withValues(alpha: 0.15)),
+                      child: phoneInputRow,
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: _errorMessage != null
+                              ? AppColors.payableRed
+                              : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: phoneInputRow,
+                    ),
+
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: AppColors.payableRed, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _phoneController.text = '98765 43210';
+                  setState(() => _errorMessage = null);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isIos ? CupertinoIcons.bolt_fill : Icons.bolt,
+                        size: 16,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Use demo: 98765 43210',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
+
+              const SizedBox(height: 32),
+              AdaptiveButton(
+                onPressed: _handlePhoneOtpSubmit,
+                isFullWidth: true,
+                height: 52,
+                isLoading: authState.isLoading,
+                child: const Text(
+                  AppStrings.getOtpButton,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ] else ...[
+              // EMAIL & PASSWORD MODE
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _emailAuthType == EmailAuthType.signIn ? 'Sign In' : 'Create Account',
+                    style: AppTypography.displayMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        setState(() {
+                          _emailAuthType = _emailAuthType == EmailAuthType.signIn
+                              ? EmailAuthType.signUp
+                              : EmailAuthType.signIn;
+                          _errorMessage = null;
+                        });
+                      },
+                      child: Text(
+                        _emailAuthType == EmailAuthType.signIn
+                            ? 'Need an account? Sign Up'
+                            : 'Already have an account? Sign In',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              if (_emailAuthType == EmailAuthType.signUp) ...[
+                // ACCOUNT TYPE SELECTOR (Personal vs Company)
+                Text(
+                  'Select Account Type:',
+                  style: AppTypography.labelLarge.copyWith(fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                AdaptiveSegmentedControl<bool>(
+                  groupValue: _isCompanyAccount,
+                  children: const {
+                    false: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person_rounded, size: 16),
+                        SizedBox(width: 6),
+                        Text('Personal Account'),
+                      ],
+                    ),
+                    true: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.business_rounded, size: 16),
+                        SizedBox(width: 6),
+                        Text('Company Account'),
+                      ],
+                    ),
+                  },
+                  onValueChanged: (val) {
+                    HapticFeedback.lightImpact();
+                    setState(() => _isCompanyAccount = val);
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                TextField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    labelText: _isCompanyAccount ? 'Company / Business Name' : 'Your Full Name',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: Icon(_isCompanyAccount ? Icons.business_rounded : Icons.person_rounded),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              TextField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email Address',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              TextField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock_outline_rounded),
+                ),
+                onSubmitted: (_) => _handleEmailSubmit(),
+              ),
+
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: AppColors.payableRed, fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+              ],
+
+              const SizedBox(height: 28),
+              AdaptiveButton(
+                onPressed: _handleEmailSubmit,
+                isFullWidth: true,
+                height: 52,
+                isLoading: authState.isLoading,
+                child: Text(
+                  _emailAuthType == EmailAuthType.signIn ? 'Sign In' : 'Create Account',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
 
             const SizedBox(height: 24),
             Center(

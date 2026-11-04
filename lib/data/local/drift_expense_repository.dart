@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/network/sync_engine.dart';
@@ -9,6 +8,7 @@ import '../accounting/voucher_posting_engine.dart';
 import '../local/audit_service.dart';
 import '../local/database.dart';
 import '../local/drift_voucher_repository.dart';
+import '../local/outbox_helper.dart';
 import '../models/account_model.dart';
 import '../models/audit_log_model.dart';
 import '../models/company_model.dart';
@@ -24,6 +24,8 @@ class ExpenseMonthSummary {
   final int netInCents;
   final Map<String, int> walletBalancesInCents;
   final Map<String, int> categoryTotalsInCents;
+  final Map<String, int> incomeCategoryTotalsInCents;
+  final Map<String, int> expenseCategoryTotalsInCents;
 
   const ExpenseMonthSummary({
     required this.month,
@@ -32,6 +34,8 @@ class ExpenseMonthSummary {
     required this.netInCents,
     required this.walletBalancesInCents,
     required this.categoryTotalsInCents,
+    this.incomeCategoryTotalsInCents = const {},
+    this.expenseCategoryTotalsInCents = const {},
   });
 
   int get income => totalIncomeInCents;
@@ -261,27 +265,6 @@ class DriftExpenseRepository {
     }
   }
 
-  Future<void> _queueOutbox({
-    required String entityType,
-    required String entityId,
-    required String operation,
-    required Map<String, dynamic> payload,
-  }) async {
-    try {
-      await _db.into(_db.syncOutbox).insert(
-            SyncOutboxCompanion.insert(
-              id: _uuid.v4(),
-              targetTable: entityType,
-              recordId: entityId,
-              mutationType: operation,
-              payload: payload.toString(),
-            ),
-          );
-    } catch (e) {
-      debugPrint('Failed to enqueue sync outbox mutation: $e');
-    }
-  }
-
   // ==========================================
   // TRANSACTIONS (EXPENSE, INCOME, TRANSFER)
   // ==========================================
@@ -333,13 +316,6 @@ class DriftExpenseRepository {
       entityId: posted.id,
       action: AuditAction.insert,
       newState: posted.toMap(),
-    );
-
-    await _queueOutbox(
-      entityType: 'expense',
-      entityId: posted.id,
-      operation: 'insert',
-      payload: posted.toMap(),
     );
 
     _notifyUpdates();
@@ -395,13 +371,6 @@ class DriftExpenseRepository {
       newState: posted.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'income',
-      entityId: posted.id,
-      operation: 'insert',
-      payload: posted.toMap(),
-    );
-
     _notifyUpdates();
     return posted;
   }
@@ -453,13 +422,6 @@ class DriftExpenseRepository {
       newState: posted.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'transfer',
-      entityId: posted.id,
-      operation: 'insert',
-      payload: posted.toMap(),
-    );
-
     _notifyUpdates();
     return posted;
   }
@@ -482,13 +444,6 @@ class DriftExpenseRepository {
       newState: updated.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'transaction',
-      entityId: updated.id,
-      operation: 'update',
-      payload: updated.toMap(),
-    );
-
     _notifyUpdates();
     return updated;
   }
@@ -503,11 +458,17 @@ class DriftExpenseRepository {
       userId: _currentUserId,
     );
 
-    await _queueOutbox(
-      entityType: 'transaction',
-      entityId: voucherId,
-      operation: 'void',
-      payload: {'id': voucherId, 'status': 'voided'},
+    _notifyUpdates();
+  }
+
+  Future<void> restoreTransaction(String voucherId) async {
+    await _ensureExpenseTrackerMode();
+    AccessControlService.verifyPermission(_currentRole, UserAction.voidExpense);
+
+    await _postingEngine.restoreVoucher(
+      voucherId: voucherId,
+      companyId: _currentCompanyId,
+      userId: _currentUserId,
     );
 
     _notifyUpdates();
@@ -728,6 +689,37 @@ class DriftExpenseRepository {
     return _accountFromRow(row);
   }
 
+  Future<String> _generateUniqueCode({
+    required AccountType type,
+    required String kind,
+  }) async {
+    int startCode;
+    int endCode;
+
+    if (kind == 'wallet') {
+      startCode = (type == AccountType.asset) ? 1100 : 2100;
+      endCode = startCode + 99;
+    } else {
+      startCode = (type == AccountType.expense) ? 5100 : 4100;
+      endCode = startCode + 799;
+    }
+
+    final existingCodesRows = await (_db.select(_db.accounts)
+          ..where((t) => t.companyId.equals(_currentCompanyId) & t.isDeleted.equals(false)))
+        .get();
+
+    final existingCodes = existingCodesRows.map((r) => r.code).toSet();
+
+    for (int candidate = startCode; candidate <= endCode; candidate++) {
+      final codeStr = candidate.toString();
+      if (!existingCodes.contains(codeStr)) {
+        return codeStr;
+      }
+    }
+
+    return '${startCode}_${DateTime.now().millisecondsSinceEpoch}';
+  }
+
   Future<AccountModel> createWallet({
     required String name,
     required AccountType type,
@@ -746,7 +738,7 @@ class DriftExpenseRepository {
     final now = DateTime.now();
     final walletId =
         '${_currentCompanyId}_acc_wallet_${_uuid.v4().substring(0, 8)}';
-    final walletCode = code ?? (type == AccountType.asset ? '1020' : '2010');
+    final walletCode = code ?? await _generateUniqueCode(type: type, kind: 'wallet');
 
     final companion = AccountsCompanion.insert(
       id: walletId,
@@ -754,6 +746,7 @@ class DriftExpenseRepository {
       code: walletCode,
       name: name,
       type: type.name,
+      kind: const Value('wallet'),
       parentAccountId: const Value(null),
       isSystem: const Value(false),
       isActive: const Value(true),
@@ -762,6 +755,7 @@ class DriftExpenseRepository {
       createdAt: Value(now),
       updatedAt: Value(now),
       isDeleted: const Value(false),
+      syncStatus: const Value(SyncRecordStatus.pending),
     );
 
     await _db.into(_db.accounts).insert(companion);
@@ -781,11 +775,12 @@ class DriftExpenseRepository {
       newState: created.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'wallet',
-      entityId: walletId,
-      operation: 'insert',
-      payload: created.toMap(),
+    await enqueueMutation(
+      db: _db,
+      table: 'accounts',
+      recordId: walletId,
+      type: 'INSERT',
+      fullRowMap: created.toMap(),
     );
 
     _notifyUpdates();
@@ -810,6 +805,7 @@ class DriftExpenseRepository {
           description != null ? Value(description) : const Value.absent(),
       isActive: isActive != null ? Value(isActive) : const Value.absent(),
       updatedAt: Value(DateTime.now()),
+      syncStatus: const Value(SyncRecordStatus.pending),
     );
 
     await (_db.update(_db.accounts)
@@ -828,11 +824,12 @@ class DriftExpenseRepository {
       newState: updated.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'wallet',
-      entityId: id,
-      operation: 'update',
-      payload: updated.toMap(),
+    await enqueueMutation(
+      db: _db,
+      table: 'accounts',
+      recordId: id,
+      type: 'UPDATE',
+      fullRowMap: updated.toMap(),
     );
 
     _notifyUpdates();
@@ -861,6 +858,7 @@ class DriftExpenseRepository {
         .get();
 
     final hasTransactions = vCount.isNotEmpty || jCount.isNotEmpty;
+    final now = DateTime.now();
 
     if (hasTransactions) {
       // Archive instead of delete
@@ -869,7 +867,8 @@ class DriftExpenseRepository {
                 t.id.equals(id) & t.companyId.equals(_currentCompanyId)))
           .write(AccountsCompanion(
         isActive: const Value(false),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
       ));
     } else {
       // Soft-delete
@@ -879,9 +878,16 @@ class DriftExpenseRepository {
           .write(AccountsCompanion(
         isDeleted: const Value(true),
         isActive: const Value(false),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
       ));
     }
+
+    final updated = existing.copyWith(
+      isActive: false,
+      isDeleted: !hasTransactions,
+      updatedAt: now,
+    );
 
     await _auditService.recordLog(
       companyId: _currentCompanyId,
@@ -890,14 +896,15 @@ class DriftExpenseRepository {
       entityId: id,
       action: hasTransactions ? AuditAction.update : AuditAction.delete,
       oldState: existing.toMap(),
-      newState: {'id': id, 'archived': hasTransactions, 'deleted': !hasTransactions},
+      newState: updated.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'wallet',
-      entityId: id,
-      operation: hasTransactions ? 'archive' : 'delete',
-      payload: {'id': id},
+    await enqueueMutation(
+      db: _db,
+      table: 'accounts',
+      recordId: id,
+      type: 'UPDATE',
+      fullRowMap: updated.toMap(),
     );
 
     _notifyUpdates();
@@ -1026,14 +1033,23 @@ class DriftExpenseRepository {
           .get();
 
       for (final l in priorOpeningLines) {
-        await (_db.delete(_db.journalLines)..where((t) => t.id.equals(l.id)))
-            .go();
+        await (_db.update(_db.journalLines)..where((t) => t.id.equals(l.id))).write(
+          JournalLinesCompanion(
+            isDeleted: const Value(true),
+            syncStatus: const Value(SyncRecordStatus.pending),
+            updatedAt: Value(now),
+          ),
+        );
       }
 
-      // Delete existing lines for this specific wallet opening journal
-      await (_db.delete(_db.journalLines)
-            ..where((t) => t.journalId.equals(journalId)))
-          .go();
+      // Soft-delete existing lines for this specific wallet opening journal
+      await (_db.update(_db.journalLines)..where((t) => t.journalId.equals(journalId))).write(
+        JournalLinesCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
 
       for (final line in lines) {
         await _db.into(_db.journalLines).insertOnConflictUpdate(line);
@@ -1121,7 +1137,7 @@ class DriftExpenseRepository {
     final now = DateTime.now();
     final catId =
         '${_currentCompanyId}_acc_cat_${_uuid.v4().substring(0, 8)}';
-    final catCode = code ?? (type == AccountType.expense ? '5900' : '4900');
+    final catCode = code ?? await _generateUniqueCode(type: type, kind: 'category');
 
     final companion = AccountsCompanion.insert(
       id: catId,
@@ -1129,6 +1145,7 @@ class DriftExpenseRepository {
       code: catCode,
       name: name,
       type: type.name,
+      kind: const Value('category'),
       parentAccountId: Value(parentAccountId),
       isSystem: const Value(false),
       isActive: const Value(true),
@@ -1137,6 +1154,7 @@ class DriftExpenseRepository {
       createdAt: Value(now),
       updatedAt: Value(now),
       isDeleted: const Value(false),
+      syncStatus: const Value(SyncRecordStatus.pending),
     );
 
     await _db.into(_db.accounts).insert(companion);
@@ -1152,11 +1170,12 @@ class DriftExpenseRepository {
       newState: created.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'category',
-      entityId: catId,
-      operation: 'insert',
-      payload: created.toMap(),
+    await enqueueMutation(
+      db: _db,
+      table: 'accounts',
+      recordId: catId,
+      type: 'INSERT',
+      fullRowMap: created.toMap(),
     );
 
     _notifyUpdates();
@@ -1192,6 +1211,7 @@ class DriftExpenseRepository {
           description != null ? Value(description) : const Value.absent(),
       isActive: isActive != null ? Value(isActive) : const Value.absent(),
       updatedAt: Value(DateTime.now()),
+      syncStatus: const Value(SyncRecordStatus.pending),
     );
 
     await (_db.update(_db.accounts)
@@ -1210,11 +1230,12 @@ class DriftExpenseRepository {
       newState: updated.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'category',
-      entityId: id,
-      operation: 'update',
-      payload: updated.toMap(),
+    await enqueueMutation(
+      db: _db,
+      table: 'accounts',
+      recordId: id,
+      type: 'UPDATE',
+      fullRowMap: updated.toMap(),
     );
 
     _notifyUpdates();
@@ -1243,6 +1264,7 @@ class DriftExpenseRepository {
         .get();
 
     final hasTransactions = vCount.isNotEmpty || jCount.isNotEmpty;
+    final now = DateTime.now();
 
     if (hasTransactions) {
       // Archive instead of delete
@@ -1251,7 +1273,8 @@ class DriftExpenseRepository {
                 t.id.equals(id) & t.companyId.equals(_currentCompanyId)))
           .write(AccountsCompanion(
         isActive: const Value(false),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
       ));
     } else {
       // Soft-delete
@@ -1261,9 +1284,16 @@ class DriftExpenseRepository {
           .write(AccountsCompanion(
         isDeleted: const Value(true),
         isActive: const Value(false),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
       ));
     }
+
+    final updated = existing.copyWith(
+      isActive: false,
+      isDeleted: !hasTransactions,
+      updatedAt: now,
+    );
 
     await _auditService.recordLog(
       companyId: _currentCompanyId,
@@ -1272,14 +1302,15 @@ class DriftExpenseRepository {
       entityId: id,
       action: hasTransactions ? AuditAction.update : AuditAction.delete,
       oldState: existing.toMap(),
-      newState: {'id': id, 'archived': hasTransactions, 'deleted': !hasTransactions},
+      newState: updated.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'category',
-      entityId: id,
-      operation: hasTransactions ? 'archive' : 'delete',
-      payload: {'id': id},
+    await enqueueMutation(
+      db: _db,
+      table: 'accounts',
+      recordId: id,
+      type: 'UPDATE',
+      fullRowMap: updated.toMap(),
     );
 
     _notifyUpdates();
@@ -1307,6 +1338,8 @@ class DriftExpenseRepository {
     int totalIncome = 0;
     int totalExpense = 0;
     final Map<String, int> categoryTotals = {};
+    final Map<String, int> incomeCategoryTotals = {};
+    final Map<String, int> expenseCategoryTotals = {};
 
     for (final txn in txns) {
       if (txn.type == VoucherType.income) {
@@ -1315,6 +1348,9 @@ class DriftExpenseRepository {
           categoryTotals[txn.categoryAccountId!] =
               (categoryTotals[txn.categoryAccountId!] ?? 0) +
                   txn.totalAmountInCents;
+          incomeCategoryTotals[txn.categoryAccountId!] =
+              (incomeCategoryTotals[txn.categoryAccountId!] ?? 0) +
+                  txn.totalAmountInCents;
         }
       } else if (txn.type == VoucherType.expense) {
         totalExpense += txn.totalAmountInCents;
@@ -1322,14 +1358,35 @@ class DriftExpenseRepository {
           categoryTotals[txn.categoryAccountId!] =
               (categoryTotals[txn.categoryAccountId!] ?? 0) +
                   txn.totalAmountInCents;
+          expenseCategoryTotals[txn.categoryAccountId!] =
+              (expenseCategoryTotals[txn.categoryAccountId!] ?? 0) +
+                  txn.totalAmountInCents;
         }
       }
     }
 
     final wallets = await getWallets(includeArchived: false);
     final Map<String, int> walletBalances = {};
+
     for (final w in wallets) {
-      walletBalances[w.id] = w.currentBalanceInCents;
+      final query = _db.select(_db.journalLines).join([
+        innerJoin(_db.journals, _db.journals.id.equalsExp(_db.journalLines.journalId)),
+      ])..where(
+        _db.journalLines.accountId.equals(w.id) &
+        _db.journalLines.companyId.equals(_currentCompanyId) &
+        _db.journalLines.isDeleted.equals(false) &
+        _db.journals.status.equals('posted'),
+      );
+
+      final rows = await query.get();
+      int debit = 0;
+      int credit = 0;
+      for (final r in rows) {
+        final line = r.readTable(_db.journalLines);
+        debit += line.debitInCents;
+        credit += line.creditInCents;
+      }
+      walletBalances[w.id] = debit - credit;
     }
 
     return ExpenseMonthSummary(
@@ -1339,6 +1396,8 @@ class DriftExpenseRepository {
       netInCents: totalIncome - totalExpense,
       walletBalancesInCents: walletBalances,
       categoryTotalsInCents: categoryTotals,
+      incomeCategoryTotalsInCents: incomeCategoryTotals,
+      expenseCategoryTotalsInCents: expenseCategoryTotals,
     );
   }
 
@@ -1353,6 +1412,7 @@ class DriftExpenseRepository {
         orElse: () => AccountType.asset,
       ),
       parentAccountId: r.parentAccountId,
+      kind: r.kind,
       isSystem: r.isSystem,
       isActive: r.isActive,
       description: r.description,

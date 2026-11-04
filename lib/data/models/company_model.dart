@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/network/sync_codec.dart';
 import 'company_mode.dart';
 
 export 'company_mode.dart';
@@ -140,8 +141,8 @@ class Company {
       'mode': mode.name,
       'enabledModules': modulesJson,
       'enabledModulesJson': modulesJson,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': encodeTime(createdAt),
+      'updatedAt': encodeTime(updatedAt),
     };
   }
 
@@ -149,36 +150,32 @@ class Company {
     return Company(
       id: map['id'] as String,
       name: map['name'] as String,
-      legalName: (map['legalName'] ?? map['name']) as String,
+      legalName: (map['legalName'] ?? map['legal_name'] ?? map['name']) as String,
       gstin: map['gstin'] as String?,
-      stateCode: map['stateCode'] as String?,
-      dealerType: (map['dealerType'] as String?) ?? 'regular',
-      currencyCode: (map['currencyCode'] ?? 'INR') as String,
+      stateCode: (map['stateCode'] ?? map['state_code']) as String?,
+      dealerType: (map['dealerType'] ?? map['dealer_type'] as String?) ?? 'regular',
+      currencyCode: (map['currencyCode'] ?? map['currency_code'] ?? 'INR') as String,
       address: map['address'] as String?,
       email: map['email'] as String?,
-      phoneNumber: map['phoneNumber'] as String?,
-      logoUrl: map['logoUrl'] as String?,
-      signatureUrl: map['signatureUrl'] as String?,
-      signatoryName: map['signatoryName'] as String?,
-      bankName: map['bankName'] as String?,
-      bankAccountNumber: map['bankAccountNumber'] as String?,
-      bankIfsc: map['bankIfsc'] as String?,
-      upiId: map['upiId'] as String?,
-      isCloudSyncEnabled: map['isCloudSyncEnabled'] == 1 || map['isCloudSyncEnabled'] == true,
-      isDropboxSyncEnabled: map['isDropboxSyncEnabled'] == 1 || map['isDropboxSyncEnabled'] == true,
-      isActive: map['isActive'] == null || map['isActive'] == 1 || map['isActive'] == true,
+      phoneNumber: (map['phoneNumber'] ?? map['phone_number']) as String?,
+      logoUrl: (map['logoUrl'] ?? map['logo_url']) as String?,
+      signatureUrl: (map['signatureUrl'] ?? map['signature_url']) as String?,
+      signatoryName: (map['signatoryName'] ?? map['signatory_name']) as String?,
+      bankName: (map['bankName'] ?? map['bank_name']) as String?,
+      bankAccountNumber: (map['bankAccountNumber'] ?? map['bank_account_number']) as String?,
+      bankIfsc: (map['bankIfsc'] ?? map['bank_ifsc']) as String?,
+      upiId: (map['upiId'] ?? map['upi_id']) as String?,
+      isCloudSyncEnabled: map['isCloudSyncEnabled'] == 1 || map['isCloudSyncEnabled'] == true || map['is_cloud_sync_enabled'] == true,
+      isDropboxSyncEnabled: map['isDropboxSyncEnabled'] == 1 || map['isDropboxSyncEnabled'] == true || map['is_dropbox_sync_enabled'] == true,
+      isActive: map['isActive'] == null || map['isActive'] == 1 || map['isActive'] == true || map['is_active'] == true,
       mode: map['mode'] != null
           ? CompanyMode.fromName(map['mode']?.toString())
           : CompanyMode.ledger,
       enabledModules: AppModule.parseSet(
         map['enabled_modules'] ?? map['enabledModules'] ?? map['enabledModulesJson'] ?? map['enabled_modules_json'],
       ),
-      createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'] as String)
-          : DateTime.now(),
-      updatedAt: map['updatedAt'] != null
-          ? DateTime.parse(map['updatedAt'] as String)
-          : DateTime.now(),
+      createdAt: decodeTime(map['createdAt'] ?? map['created_at']),
+      updatedAt: decodeTime(map['updatedAt'] ?? map['updated_at']),
     );
   }
 

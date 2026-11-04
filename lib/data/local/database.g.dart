@@ -302,6 +302,41 @@ class $CompaniesTable extends Companies
     requiredDuringInsert: false,
     defaultValue: const Constant('synced'),
   ).withConverter<SyncRecordStatus>($CompaniesTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _ownerIdMeta = const VerificationMeta(
+    'ownerId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+    'owner_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -330,6 +365,9 @@ class $CompaniesTable extends Companies
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
+    ownerId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -520,6 +558,27 @@ class $CompaniesTable extends Companies
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(
+        _ownerIdMeta,
+        ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta),
+      );
+    }
     return context;
   }
 
@@ -635,6 +694,18 @@ class $CompaniesTable extends Companies
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+      ownerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_id'],
+      ),
     );
   }
 
@@ -677,6 +748,9 @@ class CompanyTableData extends DataClass
   final DateTime updatedAt;
   final bool isDeleted;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
+  final String? ownerId;
   const CompanyTableData({
     required this.id,
     required this.name,
@@ -704,6 +778,9 @@ class CompanyTableData extends DataClass
     required this.updatedAt,
     required this.isDeleted,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
+    this.ownerId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -764,6 +841,13 @@ class CompanyTableData extends DataClass
         $CompaniesTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    if (!nullToAbsent || ownerId != null) {
+      map['owner_id'] = Variable<String>(ownerId);
+    }
     return map;
   }
 
@@ -821,6 +905,13 @@ class CompanyTableData extends DataClass
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+      ownerId: ownerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(ownerId),
     );
   }
 
@@ -864,6 +955,9 @@ class CompanyTableData extends DataClass
       syncStatus: $CompaniesTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+      ownerId: serializer.fromJson<String?>(json['ownerId']),
     );
   }
   @override
@@ -898,6 +992,9 @@ class CompanyTableData extends DataClass
       'syncStatus': serializer.toJson<String>(
         $CompaniesTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+      'ownerId': serializer.toJson<String?>(ownerId),
     };
   }
 
@@ -928,6 +1025,9 @@ class CompanyTableData extends DataClass
     DateTime? updatedAt,
     bool? isDeleted,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+    Value<String?> ownerId = const Value.absent(),
   }) => CompanyTableData(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -961,6 +1061,11 @@ class CompanyTableData extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+    ownerId: ownerId.present ? ownerId.value : this.ownerId,
   );
   CompanyTableData copyWithCompanion(CompaniesCompanion data) {
     return CompanyTableData(
@@ -1010,6 +1115,11 @@ class CompanyTableData extends DataClass
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
     );
   }
 
@@ -1041,7 +1151,10 @@ class CompanyTableData extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('ownerId: $ownerId')
           ..write(')'))
         .toString();
   }
@@ -1074,6 +1187,9 @@ class CompanyTableData extends DataClass
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
+    ownerId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1104,7 +1220,10 @@ class CompanyTableData extends DataClass
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt &&
+          other.ownerId == this.ownerId);
 }
 
 class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
@@ -1134,6 +1253,9 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<String?> ownerId;
   final Value<int> rowid;
   const CompaniesCompanion({
     this.id = const Value.absent(),
@@ -1162,6 +1284,9 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.ownerId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   CompaniesCompanion.insert({
@@ -1191,6 +1316,9 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.ownerId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -1222,6 +1350,9 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<String>? ownerId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1254,6 +1385,9 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (ownerId != null) 'owner_id': ownerId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1285,6 +1419,9 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<String?>? ownerId,
     Value<int>? rowid,
   }) {
     return CompaniesCompanion(
@@ -1314,6 +1451,9 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      ownerId: ownerId ?? this.ownerId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1403,6 +1543,15 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
         $CompaniesTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1438,6 +1587,9 @@ class CompaniesCompanion extends UpdateCompanion<CompanyTableData> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('ownerId: $ownerId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1655,6 +1807,30 @@ class $UserProfilesTable extends UserProfiles
     requiredDuringInsert: false,
     defaultValue: const Constant('synced'),
   ).withConverter<SyncRecordStatus>($UserProfilesTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1676,6 +1852,8 @@ class $UserProfilesTable extends UserProfiles
     createdAt,
     updatedAt,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1820,6 +1998,21 @@ class $UserProfilesTable extends UserProfiles
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1907,6 +2100,14 @@ class $UserProfilesTable extends UserProfiles
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -1942,6 +2143,8 @@ class UserProfileTableData extends DataClass
   final DateTime createdAt;
   final DateTime updatedAt;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const UserProfileTableData({
     required this.id,
     required this.name,
@@ -1962,6 +2165,8 @@ class UserProfileTableData extends DataClass
     required this.createdAt,
     required this.updatedAt,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2007,6 +2212,10 @@ class UserProfileTableData extends DataClass
         $UserProfilesTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -2049,6 +2258,10 @@ class UserProfileTableData extends DataClass
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -2081,6 +2294,8 @@ class UserProfileTableData extends DataClass
       syncStatus: $UserProfilesTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -2108,6 +2323,8 @@ class UserProfileTableData extends DataClass
       'syncStatus': serializer.toJson<String>(
         $UserProfilesTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -2131,6 +2348,8 @@ class UserProfileTableData extends DataClass
     DateTime? createdAt,
     DateTime? updatedAt,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => UserProfileTableData(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -2155,6 +2374,10 @@ class UserProfileTableData extends DataClass
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   UserProfileTableData copyWithCompanion(UserProfilesCompanion data) {
     return UserProfileTableData(
@@ -2191,6 +2414,10 @@ class UserProfileTableData extends DataClass
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -2215,13 +2442,15 @@ class UserProfileTableData extends DataClass
           ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     name,
     phoneNumber,
@@ -2241,7 +2470,9 @@ class UserProfileTableData extends DataClass
     createdAt,
     updatedAt,
     syncStatus,
-  );
+    revision,
+    remoteUpdatedAt,
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2264,7 +2495,9 @@ class UserProfileTableData extends DataClass
           other.isDeleted == this.isDeleted &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
@@ -2287,6 +2520,8 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const UserProfilesCompanion({
     this.id = const Value.absent(),
@@ -2308,6 +2543,8 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   UserProfilesCompanion.insert({
@@ -2330,6 +2567,8 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -2355,6 +2594,8 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2377,6 +2618,8 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2401,6 +2644,8 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return UserProfilesCompanion(
@@ -2423,6 +2668,8 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2489,6 +2736,12 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
         $UserProfilesTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2517,6 +2770,8 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2548,6 +2803,9 @@ class $PartiesTable extends Parties
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES companies (id)',
+    ),
     defaultValue: const Constant('cmp_default'),
   );
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
@@ -2639,6 +2897,30 @@ class $PartiesTable extends Parties
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($PartiesTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2651,6 +2933,8 @@ class $PartiesTable extends Parties
     isDeleted,
     updatedAt,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2726,6 +3010,21 @@ class $PartiesTable extends Parties
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2779,6 +3078,14 @@ class $PartiesTable extends Parties
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -2806,6 +3113,8 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
   final bool isDeleted;
   final DateTime updatedAt;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const PartyTableData({
     required this.id,
     required this.companyId,
@@ -2817,6 +3126,8 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
     required this.isDeleted,
     required this.updatedAt,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2837,6 +3148,10 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
         $PartiesTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -2852,6 +3167,10 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
       isDeleted: Value(isDeleted),
       updatedAt: Value(updatedAt),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -2875,6 +3194,8 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
       syncStatus: $PartiesTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -2895,6 +3216,8 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
       'syncStatus': serializer.toJson<String>(
         $PartiesTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -2909,6 +3232,8 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
     bool? isDeleted,
     DateTime? updatedAt,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => PartyTableData(
     id: id ?? this.id,
     companyId: companyId ?? this.companyId,
@@ -2920,6 +3245,10 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
     isDeleted: isDeleted ?? this.isDeleted,
     updatedAt: updatedAt ?? this.updatedAt,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   PartyTableData copyWithCompanion(PartiesCompanion data) {
     return PartyTableData(
@@ -2941,6 +3270,10 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -2956,7 +3289,9 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
           ..write('lastUpdated: $lastUpdated, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -2973,6 +3308,8 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
     isDeleted,
     updatedAt,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -2987,7 +3324,9 @@ class PartyTableData extends DataClass implements Insertable<PartyTableData> {
           other.lastUpdated == this.lastUpdated &&
           other.isDeleted == this.isDeleted &&
           other.updatedAt == this.updatedAt &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class PartiesCompanion extends UpdateCompanion<PartyTableData> {
@@ -3001,6 +3340,8 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
   final Value<bool> isDeleted;
   final Value<DateTime> updatedAt;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const PartiesCompanion({
     this.id = const Value.absent(),
@@ -3013,6 +3354,8 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
     this.isDeleted = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PartiesCompanion.insert({
@@ -3026,6 +3369,8 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
     this.isDeleted = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -3043,6 +3388,8 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
     Expression<bool>? isDeleted,
     Expression<DateTime>? updatedAt,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3056,6 +3403,8 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3071,6 +3420,8 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
     Value<bool>? isDeleted,
     Value<DateTime>? updatedAt,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return PartiesCompanion(
@@ -3084,6 +3435,8 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
       isDeleted: isDeleted ?? this.isDeleted,
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3125,6 +3478,12 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
         $PartiesTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3144,6 +3503,8 @@ class PartiesCompanion extends UpdateCompanion<PartyTableData> {
           ..write('isDeleted: $isDeleted, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3175,6 +3536,9 @@ class $LedgerEntriesTable extends LedgerEntries
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES companies (id)',
+    ),
     defaultValue: const Constant('cmp_default'),
   );
   static const VerificationMeta _partyIdMeta = const VerificationMeta(
@@ -3304,6 +3668,30 @@ class $LedgerEntriesTable extends LedgerEntries
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($LedgerEntriesTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -3319,6 +3707,8 @@ class $LedgerEntriesTable extends LedgerEntries
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3409,6 +3799,21 @@ class $LedgerEntriesTable extends LedgerEntries
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3474,6 +3879,14 @@ class $LedgerEntriesTable extends LedgerEntries
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -3505,6 +3918,8 @@ class LedgerEntryTableData extends DataClass
   final DateTime updatedAt;
   final bool isDeleted;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const LedgerEntryTableData({
     required this.id,
     required this.companyId,
@@ -3519,6 +3934,8 @@ class LedgerEntryTableData extends DataClass
     required this.updatedAt,
     required this.isDeleted,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3548,6 +3965,10 @@ class LedgerEntryTableData extends DataClass
         $LedgerEntriesTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -3568,6 +3989,10 @@ class LedgerEntryTableData extends DataClass
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -3594,6 +4019,8 @@ class LedgerEntryTableData extends DataClass
       syncStatus: $LedgerEntriesTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -3617,6 +4044,8 @@ class LedgerEntryTableData extends DataClass
       'syncStatus': serializer.toJson<String>(
         $LedgerEntriesTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -3634,6 +4063,8 @@ class LedgerEntryTableData extends DataClass
     DateTime? updatedAt,
     bool? isDeleted,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => LedgerEntryTableData(
     id: id ?? this.id,
     companyId: companyId ?? this.companyId,
@@ -3650,6 +4081,10 @@ class LedgerEntryTableData extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   LedgerEntryTableData copyWithCompanion(LedgerEntriesCompanion data) {
     return LedgerEntryTableData(
@@ -3672,6 +4107,10 @@ class LedgerEntryTableData extends DataClass
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -3690,7 +4129,9 @@ class LedgerEntryTableData extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -3710,6 +4151,8 @@ class LedgerEntryTableData extends DataClass
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -3727,7 +4170,9 @@ class LedgerEntryTableData extends DataClass
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
@@ -3744,6 +4189,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const LedgerEntriesCompanion({
     this.id = const Value.absent(),
@@ -3759,6 +4206,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LedgerEntriesCompanion.insert({
@@ -3775,6 +4224,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        partyId = Value(partyId),
@@ -3795,6 +4246,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3811,6 +4264,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3829,6 +4284,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return LedgerEntriesCompanion(
@@ -3845,6 +4302,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3895,6 +4354,12 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
         $LedgerEntriesTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3917,6 +4382,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4092,6 +4559,30 @@ class $AuditLogsTable extends AuditLogs
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($AuditLogsTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -4109,6 +4600,8 @@ class $AuditLogsTable extends AuditLogs
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -4228,6 +4721,21 @@ class $AuditLogsTable extends AuditLogs
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -4299,6 +4807,14 @@ class $AuditLogsTable extends AuditLogs
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -4330,6 +4846,8 @@ class AuditLogTableData extends DataClass
   final DateTime updatedAt;
   final bool isDeleted;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const AuditLogTableData({
     required this.id,
     required this.companyId,
@@ -4346,6 +4864,8 @@ class AuditLogTableData extends DataClass
     required this.updatedAt,
     required this.isDeleted,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -4377,6 +4897,10 @@ class AuditLogTableData extends DataClass
         $AuditLogsTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -4405,6 +4929,10 @@ class AuditLogTableData extends DataClass
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -4431,6 +4959,8 @@ class AuditLogTableData extends DataClass
       syncStatus: $AuditLogsTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -4454,6 +4984,8 @@ class AuditLogTableData extends DataClass
       'syncStatus': serializer.toJson<String>(
         $AuditLogsTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -4473,6 +5005,8 @@ class AuditLogTableData extends DataClass
     DateTime? updatedAt,
     bool? isDeleted,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => AuditLogTableData(
     id: id ?? this.id,
     companyId: companyId ?? this.companyId,
@@ -4491,6 +5025,10 @@ class AuditLogTableData extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   AuditLogTableData copyWithCompanion(AuditLogsCompanion data) {
     return AuditLogTableData(
@@ -4519,6 +5057,10 @@ class AuditLogTableData extends DataClass
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -4539,7 +5081,9 @@ class AuditLogTableData extends DataClass
           ..write('previousChecksum: $previousChecksum, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -4561,6 +5105,8 @@ class AuditLogTableData extends DataClass
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -4580,7 +5126,9 @@ class AuditLogTableData extends DataClass
           other.previousChecksum == this.previousChecksum &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class AuditLogsCompanion extends UpdateCompanion<AuditLogTableData> {
@@ -4599,6 +5147,8 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLogTableData> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const AuditLogsCompanion({
     this.id = const Value.absent(),
@@ -4616,6 +5166,8 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLogTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   AuditLogsCompanion.insert({
@@ -4634,6 +5186,8 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLogTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        companyId = Value(companyId),
@@ -4659,6 +5213,8 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLogTableData> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4677,6 +5233,8 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLogTableData> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4697,6 +5255,8 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLogTableData> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return AuditLogsCompanion(
@@ -4715,6 +5275,8 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLogTableData> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4769,6 +5331,12 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLogTableData> {
         $AuditLogsTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4793,6 +5361,8 @@ class AuditLogsCompanion extends UpdateCompanion<AuditLogTableData> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4858,6 +5428,41 @@ class $SyncOutboxTable extends SyncOutbox
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _attemptsMeta = const VerificationMeta(
+    'attempts',
+  );
+  @override
+  late final GeneratedColumn<int> attempts = GeneratedColumn<int>(
+    'attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _lastErrorMeta = const VerificationMeta(
+    'lastError',
+  );
+  @override
+  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
+    'last_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nextAttemptAtMeta = const VerificationMeta(
+    'nextAttemptAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextAttemptAt =
+      GeneratedColumn<DateTime>(
+        'next_attempt_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4877,6 +5482,9 @@ class $SyncOutboxTable extends SyncOutbox
     recordId,
     mutationType,
     payload,
+    attempts,
+    lastError,
+    nextAttemptAt,
     createdAt,
   ];
   @override
@@ -4934,6 +5542,27 @@ class $SyncOutboxTable extends SyncOutbox
     } else if (isInserting) {
       context.missing(_payloadMeta);
     }
+    if (data.containsKey('attempts')) {
+      context.handle(
+        _attemptsMeta,
+        attempts.isAcceptableOrUnknown(data['attempts']!, _attemptsMeta),
+      );
+    }
+    if (data.containsKey('last_error')) {
+      context.handle(
+        _lastErrorMeta,
+        lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta),
+      );
+    }
+    if (data.containsKey('next_attempt_at')) {
+      context.handle(
+        _nextAttemptAtMeta,
+        nextAttemptAt.isAcceptableOrUnknown(
+          data['next_attempt_at']!,
+          _nextAttemptAtMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4945,6 +5574,10 @@ class $SyncOutboxTable extends SyncOutbox
 
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  List<Set<GeneratedColumn>> get uniqueKeys => [
+    {targetTable, recordId},
+  ];
   @override
   SyncOutboxTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -4969,6 +5602,18 @@ class $SyncOutboxTable extends SyncOutbox
         DriftSqlType.string,
         data['${effectivePrefix}payload'],
       )!,
+      attempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}attempts'],
+      )!,
+      lastError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}last_error'],
+      ),
+      nextAttemptAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_attempt_at'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4989,6 +5634,9 @@ class SyncOutboxTableData extends DataClass
   final String recordId;
   final String mutationType;
   final String payload;
+  final int attempts;
+  final String? lastError;
+  final DateTime? nextAttemptAt;
   final DateTime createdAt;
   const SyncOutboxTableData({
     required this.id,
@@ -4996,6 +5644,9 @@ class SyncOutboxTableData extends DataClass
     required this.recordId,
     required this.mutationType,
     required this.payload,
+    required this.attempts,
+    this.lastError,
+    this.nextAttemptAt,
     required this.createdAt,
   });
   @override
@@ -5006,6 +5657,13 @@ class SyncOutboxTableData extends DataClass
     map['record_id'] = Variable<String>(recordId);
     map['mutation_type'] = Variable<String>(mutationType);
     map['payload'] = Variable<String>(payload);
+    map['attempts'] = Variable<int>(attempts);
+    if (!nullToAbsent || lastError != null) {
+      map['last_error'] = Variable<String>(lastError);
+    }
+    if (!nullToAbsent || nextAttemptAt != null) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -5017,6 +5675,13 @@ class SyncOutboxTableData extends DataClass
       recordId: Value(recordId),
       mutationType: Value(mutationType),
       payload: Value(payload),
+      attempts: Value(attempts),
+      lastError: lastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastError),
+      nextAttemptAt: nextAttemptAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextAttemptAt),
       createdAt: Value(createdAt),
     );
   }
@@ -5032,6 +5697,9 @@ class SyncOutboxTableData extends DataClass
       recordId: serializer.fromJson<String>(json['recordId']),
       mutationType: serializer.fromJson<String>(json['mutationType']),
       payload: serializer.fromJson<String>(json['payload']),
+      attempts: serializer.fromJson<int>(json['attempts']),
+      lastError: serializer.fromJson<String?>(json['lastError']),
+      nextAttemptAt: serializer.fromJson<DateTime?>(json['nextAttemptAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -5044,6 +5712,9 @@ class SyncOutboxTableData extends DataClass
       'recordId': serializer.toJson<String>(recordId),
       'mutationType': serializer.toJson<String>(mutationType),
       'payload': serializer.toJson<String>(payload),
+      'attempts': serializer.toJson<int>(attempts),
+      'lastError': serializer.toJson<String?>(lastError),
+      'nextAttemptAt': serializer.toJson<DateTime?>(nextAttemptAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -5054,6 +5725,9 @@ class SyncOutboxTableData extends DataClass
     String? recordId,
     String? mutationType,
     String? payload,
+    int? attempts,
+    Value<String?> lastError = const Value.absent(),
+    Value<DateTime?> nextAttemptAt = const Value.absent(),
     DateTime? createdAt,
   }) => SyncOutboxTableData(
     id: id ?? this.id,
@@ -5061,6 +5735,11 @@ class SyncOutboxTableData extends DataClass
     recordId: recordId ?? this.recordId,
     mutationType: mutationType ?? this.mutationType,
     payload: payload ?? this.payload,
+    attempts: attempts ?? this.attempts,
+    lastError: lastError.present ? lastError.value : this.lastError,
+    nextAttemptAt: nextAttemptAt.present
+        ? nextAttemptAt.value
+        : this.nextAttemptAt,
     createdAt: createdAt ?? this.createdAt,
   );
   SyncOutboxTableData copyWithCompanion(SyncOutboxCompanion data) {
@@ -5074,6 +5753,11 @@ class SyncOutboxTableData extends DataClass
           ? data.mutationType.value
           : this.mutationType,
       payload: data.payload.present ? data.payload.value : this.payload,
+      attempts: data.attempts.present ? data.attempts.value : this.attempts,
+      lastError: data.lastError.present ? data.lastError.value : this.lastError,
+      nextAttemptAt: data.nextAttemptAt.present
+          ? data.nextAttemptAt.value
+          : this.nextAttemptAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -5086,14 +5770,26 @@ class SyncOutboxTableData extends DataClass
           ..write('recordId: $recordId, ')
           ..write('mutationType: $mutationType, ')
           ..write('payload: $payload, ')
+          ..write('attempts: $attempts, ')
+          ..write('lastError: $lastError, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, targetTable, recordId, mutationType, payload, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    targetTable,
+    recordId,
+    mutationType,
+    payload,
+    attempts,
+    lastError,
+    nextAttemptAt,
+    createdAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -5103,6 +5799,9 @@ class SyncOutboxTableData extends DataClass
           other.recordId == this.recordId &&
           other.mutationType == this.mutationType &&
           other.payload == this.payload &&
+          other.attempts == this.attempts &&
+          other.lastError == this.lastError &&
+          other.nextAttemptAt == this.nextAttemptAt &&
           other.createdAt == this.createdAt);
 }
 
@@ -5112,6 +5811,9 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxTableData> {
   final Value<String> recordId;
   final Value<String> mutationType;
   final Value<String> payload;
+  final Value<int> attempts;
+  final Value<String?> lastError;
+  final Value<DateTime?> nextAttemptAt;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const SyncOutboxCompanion({
@@ -5120,6 +5822,9 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxTableData> {
     this.recordId = const Value.absent(),
     this.mutationType = const Value.absent(),
     this.payload = const Value.absent(),
+    this.attempts = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -5129,6 +5834,9 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxTableData> {
     required String recordId,
     required String mutationType,
     required String payload,
+    this.attempts = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -5142,6 +5850,9 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxTableData> {
     Expression<String>? recordId,
     Expression<String>? mutationType,
     Expression<String>? payload,
+    Expression<int>? attempts,
+    Expression<String>? lastError,
+    Expression<DateTime>? nextAttemptAt,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -5151,6 +5862,9 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxTableData> {
       if (recordId != null) 'record_id': recordId,
       if (mutationType != null) 'mutation_type': mutationType,
       if (payload != null) 'payload': payload,
+      if (attempts != null) 'attempts': attempts,
+      if (lastError != null) 'last_error': lastError,
+      if (nextAttemptAt != null) 'next_attempt_at': nextAttemptAt,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -5162,6 +5876,9 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxTableData> {
     Value<String>? recordId,
     Value<String>? mutationType,
     Value<String>? payload,
+    Value<int>? attempts,
+    Value<String?>? lastError,
+    Value<DateTime?>? nextAttemptAt,
     Value<DateTime>? createdAt,
     Value<int>? rowid,
   }) {
@@ -5171,6 +5888,9 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxTableData> {
       recordId: recordId ?? this.recordId,
       mutationType: mutationType ?? this.mutationType,
       payload: payload ?? this.payload,
+      attempts: attempts ?? this.attempts,
+      lastError: lastError ?? this.lastError,
+      nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -5194,6 +5914,15 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxTableData> {
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
     }
+    if (attempts.present) {
+      map['attempts'] = Variable<int>(attempts.value);
+    }
+    if (lastError.present) {
+      map['last_error'] = Variable<String>(lastError.value);
+    }
+    if (nextAttemptAt.present) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -5211,7 +5940,291 @@ class SyncOutboxCompanion extends UpdateCompanion<SyncOutboxTableData> {
           ..write('recordId: $recordId, ')
           ..write('mutationType: $mutationType, ')
           ..write('payload: $payload, ')
+          ..write('attempts: $attempts, ')
+          ..write('lastError: $lastError, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
           ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncStateTable extends SyncState
+    with TableInfo<$SyncStateTable, SyncStateTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncStateTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _targetTableMeta = const VerificationMeta(
+    'targetTable',
+  );
+  @override
+  late final GeneratedColumn<String> targetTable = GeneratedColumn<String>(
+    'table_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyIdMeta = const VerificationMeta(
+    'companyId',
+  );
+  @override
+  late final GeneratedColumn<String> companyId = GeneratedColumn<String>(
+    'company_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _lastPulledAtMeta = const VerificationMeta(
+    'lastPulledAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastPulledAt = GeneratedColumn<DateTime>(
+    'last_pulled_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [targetTable, companyId, lastPulledAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_state';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SyncStateTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('table_name')) {
+      context.handle(
+        _targetTableMeta,
+        targetTable.isAcceptableOrUnknown(
+          data['table_name']!,
+          _targetTableMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_targetTableMeta);
+    }
+    if (data.containsKey('company_id')) {
+      context.handle(
+        _companyIdMeta,
+        companyId.isAcceptableOrUnknown(data['company_id']!, _companyIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_companyIdMeta);
+    }
+    if (data.containsKey('last_pulled_at')) {
+      context.handle(
+        _lastPulledAtMeta,
+        lastPulledAt.isAcceptableOrUnknown(
+          data['last_pulled_at']!,
+          _lastPulledAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {targetTable, companyId};
+  @override
+  SyncStateTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncStateTableData(
+      targetTable: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}table_name'],
+      )!,
+      companyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_id'],
+      )!,
+      lastPulledAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_pulled_at'],
+      ),
+    );
+  }
+
+  @override
+  $SyncStateTable createAlias(String alias) {
+    return $SyncStateTable(attachedDatabase, alias);
+  }
+}
+
+class SyncStateTableData extends DataClass
+    implements Insertable<SyncStateTableData> {
+  final String targetTable;
+  final String companyId;
+  final DateTime? lastPulledAt;
+  const SyncStateTableData({
+    required this.targetTable,
+    required this.companyId,
+    this.lastPulledAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['table_name'] = Variable<String>(targetTable);
+    map['company_id'] = Variable<String>(companyId);
+    if (!nullToAbsent || lastPulledAt != null) {
+      map['last_pulled_at'] = Variable<DateTime>(lastPulledAt);
+    }
+    return map;
+  }
+
+  SyncStateCompanion toCompanion(bool nullToAbsent) {
+    return SyncStateCompanion(
+      targetTable: Value(targetTable),
+      companyId: Value(companyId),
+      lastPulledAt: lastPulledAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastPulledAt),
+    );
+  }
+
+  factory SyncStateTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncStateTableData(
+      targetTable: serializer.fromJson<String>(json['targetTable']),
+      companyId: serializer.fromJson<String>(json['companyId']),
+      lastPulledAt: serializer.fromJson<DateTime?>(json['lastPulledAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'targetTable': serializer.toJson<String>(targetTable),
+      'companyId': serializer.toJson<String>(companyId),
+      'lastPulledAt': serializer.toJson<DateTime?>(lastPulledAt),
+    };
+  }
+
+  SyncStateTableData copyWith({
+    String? targetTable,
+    String? companyId,
+    Value<DateTime?> lastPulledAt = const Value.absent(),
+  }) => SyncStateTableData(
+    targetTable: targetTable ?? this.targetTable,
+    companyId: companyId ?? this.companyId,
+    lastPulledAt: lastPulledAt.present ? lastPulledAt.value : this.lastPulledAt,
+  );
+  SyncStateTableData copyWithCompanion(SyncStateCompanion data) {
+    return SyncStateTableData(
+      targetTable: data.targetTable.present
+          ? data.targetTable.value
+          : this.targetTable,
+      companyId: data.companyId.present ? data.companyId.value : this.companyId,
+      lastPulledAt: data.lastPulledAt.present
+          ? data.lastPulledAt.value
+          : this.lastPulledAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncStateTableData(')
+          ..write('targetTable: $targetTable, ')
+          ..write('companyId: $companyId, ')
+          ..write('lastPulledAt: $lastPulledAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(targetTable, companyId, lastPulledAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncStateTableData &&
+          other.targetTable == this.targetTable &&
+          other.companyId == this.companyId &&
+          other.lastPulledAt == this.lastPulledAt);
+}
+
+class SyncStateCompanion extends UpdateCompanion<SyncStateTableData> {
+  final Value<String> targetTable;
+  final Value<String> companyId;
+  final Value<DateTime?> lastPulledAt;
+  final Value<int> rowid;
+  const SyncStateCompanion({
+    this.targetTable = const Value.absent(),
+    this.companyId = const Value.absent(),
+    this.lastPulledAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncStateCompanion.insert({
+    required String targetTable,
+    required String companyId,
+    this.lastPulledAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : targetTable = Value(targetTable),
+       companyId = Value(companyId);
+  static Insertable<SyncStateTableData> custom({
+    Expression<String>? targetTable,
+    Expression<String>? companyId,
+    Expression<DateTime>? lastPulledAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (targetTable != null) 'table_name': targetTable,
+      if (companyId != null) 'company_id': companyId,
+      if (lastPulledAt != null) 'last_pulled_at': lastPulledAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncStateCompanion copyWith({
+    Value<String>? targetTable,
+    Value<String>? companyId,
+    Value<DateTime?>? lastPulledAt,
+    Value<int>? rowid,
+  }) {
+    return SyncStateCompanion(
+      targetTable: targetTable ?? this.targetTable,
+      companyId: companyId ?? this.companyId,
+      lastPulledAt: lastPulledAt ?? this.lastPulledAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (targetTable.present) {
+      map['table_name'] = Variable<String>(targetTable.value);
+    }
+    if (companyId.present) {
+      map['company_id'] = Variable<String>(companyId.value);
+    }
+    if (lastPulledAt.present) {
+      map['last_pulled_at'] = Variable<DateTime>(lastPulledAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncStateCompanion(')
+          ..write('targetTable: $targetTable, ')
+          ..write('companyId: $companyId, ')
+          ..write('lastPulledAt: $lastPulledAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -5418,6 +6431,30 @@ class $InventoryItemsTable extends InventoryItems
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($InventoryItemsTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -5437,6 +6474,8 @@ class $InventoryItemsTable extends InventoryItems
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -5567,6 +6606,21 @@ class $InventoryItemsTable extends InventoryItems
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -5646,6 +6700,14 @@ class $InventoryItemsTable extends InventoryItems
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -5679,6 +6741,8 @@ class InventoryItemTableData extends DataClass
   final DateTime updatedAt;
   final bool isDeleted;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const InventoryItemTableData({
     required this.id,
     required this.companyId,
@@ -5697,6 +6761,8 @@ class InventoryItemTableData extends DataClass
     required this.updatedAt,
     required this.isDeleted,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -5726,6 +6792,10 @@ class InventoryItemTableData extends DataClass
         $InventoryItemsTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -5752,6 +6822,10 @@ class InventoryItemTableData extends DataClass
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -5786,6 +6860,8 @@ class InventoryItemTableData extends DataClass
       syncStatus: $InventoryItemsTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -5811,6 +6887,8 @@ class InventoryItemTableData extends DataClass
       'syncStatus': serializer.toJson<String>(
         $InventoryItemsTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -5832,6 +6910,8 @@ class InventoryItemTableData extends DataClass
     DateTime? updatedAt,
     bool? isDeleted,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => InventoryItemTableData(
     id: id ?? this.id,
     companyId: companyId ?? this.companyId,
@@ -5850,6 +6930,10 @@ class InventoryItemTableData extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   InventoryItemTableData copyWithCompanion(InventoryItemsCompanion data) {
     return InventoryItemTableData(
@@ -5884,6 +6968,10 @@ class InventoryItemTableData extends DataClass
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -5906,7 +6994,9 @@ class InventoryItemTableData extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -5930,6 +7020,8 @@ class InventoryItemTableData extends DataClass
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -5951,7 +7043,9 @@ class InventoryItemTableData extends DataClass
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class InventoryItemsCompanion extends UpdateCompanion<InventoryItemTableData> {
@@ -5972,6 +7066,8 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItemTableData> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const InventoryItemsCompanion({
     this.id = const Value.absent(),
@@ -5991,6 +7087,8 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItemTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   InventoryItemsCompanion.insert({
@@ -6011,6 +7109,8 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItemTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        sku = Value(sku),
@@ -6033,6 +7133,8 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItemTableData> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -6056,6 +7158,8 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItemTableData> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -6078,6 +7182,8 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItemTableData> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return InventoryItemsCompanion(
@@ -6098,6 +7204,8 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItemTableData> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -6162,6 +7270,12 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItemTableData> {
         $InventoryItemsTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -6188,6 +7302,8 @@ class InventoryItemsCompanion extends UpdateCompanion<InventoryItemTableData> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -6369,6 +7485,30 @@ class $StockLedgerTable extends StockLedger
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($StockLedgerTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -6386,6 +7526,8 @@ class $StockLedgerTable extends StockLedger
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -6502,6 +7644,21 @@ class $StockLedgerTable extends StockLedger
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -6573,6 +7730,14 @@ class $StockLedgerTable extends StockLedger
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -6604,6 +7769,8 @@ class StockLedgerTableData extends DataClass
   final DateTime updatedAt;
   final bool isDeleted;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const StockLedgerTableData({
     required this.id,
     required this.companyId,
@@ -6620,6 +7787,8 @@ class StockLedgerTableData extends DataClass
     required this.updatedAt,
     required this.isDeleted,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -6647,6 +7816,10 @@ class StockLedgerTableData extends DataClass
         $StockLedgerTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -6669,6 +7842,10 @@ class StockLedgerTableData extends DataClass
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -6697,6 +7874,8 @@ class StockLedgerTableData extends DataClass
       syncStatus: $StockLedgerTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -6720,6 +7899,8 @@ class StockLedgerTableData extends DataClass
       'syncStatus': serializer.toJson<String>(
         $StockLedgerTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -6739,6 +7920,8 @@ class StockLedgerTableData extends DataClass
     DateTime? updatedAt,
     bool? isDeleted,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => StockLedgerTableData(
     id: id ?? this.id,
     companyId: companyId ?? this.companyId,
@@ -6755,6 +7938,10 @@ class StockLedgerTableData extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   StockLedgerTableData copyWithCompanion(StockLedgerCompanion data) {
     return StockLedgerTableData(
@@ -6783,6 +7970,10 @@ class StockLedgerTableData extends DataClass
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -6803,7 +7994,9 @@ class StockLedgerTableData extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -6825,6 +8018,8 @@ class StockLedgerTableData extends DataClass
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -6844,7 +8039,9 @@ class StockLedgerTableData extends DataClass
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class StockLedgerCompanion extends UpdateCompanion<StockLedgerTableData> {
@@ -6863,6 +8060,8 @@ class StockLedgerCompanion extends UpdateCompanion<StockLedgerTableData> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const StockLedgerCompanion({
     this.id = const Value.absent(),
@@ -6880,6 +8079,8 @@ class StockLedgerCompanion extends UpdateCompanion<StockLedgerTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   StockLedgerCompanion.insert({
@@ -6898,6 +8099,8 @@ class StockLedgerCompanion extends UpdateCompanion<StockLedgerTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        itemId = Value(itemId),
@@ -6920,6 +8123,8 @@ class StockLedgerCompanion extends UpdateCompanion<StockLedgerTableData> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -6939,6 +8144,8 @@ class StockLedgerCompanion extends UpdateCompanion<StockLedgerTableData> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -6959,6 +8166,8 @@ class StockLedgerCompanion extends UpdateCompanion<StockLedgerTableData> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return StockLedgerCompanion(
@@ -6977,6 +8186,8 @@ class StockLedgerCompanion extends UpdateCompanion<StockLedgerTableData> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -7033,6 +8244,12 @@ class StockLedgerCompanion extends UpdateCompanion<StockLedgerTableData> {
         $StockLedgerTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -7057,6 +8274,978 @@ class StockLedgerCompanion extends UpdateCompanion<StockLedgerTableData> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AccountsTable extends Accounts
+    with TableInfo<$AccountsTable, AccountTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AccountsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _companyIdMeta = const VerificationMeta(
+    'companyId',
+  );
+  @override
+  late final GeneratedColumn<String> companyId = GeneratedColumn<String>(
+    'company_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('cmp_default'),
+  );
+  static const VerificationMeta _codeMeta = const VerificationMeta('code');
+  @override
+  late final GeneratedColumn<String> code = GeneratedColumn<String>(
+    'code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _typeMeta = const VerificationMeta('type');
+  @override
+  late final GeneratedColumn<String> type = GeneratedColumn<String>(
+    'type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('system'),
+  );
+  static const VerificationMeta _parentAccountIdMeta = const VerificationMeta(
+    'parentAccountId',
+  );
+  @override
+  late final GeneratedColumn<String> parentAccountId = GeneratedColumn<String>(
+    'parent_account_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSystemMeta = const VerificationMeta(
+    'isSystem',
+  );
+  @override
+  late final GeneratedColumn<bool> isSystem = GeneratedColumn<bool>(
+    'is_system',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_system" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _currentBalanceInCentsMeta =
+      const VerificationMeta('currentBalanceInCents');
+  @override
+  late final GeneratedColumn<int> currentBalanceInCents = GeneratedColumn<int>(
+    'current_balance_in_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  ).withConverter<SyncRecordStatus>($AccountsTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    companyId,
+    code,
+    name,
+    type,
+    kind,
+    parentAccountId,
+    isSystem,
+    isActive,
+    description,
+    currentBalanceInCents,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'accounts';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<AccountTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('company_id')) {
+      context.handle(
+        _companyIdMeta,
+        companyId.isAcceptableOrUnknown(data['company_id']!, _companyIdMeta),
+      );
+    }
+    if (data.containsKey('code')) {
+      context.handle(
+        _codeMeta,
+        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_codeMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('type')) {
+      context.handle(
+        _typeMeta,
+        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_typeMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
+    if (data.containsKey('parent_account_id')) {
+      context.handle(
+        _parentAccountIdMeta,
+        parentAccountId.isAcceptableOrUnknown(
+          data['parent_account_id']!,
+          _parentAccountIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_system')) {
+      context.handle(
+        _isSystemMeta,
+        isSystem.isAcceptableOrUnknown(data['is_system']!, _isSystemMeta),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('current_balance_in_cents')) {
+      context.handle(
+        _currentBalanceInCentsMeta,
+        currentBalanceInCents.isAcceptableOrUnknown(
+          data['current_balance_in_cents']!,
+          _currentBalanceInCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AccountTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AccountTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      companyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}company_id'],
+      )!,
+      code: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}code'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      type: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}type'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      parentAccountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_account_id'],
+      ),
+      isSystem: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_system'],
+      )!,
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      currentBalanceInCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}current_balance_in_cents'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $AccountsTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+    );
+  }
+
+  @override
+  $AccountsTable createAlias(String alias) {
+    return $AccountsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class AccountTableData extends DataClass
+    implements Insertable<AccountTableData> {
+  final String id;
+  final String companyId;
+  final String code;
+  final String name;
+  final String type;
+  final String kind;
+  final String? parentAccountId;
+  final bool isSystem;
+  final bool isActive;
+  final String? description;
+  final int currentBalanceInCents;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
+  const AccountTableData({
+    required this.id,
+    required this.companyId,
+    required this.code,
+    required this.name,
+    required this.type,
+    required this.kind,
+    this.parentAccountId,
+    required this.isSystem,
+    required this.isActive,
+    this.description,
+    required this.currentBalanceInCents,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['company_id'] = Variable<String>(companyId);
+    map['code'] = Variable<String>(code);
+    map['name'] = Variable<String>(name);
+    map['type'] = Variable<String>(type);
+    map['kind'] = Variable<String>(kind);
+    if (!nullToAbsent || parentAccountId != null) {
+      map['parent_account_id'] = Variable<String>(parentAccountId);
+    }
+    map['is_system'] = Variable<bool>(isSystem);
+    map['is_active'] = Variable<bool>(isActive);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['current_balance_in_cents'] = Variable<int>(currentBalanceInCents);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $AccountsTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    return map;
+  }
+
+  AccountsCompanion toCompanion(bool nullToAbsent) {
+    return AccountsCompanion(
+      id: Value(id),
+      companyId: Value(companyId),
+      code: Value(code),
+      name: Value(name),
+      type: Value(type),
+      kind: Value(kind),
+      parentAccountId: parentAccountId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentAccountId),
+      isSystem: Value(isSystem),
+      isActive: Value(isActive),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      currentBalanceInCents: Value(currentBalanceInCents),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+    );
+  }
+
+  factory AccountTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AccountTableData(
+      id: serializer.fromJson<String>(json['id']),
+      companyId: serializer.fromJson<String>(json['companyId']),
+      code: serializer.fromJson<String>(json['code']),
+      name: serializer.fromJson<String>(json['name']),
+      type: serializer.fromJson<String>(json['type']),
+      kind: serializer.fromJson<String>(json['kind']),
+      parentAccountId: serializer.fromJson<String?>(json['parentAccountId']),
+      isSystem: serializer.fromJson<bool>(json['isSystem']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      description: serializer.fromJson<String?>(json['description']),
+      currentBalanceInCents: serializer.fromJson<int>(
+        json['currentBalanceInCents'],
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $AccountsTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'companyId': serializer.toJson<String>(companyId),
+      'code': serializer.toJson<String>(code),
+      'name': serializer.toJson<String>(name),
+      'type': serializer.toJson<String>(type),
+      'kind': serializer.toJson<String>(kind),
+      'parentAccountId': serializer.toJson<String?>(parentAccountId),
+      'isSystem': serializer.toJson<bool>(isSystem),
+      'isActive': serializer.toJson<bool>(isActive),
+      'description': serializer.toJson<String?>(description),
+      'currentBalanceInCents': serializer.toJson<int>(currentBalanceInCents),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $AccountsTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+    };
+  }
+
+  AccountTableData copyWith({
+    String? id,
+    String? companyId,
+    String? code,
+    String? name,
+    String? type,
+    String? kind,
+    Value<String?> parentAccountId = const Value.absent(),
+    bool? isSystem,
+    bool? isActive,
+    Value<String?> description = const Value.absent(),
+    int? currentBalanceInCents,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+  }) => AccountTableData(
+    id: id ?? this.id,
+    companyId: companyId ?? this.companyId,
+    code: code ?? this.code,
+    name: name ?? this.name,
+    type: type ?? this.type,
+    kind: kind ?? this.kind,
+    parentAccountId: parentAccountId.present
+        ? parentAccountId.value
+        : this.parentAccountId,
+    isSystem: isSystem ?? this.isSystem,
+    isActive: isActive ?? this.isActive,
+    description: description.present ? description.value : this.description,
+    currentBalanceInCents: currentBalanceInCents ?? this.currentBalanceInCents,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+  );
+  AccountTableData copyWithCompanion(AccountsCompanion data) {
+    return AccountTableData(
+      id: data.id.present ? data.id.value : this.id,
+      companyId: data.companyId.present ? data.companyId.value : this.companyId,
+      code: data.code.present ? data.code.value : this.code,
+      name: data.name.present ? data.name.value : this.name,
+      type: data.type.present ? data.type.value : this.type,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      parentAccountId: data.parentAccountId.present
+          ? data.parentAccountId.value
+          : this.parentAccountId,
+      isSystem: data.isSystem.present ? data.isSystem.value : this.isSystem,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      currentBalanceInCents: data.currentBalanceInCents.present
+          ? data.currentBalanceInCents.value
+          : this.currentBalanceInCents,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AccountTableData(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('code: $code, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('kind: $kind, ')
+          ..write('parentAccountId: $parentAccountId, ')
+          ..write('isSystem: $isSystem, ')
+          ..write('isActive: $isActive, ')
+          ..write('description: $description, ')
+          ..write('currentBalanceInCents: $currentBalanceInCents, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    companyId,
+    code,
+    name,
+    type,
+    kind,
+    parentAccountId,
+    isSystem,
+    isActive,
+    description,
+    currentBalanceInCents,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AccountTableData &&
+          other.id == this.id &&
+          other.companyId == this.companyId &&
+          other.code == this.code &&
+          other.name == this.name &&
+          other.type == this.type &&
+          other.kind == this.kind &&
+          other.parentAccountId == this.parentAccountId &&
+          other.isSystem == this.isSystem &&
+          other.isActive == this.isActive &&
+          other.description == this.description &&
+          other.currentBalanceInCents == this.currentBalanceInCents &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
+}
+
+class AccountsCompanion extends UpdateCompanion<AccountTableData> {
+  final Value<String> id;
+  final Value<String> companyId;
+  final Value<String> code;
+  final Value<String> name;
+  final Value<String> type;
+  final Value<String> kind;
+  final Value<String?> parentAccountId;
+  final Value<bool> isSystem;
+  final Value<bool> isActive;
+  final Value<String?> description;
+  final Value<int> currentBalanceInCents;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<int> rowid;
+  const AccountsCompanion({
+    this.id = const Value.absent(),
+    this.companyId = const Value.absent(),
+    this.code = const Value.absent(),
+    this.name = const Value.absent(),
+    this.type = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.parentAccountId = const Value.absent(),
+    this.isSystem = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.description = const Value.absent(),
+    this.currentBalanceInCents = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AccountsCompanion.insert({
+    required String id,
+    this.companyId = const Value.absent(),
+    required String code,
+    required String name,
+    required String type,
+    this.kind = const Value.absent(),
+    this.parentAccountId = const Value.absent(),
+    this.isSystem = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.description = const Value.absent(),
+    this.currentBalanceInCents = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       code = Value(code),
+       name = Value(name),
+       type = Value(type);
+  static Insertable<AccountTableData> custom({
+    Expression<String>? id,
+    Expression<String>? companyId,
+    Expression<String>? code,
+    Expression<String>? name,
+    Expression<String>? type,
+    Expression<String>? kind,
+    Expression<String>? parentAccountId,
+    Expression<bool>? isSystem,
+    Expression<bool>? isActive,
+    Expression<String>? description,
+    Expression<int>? currentBalanceInCents,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (companyId != null) 'company_id': companyId,
+      if (code != null) 'code': code,
+      if (name != null) 'name': name,
+      if (type != null) 'type': type,
+      if (kind != null) 'kind': kind,
+      if (parentAccountId != null) 'parent_account_id': parentAccountId,
+      if (isSystem != null) 'is_system': isSystem,
+      if (isActive != null) 'is_active': isActive,
+      if (description != null) 'description': description,
+      if (currentBalanceInCents != null)
+        'current_balance_in_cents': currentBalanceInCents,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AccountsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? companyId,
+    Value<String>? code,
+    Value<String>? name,
+    Value<String>? type,
+    Value<String>? kind,
+    Value<String?>? parentAccountId,
+    Value<bool>? isSystem,
+    Value<bool>? isActive,
+    Value<String?>? description,
+    Value<int>? currentBalanceInCents,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<int>? rowid,
+  }) {
+    return AccountsCompanion(
+      id: id ?? this.id,
+      companyId: companyId ?? this.companyId,
+      code: code ?? this.code,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      kind: kind ?? this.kind,
+      parentAccountId: parentAccountId ?? this.parentAccountId,
+      isSystem: isSystem ?? this.isSystem,
+      isActive: isActive ?? this.isActive,
+      description: description ?? this.description,
+      currentBalanceInCents:
+          currentBalanceInCents ?? this.currentBalanceInCents,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (companyId.present) {
+      map['company_id'] = Variable<String>(companyId.value);
+    }
+    if (code.present) {
+      map['code'] = Variable<String>(code.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(type.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (parentAccountId.present) {
+      map['parent_account_id'] = Variable<String>(parentAccountId.value);
+    }
+    if (isSystem.present) {
+      map['is_system'] = Variable<bool>(isSystem.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (currentBalanceInCents.present) {
+      map['current_balance_in_cents'] = Variable<int>(
+        currentBalanceInCents.value,
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $AccountsTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AccountsCompanion(')
+          ..write('id: $id, ')
+          ..write('companyId: $companyId, ')
+          ..write('code: $code, ')
+          ..write('name: $name, ')
+          ..write('type: $type, ')
+          ..write('kind: $kind, ')
+          ..write('parentAccountId: $parentAccountId, ')
+          ..write('isSystem: $isSystem, ')
+          ..write('isActive: $isActive, ')
+          ..write('description: $description, ')
+          ..write('currentBalanceInCents: $currentBalanceInCents, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -7287,6 +9476,9 @@ class $VouchersTable extends Vouchers
         true,
         type: DriftSqlType.string,
         requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES accounts (id)',
+        ),
       );
   static const VerificationMeta _walletAccountIdMeta = const VerificationMeta(
     'walletAccountId',
@@ -7298,6 +9490,9 @@ class $VouchersTable extends Vouchers
     true,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES accounts (id)',
+    ),
   );
   static const VerificationMeta _toWalletAccountIdMeta = const VerificationMeta(
     'toWalletAccountId',
@@ -7310,6 +9505,9 @@ class $VouchersTable extends Vouchers
         true,
         type: DriftSqlType.string,
         requiredDuringInsert: false,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES accounts (id)',
+        ),
       );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
@@ -7360,6 +9558,30 @@ class $VouchersTable extends Vouchers
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($VouchersTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -7388,6 +9610,8 @@ class $VouchersTable extends Vouchers
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -7592,6 +9816,21 @@ class $VouchersTable extends Vouchers
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -7707,6 +9946,14 @@ class $VouchersTable extends Vouchers
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -7749,6 +9996,8 @@ class VoucherTableData extends DataClass
   final DateTime updatedAt;
   final bool isDeleted;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const VoucherTableData({
     required this.id,
     required this.companyId,
@@ -7776,6 +10025,8 @@ class VoucherTableData extends DataClass
     required this.updatedAt,
     required this.isDeleted,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -7832,6 +10083,10 @@ class VoucherTableData extends DataClass
         $VouchersTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -7885,6 +10140,10 @@ class VoucherTableData extends DataClass
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -7926,6 +10185,8 @@ class VoucherTableData extends DataClass
       syncStatus: $VouchersTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -7960,6 +10221,8 @@ class VoucherTableData extends DataClass
       'syncStatus': serializer.toJson<String>(
         $VouchersTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -7990,6 +10253,8 @@ class VoucherTableData extends DataClass
     DateTime? updatedAt,
     bool? isDeleted,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => VoucherTableData(
     id: id ?? this.id,
     companyId: companyId ?? this.companyId,
@@ -8029,6 +10294,10 @@ class VoucherTableData extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   VoucherTableData copyWithCompanion(VouchersCompanion data) {
     return VoucherTableData(
@@ -8084,6 +10353,10 @@ class VoucherTableData extends DataClass
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -8115,7 +10388,9 @@ class VoucherTableData extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -8148,6 +10423,8 @@ class VoucherTableData extends DataClass
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -8178,7 +10455,9 @@ class VoucherTableData extends DataClass
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
@@ -8208,6 +10487,8 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const VouchersCompanion({
     this.id = const Value.absent(),
@@ -8236,6 +10517,8 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   VouchersCompanion.insert({
@@ -8265,6 +10548,8 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        voucherNumber = Value(voucherNumber),
@@ -8297,6 +10582,8 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -8327,6 +10614,8 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -8358,6 +10647,8 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return VouchersCompanion(
@@ -8387,6 +10678,8 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -8474,6 +10767,12 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
         $VouchersTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -8509,829 +10808,8 @@ class VouchersCompanion extends UpdateCompanion<VoucherTableData> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('syncStatus: $syncStatus, ')
-          ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $AccountsTable extends Accounts
-    with TableInfo<$AccountsTable, AccountTableData> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $AccountsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<String> id = GeneratedColumn<String>(
-    'id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _companyIdMeta = const VerificationMeta(
-    'companyId',
-  );
-  @override
-  late final GeneratedColumn<String> companyId = GeneratedColumn<String>(
-    'company_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('cmp_default'),
-  );
-  static const VerificationMeta _codeMeta = const VerificationMeta('code');
-  @override
-  late final GeneratedColumn<String> code = GeneratedColumn<String>(
-    'code',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
-  @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _typeMeta = const VerificationMeta('type');
-  @override
-  late final GeneratedColumn<String> type = GeneratedColumn<String>(
-    'type',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _parentAccountIdMeta = const VerificationMeta(
-    'parentAccountId',
-  );
-  @override
-  late final GeneratedColumn<String> parentAccountId = GeneratedColumn<String>(
-    'parent_account_id',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _isSystemMeta = const VerificationMeta(
-    'isSystem',
-  );
-  @override
-  late final GeneratedColumn<bool> isSystem = GeneratedColumn<bool>(
-    'is_system',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_system" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
-  static const VerificationMeta _isActiveMeta = const VerificationMeta(
-    'isActive',
-  );
-  @override
-  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
-    'is_active',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_active" IN (0, 1))',
-    ),
-    defaultValue: const Constant(true),
-  );
-  static const VerificationMeta _descriptionMeta = const VerificationMeta(
-    'description',
-  );
-  @override
-  late final GeneratedColumn<String> description = GeneratedColumn<String>(
-    'description',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _currentBalanceInCentsMeta =
-      const VerificationMeta('currentBalanceInCents');
-  @override
-  late final GeneratedColumn<int> currentBalanceInCents = GeneratedColumn<int>(
-    'current_balance_in_cents',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(0),
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-    defaultValue: currentDateAndTime,
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-    defaultValue: currentDateAndTime,
-  );
-  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
-    'isDeleted',
-  );
-  @override
-  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
-    'is_deleted',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_deleted" IN (0, 1))',
-    ),
-    defaultValue: const Constant(false),
-  );
-  @override
-  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
-  syncStatus = GeneratedColumn<String>(
-    'sync_status',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('pending'),
-  ).withConverter<SyncRecordStatus>($AccountsTable.$convertersyncStatus);
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    companyId,
-    code,
-    name,
-    type,
-    parentAccountId,
-    isSystem,
-    isActive,
-    description,
-    currentBalanceInCents,
-    createdAt,
-    updatedAt,
-    isDeleted,
-    syncStatus,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'accounts';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<AccountTableData> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    } else if (isInserting) {
-      context.missing(_idMeta);
-    }
-    if (data.containsKey('company_id')) {
-      context.handle(
-        _companyIdMeta,
-        companyId.isAcceptableOrUnknown(data['company_id']!, _companyIdMeta),
-      );
-    }
-    if (data.containsKey('code')) {
-      context.handle(
-        _codeMeta,
-        code.isAcceptableOrUnknown(data['code']!, _codeMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_codeMeta);
-    }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_nameMeta);
-    }
-    if (data.containsKey('type')) {
-      context.handle(
-        _typeMeta,
-        type.isAcceptableOrUnknown(data['type']!, _typeMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_typeMeta);
-    }
-    if (data.containsKey('parent_account_id')) {
-      context.handle(
-        _parentAccountIdMeta,
-        parentAccountId.isAcceptableOrUnknown(
-          data['parent_account_id']!,
-          _parentAccountIdMeta,
-        ),
-      );
-    }
-    if (data.containsKey('is_system')) {
-      context.handle(
-        _isSystemMeta,
-        isSystem.isAcceptableOrUnknown(data['is_system']!, _isSystemMeta),
-      );
-    }
-    if (data.containsKey('is_active')) {
-      context.handle(
-        _isActiveMeta,
-        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
-      );
-    }
-    if (data.containsKey('description')) {
-      context.handle(
-        _descriptionMeta,
-        description.isAcceptableOrUnknown(
-          data['description']!,
-          _descriptionMeta,
-        ),
-      );
-    }
-    if (data.containsKey('current_balance_in_cents')) {
-      context.handle(
-        _currentBalanceInCentsMeta,
-        currentBalanceInCents.isAcceptableOrUnknown(
-          data['current_balance_in_cents']!,
-          _currentBalanceInCentsMeta,
-        ),
-      );
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    }
-    if (data.containsKey('is_deleted')) {
-      context.handle(
-        _isDeletedMeta,
-        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  AccountTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return AccountTableData(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}id'],
-      )!,
-      companyId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}company_id'],
-      )!,
-      code: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}code'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      type: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}type'],
-      )!,
-      parentAccountId: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}parent_account_id'],
-      ),
-      isSystem: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_system'],
-      )!,
-      isActive: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_active'],
-      )!,
-      description: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}description'],
-      ),
-      currentBalanceInCents: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}current_balance_in_cents'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      )!,
-      isDeleted: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_deleted'],
-      )!,
-      syncStatus: $AccountsTable.$convertersyncStatus.fromSql(
-        attachedDatabase.typeMapping.read(
-          DriftSqlType.string,
-          data['${effectivePrefix}sync_status'],
-        )!,
-      ),
-    );
-  }
-
-  @override
-  $AccountsTable createAlias(String alias) {
-    return $AccountsTable(attachedDatabase, alias);
-  }
-
-  static JsonTypeConverter2<SyncRecordStatus, String, String>
-  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
-    SyncRecordStatus.values,
-  );
-}
-
-class AccountTableData extends DataClass
-    implements Insertable<AccountTableData> {
-  final String id;
-  final String companyId;
-  final String code;
-  final String name;
-  final String type;
-  final String? parentAccountId;
-  final bool isSystem;
-  final bool isActive;
-  final String? description;
-  final int currentBalanceInCents;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final bool isDeleted;
-  final SyncRecordStatus syncStatus;
-  const AccountTableData({
-    required this.id,
-    required this.companyId,
-    required this.code,
-    required this.name,
-    required this.type,
-    this.parentAccountId,
-    required this.isSystem,
-    required this.isActive,
-    this.description,
-    required this.currentBalanceInCents,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.isDeleted,
-    required this.syncStatus,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<String>(id);
-    map['company_id'] = Variable<String>(companyId);
-    map['code'] = Variable<String>(code);
-    map['name'] = Variable<String>(name);
-    map['type'] = Variable<String>(type);
-    if (!nullToAbsent || parentAccountId != null) {
-      map['parent_account_id'] = Variable<String>(parentAccountId);
-    }
-    map['is_system'] = Variable<bool>(isSystem);
-    map['is_active'] = Variable<bool>(isActive);
-    if (!nullToAbsent || description != null) {
-      map['description'] = Variable<String>(description);
-    }
-    map['current_balance_in_cents'] = Variable<int>(currentBalanceInCents);
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
-    map['is_deleted'] = Variable<bool>(isDeleted);
-    {
-      map['sync_status'] = Variable<String>(
-        $AccountsTable.$convertersyncStatus.toSql(syncStatus),
-      );
-    }
-    return map;
-  }
-
-  AccountsCompanion toCompanion(bool nullToAbsent) {
-    return AccountsCompanion(
-      id: Value(id),
-      companyId: Value(companyId),
-      code: Value(code),
-      name: Value(name),
-      type: Value(type),
-      parentAccountId: parentAccountId == null && nullToAbsent
-          ? const Value.absent()
-          : Value(parentAccountId),
-      isSystem: Value(isSystem),
-      isActive: Value(isActive),
-      description: description == null && nullToAbsent
-          ? const Value.absent()
-          : Value(description),
-      currentBalanceInCents: Value(currentBalanceInCents),
-      createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
-      isDeleted: Value(isDeleted),
-      syncStatus: Value(syncStatus),
-    );
-  }
-
-  factory AccountTableData.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return AccountTableData(
-      id: serializer.fromJson<String>(json['id']),
-      companyId: serializer.fromJson<String>(json['companyId']),
-      code: serializer.fromJson<String>(json['code']),
-      name: serializer.fromJson<String>(json['name']),
-      type: serializer.fromJson<String>(json['type']),
-      parentAccountId: serializer.fromJson<String?>(json['parentAccountId']),
-      isSystem: serializer.fromJson<bool>(json['isSystem']),
-      isActive: serializer.fromJson<bool>(json['isActive']),
-      description: serializer.fromJson<String?>(json['description']),
-      currentBalanceInCents: serializer.fromJson<int>(
-        json['currentBalanceInCents'],
-      ),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
-      syncStatus: $AccountsTable.$convertersyncStatus.fromJson(
-        serializer.fromJson<String>(json['syncStatus']),
-      ),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<String>(id),
-      'companyId': serializer.toJson<String>(companyId),
-      'code': serializer.toJson<String>(code),
-      'name': serializer.toJson<String>(name),
-      'type': serializer.toJson<String>(type),
-      'parentAccountId': serializer.toJson<String?>(parentAccountId),
-      'isSystem': serializer.toJson<bool>(isSystem),
-      'isActive': serializer.toJson<bool>(isActive),
-      'description': serializer.toJson<String?>(description),
-      'currentBalanceInCents': serializer.toJson<int>(currentBalanceInCents),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
-      'isDeleted': serializer.toJson<bool>(isDeleted),
-      'syncStatus': serializer.toJson<String>(
-        $AccountsTable.$convertersyncStatus.toJson(syncStatus),
-      ),
-    };
-  }
-
-  AccountTableData copyWith({
-    String? id,
-    String? companyId,
-    String? code,
-    String? name,
-    String? type,
-    Value<String?> parentAccountId = const Value.absent(),
-    bool? isSystem,
-    bool? isActive,
-    Value<String?> description = const Value.absent(),
-    int? currentBalanceInCents,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-    bool? isDeleted,
-    SyncRecordStatus? syncStatus,
-  }) => AccountTableData(
-    id: id ?? this.id,
-    companyId: companyId ?? this.companyId,
-    code: code ?? this.code,
-    name: name ?? this.name,
-    type: type ?? this.type,
-    parentAccountId: parentAccountId.present
-        ? parentAccountId.value
-        : this.parentAccountId,
-    isSystem: isSystem ?? this.isSystem,
-    isActive: isActive ?? this.isActive,
-    description: description.present ? description.value : this.description,
-    currentBalanceInCents: currentBalanceInCents ?? this.currentBalanceInCents,
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
-    isDeleted: isDeleted ?? this.isDeleted,
-    syncStatus: syncStatus ?? this.syncStatus,
-  );
-  AccountTableData copyWithCompanion(AccountsCompanion data) {
-    return AccountTableData(
-      id: data.id.present ? data.id.value : this.id,
-      companyId: data.companyId.present ? data.companyId.value : this.companyId,
-      code: data.code.present ? data.code.value : this.code,
-      name: data.name.present ? data.name.value : this.name,
-      type: data.type.present ? data.type.value : this.type,
-      parentAccountId: data.parentAccountId.present
-          ? data.parentAccountId.value
-          : this.parentAccountId,
-      isSystem: data.isSystem.present ? data.isSystem.value : this.isSystem,
-      isActive: data.isActive.present ? data.isActive.value : this.isActive,
-      description: data.description.present
-          ? data.description.value
-          : this.description,
-      currentBalanceInCents: data.currentBalanceInCents.present
-          ? data.currentBalanceInCents.value
-          : this.currentBalanceInCents,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
-      syncStatus: data.syncStatus.present
-          ? data.syncStatus.value
-          : this.syncStatus,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('AccountTableData(')
-          ..write('id: $id, ')
-          ..write('companyId: $companyId, ')
-          ..write('code: $code, ')
-          ..write('name: $name, ')
-          ..write('type: $type, ')
-          ..write('parentAccountId: $parentAccountId, ')
-          ..write('isSystem: $isSystem, ')
-          ..write('isActive: $isActive, ')
-          ..write('description: $description, ')
-          ..write('currentBalanceInCents: $currentBalanceInCents, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    companyId,
-    code,
-    name,
-    type,
-    parentAccountId,
-    isSystem,
-    isActive,
-    description,
-    currentBalanceInCents,
-    createdAt,
-    updatedAt,
-    isDeleted,
-    syncStatus,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is AccountTableData &&
-          other.id == this.id &&
-          other.companyId == this.companyId &&
-          other.code == this.code &&
-          other.name == this.name &&
-          other.type == this.type &&
-          other.parentAccountId == this.parentAccountId &&
-          other.isSystem == this.isSystem &&
-          other.isActive == this.isActive &&
-          other.description == this.description &&
-          other.currentBalanceInCents == this.currentBalanceInCents &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt &&
-          other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
-}
-
-class AccountsCompanion extends UpdateCompanion<AccountTableData> {
-  final Value<String> id;
-  final Value<String> companyId;
-  final Value<String> code;
-  final Value<String> name;
-  final Value<String> type;
-  final Value<String?> parentAccountId;
-  final Value<bool> isSystem;
-  final Value<bool> isActive;
-  final Value<String?> description;
-  final Value<int> currentBalanceInCents;
-  final Value<DateTime> createdAt;
-  final Value<DateTime> updatedAt;
-  final Value<bool> isDeleted;
-  final Value<SyncRecordStatus> syncStatus;
-  final Value<int> rowid;
-  const AccountsCompanion({
-    this.id = const Value.absent(),
-    this.companyId = const Value.absent(),
-    this.code = const Value.absent(),
-    this.name = const Value.absent(),
-    this.type = const Value.absent(),
-    this.parentAccountId = const Value.absent(),
-    this.isSystem = const Value.absent(),
-    this.isActive = const Value.absent(),
-    this.description = const Value.absent(),
-    this.currentBalanceInCents = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.isDeleted = const Value.absent(),
-    this.syncStatus = const Value.absent(),
-    this.rowid = const Value.absent(),
-  });
-  AccountsCompanion.insert({
-    required String id,
-    this.companyId = const Value.absent(),
-    required String code,
-    required String name,
-    required String type,
-    this.parentAccountId = const Value.absent(),
-    this.isSystem = const Value.absent(),
-    this.isActive = const Value.absent(),
-    this.description = const Value.absent(),
-    this.currentBalanceInCents = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.isDeleted = const Value.absent(),
-    this.syncStatus = const Value.absent(),
-    this.rowid = const Value.absent(),
-  }) : id = Value(id),
-       code = Value(code),
-       name = Value(name),
-       type = Value(type);
-  static Insertable<AccountTableData> custom({
-    Expression<String>? id,
-    Expression<String>? companyId,
-    Expression<String>? code,
-    Expression<String>? name,
-    Expression<String>? type,
-    Expression<String>? parentAccountId,
-    Expression<bool>? isSystem,
-    Expression<bool>? isActive,
-    Expression<String>? description,
-    Expression<int>? currentBalanceInCents,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<bool>? isDeleted,
-    Expression<String>? syncStatus,
-    Expression<int>? rowid,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (companyId != null) 'company_id': companyId,
-      if (code != null) 'code': code,
-      if (name != null) 'name': name,
-      if (type != null) 'type': type,
-      if (parentAccountId != null) 'parent_account_id': parentAccountId,
-      if (isSystem != null) 'is_system': isSystem,
-      if (isActive != null) 'is_active': isActive,
-      if (description != null) 'description': description,
-      if (currentBalanceInCents != null)
-        'current_balance_in_cents': currentBalanceInCents,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
-      if (isDeleted != null) 'is_deleted': isDeleted,
-      if (syncStatus != null) 'sync_status': syncStatus,
-      if (rowid != null) 'rowid': rowid,
-    });
-  }
-
-  AccountsCompanion copyWith({
-    Value<String>? id,
-    Value<String>? companyId,
-    Value<String>? code,
-    Value<String>? name,
-    Value<String>? type,
-    Value<String?>? parentAccountId,
-    Value<bool>? isSystem,
-    Value<bool>? isActive,
-    Value<String?>? description,
-    Value<int>? currentBalanceInCents,
-    Value<DateTime>? createdAt,
-    Value<DateTime>? updatedAt,
-    Value<bool>? isDeleted,
-    Value<SyncRecordStatus>? syncStatus,
-    Value<int>? rowid,
-  }) {
-    return AccountsCompanion(
-      id: id ?? this.id,
-      companyId: companyId ?? this.companyId,
-      code: code ?? this.code,
-      name: name ?? this.name,
-      type: type ?? this.type,
-      parentAccountId: parentAccountId ?? this.parentAccountId,
-      isSystem: isSystem ?? this.isSystem,
-      isActive: isActive ?? this.isActive,
-      description: description ?? this.description,
-      currentBalanceInCents:
-          currentBalanceInCents ?? this.currentBalanceInCents,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      isDeleted: isDeleted ?? this.isDeleted,
-      syncStatus: syncStatus ?? this.syncStatus,
-      rowid: rowid ?? this.rowid,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<String>(id.value);
-    }
-    if (companyId.present) {
-      map['company_id'] = Variable<String>(companyId.value);
-    }
-    if (code.present) {
-      map['code'] = Variable<String>(code.value);
-    }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
-    if (type.present) {
-      map['type'] = Variable<String>(type.value);
-    }
-    if (parentAccountId.present) {
-      map['parent_account_id'] = Variable<String>(parentAccountId.value);
-    }
-    if (isSystem.present) {
-      map['is_system'] = Variable<bool>(isSystem.value);
-    }
-    if (isActive.present) {
-      map['is_active'] = Variable<bool>(isActive.value);
-    }
-    if (description.present) {
-      map['description'] = Variable<String>(description.value);
-    }
-    if (currentBalanceInCents.present) {
-      map['current_balance_in_cents'] = Variable<int>(
-        currentBalanceInCents.value,
-      );
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    if (isDeleted.present) {
-      map['is_deleted'] = Variable<bool>(isDeleted.value);
-    }
-    if (syncStatus.present) {
-      map['sync_status'] = Variable<String>(
-        $AccountsTable.$convertersyncStatus.toSql(syncStatus.value),
-      );
-    }
-    if (rowid.present) {
-      map['rowid'] = Variable<int>(rowid.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('AccountsCompanion(')
-          ..write('id: $id, ')
-          ..write('companyId: $companyId, ')
-          ..write('code: $code, ')
-          ..write('name: $name, ')
-          ..write('type: $type, ')
-          ..write('parentAccountId: $parentAccountId, ')
-          ..write('isSystem: $isSystem, ')
-          ..write('isActive: $isActive, ')
-          ..write('description: $description, ')
-          ..write('currentBalanceInCents: $currentBalanceInCents, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9477,6 +10955,30 @@ class $JournalsTable extends Journals
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($JournalsTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -9491,6 +10993,8 @@ class $JournalsTable extends Journals
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -9579,6 +11083,21 @@ class $JournalsTable extends Journals
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -9638,6 +11157,14 @@ class $JournalsTable extends Journals
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -9666,6 +11193,8 @@ class JournalTableData extends DataClass
   final DateTime updatedAt;
   final bool isDeleted;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const JournalTableData({
     required this.id,
     required this.companyId,
@@ -9679,6 +11208,8 @@ class JournalTableData extends DataClass
     required this.updatedAt,
     required this.isDeleted,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9703,6 +11234,10 @@ class JournalTableData extends DataClass
         $JournalsTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -9724,6 +11259,10 @@ class JournalTableData extends DataClass
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -9747,6 +11286,8 @@ class JournalTableData extends DataClass
       syncStatus: $JournalsTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -9767,6 +11308,8 @@ class JournalTableData extends DataClass
       'syncStatus': serializer.toJson<String>(
         $JournalsTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -9783,6 +11326,8 @@ class JournalTableData extends DataClass
     DateTime? updatedAt,
     bool? isDeleted,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => JournalTableData(
     id: id ?? this.id,
     companyId: companyId ?? this.companyId,
@@ -9796,6 +11341,10 @@ class JournalTableData extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   JournalTableData copyWithCompanion(JournalsCompanion data) {
     return JournalTableData(
@@ -9817,6 +11366,10 @@ class JournalTableData extends DataClass
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -9834,7 +11387,9 @@ class JournalTableData extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -9853,6 +11408,8 @@ class JournalTableData extends DataClass
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -9869,7 +11426,9 @@ class JournalTableData extends DataClass
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class JournalsCompanion extends UpdateCompanion<JournalTableData> {
@@ -9885,6 +11444,8 @@ class JournalsCompanion extends UpdateCompanion<JournalTableData> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const JournalsCompanion({
     this.id = const Value.absent(),
@@ -9899,6 +11460,8 @@ class JournalsCompanion extends UpdateCompanion<JournalTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   JournalsCompanion.insert({
@@ -9914,6 +11477,8 @@ class JournalsCompanion extends UpdateCompanion<JournalTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        journalNumber = Value(journalNumber),
@@ -9931,6 +11496,8 @@ class JournalsCompanion extends UpdateCompanion<JournalTableData> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -9947,6 +11514,8 @@ class JournalsCompanion extends UpdateCompanion<JournalTableData> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -9964,6 +11533,8 @@ class JournalsCompanion extends UpdateCompanion<JournalTableData> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return JournalsCompanion(
@@ -9979,6 +11550,8 @@ class JournalsCompanion extends UpdateCompanion<JournalTableData> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -10024,6 +11597,12 @@ class JournalsCompanion extends UpdateCompanion<JournalTableData> {
         $JournalsTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -10045,6 +11624,8 @@ class JournalsCompanion extends UpdateCompanion<JournalTableData> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10201,6 +11782,30 @@ class $JournalLinesTable extends JournalLines
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($JournalLinesTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -10215,6 +11820,8 @@ class $JournalLinesTable extends JournalLines
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -10303,6 +11910,21 @@ class $JournalLinesTable extends JournalLines
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -10362,6 +11984,14 @@ class $JournalLinesTable extends JournalLines
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -10390,6 +12020,8 @@ class JournalLineTableData extends DataClass
   final DateTime updatedAt;
   final bool isDeleted;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const JournalLineTableData({
     required this.id,
     required this.companyId,
@@ -10403,6 +12035,8 @@ class JournalLineTableData extends DataClass
     required this.updatedAt,
     required this.isDeleted,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -10427,6 +12061,10 @@ class JournalLineTableData extends DataClass
         $JournalLinesTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -10448,6 +12086,10 @@ class JournalLineTableData extends DataClass
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -10471,6 +12113,8 @@ class JournalLineTableData extends DataClass
       syncStatus: $JournalLinesTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -10491,6 +12135,8 @@ class JournalLineTableData extends DataClass
       'syncStatus': serializer.toJson<String>(
         $JournalLinesTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -10507,6 +12153,8 @@ class JournalLineTableData extends DataClass
     DateTime? updatedAt,
     bool? isDeleted,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => JournalLineTableData(
     id: id ?? this.id,
     companyId: companyId ?? this.companyId,
@@ -10520,6 +12168,10 @@ class JournalLineTableData extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   JournalLineTableData copyWithCompanion(JournalLinesCompanion data) {
     return JournalLineTableData(
@@ -10541,6 +12193,10 @@ class JournalLineTableData extends DataClass
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -10558,7 +12214,9 @@ class JournalLineTableData extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -10577,6 +12235,8 @@ class JournalLineTableData extends DataClass
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -10593,7 +12253,9 @@ class JournalLineTableData extends DataClass
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
@@ -10609,6 +12271,8 @@ class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const JournalLinesCompanion({
     this.id = const Value.absent(),
@@ -10623,6 +12287,8 @@ class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   JournalLinesCompanion.insert({
@@ -10638,6 +12304,8 @@ class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        journalId = Value(journalId),
@@ -10655,6 +12323,8 @@ class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -10670,6 +12340,8 @@ class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -10687,6 +12359,8 @@ class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return JournalLinesCompanion(
@@ -10702,6 +12376,8 @@ class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -10747,6 +12423,12 @@ class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
         $JournalLinesTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -10768,6 +12450,8 @@ class JournalLinesCompanion extends UpdateCompanion<JournalLineTableData> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10925,6 +12609,30 @@ class $BudgetsTable extends Budgets
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($BudgetsTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -10939,6 +12647,8 @@ class $BudgetsTable extends Budgets
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -11034,6 +12744,21 @@ class $BudgetsTable extends Budgets
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -11093,6 +12818,14 @@ class $BudgetsTable extends Budgets
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -11120,6 +12853,8 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
   final DateTime updatedAt;
   final bool isDeleted;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const BudgetTableData({
     required this.id,
     required this.companyId,
@@ -11133,6 +12868,8 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
     required this.updatedAt,
     required this.isDeleted,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11153,6 +12890,10 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
         $BudgetsTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -11170,6 +12911,10 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -11193,6 +12938,8 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
       syncStatus: $BudgetsTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -11213,6 +12960,8 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
       'syncStatus': serializer.toJson<String>(
         $BudgetsTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -11229,6 +12978,8 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
     DateTime? updatedAt,
     bool? isDeleted,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => BudgetTableData(
     id: id ?? this.id,
     companyId: companyId ?? this.companyId,
@@ -11242,6 +12993,10 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   BudgetTableData copyWithCompanion(BudgetsCompanion data) {
     return BudgetTableData(
@@ -11267,6 +13022,10 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -11284,7 +13043,9 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -11303,6 +13064,8 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -11319,7 +13082,9 @@ class BudgetTableData extends DataClass implements Insertable<BudgetTableData> {
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
@@ -11335,6 +13100,8 @@ class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const BudgetsCompanion({
     this.id = const Value.absent(),
@@ -11349,6 +13116,8 @@ class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   BudgetsCompanion.insert({
@@ -11364,6 +13133,8 @@ class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        categoryAccountId = Value(categoryAccountId),
@@ -11383,6 +13154,8 @@ class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -11398,6 +13171,8 @@ class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -11415,6 +13190,8 @@ class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return BudgetsCompanion(
@@ -11430,6 +13207,8 @@ class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -11475,6 +13254,12 @@ class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
         $BudgetsTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -11496,6 +13281,8 @@ class BudgetsCompanion extends UpdateCompanion<BudgetTableData> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11649,6 +13436,30 @@ class $RecurringRulesTable extends RecurringRules
     requiredDuringInsert: false,
     defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($RecurringRulesTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -11663,6 +13474,8 @@ class $RecurringRulesTable extends RecurringRules
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -11759,6 +13572,21 @@ class $RecurringRulesTable extends RecurringRules
         isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
       );
     }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -11818,6 +13646,14 @@ class $RecurringRulesTable extends RecurringRules
           data['${effectivePrefix}sync_status'],
         )!,
       ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
     );
   }
 
@@ -11846,6 +13682,8 @@ class RecurringRuleTableData extends DataClass
   final DateTime updatedAt;
   final bool isDeleted;
   final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
   const RecurringRuleTableData({
     required this.id,
     required this.companyId,
@@ -11859,6 +13697,8 @@ class RecurringRuleTableData extends DataClass
     required this.updatedAt,
     required this.isDeleted,
     required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11881,6 +13721,10 @@ class RecurringRuleTableData extends DataClass
         $RecurringRulesTable.$convertersyncStatus.toSql(syncStatus),
       );
     }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
     return map;
   }
 
@@ -11900,6 +13744,10 @@ class RecurringRuleTableData extends DataClass
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
       syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
     );
   }
 
@@ -11923,6 +13771,8 @@ class RecurringRuleTableData extends DataClass
       syncStatus: $RecurringRulesTable.$convertersyncStatus.fromJson(
         serializer.fromJson<String>(json['syncStatus']),
       ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
     );
   }
   @override
@@ -11943,6 +13793,8 @@ class RecurringRuleTableData extends DataClass
       'syncStatus': serializer.toJson<String>(
         $RecurringRulesTable.$convertersyncStatus.toJson(syncStatus),
       ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
     };
   }
 
@@ -11959,6 +13811,8 @@ class RecurringRuleTableData extends DataClass
     DateTime? updatedAt,
     bool? isDeleted,
     SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => RecurringRuleTableData(
     id: id ?? this.id,
     companyId: companyId ?? this.companyId,
@@ -11972,6 +13826,10 @@ class RecurringRuleTableData extends DataClass
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
     syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
   );
   RecurringRuleTableData copyWithCompanion(RecurringRulesCompanion data) {
     return RecurringRuleTableData(
@@ -11997,6 +13855,10 @@ class RecurringRuleTableData extends DataClass
       syncStatus: data.syncStatus.present
           ? data.syncStatus.value
           : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
     );
   }
 
@@ -12014,7 +13876,9 @@ class RecurringRuleTableData extends DataClass
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('syncStatus: $syncStatus')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
           ..write(')'))
         .toString();
   }
@@ -12033,6 +13897,8 @@ class RecurringRuleTableData extends DataClass
     updatedAt,
     isDeleted,
     syncStatus,
+    revision,
+    remoteUpdatedAt,
   );
   @override
   bool operator ==(Object other) =>
@@ -12049,7 +13915,9 @@ class RecurringRuleTableData extends DataClass
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
-          other.syncStatus == this.syncStatus);
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
 }
 
 class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
@@ -12065,6 +13933,8 @@ class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
   final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const RecurringRulesCompanion({
     this.id = const Value.absent(),
@@ -12079,6 +13949,8 @@ class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   RecurringRulesCompanion.insert({
@@ -12094,6 +13966,8 @@ class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        templateJson = Value(templateJson),
@@ -12112,6 +13986,8 @@ class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
     Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -12127,6 +14003,8 @@ class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -12144,6 +14022,8 @@ class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
     Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
     Value<int>? rowid,
   }) {
     return RecurringRulesCompanion(
@@ -12159,6 +14039,8 @@ class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
       syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -12204,6 +14086,12 @@ class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
         $RecurringRulesTable.$convertersyncStatus.toSql(syncStatus.value),
       );
     }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -12225,6 +14113,8 @@ class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -12240,14 +14130,47 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $LedgerEntriesTable ledgerEntries = $LedgerEntriesTable(this);
   late final $AuditLogsTable auditLogs = $AuditLogsTable(this);
   late final $SyncOutboxTable syncOutbox = $SyncOutboxTable(this);
+  late final $SyncStateTable syncState = $SyncStateTable(this);
   late final $InventoryItemsTable inventoryItems = $InventoryItemsTable(this);
   late final $StockLedgerTable stockLedger = $StockLedgerTable(this);
-  late final $VouchersTable vouchers = $VouchersTable(this);
   late final $AccountsTable accounts = $AccountsTable(this);
+  late final $VouchersTable vouchers = $VouchersTable(this);
   late final $JournalsTable journals = $JournalsTable(this);
   late final $JournalLinesTable journalLines = $JournalLinesTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $RecurringRulesTable recurringRules = $RecurringRulesTable(this);
+  late final Index partiesCompanyIdx = Index(
+    'parties_company_idx',
+    'CREATE INDEX parties_company_idx ON parties (company_id)',
+  );
+  late final Index ledgerEntriesCompanyPartyDateIdx = Index(
+    'ledger_entries_company_party_date_idx',
+    'CREATE INDEX ledger_entries_company_party_date_idx ON ledger_entries (company_id, party_id, date)',
+  );
+  late final Index syncOutboxTableRecordIdx = Index(
+    'sync_outbox_table_record_idx',
+    'CREATE UNIQUE INDEX sync_outbox_table_record_idx ON sync_outbox (table_name, record_id)',
+  );
+  late final Index vouchersCompanyDateIdx = Index(
+    'vouchers_company_date_idx',
+    'CREATE INDEX vouchers_company_date_idx ON vouchers (company_id, date)',
+  );
+  late final Index vouchersCompanyTypeStatusIdx = Index(
+    'vouchers_company_type_status_idx',
+    'CREATE INDEX vouchers_company_type_status_idx ON vouchers (company_id, type, status)',
+  );
+  late final Index accountsCompanyKindIdx = Index(
+    'accounts_company_kind_idx',
+    'CREATE INDEX accounts_company_kind_idx ON accounts (company_id, kind)',
+  );
+  late final Index journalLinesJournalIdx = Index(
+    'journal_lines_journal_idx',
+    'CREATE INDEX journal_lines_journal_idx ON journal_lines (journal_id)',
+  );
+  late final Index journalLinesAccountIdx = Index(
+    'journal_lines_account_idx',
+    'CREATE INDEX journal_lines_account_idx ON journal_lines (account_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -12259,14 +14182,23 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     ledgerEntries,
     auditLogs,
     syncOutbox,
+    syncState,
     inventoryItems,
     stockLedger,
-    vouchers,
     accounts,
+    vouchers,
     journals,
     journalLines,
     budgets,
     recurringRules,
+    partiesCompanyIdx,
+    ledgerEntriesCompanyPartyDateIdx,
+    syncOutboxTableRecordIdx,
+    vouchersCompanyDateIdx,
+    vouchersCompanyTypeStatusIdx,
+    accountsCompanyKindIdx,
+    journalLinesJournalIdx,
+    journalLinesAccountIdx,
   ];
 }
 
@@ -12298,6 +14230,9 @@ typedef $$CompaniesTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String?> ownerId,
       Value<int> rowid,
     });
 typedef $$CompaniesTableUpdateCompanionBuilder =
@@ -12328,8 +14263,52 @@ typedef $$CompaniesTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<String?> ownerId,
       Value<int> rowid,
     });
+
+final class $$CompaniesTableReferences
+    extends BaseReferences<_$AppDatabase, $CompaniesTable, CompanyTableData> {
+  $$CompaniesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$PartiesTable, List<PartyTableData>>
+  _partiesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.parties,
+    aliasName: 'companies__id__parties__company_id',
+  );
+
+  $$PartiesTableProcessedTableManager get partiesRefs {
+    final manager = $$PartiesTableTableManager(
+      $_db,
+      $_db.parties,
+    ).filter((f) => f.companyId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_partiesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$LedgerEntriesTable, List<LedgerEntryTableData>>
+  _ledgerEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.ledgerEntries,
+    aliasName: 'companies__id__ledger_entries__company_id',
+  );
+
+  $$LedgerEntriesTableProcessedTableManager get ledgerEntriesRefs {
+    final manager = $$LedgerEntriesTableTableManager(
+      $_db,
+      $_db.ledgerEntries,
+    ).filter((f) => f.companyId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_ledgerEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
 
 class $$CompaniesTableFilterComposer
     extends Composer<_$AppDatabase, $CompaniesTable> {
@@ -12470,6 +14449,71 @@ class $$CompaniesTableFilterComposer
     column: $table.syncStatus,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> partiesRefs(
+    Expression<bool> Function($$PartiesTableFilterComposer f) f,
+  ) {
+    final $$PartiesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.parties,
+      getReferencedColumn: (t) => t.companyId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PartiesTableFilterComposer(
+            $db: $db,
+            $table: $db.parties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> ledgerEntriesRefs(
+    Expression<bool> Function($$LedgerEntriesTableFilterComposer f) f,
+  ) {
+    final $$LedgerEntriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.ledgerEntries,
+      getReferencedColumn: (t) => t.companyId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LedgerEntriesTableFilterComposer(
+            $db: $db,
+            $table: $db.ledgerEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$CompaniesTableOrderingComposer
@@ -12610,6 +14654,21 @@ class $$CompaniesTableOrderingComposer
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$CompaniesTableAnnotationComposer
@@ -12719,6 +14778,67 @@ class $$CompaniesTableAnnotationComposer
         column: $table.syncStatus,
         builder: (column) => column,
       );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  Expression<T> partiesRefs<T extends Object>(
+    Expression<T> Function($$PartiesTableAnnotationComposer a) f,
+  ) {
+    final $$PartiesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.parties,
+      getReferencedColumn: (t) => t.companyId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PartiesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.parties,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> ledgerEntriesRefs<T extends Object>(
+    Expression<T> Function($$LedgerEntriesTableAnnotationComposer a) f,
+  ) {
+    final $$LedgerEntriesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.ledgerEntries,
+      getReferencedColumn: (t) => t.companyId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LedgerEntriesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.ledgerEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$CompaniesTableTableManager
@@ -12732,12 +14852,9 @@ class $$CompaniesTableTableManager
           $$CompaniesTableAnnotationComposer,
           $$CompaniesTableCreateCompanionBuilder,
           $$CompaniesTableUpdateCompanionBuilder,
-          (
-            CompanyTableData,
-            BaseReferences<_$AppDatabase, $CompaniesTable, CompanyTableData>,
-          ),
+          (CompanyTableData, $$CompaniesTableReferences),
           CompanyTableData,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool partiesRefs, bool ledgerEntriesRefs})
         > {
   $$CompaniesTableTableManager(_$AppDatabase db, $CompaniesTable table)
     : super(
@@ -12778,6 +14895,9 @@ class $$CompaniesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String?> ownerId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CompaniesCompanion(
                 id: id,
@@ -12806,6 +14926,9 @@ class $$CompaniesTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                ownerId: ownerId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -12836,6 +14959,9 @@ class $$CompaniesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<String?> ownerId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CompaniesCompanion.insert(
                 id: id,
@@ -12864,12 +14990,76 @@ class $$CompaniesTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                ownerId: ownerId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$CompaniesTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback:
+              ({partiesRefs = false, ledgerEntriesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (partiesRefs) db.parties,
+                    if (ledgerEntriesRefs) db.ledgerEntries,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (partiesRefs)
+                        await $_getPrefetchedData<
+                          CompanyTableData,
+                          $CompaniesTable,
+                          PartyTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CompaniesTableReferences
+                              ._partiesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CompaniesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).partiesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.companyId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (ledgerEntriesRefs)
+                        await $_getPrefetchedData<
+                          CompanyTableData,
+                          $CompaniesTable,
+                          LedgerEntryTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CompaniesTableReferences
+                              ._ledgerEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CompaniesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).ledgerEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.companyId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
         ),
       );
 }
@@ -12884,12 +15074,9 @@ typedef $$CompaniesTableProcessedTableManager =
       $$CompaniesTableAnnotationComposer,
       $$CompaniesTableCreateCompanionBuilder,
       $$CompaniesTableUpdateCompanionBuilder,
-      (
-        CompanyTableData,
-        BaseReferences<_$AppDatabase, $CompaniesTable, CompanyTableData>,
-      ),
+      (CompanyTableData, $$CompaniesTableReferences),
       CompanyTableData,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool partiesRefs, bool ledgerEntriesRefs})
     >;
 typedef $$UserProfilesTableCreateCompanionBuilder =
     UserProfilesCompanion Function({
@@ -12912,6 +15099,8 @@ typedef $$UserProfilesTableCreateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$UserProfilesTableUpdateCompanionBuilder =
@@ -12935,6 +15124,8 @@ typedef $$UserProfilesTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 
@@ -13042,6 +15233,16 @@ class $$UserProfilesTableFilterComposer
     column: $table.syncStatus,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$UserProfilesTableOrderingComposer
@@ -13147,6 +15348,16 @@ class $$UserProfilesTableOrderingComposer
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$UserProfilesTableAnnotationComposer
@@ -13229,6 +15440,14 @@ class $$UserProfilesTableAnnotationComposer
         column: $table.syncStatus,
         builder: (column) => column,
       );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$UserProfilesTableTableManager
@@ -13285,6 +15504,8 @@ class $$UserProfilesTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UserProfilesCompanion(
                 id: id,
@@ -13306,6 +15527,8 @@ class $$UserProfilesTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -13329,6 +15552,8 @@ class $$UserProfilesTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => UserProfilesCompanion.insert(
                 id: id,
@@ -13350,6 +15575,8 @@ class $$UserProfilesTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -13389,6 +15616,8 @@ typedef $$PartiesTableCreateCompanionBuilder =
       Value<bool> isDeleted,
       Value<DateTime> updatedAt,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$PartiesTableUpdateCompanionBuilder =
@@ -13403,12 +15632,31 @@ typedef $$PartiesTableUpdateCompanionBuilder =
       Value<bool> isDeleted,
       Value<DateTime> updatedAt,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 
 final class $$PartiesTableReferences
     extends BaseReferences<_$AppDatabase, $PartiesTable, PartyTableData> {
   $$PartiesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $CompaniesTable _companyIdTable(_$AppDatabase db) =>
+      db.companies.createAlias('parties__company_id__companies__id');
+
+  $$CompaniesTableProcessedTableManager get companyId {
+    final $_column = $_itemColumn<String>('company_id')!;
+
+    final manager = $$CompaniesTableTableManager(
+      $_db,
+      $_db.companies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_companyIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
 
   static MultiTypedResultKey<$LedgerEntriesTable, List<LedgerEntryTableData>>
   _ledgerEntriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
@@ -13440,11 +15688,6 @@ class $$PartiesTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get companyId => $composableBuilder(
-    column: $table.companyId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13490,6 +15733,39 @@ class $$PartiesTableFilterComposer
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CompaniesTableFilterComposer get companyId {
+    final $$CompaniesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.companyId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableFilterComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   Expression<bool> ledgerEntriesRefs(
     Expression<bool> Function($$LedgerEntriesTableFilterComposer f) f,
   ) {
@@ -13527,11 +15803,6 @@ class $$PartiesTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get companyId => $composableBuilder(
-    column: $table.companyId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -13574,6 +15845,39 @@ class $$PartiesTableOrderingComposer
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CompaniesTableOrderingComposer get companyId {
+    final $$CompaniesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.companyId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableOrderingComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PartiesTableAnnotationComposer
@@ -13587,9 +15891,6 @@ class $$PartiesTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get companyId =>
-      $composableBuilder(column: $table.companyId, builder: (column) => column);
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -13623,6 +15924,37 @@ class $$PartiesTableAnnotationComposer
         column: $table.syncStatus,
         builder: (column) => column,
       );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  $$CompaniesTableAnnotationComposer get companyId {
+    final $$CompaniesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.companyId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 
   Expression<T> ledgerEntriesRefs<T extends Object>(
     Expression<T> Function($$LedgerEntriesTableAnnotationComposer a) f,
@@ -13663,7 +15995,7 @@ class $$PartiesTableTableManager
           $$PartiesTableUpdateCompanionBuilder,
           (PartyTableData, $$PartiesTableReferences),
           PartyTableData,
-          PrefetchHooks Function({bool ledgerEntriesRefs})
+          PrefetchHooks Function({bool companyId, bool ledgerEntriesRefs})
         > {
   $$PartiesTableTableManager(_$AppDatabase db, $PartiesTable table)
     : super(
@@ -13688,6 +16020,8 @@ class $$PartiesTableTableManager
                 Value<bool> isDeleted = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PartiesCompanion(
                 id: id,
@@ -13700,6 +16034,8 @@ class $$PartiesTableTableManager
                 isDeleted: isDeleted,
                 updatedAt: updatedAt,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -13714,6 +16050,8 @@ class $$PartiesTableTableManager
                 Value<bool> isDeleted = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PartiesCompanion.insert(
                 id: id,
@@ -13726,6 +16064,8 @@ class $$PartiesTableTableManager
                 isDeleted: isDeleted,
                 updatedAt: updatedAt,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -13736,37 +16076,72 @@ class $$PartiesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({ledgerEntriesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (ledgerEntriesRefs) db.ledgerEntries,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (ledgerEntriesRefs)
-                    await $_getPrefetchedData<
-                      PartyTableData,
-                      $PartiesTable,
-                      LedgerEntryTableData
-                    >(
-                      currentTable: table,
-                      referencedTable: $$PartiesTableReferences
-                          ._ledgerEntriesRefsTable(db),
-                      managerFromTypedResult: (p0) => $$PartiesTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).ledgerEntriesRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.partyId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({companyId = false, ledgerEntriesRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (ledgerEntriesRefs) db.ledgerEntries,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (companyId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.companyId,
+                                    referencedTable: $$PartiesTableReferences
+                                        ._companyIdTable(db),
+                                    referencedColumn: $$PartiesTableReferences
+                                        ._companyIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (ledgerEntriesRefs)
+                        await $_getPrefetchedData<
+                          PartyTableData,
+                          $PartiesTable,
+                          LedgerEntryTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PartiesTableReferences
+                              ._ledgerEntriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PartiesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).ledgerEntriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.partyId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -13783,7 +16158,7 @@ typedef $$PartiesTableProcessedTableManager =
       $$PartiesTableUpdateCompanionBuilder,
       (PartyTableData, $$PartiesTableReferences),
       PartyTableData,
-      PrefetchHooks Function({bool ledgerEntriesRefs})
+      PrefetchHooks Function({bool companyId, bool ledgerEntriesRefs})
     >;
 typedef $$LedgerEntriesTableCreateCompanionBuilder =
     LedgerEntriesCompanion Function({
@@ -13800,6 +16175,8 @@ typedef $$LedgerEntriesTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$LedgerEntriesTableUpdateCompanionBuilder =
@@ -13817,6 +16194,8 @@ typedef $$LedgerEntriesTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 
@@ -13832,6 +16211,23 @@ final class $$LedgerEntriesTableReferences
     super.$_table,
     super.$_typedResult,
   );
+
+  static $CompaniesTable _companyIdTable(_$AppDatabase db) =>
+      db.companies.createAlias('ledger_entries__company_id__companies__id');
+
+  $$CompaniesTableProcessedTableManager get companyId {
+    final $_column = $_itemColumn<String>('company_id')!;
+
+    final manager = $$CompaniesTableTableManager(
+      $_db,
+      $_db.companies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_companyIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
 
   static $PartiesTable _partyIdTable(_$AppDatabase db) =>
       db.parties.createAlias('ledger_entries__party_id__parties__id');
@@ -13862,11 +16258,6 @@ class $$LedgerEntriesTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get companyId => $composableBuilder(
-    column: $table.companyId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -13922,6 +16313,39 @@ class $$LedgerEntriesTableFilterComposer
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CompaniesTableFilterComposer get companyId {
+    final $$CompaniesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.companyId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableFilterComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   $$PartiesTableFilterComposer get partyId {
     final $$PartiesTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -13957,11 +16381,6 @@ class $$LedgerEntriesTableOrderingComposer
   });
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get companyId => $composableBuilder(
-    column: $table.companyId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -14015,6 +16434,39 @@ class $$LedgerEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CompaniesTableOrderingComposer get companyId {
+    final $$CompaniesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.companyId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableOrderingComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   $$PartiesTableOrderingComposer get partyId {
     final $$PartiesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -14050,9 +16502,6 @@ class $$LedgerEntriesTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get companyId =>
-      $composableBuilder(column: $table.companyId, builder: (column) => column);
 
   GeneratedColumn<int> get amountInCents => $composableBuilder(
     column: $table.amountInCents,
@@ -14091,6 +16540,37 @@ class $$LedgerEntriesTableAnnotationComposer
         builder: (column) => column,
       );
 
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  $$CompaniesTableAnnotationComposer get companyId {
+    final $$CompaniesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.companyId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
   $$PartiesTableAnnotationComposer get partyId {
     final $$PartiesTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -14128,7 +16608,7 @@ class $$LedgerEntriesTableTableManager
           $$LedgerEntriesTableUpdateCompanionBuilder,
           (LedgerEntryTableData, $$LedgerEntriesTableReferences),
           LedgerEntryTableData,
-          PrefetchHooks Function({bool partyId})
+          PrefetchHooks Function({bool companyId, bool partyId})
         > {
   $$LedgerEntriesTableTableManager(_$AppDatabase db, $LedgerEntriesTable table)
     : super(
@@ -14156,6 +16636,8 @@ class $$LedgerEntriesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LedgerEntriesCompanion(
                 id: id,
@@ -14171,6 +16653,8 @@ class $$LedgerEntriesTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -14188,6 +16672,8 @@ class $$LedgerEntriesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LedgerEntriesCompanion.insert(
                 id: id,
@@ -14203,6 +16689,8 @@ class $$LedgerEntriesTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -14213,7 +16701,7 @@ class $$LedgerEntriesTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({partyId = false}) {
+          prefetchHooksCallback: ({companyId = false, partyId = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -14233,6 +16721,19 @@ class $$LedgerEntriesTableTableManager
                       dynamic
                     >
                   >(state) {
+                    if (companyId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.companyId,
+                                referencedTable: $$LedgerEntriesTableReferences
+                                    ._companyIdTable(db),
+                                referencedColumn: $$LedgerEntriesTableReferences
+                                    ._companyIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
                     if (partyId) {
                       state =
                           state.withJoin(
@@ -14270,7 +16771,7 @@ typedef $$LedgerEntriesTableProcessedTableManager =
       $$LedgerEntriesTableUpdateCompanionBuilder,
       (LedgerEntryTableData, $$LedgerEntriesTableReferences),
       LedgerEntryTableData,
-      PrefetchHooks Function({bool partyId})
+      PrefetchHooks Function({bool companyId, bool partyId})
     >;
 typedef $$AuditLogsTableCreateCompanionBuilder =
     AuditLogsCompanion Function({
@@ -14289,6 +16790,8 @@ typedef $$AuditLogsTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$AuditLogsTableUpdateCompanionBuilder =
@@ -14308,6 +16811,8 @@ typedef $$AuditLogsTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 
@@ -14395,6 +16900,16 @@ class $$AuditLogsTableFilterComposer
     column: $table.syncStatus,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$AuditLogsTableOrderingComposer
@@ -14480,6 +16995,16 @@ class $$AuditLogsTableOrderingComposer
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AuditLogsTableAnnotationComposer
@@ -14546,6 +17071,14 @@ class $$AuditLogsTableAnnotationComposer
         column: $table.syncStatus,
         builder: (column) => column,
       );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$AuditLogsTableTableManager
@@ -14594,6 +17127,8 @@ class $$AuditLogsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AuditLogsCompanion(
                 id: id,
@@ -14611,6 +17146,8 @@ class $$AuditLogsTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -14630,6 +17167,8 @@ class $$AuditLogsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => AuditLogsCompanion.insert(
                 id: id,
@@ -14647,6 +17186,8 @@ class $$AuditLogsTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -14681,6 +17222,9 @@ typedef $$SyncOutboxTableCreateCompanionBuilder =
       required String recordId,
       required String mutationType,
       required String payload,
+      Value<int> attempts,
+      Value<String?> lastError,
+      Value<DateTime?> nextAttemptAt,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -14691,6 +17235,9 @@ typedef $$SyncOutboxTableUpdateCompanionBuilder =
       Value<String> recordId,
       Value<String> mutationType,
       Value<String> payload,
+      Value<int> attempts,
+      Value<String?> lastError,
+      Value<DateTime?> nextAttemptAt,
       Value<DateTime> createdAt,
       Value<int> rowid,
     });
@@ -14726,6 +17273,21 @@ class $$SyncOutboxTableFilterComposer
 
   ColumnFilters<String> get payload => $composableBuilder(
     column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get attempts => $composableBuilder(
+    column: $table.attempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lastError => $composableBuilder(
+    column: $table.lastError,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextAttemptAt => $composableBuilder(
+    column: $table.nextAttemptAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14769,6 +17331,21 @@ class $$SyncOutboxTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get attempts => $composableBuilder(
+    column: $table.attempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get lastError => $composableBuilder(
+    column: $table.lastError,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextAttemptAt => $composableBuilder(
+    column: $table.nextAttemptAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -14802,6 +17379,17 @@ class $$SyncOutboxTableAnnotationComposer
 
   GeneratedColumn<String> get payload =>
       $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<int> get attempts =>
+      $composableBuilder(column: $table.attempts, builder: (column) => column);
+
+  GeneratedColumn<String> get lastError =>
+      $composableBuilder(column: $table.lastError, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get nextAttemptAt => $composableBuilder(
+    column: $table.nextAttemptAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -14847,6 +17435,9 @@ class $$SyncOutboxTableTableManager
                 Value<String> recordId = const Value.absent(),
                 Value<String> mutationType = const Value.absent(),
                 Value<String> payload = const Value.absent(),
+                Value<int> attempts = const Value.absent(),
+                Value<String?> lastError = const Value.absent(),
+                Value<DateTime?> nextAttemptAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncOutboxCompanion(
@@ -14855,6 +17446,9 @@ class $$SyncOutboxTableTableManager
                 recordId: recordId,
                 mutationType: mutationType,
                 payload: payload,
+                attempts: attempts,
+                lastError: lastError,
+                nextAttemptAt: nextAttemptAt,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -14865,6 +17459,9 @@ class $$SyncOutboxTableTableManager
                 required String recordId,
                 required String mutationType,
                 required String payload,
+                Value<int> attempts = const Value.absent(),
+                Value<String?> lastError = const Value.absent(),
+                Value<DateTime?> nextAttemptAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SyncOutboxCompanion.insert(
@@ -14873,6 +17470,9 @@ class $$SyncOutboxTableTableManager
                 recordId: recordId,
                 mutationType: mutationType,
                 payload: payload,
+                attempts: attempts,
+                lastError: lastError,
+                nextAttemptAt: nextAttemptAt,
                 createdAt: createdAt,
                 rowid: rowid,
               ),
@@ -14901,6 +17501,172 @@ typedef $$SyncOutboxTableProcessedTableManager =
       SyncOutboxTableData,
       PrefetchHooks Function()
     >;
+typedef $$SyncStateTableCreateCompanionBuilder =
+    SyncStateCompanion Function({
+      required String targetTable,
+      required String companyId,
+      Value<DateTime?> lastPulledAt,
+      Value<int> rowid,
+    });
+typedef $$SyncStateTableUpdateCompanionBuilder =
+    SyncStateCompanion Function({
+      Value<String> targetTable,
+      Value<String> companyId,
+      Value<DateTime?> lastPulledAt,
+      Value<int> rowid,
+    });
+
+class $$SyncStateTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncStateTable> {
+  $$SyncStateTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get targetTable => $composableBuilder(
+    column: $table.targetTable,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SyncStateTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncStateTable> {
+  $$SyncStateTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get targetTable => $composableBuilder(
+    column: $table.targetTable,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SyncStateTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncStateTable> {
+  $$SyncStateTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get targetTable => $composableBuilder(
+    column: $table.targetTable,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get companyId =>
+      $composableBuilder(column: $table.companyId, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastPulledAt => $composableBuilder(
+    column: $table.lastPulledAt,
+    builder: (column) => column,
+  );
+}
+
+class $$SyncStateTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SyncStateTable,
+          SyncStateTableData,
+          $$SyncStateTableFilterComposer,
+          $$SyncStateTableOrderingComposer,
+          $$SyncStateTableAnnotationComposer,
+          $$SyncStateTableCreateCompanionBuilder,
+          $$SyncStateTableUpdateCompanionBuilder,
+          (
+            SyncStateTableData,
+            BaseReferences<_$AppDatabase, $SyncStateTable, SyncStateTableData>,
+          ),
+          SyncStateTableData,
+          PrefetchHooks Function()
+        > {
+  $$SyncStateTableTableManager(_$AppDatabase db, $SyncStateTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncStateTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncStateTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncStateTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> targetTable = const Value.absent(),
+                Value<String> companyId = const Value.absent(),
+                Value<DateTime?> lastPulledAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncStateCompanion(
+                targetTable: targetTable,
+                companyId: companyId,
+                lastPulledAt: lastPulledAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String targetTable,
+                required String companyId,
+                Value<DateTime?> lastPulledAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SyncStateCompanion.insert(
+                targetTable: targetTable,
+                companyId: companyId,
+                lastPulledAt: lastPulledAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SyncStateTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SyncStateTable,
+      SyncStateTableData,
+      $$SyncStateTableFilterComposer,
+      $$SyncStateTableOrderingComposer,
+      $$SyncStateTableAnnotationComposer,
+      $$SyncStateTableCreateCompanionBuilder,
+      $$SyncStateTableUpdateCompanionBuilder,
+      (
+        SyncStateTableData,
+        BaseReferences<_$AppDatabase, $SyncStateTable, SyncStateTableData>,
+      ),
+      SyncStateTableData,
+      PrefetchHooks Function()
+    >;
 typedef $$InventoryItemsTableCreateCompanionBuilder =
     InventoryItemsCompanion Function({
       required String id,
@@ -14920,6 +17686,8 @@ typedef $$InventoryItemsTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$InventoryItemsTableUpdateCompanionBuilder =
@@ -14941,6 +17709,8 @@ typedef $$InventoryItemsTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 
@@ -15071,6 +17841,16 @@ class $$InventoryItemsTableFilterComposer
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> stockLedgerRefs(
     Expression<bool> Function($$StockLedgerTableFilterComposer f) f,
   ) {
@@ -15190,6 +17970,16 @@ class $$InventoryItemsTableOrderingComposer
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$InventoryItemsTableAnnotationComposer
@@ -15267,6 +18057,14 @@ class $$InventoryItemsTableAnnotationComposer
         builder: (column) => column,
       );
 
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
   Expression<T> stockLedgerRefs<T extends Object>(
     Expression<T> Function($$StockLedgerTableAnnotationComposer a) f,
   ) {
@@ -15340,6 +18138,8 @@ class $$InventoryItemsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => InventoryItemsCompanion(
                 id: id,
@@ -15359,6 +18159,8 @@ class $$InventoryItemsTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -15380,6 +18182,8 @@ class $$InventoryItemsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => InventoryItemsCompanion.insert(
                 id: id,
@@ -15399,6 +18203,8 @@ class $$InventoryItemsTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -15474,6 +18280,8 @@ typedef $$StockLedgerTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$StockLedgerTableUpdateCompanionBuilder =
@@ -15493,6 +18301,8 @@ typedef $$StockLedgerTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 
@@ -15600,6 +18410,16 @@ class $$StockLedgerTableFilterComposer
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   $$InventoryItemsTableFilterComposer get itemId {
     final $$InventoryItemsTableFilterComposer composer = $composerBuilder(
       composer: this,
@@ -15703,6 +18523,16 @@ class $$StockLedgerTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$InventoryItemsTableOrderingComposer get itemId {
     final $$InventoryItemsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -15789,6 +18619,14 @@ class $$StockLedgerTableAnnotationComposer
         builder: (column) => column,
       );
 
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
   $$InventoryItemsTableAnnotationComposer get itemId {
     final $$InventoryItemsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -15856,6 +18694,8 @@ class $$StockLedgerTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => StockLedgerCompanion(
                 id: id,
@@ -15873,6 +18713,8 @@ class $$StockLedgerTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -15892,6 +18734,8 @@ class $$StockLedgerTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => StockLedgerCompanion.insert(
                 id: id,
@@ -15909,6 +18753,8 @@ class $$StockLedgerTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -15978,6 +18824,546 @@ typedef $$StockLedgerTableProcessedTableManager =
       StockLedgerTableData,
       PrefetchHooks Function({bool itemId})
     >;
+typedef $$AccountsTableCreateCompanionBuilder =
+    AccountsCompanion Function({
+      required String id,
+      Value<String> companyId,
+      required String code,
+      required String name,
+      required String type,
+      Value<String> kind,
+      Value<String?> parentAccountId,
+      Value<bool> isSystem,
+      Value<bool> isActive,
+      Value<String?> description,
+      Value<int> currentBalanceInCents,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+typedef $$AccountsTableUpdateCompanionBuilder =
+    AccountsCompanion Function({
+      Value<String> id,
+      Value<String> companyId,
+      Value<String> code,
+      Value<String> name,
+      Value<String> type,
+      Value<String> kind,
+      Value<String?> parentAccountId,
+      Value<bool> isSystem,
+      Value<bool> isActive,
+      Value<String?> description,
+      Value<int> currentBalanceInCents,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+
+final class $$AccountsTableReferences
+    extends BaseReferences<_$AppDatabase, $AccountsTable, AccountTableData> {
+  $$AccountsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$JournalLinesTable, List<JournalLineTableData>>
+  _journalLinesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.journalLines,
+    aliasName: 'accounts__id__journal_lines__account_id',
+  );
+
+  $$JournalLinesTableProcessedTableManager get journalLinesRefs {
+    final manager = $$JournalLinesTableTableManager(
+      $_db,
+      $_db.journalLines,
+    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_journalLinesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$AccountsTableFilterComposer
+    extends Composer<_$AppDatabase, $AccountsTable> {
+  $$AccountsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentAccountId => $composableBuilder(
+    column: $table.parentAccountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSystem => $composableBuilder(
+    column: $table.isSystem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get currentBalanceInCents => $composableBuilder(
+    column: $table.currentBalanceInCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> journalLinesRefs(
+    Expression<bool> Function($$JournalLinesTableFilterComposer f) f,
+  ) {
+    final $$JournalLinesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journalLines,
+      getReferencedColumn: (t) => t.accountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournalLinesTableFilterComposer(
+            $db: $db,
+            $table: $db.journalLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$AccountsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AccountsTable> {
+  $$AccountsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get companyId => $composableBuilder(
+    column: $table.companyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get code => $composableBuilder(
+    column: $table.code,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentAccountId => $composableBuilder(
+    column: $table.parentAccountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSystem => $composableBuilder(
+    column: $table.isSystem,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get currentBalanceInCents => $composableBuilder(
+    column: $table.currentBalanceInCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$AccountsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AccountsTable> {
+  $$AccountsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get companyId =>
+      $composableBuilder(column: $table.companyId, builder: (column) => column);
+
+  GeneratedColumn<String> get code =>
+      $composableBuilder(column: $table.code, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<String> get parentAccountId => $composableBuilder(
+    column: $table.parentAccountId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isSystem =>
+      $composableBuilder(column: $table.isSystem, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get currentBalanceInCents => $composableBuilder(
+    column: $table.currentBalanceInCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  Expression<T> journalLinesRefs<T extends Object>(
+    Expression<T> Function($$JournalLinesTableAnnotationComposer a) f,
+  ) {
+    final $$JournalLinesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.journalLines,
+      getReferencedColumn: (t) => t.accountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$JournalLinesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.journalLines,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$AccountsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $AccountsTable,
+          AccountTableData,
+          $$AccountsTableFilterComposer,
+          $$AccountsTableOrderingComposer,
+          $$AccountsTableAnnotationComposer,
+          $$AccountsTableCreateCompanionBuilder,
+          $$AccountsTableUpdateCompanionBuilder,
+          (AccountTableData, $$AccountsTableReferences),
+          AccountTableData,
+          PrefetchHooks Function({bool journalLinesRefs})
+        > {
+  $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AccountsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AccountsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AccountsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> companyId = const Value.absent(),
+                Value<String> code = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> type = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<String?> parentAccountId = const Value.absent(),
+                Value<bool> isSystem = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<int> currentBalanceInCents = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AccountsCompanion(
+                id: id,
+                companyId: companyId,
+                code: code,
+                name: name,
+                type: type,
+                kind: kind,
+                parentAccountId: parentAccountId,
+                isSystem: isSystem,
+                isActive: isActive,
+                description: description,
+                currentBalanceInCents: currentBalanceInCents,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String> companyId = const Value.absent(),
+                required String code,
+                required String name,
+                required String type,
+                Value<String> kind = const Value.absent(),
+                Value<String?> parentAccountId = const Value.absent(),
+                Value<bool> isSystem = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<int> currentBalanceInCents = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => AccountsCompanion.insert(
+                id: id,
+                companyId: companyId,
+                code: code,
+                name: name,
+                type: type,
+                kind: kind,
+                parentAccountId: parentAccountId,
+                isSystem: isSystem,
+                isActive: isActive,
+                description: description,
+                currentBalanceInCents: currentBalanceInCents,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$AccountsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({journalLinesRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (journalLinesRefs) db.journalLines],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (journalLinesRefs)
+                    await $_getPrefetchedData<
+                      AccountTableData,
+                      $AccountsTable,
+                      JournalLineTableData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$AccountsTableReferences
+                          ._journalLinesRefsTable(db),
+                      managerFromTypedResult: (p0) => $$AccountsTableReferences(
+                        db,
+                        table,
+                        p0,
+                      ).journalLinesRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.accountId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$AccountsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $AccountsTable,
+      AccountTableData,
+      $$AccountsTableFilterComposer,
+      $$AccountsTableOrderingComposer,
+      $$AccountsTableAnnotationComposer,
+      $$AccountsTableCreateCompanionBuilder,
+      $$AccountsTableUpdateCompanionBuilder,
+      (AccountTableData, $$AccountsTableReferences),
+      AccountTableData,
+      PrefetchHooks Function({bool journalLinesRefs})
+    >;
 typedef $$VouchersTableCreateCompanionBuilder =
     VouchersCompanion Function({
       required String id,
@@ -16006,6 +19392,8 @@ typedef $$VouchersTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$VouchersTableUpdateCompanionBuilder =
@@ -16036,8 +19424,66 @@ typedef $$VouchersTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
+
+final class $$VouchersTableReferences
+    extends BaseReferences<_$AppDatabase, $VouchersTable, VoucherTableData> {
+  $$VouchersTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $AccountsTable _categoryAccountIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias('vouchers__category_account_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager? get categoryAccountId {
+    final $_column = $_itemColumn<String>('category_account_id');
+    if ($_column == null) return null;
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryAccountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $AccountsTable _walletAccountIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias('vouchers__wallet_account_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager? get walletAccountId {
+    final $_column = $_itemColumn<String>('wallet_account_id');
+    if ($_column == null) return null;
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_walletAccountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $AccountsTable _toWalletAccountIdTable(_$AppDatabase db) =>
+      db.accounts.createAlias('vouchers__to_wallet_account_id__accounts__id');
+
+  $$AccountsTableProcessedTableManager? get toWalletAccountId {
+    final $_column = $_itemColumn<String>('to_wallet_account_id');
+    if ($_column == null) return null;
+    final manager = $$AccountsTableTableManager(
+      $_db,
+      $_db.accounts,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_toWalletAccountIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
 
 class $$VouchersTableFilterComposer
     extends Composer<_$AppDatabase, $VouchersTable> {
@@ -16143,21 +19589,6 @@ class $$VouchersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get categoryAccountId => $composableBuilder(
-    column: $table.categoryAccountId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get walletAccountId => $composableBuilder(
-    column: $table.walletAccountId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get toWalletAccountId => $composableBuilder(
-    column: $table.toWalletAccountId,
-    builder: (column) => ColumnFilters(column),
-  );
-
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
@@ -16178,6 +19609,85 @@ class $$VouchersTableFilterComposer
     column: $table.syncStatus,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$AccountsTableFilterComposer get categoryAccountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableFilterComposer get walletAccountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.walletAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableFilterComposer get toWalletAccountId {
+    final $$AccountsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.toWalletAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableFilterComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$VouchersTableOrderingComposer
@@ -16284,21 +19794,6 @@ class $$VouchersTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get categoryAccountId => $composableBuilder(
-    column: $table.categoryAccountId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get walletAccountId => $composableBuilder(
-    column: $table.walletAccountId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get toWalletAccountId => $composableBuilder(
-    column: $table.toWalletAccountId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -16318,6 +19813,85 @@ class $$VouchersTableOrderingComposer
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$AccountsTableOrderingComposer get categoryAccountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableOrderingComposer get walletAccountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.walletAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableOrderingComposer get toWalletAccountId {
+    final $$AccountsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.toWalletAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableOrderingComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$VouchersTableAnnotationComposer
@@ -16404,21 +19978,6 @@ class $$VouchersTableAnnotationComposer
   GeneratedColumn<String> get itemsJson =>
       $composableBuilder(column: $table.itemsJson, builder: (column) => column);
 
-  GeneratedColumn<String> get categoryAccountId => $composableBuilder(
-    column: $table.categoryAccountId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get walletAccountId => $composableBuilder(
-    column: $table.walletAccountId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<String> get toWalletAccountId => $composableBuilder(
-    column: $table.toWalletAccountId,
-    builder: (column) => column,
-  );
-
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -16433,6 +19992,83 @@ class $$VouchersTableAnnotationComposer
         column: $table.syncStatus,
         builder: (column) => column,
       );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  $$AccountsTableAnnotationComposer get categoryAccountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableAnnotationComposer get walletAccountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.walletAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$AccountsTableAnnotationComposer get toWalletAccountId {
+    final $$AccountsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.toWalletAccountId,
+      referencedTable: $db.accounts,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$AccountsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.accounts,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$VouchersTableTableManager
@@ -16446,12 +20082,13 @@ class $$VouchersTableTableManager
           $$VouchersTableAnnotationComposer,
           $$VouchersTableCreateCompanionBuilder,
           $$VouchersTableUpdateCompanionBuilder,
-          (
-            VoucherTableData,
-            BaseReferences<_$AppDatabase, $VouchersTable, VoucherTableData>,
-          ),
+          (VoucherTableData, $$VouchersTableReferences),
           VoucherTableData,
-          PrefetchHooks Function()
+          PrefetchHooks Function({
+            bool categoryAccountId,
+            bool walletAccountId,
+            bool toWalletAccountId,
+          })
         > {
   $$VouchersTableTableManager(_$AppDatabase db, $VouchersTable table)
     : super(
@@ -16492,6 +20129,8 @@ class $$VouchersTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => VouchersCompanion(
                 id: id,
@@ -16520,6 +20159,8 @@ class $$VouchersTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -16550,6 +20191,8 @@ class $$VouchersTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => VouchersCompanion.insert(
                 id: id,
@@ -16578,12 +20221,90 @@ class $$VouchersTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$VouchersTableReferences(db, table, e),
+                ),
+              )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback:
+              ({
+                categoryAccountId = false,
+                walletAccountId = false,
+                toWalletAccountId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (categoryAccountId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.categoryAccountId,
+                                    referencedTable: $$VouchersTableReferences
+                                        ._categoryAccountIdTable(db),
+                                    referencedColumn: $$VouchersTableReferences
+                                        ._categoryAccountIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (walletAccountId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.walletAccountId,
+                                    referencedTable: $$VouchersTableReferences
+                                        ._walletAccountIdTable(db),
+                                    referencedColumn: $$VouchersTableReferences
+                                        ._walletAccountIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+                        if (toWalletAccountId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.toWalletAccountId,
+                                    referencedTable: $$VouchersTableReferences
+                                        ._toWalletAccountIdTable(db),
+                                    referencedColumn: $$VouchersTableReferences
+                                        ._toWalletAccountIdTable(db)
+                                        .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
         ),
       );
 }
@@ -16598,493 +20319,13 @@ typedef $$VouchersTableProcessedTableManager =
       $$VouchersTableAnnotationComposer,
       $$VouchersTableCreateCompanionBuilder,
       $$VouchersTableUpdateCompanionBuilder,
-      (
-        VoucherTableData,
-        BaseReferences<_$AppDatabase, $VouchersTable, VoucherTableData>,
-      ),
+      (VoucherTableData, $$VouchersTableReferences),
       VoucherTableData,
-      PrefetchHooks Function()
-    >;
-typedef $$AccountsTableCreateCompanionBuilder =
-    AccountsCompanion Function({
-      required String id,
-      Value<String> companyId,
-      required String code,
-      required String name,
-      required String type,
-      Value<String?> parentAccountId,
-      Value<bool> isSystem,
-      Value<bool> isActive,
-      Value<String?> description,
-      Value<int> currentBalanceInCents,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
-      Value<bool> isDeleted,
-      Value<SyncRecordStatus> syncStatus,
-      Value<int> rowid,
-    });
-typedef $$AccountsTableUpdateCompanionBuilder =
-    AccountsCompanion Function({
-      Value<String> id,
-      Value<String> companyId,
-      Value<String> code,
-      Value<String> name,
-      Value<String> type,
-      Value<String?> parentAccountId,
-      Value<bool> isSystem,
-      Value<bool> isActive,
-      Value<String?> description,
-      Value<int> currentBalanceInCents,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
-      Value<bool> isDeleted,
-      Value<SyncRecordStatus> syncStatus,
-      Value<int> rowid,
-    });
-
-final class $$AccountsTableReferences
-    extends BaseReferences<_$AppDatabase, $AccountsTable, AccountTableData> {
-  $$AccountsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static MultiTypedResultKey<$JournalLinesTable, List<JournalLineTableData>>
-  _journalLinesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.journalLines,
-    aliasName: 'accounts__id__journal_lines__account_id',
-  );
-
-  $$JournalLinesTableProcessedTableManager get journalLinesRefs {
-    final manager = $$JournalLinesTableTableManager(
-      $_db,
-      $_db.journalLines,
-    ).filter((f) => f.accountId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_journalLinesRefsTable($_db));
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
-class $$AccountsTableFilterComposer
-    extends Composer<_$AppDatabase, $AccountsTable> {
-  $$AccountsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get companyId => $composableBuilder(
-    column: $table.companyId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get code => $composableBuilder(
-    column: $table.code,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get type => $composableBuilder(
-    column: $table.type,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get parentAccountId => $composableBuilder(
-    column: $table.parentAccountId,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isSystem => $composableBuilder(
-    column: $table.isSystem,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isActive => $composableBuilder(
-    column: $table.isActive,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get description => $composableBuilder(
-    column: $table.description,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get currentBalanceInCents => $composableBuilder(
-    column: $table.currentBalanceInCents,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isDeleted => $composableBuilder(
-    column: $table.isDeleted,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
-  get syncStatus => $composableBuilder(
-    column: $table.syncStatus,
-    builder: (column) => ColumnWithTypeConverterFilters(column),
-  );
-
-  Expression<bool> journalLinesRefs(
-    Expression<bool> Function($$JournalLinesTableFilterComposer f) f,
-  ) {
-    final $$JournalLinesTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.journalLines,
-      getReferencedColumn: (t) => t.accountId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$JournalLinesTableFilterComposer(
-            $db: $db,
-            $table: $db.journalLines,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-}
-
-class $$AccountsTableOrderingComposer
-    extends Composer<_$AppDatabase, $AccountsTable> {
-  $$AccountsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<String> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get companyId => $composableBuilder(
-    column: $table.companyId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get code => $composableBuilder(
-    column: $table.code,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get type => $composableBuilder(
-    column: $table.type,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get parentAccountId => $composableBuilder(
-    column: $table.parentAccountId,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get isSystem => $composableBuilder(
-    column: $table.isSystem,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get isActive => $composableBuilder(
-    column: $table.isActive,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get description => $composableBuilder(
-    column: $table.description,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get currentBalanceInCents => $composableBuilder(
-    column: $table.currentBalanceInCents,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get isDeleted => $composableBuilder(
-    column: $table.isDeleted,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get syncStatus => $composableBuilder(
-    column: $table.syncStatus,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$AccountsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $AccountsTable> {
-  $$AccountsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<String> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get companyId =>
-      $composableBuilder(column: $table.companyId, builder: (column) => column);
-
-  GeneratedColumn<String> get code =>
-      $composableBuilder(column: $table.code, builder: (column) => column);
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get type =>
-      $composableBuilder(column: $table.type, builder: (column) => column);
-
-  GeneratedColumn<String> get parentAccountId => $composableBuilder(
-    column: $table.parentAccountId,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<bool> get isSystem =>
-      $composableBuilder(column: $table.isSystem, builder: (column) => column);
-
-  GeneratedColumn<bool> get isActive =>
-      $composableBuilder(column: $table.isActive, builder: (column) => column);
-
-  GeneratedColumn<String> get description => $composableBuilder(
-    column: $table.description,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<int> get currentBalanceInCents => $composableBuilder(
-    column: $table.currentBalanceInCents,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  GeneratedColumn<bool> get isDeleted =>
-      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
-
-  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
-      $composableBuilder(
-        column: $table.syncStatus,
-        builder: (column) => column,
-      );
-
-  Expression<T> journalLinesRefs<T extends Object>(
-    Expression<T> Function($$JournalLinesTableAnnotationComposer a) f,
-  ) {
-    final $$JournalLinesTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.journalLines,
-      getReferencedColumn: (t) => t.accountId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$JournalLinesTableAnnotationComposer(
-            $db: $db,
-            $table: $db.journalLines,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
-}
-
-class $$AccountsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $AccountsTable,
-          AccountTableData,
-          $$AccountsTableFilterComposer,
-          $$AccountsTableOrderingComposer,
-          $$AccountsTableAnnotationComposer,
-          $$AccountsTableCreateCompanionBuilder,
-          $$AccountsTableUpdateCompanionBuilder,
-          (AccountTableData, $$AccountsTableReferences),
-          AccountTableData,
-          PrefetchHooks Function({bool journalLinesRefs})
-        > {
-  $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
-    : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$AccountsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$AccountsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$AccountsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<String> id = const Value.absent(),
-                Value<String> companyId = const Value.absent(),
-                Value<String> code = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String> type = const Value.absent(),
-                Value<String?> parentAccountId = const Value.absent(),
-                Value<bool> isSystem = const Value.absent(),
-                Value<bool> isActive = const Value.absent(),
-                Value<String?> description = const Value.absent(),
-                Value<int> currentBalanceInCents = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-                Value<bool> isDeleted = const Value.absent(),
-                Value<SyncRecordStatus> syncStatus = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => AccountsCompanion(
-                id: id,
-                companyId: companyId,
-                code: code,
-                name: name,
-                type: type,
-                parentAccountId: parentAccountId,
-                isSystem: isSystem,
-                isActive: isActive,
-                description: description,
-                currentBalanceInCents: currentBalanceInCents,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                isDeleted: isDeleted,
-                syncStatus: syncStatus,
-                rowid: rowid,
-              ),
-          createCompanionCallback:
-              ({
-                required String id,
-                Value<String> companyId = const Value.absent(),
-                required String code,
-                required String name,
-                required String type,
-                Value<String?> parentAccountId = const Value.absent(),
-                Value<bool> isSystem = const Value.absent(),
-                Value<bool> isActive = const Value.absent(),
-                Value<String?> description = const Value.absent(),
-                Value<int> currentBalanceInCents = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-                Value<bool> isDeleted = const Value.absent(),
-                Value<SyncRecordStatus> syncStatus = const Value.absent(),
-                Value<int> rowid = const Value.absent(),
-              }) => AccountsCompanion.insert(
-                id: id,
-                companyId: companyId,
-                code: code,
-                name: name,
-                type: type,
-                parentAccountId: parentAccountId,
-                isSystem: isSystem,
-                isActive: isActive,
-                description: description,
-                currentBalanceInCents: currentBalanceInCents,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                isDeleted: isDeleted,
-                syncStatus: syncStatus,
-                rowid: rowid,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$AccountsTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({journalLinesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (journalLinesRefs) db.journalLines],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (journalLinesRefs)
-                    await $_getPrefetchedData<
-                      AccountTableData,
-                      $AccountsTable,
-                      JournalLineTableData
-                    >(
-                      currentTable: table,
-                      referencedTable: $$AccountsTableReferences
-                          ._journalLinesRefsTable(db),
-                      managerFromTypedResult: (p0) => $$AccountsTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).journalLinesRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.accountId == item.id),
-                      typedResults: items,
-                    ),
-                ];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$AccountsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $AccountsTable,
-      AccountTableData,
-      $$AccountsTableFilterComposer,
-      $$AccountsTableOrderingComposer,
-      $$AccountsTableAnnotationComposer,
-      $$AccountsTableCreateCompanionBuilder,
-      $$AccountsTableUpdateCompanionBuilder,
-      (AccountTableData, $$AccountsTableReferences),
-      AccountTableData,
-      PrefetchHooks Function({bool journalLinesRefs})
+      PrefetchHooks Function({
+        bool categoryAccountId,
+        bool walletAccountId,
+        bool toWalletAccountId,
+      })
     >;
 typedef $$JournalsTableCreateCompanionBuilder =
     JournalsCompanion Function({
@@ -17100,6 +20341,8 @@ typedef $$JournalsTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$JournalsTableUpdateCompanionBuilder =
@@ -17116,6 +20359,8 @@ typedef $$JournalsTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 
@@ -17212,6 +20457,16 @@ class $$JournalsTableFilterComposer
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> journalLinesRefs(
     Expression<bool> Function($$JournalLinesTableFilterComposer f) f,
   ) {
@@ -17306,6 +20561,16 @@ class $$JournalsTableOrderingComposer
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$JournalsTableAnnotationComposer
@@ -17359,6 +20624,14 @@ class $$JournalsTableAnnotationComposer
         column: $table.syncStatus,
         builder: (column) => column,
       );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
 
   Expression<T> journalLinesRefs<T extends Object>(
     Expression<T> Function($$JournalLinesTableAnnotationComposer a) f,
@@ -17426,6 +20699,8 @@ class $$JournalsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => JournalsCompanion(
                 id: id,
@@ -17440,6 +20715,8 @@ class $$JournalsTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -17456,6 +20733,8 @@ class $$JournalsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => JournalsCompanion.insert(
                 id: id,
@@ -17470,6 +20749,8 @@ class $$JournalsTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -17541,6 +20822,8 @@ typedef $$JournalLinesTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$JournalLinesTableUpdateCompanionBuilder =
@@ -17557,6 +20840,8 @@ typedef $$JournalLinesTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 
@@ -17662,6 +20947,16 @@ class $$JournalLinesTableFilterComposer
   get syncStatus => $composableBuilder(
     column: $table.syncStatus,
     builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
   );
 
   $$JournalsTableFilterComposer get journalId {
@@ -17770,6 +21065,16 @@ class $$JournalLinesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$JournalsTableOrderingComposer get journalId {
     final $$JournalsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -17863,6 +21168,14 @@ class $$JournalLinesTableAnnotationComposer
         builder: (column) => column,
       );
 
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
   $$JournalsTableAnnotationComposer get journalId {
     final $$JournalsTableAnnotationComposer composer = $composerBuilder(
       composer: this,
@@ -17950,6 +21263,8 @@ class $$JournalLinesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => JournalLinesCompanion(
                 id: id,
@@ -17964,6 +21279,8 @@ class $$JournalLinesTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -17980,6 +21297,8 @@ class $$JournalLinesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => JournalLinesCompanion.insert(
                 id: id,
@@ -17994,6 +21313,8 @@ class $$JournalLinesTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -18090,6 +21411,8 @@ typedef $$BudgetsTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$BudgetsTableUpdateCompanionBuilder =
@@ -18106,6 +21429,8 @@ typedef $$BudgetsTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 
@@ -18178,6 +21503,16 @@ class $$BudgetsTableFilterComposer
     column: $table.syncStatus,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$BudgetsTableOrderingComposer
@@ -18248,6 +21583,16 @@ class $$BudgetsTableOrderingComposer
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$BudgetsTableAnnotationComposer
@@ -18305,6 +21650,14 @@ class $$BudgetsTableAnnotationComposer
         column: $table.syncStatus,
         builder: (column) => column,
       );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$BudgetsTableTableManager
@@ -18350,6 +21703,8 @@ class $$BudgetsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetsCompanion(
                 id: id,
@@ -18364,6 +21719,8 @@ class $$BudgetsTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -18380,6 +21737,8 @@ class $$BudgetsTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => BudgetsCompanion.insert(
                 id: id,
@@ -18394,6 +21753,8 @@ class $$BudgetsTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -18435,6 +21796,8 @@ typedef $$RecurringRulesTableCreateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 typedef $$RecurringRulesTableUpdateCompanionBuilder =
@@ -18451,6 +21814,8 @@ typedef $$RecurringRulesTableUpdateCompanionBuilder =
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
       Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
       Value<int> rowid,
     });
 
@@ -18523,6 +21888,16 @@ class $$RecurringRulesTableFilterComposer
     column: $table.syncStatus,
     builder: (column) => ColumnWithTypeConverterFilters(column),
   );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$RecurringRulesTableOrderingComposer
@@ -18593,6 +21968,16 @@ class $$RecurringRulesTableOrderingComposer
     column: $table.syncStatus,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$RecurringRulesTableAnnotationComposer
@@ -18650,6 +22035,14 @@ class $$RecurringRulesTableAnnotationComposer
         column: $table.syncStatus,
         builder: (column) => column,
       );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
 }
 
 class $$RecurringRulesTableTableManager
@@ -18701,6 +22094,8 @@ class $$RecurringRulesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RecurringRulesCompanion(
                 id: id,
@@ -18715,6 +22110,8 @@ class $$RecurringRulesTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -18731,6 +22128,8 @@ class $$RecurringRulesTableTableManager
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => RecurringRulesCompanion.insert(
                 id: id,
@@ -18745,6 +22144,8 @@ class $$RecurringRulesTableTableManager
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
                 syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -18792,14 +22193,16 @@ class $AppDatabaseManager {
       $$AuditLogsTableTableManager(_db, _db.auditLogs);
   $$SyncOutboxTableTableManager get syncOutbox =>
       $$SyncOutboxTableTableManager(_db, _db.syncOutbox);
+  $$SyncStateTableTableManager get syncState =>
+      $$SyncStateTableTableManager(_db, _db.syncState);
   $$InventoryItemsTableTableManager get inventoryItems =>
       $$InventoryItemsTableTableManager(_db, _db.inventoryItems);
   $$StockLedgerTableTableManager get stockLedger =>
       $$StockLedgerTableTableManager(_db, _db.stockLedger);
-  $$VouchersTableTableManager get vouchers =>
-      $$VouchersTableTableManager(_db, _db.vouchers);
   $$AccountsTableTableManager get accounts =>
       $$AccountsTableTableManager(_db, _db.accounts);
+  $$VouchersTableTableManager get vouchers =>
+      $$VouchersTableTableManager(_db, _db.vouchers);
   $$JournalsTableTableManager get journals =>
       $$JournalsTableTableManager(_db, _db.journals);
   $$JournalLinesTableTableManager get journalLines =>

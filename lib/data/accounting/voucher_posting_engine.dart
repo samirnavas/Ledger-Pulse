@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/network/sync_codec.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import '../local/audit_service.dart';
 import '../local/database.dart';
+import '../local/outbox_helper.dart';
 import '../models/account_model.dart';
 import '../models/audit_log_model.dart';
 import '../models/company_model.dart';
@@ -53,6 +55,7 @@ class VoucherPostingEngine {
               code: acc.code,
               name: acc.name,
               type: acc.type.name,
+              kind: Value(acc.kind),
               parentAccountId: Value(acc.parentAccountId),
               isSystem: Value(acc.isSystem),
               isActive: Value(acc.isActive),
@@ -176,6 +179,7 @@ class VoucherPostingEngine {
               code: acc.code,
               name: acc.name,
               type: acc.type.name,
+              kind: Value(acc.kind),
               parentAccountId: Value(acc.parentAccountId),
               isSystem: Value(acc.isSystem),
               isActive: Value(acc.isActive),
@@ -353,6 +357,7 @@ class VoucherPostingEngine {
               toWalletAccountId: Value(voucher.toWalletAccountId),
               createdAt: Value(voucher.createdAt),
               updatedAt: Value(now),
+              syncStatus: const Value(SyncRecordStatus.pending),
             ),
           );
 
@@ -373,6 +378,7 @@ class VoucherPostingEngine {
         await (_db.update(_db.vouchers)..where((t) => t.id.equals(voucher.sourceVoucherId!))).write(
           const VouchersCompanion(
             status: Value('converted'),
+            syncStatus: Value(SyncRecordStatus.pending),
           ),
         );
       }
@@ -388,18 +394,15 @@ class VoucherPostingEngine {
       );
 
       // 5. Sync Outbox
-      await _db.into(_db.syncOutbox).insert(
-            SyncOutboxCompanion.insert(
-              id: _uuid.v4(),
-              targetTable: 'vouchers',
-              recordId: voucher.id,
-              mutationType: 'INSERT',
-              payload: jsonEncode({
-                ...voucher.toMap(),
-                'companyId': voucher.companyId,
-              }),
-            ),
-          );
+      await enqueueMutation(
+        db: _db,
+        table: 'vouchers',
+        recordId: voucher.id,
+        type: 'INSERT',
+        fullRowMap: voucher.toMap(),
+      );
+
+      return voucher;
 
       return voucher;
     });
@@ -854,19 +857,70 @@ class VoucherPostingEngine {
             status: const Value('posted'),
             createdAt: Value(voucher.date),
             updatedAt: Value(now),
+            syncStatus: const Value(SyncRecordStatus.pending),
           ),
         );
+
+    final createdJournal = JournalModel(
+      id: journalId,
+      companyId: companyId,
+      journalNumber: journalNumber,
+      voucherId: voucher.id,
+      date: voucher.date,
+      narration: voucher.narration ?? '${voucher.type.displayName} #${voucher.voucherNumber}',
+      totalAmountInCents: sumDebit,
+      status: 'posted',
+      createdAt: voucher.date,
+      updatedAt: now,
+    );
+
+    await enqueueMutation(
+      db: _db,
+      table: 'journals',
+      recordId: journalId,
+      type: 'INSERT',
+      fullRowMap: createdJournal.toMap(),
+    );
 
     // Query any previous lines before replacing them (for edit/repost)
     final previousLines = await (_db.select(_db.journalLines)..where((t) => t.journalId.equals(journalId))).get();
     final previousAccountIds = previousLines.map((l) => l.accountId).toSet();
 
-    // Delete any previous lines if re-posting/updating
-    await (_db.delete(_db.journalLines)..where((t) => t.journalId.equals(journalId))).go();
+    // Soft-delete previous lines if re-posting/updating
+    await (_db.update(_db.journalLines)..where((t) => t.journalId.equals(journalId))).write(
+      JournalLinesCompanion(
+        isDeleted: const Value(true),
+        syncStatus: const Value(SyncRecordStatus.pending),
+        updatedAt: Value(now),
+      ),
+    );
 
     // Insert Journal Lines
     for (final line in linesToInsert) {
-      await _db.into(_db.journalLines).insertOnConflictUpdate(line);
+      final lineWithPending = line.copyWith(syncStatus: const Value(SyncRecordStatus.pending));
+      await _db.into(_db.journalLines).insertOnConflictUpdate(lineWithPending);
+
+      final lineMap = {
+        'id': lineWithPending.id.value,
+        'companyId': lineWithPending.companyId.value,
+        'journalId': lineWithPending.journalId.value,
+        'accountId': lineWithPending.accountId.value,
+        'partyId': lineWithPending.partyId.value,
+        'debitInCents': lineWithPending.debitInCents.value,
+        'creditInCents': lineWithPending.creditInCents.value,
+        'narration': lineWithPending.narration.value,
+        'isDeleted': false,
+        'createdAt': encodeTime(lineWithPending.createdAt.value),
+        'updatedAt': encodeTime(lineWithPending.updatedAt.value),
+      };
+
+      await enqueueMutation(
+        db: _db,
+        table: 'journal_lines',
+        recordId: lineWithPending.id.value,
+        type: 'INSERT',
+        fullRowMap: lineMap,
+      );
     }
 
     // Update all affected Account balances (both previously affected and newly affected)
@@ -944,8 +998,14 @@ class VoucherPostingEngine {
             ),
           );
 
-      // Insert Lines
-      await (_db.delete(_db.journalLines)..where((t) => t.journalId.equals(journal.id))).go();
+      // Soft-delete previous lines
+      await (_db.update(_db.journalLines)..where((t) => t.journalId.equals(journal.id))).write(
+        JournalLinesCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
       for (final line in journal.lines) {
         await _db.into(_db.journalLines).insertOnConflictUpdate(
               JournalLinesCompanion.insert(
@@ -1200,8 +1260,14 @@ class VoucherPostingEngine {
             ),
           );
 
-      // Insert Lines
-      await (_db.delete(_db.journalLines)..where((t) => t.journalId.equals(journalId))).go();
+      // Soft-delete previous lines
+      await (_db.update(_db.journalLines)..where((t) => t.journalId.equals(journalId))).write(
+        JournalLinesCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
       for (final line in lines) {
         await _db.into(_db.journalLines).insertOnConflictUpdate(line);
       }
@@ -1258,44 +1324,105 @@ class VoucherPostingEngine {
     required String userId,
   }) async {
     await _db.transaction(() async {
-      // 1. Mark voucher voided
+      final now = DateTime.now();
+
+      // 1. Mark voucher voided, updated, and pending sync
       await (_db.update(_db.vouchers)..where((t) => t.id.equals(voucherId) & t.companyId.equals(companyId))).write(
-        const VouchersCompanion(
-          status: Value('voided'),
+        VouchersCompanion(
+          status: const Value('voided'),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
         ),
       );
 
       // 2. Void Journal Header and Lines
       final journalId = 'jnl_$voucherId';
       await (_db.update(_db.journals)..where((t) => t.id.equals(journalId) & t.companyId.equals(companyId))).write(
-        const JournalsCompanion(
-          status: Value('voided'),
+        JournalsCompanion(
+          status: const Value('voided'),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
+
+      await (_db.update(_db.journalLines)..where((t) => t.journalId.equals(journalId) & t.companyId.equals(companyId))).write(
+        JournalLinesCompanion(
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
         ),
       );
 
       // 3. Void Party Ledger Entry
       final entryId = 'vch_entry_$voucherId';
       await (_db.update(_db.ledgerEntries)..where((t) => t.id.equals(entryId) & t.companyId.equals(companyId))).write(
-        const LedgerEntriesCompanion(
-          isVoided: Value(true),
+        LedgerEntriesCompanion(
+          isVoided: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
         ),
       );
 
       // 4. Void Stock Ledger Entry
       await (_db.update(_db.stockLedger)..where((t) => t.voucherId.equals(voucherId) & t.companyId.equals(companyId))).write(
-        const StockLedgerCompanion(
-          isDeleted: Value(true),
+        StockLedgerCompanion(
+          isDeleted: const Value(true),
+          updatedAt: Value(now),
         ),
       );
 
-      // 5. Query voucher to recalculate party and inventory balances
+      // 5. Enqueue outbox mutations with FULL payloads for each affected entity
       final voucherRow = await (_db.select(_db.vouchers)..where((t) => t.id.equals(voucherId))).getSingleOrNull();
-      if (voucherRow != null && voucherRow.partyId != null) {
-        await _recalculatePartyBalance(voucherRow.partyId!, companyId);
+      if (voucherRow != null) {
+        final voucherModel = _voucherFromRow(voucherRow);
+        await enqueueMutation(
+          db: _db,
+          table: 'vouchers',
+          recordId: voucherId,
+          type: 'UPDATE',
+          fullRowMap: voucherModel.toMap(),
+        );
+
+        if (voucherRow.partyId != null) {
+          await _recalculatePartyBalance(voucherRow.partyId!, companyId);
+        }
+      }
+
+      final journalRow = await (_db.select(_db.journals)..where((t) => t.id.equals(journalId))).getSingleOrNull();
+      if (journalRow != null) {
+        final journalModel = _journalFromRow(journalRow);
+        await enqueueMutation(
+          db: _db,
+          table: 'journals',
+          recordId: journalId,
+          type: 'UPDATE',
+          fullRowMap: journalModel.toMap(),
+        );
+      }
+
+      final lines = await (_db.select(_db.journalLines)..where((t) => t.journalId.equals(journalId))).get();
+      for (final line in lines) {
+        await enqueueMutation(
+          db: _db,
+          table: 'journal_lines',
+          recordId: line.id,
+          type: 'UPDATE',
+          fullRowMap: {
+            'id': line.id,
+            'companyId': line.companyId,
+            'journalId': line.journalId,
+            'accountId': line.accountId,
+            'partyId': line.partyId,
+            'debitInCents': line.debitInCents,
+            'creditInCents': line.creditInCents,
+            'narration': line.narration,
+            'isDeleted': line.isDeleted,
+            'createdAt': encodeTime(line.createdAt),
+            'updatedAt': encodeTime(line.updatedAt),
+          },
+        );
       }
 
       // 6. Recalculate affected accounts
-      final lines = await (_db.select(_db.journalLines)..where((t) => t.journalId.equals(journalId))).get();
       final affectedAccountIds = lines.map((l) => l.accountId).toSet();
       for (final accId in affectedAccountIds) {
         await _recalculateAccountBalance(accId, companyId);
@@ -1308,9 +1435,166 @@ class VoucherPostingEngine {
         entityType: 'voucher',
         entityId: voucherId,
         action: AuditAction.voided,
-        newState: {'id': voucherId, 'status': 'voided'},
+        newState: voucherRow != null ? _voucherFromRow(voucherRow).toMap() : {'id': voucherId, 'status': 'voided'},
       );
     });
+  }
+
+  /// Restores a voided voucher back to posted status and re-activates its double-entry journal lines.
+  Future<void> restoreVoucher({
+    required String voucherId,
+    required String companyId,
+    required String userId,
+  }) async {
+    await _db.transaction(() async {
+      final now = DateTime.now();
+
+      // 1. Mark voucher posted, updated, and pending sync
+      await (_db.update(_db.vouchers)..where((t) => t.id.equals(voucherId) & t.companyId.equals(companyId))).write(
+        VouchersCompanion(
+          status: const Value('posted'),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
+
+      // 2. Restore Journal Header and Lines
+      final journalId = 'jnl_$voucherId';
+      await (_db.update(_db.journals)..where((t) => t.id.equals(journalId) & t.companyId.equals(companyId))).write(
+        JournalsCompanion(
+          status: const Value('posted'),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
+
+      await (_db.update(_db.journalLines)..where((t) => t.journalId.equals(journalId) & t.companyId.equals(companyId))).write(
+        JournalLinesCompanion(
+          isDeleted: const Value(false),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
+
+      // 3. Restore Party Ledger Entry
+      final entryId = 'vch_entry_$voucherId';
+      await (_db.update(_db.ledgerEntries)..where((t) => t.id.equals(entryId) & t.companyId.equals(companyId))).write(
+        LedgerEntriesCompanion(
+          isVoided: const Value(false),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
+
+      // 4. Restore Stock Ledger Entry
+      await (_db.update(_db.stockLedger)..where((t) => t.voucherId.equals(voucherId) & t.companyId.equals(companyId))).write(
+        StockLedgerCompanion(
+          isDeleted: const Value(false),
+          updatedAt: Value(now),
+        ),
+      );
+
+      // 5. Enqueue outbox mutations with FULL payloads
+      final voucherRow = await (_db.select(_db.vouchers)..where((t) => t.id.equals(voucherId))).getSingleOrNull();
+      if (voucherRow != null) {
+        final voucherModel = _voucherFromRow(voucherRow);
+        await enqueueMutation(
+          db: _db,
+          table: 'vouchers',
+          recordId: voucherId,
+          type: 'UPDATE',
+          fullRowMap: voucherModel.toMap(),
+        );
+
+        if (voucherRow.partyId != null) {
+          await _recalculatePartyBalance(voucherRow.partyId!, companyId);
+        }
+      }
+
+      final journalRow = await (_db.select(_db.journals)..where((t) => t.id.equals(journalId))).getSingleOrNull();
+      if (journalRow != null) {
+        final journalModel = _journalFromRow(journalRow);
+        await enqueueMutation(
+          db: _db,
+          table: 'journals',
+          recordId: journalId,
+          type: 'UPDATE',
+          fullRowMap: journalModel.toMap(),
+        );
+      }
+
+      // Recalculate account balances
+      if (voucherRow?.walletAccountId != null) {
+        await recalculateAccountBalance(voucherRow!.walletAccountId!, companyId);
+      }
+      if (voucherRow?.categoryAccountId != null) {
+        await recalculateAccountBalance(voucherRow!.categoryAccountId!, companyId);
+      }
+      if (voucherRow?.toWalletAccountId != null) {
+        await recalculateAccountBalance(voucherRow!.toWalletAccountId!, companyId);
+      }
+
+      await _auditService.recordLog(
+        companyId: companyId,
+        userId: userId,
+        entityType: 'voucher',
+        entityId: voucherId,
+        action: AuditAction.update,
+        newState: voucherRow != null ? _voucherFromRow(voucherRow).toMap() : {'id': voucherId, 'status': 'posted'},
+      );
+    });
+  }
+
+  VoucherModel _voucherFromRow(VoucherTableData row) {
+    return VoucherModel(
+      id: row.id,
+      companyId: row.companyId,
+      voucherNumber: row.voucherNumber,
+      type: VoucherType.values.firstWhere(
+        (e) => e.name == row.type,
+        orElse: () => VoucherType.sales,
+      ),
+      date: row.date,
+      dueDate: row.dueDate,
+      partyId: row.partyId,
+      partyName: row.partyName,
+      status: VoucherStatus.values.firstWhere(
+        (e) => e.name == row.status,
+        orElse: () => VoucherStatus.posted,
+      ),
+      paymentMode: PaymentMode.values.firstWhere(
+        (e) => e.name == row.paymentMode,
+        orElse: () => PaymentMode.cash,
+      ),
+      subtotalInCents: row.subtotalInCents,
+      taxInCents: row.taxInCents,
+      discountInCents: row.discountInCents,
+      totalAmountInCents: row.totalAmountInCents,
+      narration: row.narration,
+      referenceNumber: row.referenceNumber,
+      sourceVoucherId: row.sourceVoucherId,
+      receiptPhotoUrl: row.receiptPhotoUrl,
+      categoryAccountId: row.categoryAccountId,
+      walletAccountId: row.walletAccountId,
+      toWalletAccountId: row.toWalletAccountId,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    );
+  }
+
+  JournalModel _journalFromRow(JournalTableData row) {
+    return JournalModel(
+      id: row.id,
+      companyId: row.companyId,
+      journalNumber: row.journalNumber,
+      voucherId: row.voucherId,
+      date: row.date,
+      narration: row.narration,
+      totalAmountInCents: row.totalAmountInCents,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    );
   }
 
   /// Edits an existing voucher, replacing its double-entry journal lines and recalculating balances.

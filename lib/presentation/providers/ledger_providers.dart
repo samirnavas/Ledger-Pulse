@@ -14,20 +14,6 @@ export 'database_providers.dart';
 export '../../data/models/account_model.dart';
 export '../../data/models/journal_model.dart';
 
-// Shared DriftLedgerRepository instance backed directly by local SQLite (Drift)
-final driftLedgerRepositoryProvider = Provider<DriftLedgerRepository>((ref) {
-  final db = ref.watch(appDatabaseProvider);
-  final syncEngine = ref.watch(syncEngineProvider);
-  final repo = DriftLedgerRepository(
-    db: db,
-    syncEngine: syncEngine,
-  );
-  ref.onDispose(() {
-    repo.dispose();
-  });
-  return repo;
-});
-
 // ILedgerRepository instance that scopes the active company, user, and role via select
 final ledgerRepositoryProvider = Provider<ILedgerRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
@@ -38,14 +24,20 @@ final ledgerRepositoryProvider = Provider<ILedgerRepository>((ref) {
   final repo = DriftLedgerRepository(
     db: db,
     syncEngine: syncEngine,
-    currentCompanyId: activeCompanyId,
-    currentUserId: userId,
+    currentCompanyId: activeCompanyId.isEmpty ? 'cmp_default' : activeCompanyId,
+    currentUserId: userId.isEmpty ? 'usr_default' : userId,
     currentRole: role,
   );
   ref.onDispose(() {
     repo.dispose();
   });
   return repo;
+});
+
+// DriftLedgerRepository alias provider mapped directly to ledgerRepositoryProvider
+final driftLedgerRepositoryProvider = Provider<DriftLedgerRepository>((ref) {
+  final repo = ref.watch(ledgerRepositoryProvider);
+  return repo as DriftLedgerRepository;
 });
 
 // Stream of updates triggered by any add/delete in the repository
@@ -351,7 +343,6 @@ final ledgerActionControllerProvider = Provider<LedgerActionController>((ref) {
   return LedgerActionController(ref, repo);
 });
 
-
 final chartOfAccountsProvider = FutureProvider<List<AccountModel>>((ref) async {
   ref.watch(ledgerUpdatesStreamProvider);
   final repo = ref.watch(driftLedgerRepositoryProvider);
@@ -363,4 +354,3 @@ final journalEntriesProvider = FutureProvider<List<JournalModel>>((ref) async {
   final repo = ref.watch(driftLedgerRepositoryProvider);
   return await repo.getJournals();
 });
-

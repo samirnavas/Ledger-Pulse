@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/network/sync_codec.dart';
 
 enum AccountType {
   asset,
@@ -33,9 +34,11 @@ class AccountModel {
   final String code;
   final String name;
   final AccountType type;
+  final String kind;
   final String? parentAccountId;
   final bool isSystem;
   final bool isActive;
+  final bool isDeleted;
   final String? description;
   final int currentBalanceInCents;
   final DateTime createdAt;
@@ -47,9 +50,11 @@ class AccountModel {
     required this.code,
     required this.name,
     required this.type,
+    this.kind = 'system',
     this.parentAccountId,
     this.isSystem = false,
     this.isActive = true,
+    this.isDeleted = false,
     this.description,
     this.currentBalanceInCents = 0,
     required this.createdAt,
@@ -62,9 +67,11 @@ class AccountModel {
     String? code,
     String? name,
     AccountType? type,
+    String? kind,
     String? parentAccountId,
     bool? isSystem,
     bool? isActive,
+    bool? isDeleted,
     String? description,
     int? currentBalanceInCents,
     DateTime? createdAt,
@@ -76,9 +83,11 @@ class AccountModel {
       code: code ?? this.code,
       name: name ?? this.name,
       type: type ?? this.type,
+      kind: kind ?? this.kind,
       parentAccountId: parentAccountId ?? this.parentAccountId,
       isSystem: isSystem ?? this.isSystem,
       isActive: isActive ?? this.isActive,
+      isDeleted: isDeleted ?? this.isDeleted,
       description: description ?? this.description,
       currentBalanceInCents: currentBalanceInCents ?? this.currentBalanceInCents,
       createdAt: createdAt ?? this.createdAt,
@@ -93,13 +102,15 @@ class AccountModel {
       'code': code,
       'name': name,
       'type': type.name,
+      'kind': kind,
       'parentAccountId': parentAccountId,
       'isSystem': isSystem,
       'isActive': isActive,
+      'isDeleted': isDeleted,
       'description': description,
       'currentBalanceInCents': currentBalanceInCents,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': encodeTime(createdAt),
+      'updatedAt': encodeTime(updatedAt),
     };
   }
 
@@ -113,17 +124,15 @@ class AccountModel {
         (e) => e.name.toLowerCase() == (map['type'] as String).toLowerCase(),
         orElse: () => AccountType.asset,
       ),
+      kind: map['kind'] as String? ?? 'system',
       parentAccountId: map['parentAccountId'] as String?,
-      isSystem: map['isSystem'] as bool? ?? false,
-      isActive: map['isActive'] as bool? ?? true,
+      isSystem: (map['isSystem'] as bool?) ?? false,
+      isActive: (map['isActive'] as bool?) ?? true,
+      isDeleted: (map['isDeleted'] as bool?) ?? (map['is_deleted'] as bool?) ?? false,
       description: map['description'] as String?,
       currentBalanceInCents: (map['currentBalanceInCents'] as int?) ?? 0,
-      createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'] as String)
-          : DateTime.now(),
-      updatedAt: map['updatedAt'] != null
-          ? DateTime.parse(map['updatedAt'] as String)
-          : DateTime.now(),
+      createdAt: decodeTime(map['createdAt'] ?? map['created_at']),
+      updatedAt: decodeTime(map['updatedAt'] ?? map['updated_at']),
     );
   }
 
@@ -468,6 +477,7 @@ class ExpenseTrackerDefaults {
         code: '1000',
         name: 'Cash',
         type: AccountType.asset,
+        kind: 'wallet',
         isSystem: true,
         currentBalanceInCents: cashBalance,
         description: 'Cash in wallet',
@@ -480,6 +490,7 @@ class ExpenseTrackerDefaults {
         code: '1010',
         name: 'Bank Account',
         type: AccountType.asset,
+        kind: 'wallet',
         isSystem: true,
         currentBalanceInCents: bankBalance,
         description: 'Primary operating bank account wallet',

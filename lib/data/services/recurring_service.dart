@@ -8,6 +8,7 @@ import '../../core/network/sync_engine.dart';
 import '../local/audit_service.dart';
 import '../local/database.dart';
 import '../local/drift_expense_repository.dart';
+import '../local/outbox_helper.dart';
 import '../models/audit_log_model.dart';
 import '../models/company_model.dart';
 import '../models/rbac_model.dart';
@@ -56,6 +57,7 @@ class RecurringService {
   void _notifyUpdates() {
     if (!_isDisposed && !_updateStreamController.isClosed) {
       _updateStreamController.add(null);
+      _syncEngine?.triggerBackgroundSync();
     }
   }
 
@@ -140,28 +142,6 @@ class RecurringService {
       throw StateError(
         'Recurring module is disabled for company ${company.name} (${company.id}).',
       );
-    }
-  }
-
-  Future<void> _queueOutbox({
-    required String entityType,
-    required String entityId,
-    required String operation,
-    required Map<String, dynamic> payload,
-  }) async {
-    try {
-      await _db.into(_db.syncOutbox).insert(
-            SyncOutboxCompanion.insert(
-              id: _uuid.v4(),
-              targetTable: entityType,
-              recordId: entityId,
-              mutationType: operation,
-              payload: payload.toString(),
-            ),
-          );
-      _syncEngine?.pushQueue(companyId: _currentCompanyId);
-    } catch (e) {
-      debugPrint('Failed to enqueue sync outbox mutation: $e');
     }
   }
 
@@ -282,6 +262,12 @@ class RecurringService {
       }
 
       // Update rule row in database
+      final updatedRule = rule.copyWith(
+        nextRunDate: currentRun,
+        isActive: ruleActive,
+        updatedAt: DateTime.now(),
+      );
+
       await (_db.update(_db.recurringRules)
             ..where((t) => t.id.equals(rule.id)))
           .write(RecurringRulesCompanion(
@@ -291,15 +277,12 @@ class RecurringService {
         syncStatus: const Value(SyncRecordStatus.pending),
       ));
 
-      await _queueOutbox(
-        entityType: 'recurring_rule',
-        entityId: rule.id,
-        operation: 'update',
-        payload: {
-          'id': rule.id,
-          'nextRunDate': currentRun.toIso8601String(),
-          'isActive': ruleActive,
-        },
+      await enqueueMutation(
+        db: _db,
+        table: 'recurring_rules',
+        recordId: rule.id,
+        type: 'UPDATE',
+        fullRowMap: updatedRule.toMap(),
       );
     }
 
@@ -419,11 +402,12 @@ class RecurringService {
       newState: model.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'recurring_rules',
-      entityId: ruleId,
-      operation: 'insert',
-      payload: model.toMap(),
+    await enqueueMutation(
+      db: _db,
+      table: 'recurring_rules',
+      recordId: ruleId,
+      type: 'INSERT',
+      fullRowMap: model.toMap(),
     );
 
     _notifyUpdates();
@@ -492,11 +476,12 @@ class RecurringService {
       newState: updated.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'recurring_rules',
-      entityId: effectiveId,
-      operation: 'update',
-      payload: updated.toMap(),
+    await enqueueMutation(
+      db: _db,
+      table: 'recurring_rules',
+      recordId: effectiveId,
+      type: 'UPDATE',
+      fullRowMap: updated.toMap(),
     );
 
     _notifyUpdates();
@@ -515,6 +500,12 @@ class RecurringService {
     final existing = await getRuleById(id);
     final now = DateTime.now();
 
+    final updated = existing.copyWith(
+      isDeleted: true,
+      isActive: false,
+      updatedAt: now,
+    );
+
     await (_db.update(_db.recurringRules)
           ..where((t) =>
               t.id.equals(id) & t.companyId.equals(_currentCompanyId)))
@@ -532,14 +523,15 @@ class RecurringService {
       entityId: id,
       action: AuditAction.delete,
       oldState: existing.toMap(),
-      newState: {'id': id, 'isDeleted': true},
+      newState: updated.toMap(),
     );
 
-    await _queueOutbox(
-      entityType: 'recurring_rule',
-      entityId: id,
-      operation: 'delete',
-      payload: {'id': id},
+    await enqueueMutation(
+      db: _db,
+      table: 'recurring_rules',
+      recordId: id,
+      type: 'UPDATE',
+      fullRowMap: updated.toMap(),
     );
 
     _notifyUpdates();

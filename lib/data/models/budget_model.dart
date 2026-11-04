@@ -1,3 +1,4 @@
+import '../../core/network/sync_codec.dart';
 import '../../data/local/database.dart' show SyncRecordStatus;
 import '../../data/models/account_model.dart';
 
@@ -104,11 +105,11 @@ class BudgetModel {
       'categoryAccountId': categoryAccountId,
       'periodType': periodType.name,
       'amountInCents': amountInCents,
-      'startDate': startDate.toIso8601String(),
+      'startDate': encodeTime(startDate),
       'rolloverEnabled': rolloverEnabled,
       'isActive': isActive,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': encodeTime(createdAt),
+      'updatedAt': encodeTime(updatedAt),
       'isDeleted': isDeleted,
       'syncStatus': syncStatus.name,
     };
@@ -118,15 +119,15 @@ class BudgetModel {
     return BudgetModel(
       id: map['id'] as String,
       companyId: map['companyId'] as String? ?? 'cmp_default',
-      categoryAccountId: map['categoryAccountId'] as String,
-      periodType: BudgetPeriodType.fromString(map['periodType'] as String? ?? 'monthly'),
-      amountInCents: map['amountInCents'] as int,
-      startDate: DateTime.parse(map['startDate'] as String),
-      rolloverEnabled: map['rolloverEnabled'] as bool? ?? false,
-      isActive: map['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(map['createdAt'] as String),
-      updatedAt: DateTime.parse(map['updatedAt'] as String),
-      isDeleted: map['isDeleted'] as bool? ?? false,
+      categoryAccountId: (map['categoryAccountId'] ?? map['category_account_id'] ?? '') as String,
+      periodType: BudgetPeriodType.fromString((map['periodType'] ?? map['period_type']) as String? ?? 'monthly'),
+      amountInCents: (map['amountInCents'] ?? map['amount_in_cents'] as int?) ?? 0,
+      startDate: decodeTime(map['startDate'] ?? map['start_date']),
+      rolloverEnabled: (map['rolloverEnabled'] ?? map['rollover_enabled'] as bool?) ?? false,
+      isActive: (map['isActive'] ?? map['is_active'] as bool?) ?? true,
+      createdAt: decodeTime(map['createdAt'] ?? map['created_at']),
+      updatedAt: decodeTime(map['updatedAt'] ?? map['updated_at']),
+      isDeleted: (map['isDeleted'] ?? map['is_deleted'] as bool?) ?? false,
       syncStatus: SyncRecordStatus.values.firstWhere(
         (s) => s.name == map['syncStatus'],
         orElse: () => SyncRecordStatus.pending,

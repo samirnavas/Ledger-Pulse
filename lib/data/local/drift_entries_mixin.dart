@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import '../../core/network/sync_codec.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/rbac_model.dart';
@@ -8,13 +9,31 @@ import '../security/access_control_service.dart';
 import 'database.dart';
 import 'drift_ledger_base.dart';
 
+/// Calculates net party balance from ledger entry rows, excluding deleted rows
+/// and treating voided entries as net zero.
+int calculatePartyBalanceFromRows(List<LedgerEntryTableData> rows) {
+  int netBalance = 0;
+  for (final row in rows) {
+    if (row.isDeleted || row.isVoided) continue;
+    if (row.type == EntryType.gave) {
+      netBalance += row.amountInCents;
+    } else {
+      netBalance -= row.amountInCents;
+    }
+  }
+  return netBalance;
+}
+
 /// Mixin handling Ledger Entries and running balance recalculation for DriftLedgerRepository.
 mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
   Future<List<LedgerEntry>> getEntriesForParty(String partyId) async {
     await ensureInitialized();
 
     final query = db.select(db.ledgerEntries)
-      ..where((t) => t.partyId.equals(partyId) & t.companyId.equals(currentCompanyId))
+      ..where((t) =>
+          t.partyId.equals(partyId) &
+          t.companyId.equals(currentCompanyId) &
+          t.isDeleted.equals(false))
       ..orderBy([
         (t) => OrderingTerm.asc(t.date),
         (t) => OrderingTerm.asc(t.createdAt),
@@ -281,11 +300,28 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
           ),
         );
 
+        final voidedExisting = await (db.select(db.ledgerEntries)
+              ..where((t) => t.id.equals(existing.id) & t.companyId.equals(currentCompanyId)))
+            .getSingle();
+
         await recordOutboxEntry(
           targetTable: 'ledger_entries',
           recordId: existing.id,
           mutationType: 'UPDATE',
-          payload: {'id': existing.id, 'isVoided': true, 'companyId': currentCompanyId},
+          payload: {
+            'id': voidedExisting.id,
+            'companyId': voidedExisting.companyId,
+            'partyId': voidedExisting.partyId,
+            'amountInCents': voidedExisting.amountInCents,
+            'type': voidedExisting.type.name,
+            'date': encodeTime(voidedExisting.date),
+            'note': voidedExisting.note,
+            'receiptPhotoUrl': voidedExisting.receiptPhotoUrl,
+            'isVoided': voidedExisting.isVoided,
+            'isDeleted': voidedExisting.isDeleted,
+            'createdAt': encodeTime(voidedExisting.createdAt),
+            'updatedAt': encodeTime(voidedExisting.updatedAt),
+          },
         );
 
         await recordOutboxEntry(
@@ -371,22 +407,7 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
       return;
     }
 
-    final offsettingType = original.type == EntryType.gave
-        ? EntryType.got
-        : EntryType.gave;
-    final timestamp = DateTime.now();
-    final offsetEntryId = uuid.v4();
-    final offsetNote = 'Offset: Voided entry #${original.id}'
-        '${original.note != null && original.note!.isNotEmpty ? ' (${original.note})' : ''}';
-
-    final offsetEntry = LedgerEntry(
-      id: offsetEntryId,
-      partyId: original.partyId,
-      amountInCents: original.amountInCents,
-      type: offsettingType,
-      date: timestamp,
-      note: offsetNote,
-    );
+    final now = DateTime.now();
 
     final oldMap = {
       'id': original.id,
@@ -401,43 +422,50 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
           .write(
         LedgerEntriesCompanion(
           isVoided: const Value(true),
-          updatedAt: Value(DateTime.now()),
+          isDeleted: const Value(true),
+          updatedAt: Value(now),
           syncStatus: const Value(SyncRecordStatus.pending),
         ),
       );
 
-      await db.into(db.ledgerEntries).insert(
-            LedgerEntriesCompanion.insert(
-              id: offsetEntry.id,
-              companyId: Value(currentCompanyId),
-              partyId: offsetEntry.partyId,
-              amountInCents: offsetEntry.amountInCents,
-              type: offsetEntry.type,
-              date: offsetEntry.date,
-              note: Value(offsetEntry.note),
-              receiptPhotoUrl: Value(offsetEntry.receiptPhotoUrl),
-              isVoided: const Value(false),
-              createdAt: Value(offsetEntry.date),
-              updatedAt: Value(DateTime.now()),
-              isDeleted: const Value(false),
-              syncStatus: const Value(SyncRecordStatus.pending),
-            ),
-          );
-
-      await recordOutboxEntry(
-        targetTable: 'ledger_entries',
-        recordId: original.id,
-        mutationType: 'UPDATE',
-        payload: {'id': original.id, 'isVoided': true, 'companyId': currentCompanyId},
+      final jnlId = 'jnl_entry_$entryId';
+      await (db.update(db.journals)..where((t) => t.id.equals(jnlId) & t.companyId.equals(currentCompanyId))).write(
+        JournalsCompanion(
+          status: const Value('voided'),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
       );
 
+      await (db.update(db.journalLines)..where((t) => t.journalId.equals(jnlId) & t.companyId.equals(currentCompanyId))).write(
+        JournalLinesCompanion(
+          isDeleted: const Value(true),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      final voidedOriginal = await (db.select(db.ledgerEntries)
+            ..where((t) => t.id.equals(original.id) & t.companyId.equals(currentCompanyId)))
+          .getSingle();
+
       await recordOutboxEntry(
         targetTable: 'ledger_entries',
-        recordId: offsetEntry.id,
-        mutationType: 'INSERT',
+        recordId: voidedOriginal.id,
+        mutationType: 'UPDATE',
         payload: {
-          ...offsetEntry.toMap(),
-          'companyId': currentCompanyId,
+          'id': voidedOriginal.id,
+          'companyId': voidedOriginal.companyId,
+          'partyId': voidedOriginal.partyId,
+          'amountInCents': voidedOriginal.amountInCents,
+          'type': voidedOriginal.type.name,
+          'date': encodeTime(voidedOriginal.date),
+          'note': voidedOriginal.note,
+          'receiptPhotoUrl': voidedOriginal.receiptPhotoUrl,
+          'isVoided': voidedOriginal.isVoided,
+          'isDeleted': voidedOriginal.isDeleted,
+          'createdAt': encodeTime(voidedOriginal.createdAt),
+          'updatedAt': encodeTime(voidedOriginal.updatedAt),
         },
       );
 
@@ -446,7 +474,7 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
         entityId: original.id,
         action: AuditAction.voided,
         oldState: oldMap,
-        newState: {'id': original.id, 'isVoided': true, 'offsetEntryId': offsetEntry.id},
+        newState: {'id': original.id, 'isVoided': true, 'isDeleted': true},
       );
 
       await _recalculatePartyBalanceInTx(original.partyId);
@@ -483,19 +511,17 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
     if (party == null) return;
 
     final entriesQuery = db.select(db.ledgerEntries)
-      ..where((t) => t.partyId.equals(partyId) & t.companyId.equals(currentCompanyId));
+      ..where((t) =>
+          t.partyId.equals(partyId) &
+          t.companyId.equals(currentCompanyId) &
+          t.isDeleted.equals(false));
     final entries = await entriesQuery.get();
 
-    int newBalance = 0;
+    final newBalance = calculatePartyBalanceFromRows(entries);
     DateTime latestDate = party.lastUpdated;
 
     for (final entry in entries) {
-      if (entry.type == EntryType.gave) {
-        newBalance += entry.amountInCents;
-      } else {
-        newBalance -= entry.amountInCents;
-      }
-      if (entry.date.isAfter(latestDate)) {
+      if (!entry.isDeleted && entry.date.isAfter(latestDate)) {
         latestDate = entry.date;
       }
     }
@@ -509,18 +535,24 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
       ),
     );
 
+    final updatedPartyRow = await (db.select(db.parties)
+          ..where((t) => t.id.equals(partyId) & t.companyId.equals(currentCompanyId)))
+        .getSingle();
+
     await recordOutboxEntry(
       targetTable: 'parties',
       recordId: partyId,
       mutationType: 'UPDATE',
       payload: {
-        'id': partyId,
-        'name': party.name,
-        'phoneNumber': party.phoneNumber,
-        'type': party.type.name,
+        'id': updatedPartyRow.id,
         'companyId': currentCompanyId,
-        'netBalanceInCents': newBalance,
-        'lastUpdated': latestDate.toIso8601String(),
+        'name': updatedPartyRow.name,
+        'phoneNumber': updatedPartyRow.phoneNumber,
+        'type': updatedPartyRow.type.name,
+        'netBalanceInCents': updatedPartyRow.netBalanceInCents,
+        'lastUpdated': encodeTime(updatedPartyRow.lastUpdated),
+        'isDeleted': updatedPartyRow.isDeleted,
+        'updatedAt': encodeTime(updatedPartyRow.updatedAt),
       },
     );
   }

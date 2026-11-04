@@ -18,6 +18,7 @@ import 'database.dart';
 import 'drift_accounts_journals_mixin.dart';
 import 'drift_companies_profile_mixin.dart';
 import 'drift_entries_mixin.dart';
+import 'outbox_helper.dart';
 import 'drift_ledger_base.dart';
 import 'drift_parties_mixin.dart';
 
@@ -100,14 +101,7 @@ class DriftLedgerRepository extends DriftLedgerRepositoryBase
   @override
   void triggerBackgroundSync() {
     if (_isDisposed || !_autoSync) return;
-    _syncEngine.pushQueue(companyId: _currentCompanyId).catchError((e) {
-      debugPrint('DriftLedgerRepository background sync error: $e');
-      return SyncResult(
-        success: false,
-        errorMessage: e.toString(),
-        timestamp: DateTime.now(),
-      );
-    });
+    _syncEngine.triggerBackgroundSync(companyId: _currentCompanyId);
   }
 
   void setContext({
@@ -139,18 +133,16 @@ class DriftLedgerRepository extends DriftLedgerRepositoryBase
     required Map<String, dynamic> payload,
     String? companyId,
   }) async {
-    await _db.into(_db.syncOutbox).insert(
-          SyncOutboxCompanion.insert(
-            id: _uuid.v4(),
-            targetTable: targetTable,
-            recordId: recordId,
-            mutationType: mutationType,
-            payload: jsonEncode({
-              ...payload,
-              'companyId': companyId ?? _currentCompanyId,
-            }),
-          ),
-        );
+    await enqueueMutation(
+      db: _db,
+      table: targetTable,
+      recordId: recordId,
+      type: mutationType,
+      fullRowMap: {
+        ...payload,
+        'companyId': companyId ?? _currentCompanyId,
+      },
+    );
   }
 
   /// Shared helper to record audit logs across all mixins.

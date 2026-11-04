@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/network/sync_codec.dart';
 import 'package:flutter/foundation.dart';
 import '../../data/local/database.dart' show SyncRecordStatus;
 import '../../data/models/voucher_model.dart';
@@ -169,11 +170,11 @@ class RecurringRuleModel {
       'templateJson': template.toJson(),
       'intervalType': intervalType.name,
       'intervalCount': intervalCount,
-      'nextRunDate': nextRunDate.toIso8601String(),
-      'endDate': endDate?.toIso8601String(),
+      'nextRunDate': encodeTime(nextRunDate),
+      'endDate': endDate != null ? encodeTime(endDate!) : null,
       'isActive': isActive,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': encodeTime(createdAt),
+      'updatedAt': encodeTime(updatedAt),
       'isDeleted': isDeleted,
       'syncStatus': syncStatus.name,
     };
@@ -183,15 +184,17 @@ class RecurringRuleModel {
     return RecurringRuleModel(
       id: map['id'] as String,
       companyId: map['companyId'] as String? ?? 'cmp_default',
-      template: RecurringTemplate.fromJson(map['templateJson'] as String),
-      intervalType: RecurringIntervalType.fromString(map['intervalType'] as String? ?? 'monthly'),
-      intervalCount: map['intervalCount'] as int? ?? 1,
-      nextRunDate: DateTime.parse(map['nextRunDate'] as String),
-      endDate: map['endDate'] != null ? DateTime.parse(map['endDate'] as String) : null,
-      isActive: map['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(map['createdAt'] as String),
-      updatedAt: DateTime.parse(map['updatedAt'] as String),
-      isDeleted: map['isDeleted'] as bool? ?? false,
+      template: RecurringTemplate.fromJson((map['templateJson'] ?? map['template_json']) as String),
+      intervalType: RecurringIntervalType.fromString((map['intervalType'] ?? map['interval_type']) as String? ?? 'monthly'),
+      intervalCount: (map['intervalCount'] ?? map['interval_count'] as int?) ?? 1,
+      nextRunDate: decodeTime(map['nextRunDate'] ?? map['next_run_date']),
+      endDate: map['endDate'] != null || map['end_date'] != null
+          ? decodeTime(map['endDate'] ?? map['end_date'])
+          : null,
+      isActive: (map['isActive'] ?? map['is_active'] as bool?) ?? true,
+      createdAt: decodeTime(map['createdAt'] ?? map['created_at']),
+      updatedAt: decodeTime(map['updatedAt'] ?? map['updated_at']),
+      isDeleted: (map['isDeleted'] ?? map['is_deleted'] as bool?) ?? false,
       syncStatus: SyncRecordStatus.values.firstWhere(
         (s) => s.name == map['syncStatus'],
         orElse: () => SyncRecordStatus.pending,

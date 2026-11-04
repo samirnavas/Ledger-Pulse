@@ -1,3 +1,5 @@
+import '../../core/network/sync_codec.dart';
+
 enum PartyType {
   customer,
   supplier;
@@ -78,7 +80,7 @@ class Party {
       'stateCode': stateCode,
       'address': address,
       'dealerType': dealerType,
-      'lastUpdated': lastUpdated.toIso8601String(),
+      'lastUpdated': encodeTime(lastUpdated),
     };
   }
 
@@ -86,14 +88,14 @@ class Party {
     return Party(
       id: map['id'] as String,
       name: map['name'] as String,
-      phoneNumber: map['phoneNumber'] as String,
+      phoneNumber: (map['phoneNumber'] ?? map['phone_number'] ?? '') as String,
       type: PartyType.values.byName(map['type'] as String),
-      netBalanceInCents: map['netBalanceInCents'] as int,
+      netBalanceInCents: (map['netBalanceInCents'] as int?) ?? (map['net_balance_in_cents'] as int?) ?? 0,
       gstin: map['gstin'] as String?,
-      stateCode: map['stateCode'] as String?,
+      stateCode: (map['stateCode'] ?? map['state_code']) as String?,
       address: map['address'] as String?,
-      dealerType: (map['dealerType'] as String?) ?? 'regular',
-      lastUpdated: DateTime.parse(map['lastUpdated'] as String),
+      dealerType: (map['dealerType'] ?? map['dealer_type'] as String?) ?? 'regular',
+      lastUpdated: decodeTime(map['lastUpdated'] ?? map['last_updated']),
     );
   }
 

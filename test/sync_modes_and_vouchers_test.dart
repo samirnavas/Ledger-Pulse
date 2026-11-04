@@ -10,6 +10,7 @@ import 'package:ledger_pulse/data/local/drift_voucher_repository.dart';
 import 'package:ledger_pulse/data/models/account_model.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/voucher_model.dart';
+import 'sync/support/strict_fake_remote.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -18,7 +19,7 @@ void main() {
     test('Push expense company with expense, income & transfer, wipe DB, pull & restore integrity', () async {
       // 1. Setup origin database and fake remote store
       final originDb = AppDatabase(NativeDatabase.memory());
-      final fakeRemote = FakeRemoteSyncBackend();
+      final fakeRemote = StrictFakeRemoteSyncBackend();
       final originSyncEngine = SyncEngine(
         db: originDb,
         simulateSyncForTesting: true,
@@ -206,7 +207,7 @@ void main() {
     });
 
     test('Old-style company row without mode or enabled_modules pulls as ledger company with all modules', () async {
-      final fakeRemote = FakeRemoteSyncBackend();
+      final fakeRemote = StrictFakeRemoteSyncBackend();
 
       // Seed legacy row in fake remote (no mode, no enabled_modules)
       fakeRemote.upsert('companies', 'cmp_legacy_001', {

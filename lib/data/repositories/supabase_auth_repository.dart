@@ -240,6 +240,91 @@ class SupabaseAuthRepository implements IAuthRepository {
     return false;
   }
 
+  @override
+  Future<bool> signUpWithEmailAndPassword({
+    required String email,
+    required String password,
+    required String name,
+    required bool isCompanyAccount,
+  }) async {
+    final trimmedEmail = email.trim();
+    final trimmedPassword = password.trim();
+    final client = _client;
+
+    if (client != null && SupabaseConfig.isConfigured) {
+      try {
+        final response = await client.auth.signUp(
+          email: trimmedEmail,
+          password: trimmedPassword,
+          data: {
+            'full_name': name,
+            'is_company_account': isCompanyAccount,
+            'account_type': isCompanyAccount ? 'company' : 'personal',
+          },
+        );
+        if (response.user != null) {
+          _cachedUserId = response.user!.id;
+          _cachedSessionToken = response.session?.accessToken ?? 'jwt_${DateTime.now().millisecondsSinceEpoch}';
+          _cachedPhoneNumber = trimmedEmail;
+          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+          _authStateController.add(true);
+          return true;
+        } else {
+          throw Exception('Failed to create user on Supabase Auth');
+        }
+      } catch (e) {
+        debugPrint('Supabase signUpWithEmailAndPassword error: $e');
+        rethrow;
+      }
+    }
+
+    // Local / Offline fallback auth
+    _cachedUserId = 'usr_supa_${trimmedEmail.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
+    _cachedSessionToken = 'jwt_token_${DateTime.now().millisecondsSinceEpoch}';
+    _cachedPhoneNumber = trimmedEmail;
+    await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+    _authStateController.add(true);
+    return true;
+  }
+
+  @override
+  Future<bool> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    final trimmedEmail = email.trim();
+    final trimmedPassword = password.trim();
+    final client = _client;
+
+    if (client != null && SupabaseConfig.isConfigured) {
+      try {
+        final response = await client.auth.signInWithPassword(
+          email: trimmedEmail,
+          password: trimmedPassword,
+        );
+        if (response.session != null) {
+          _cachedUserId = response.session!.user.id;
+          _cachedSessionToken = response.session!.accessToken;
+          _cachedPhoneNumber = response.session!.user.email ?? trimmedEmail;
+          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+          _authStateController.add(true);
+          return true;
+        }
+      } catch (e) {
+        debugPrint('Supabase signInWithEmailAndPassword error: $e');
+        rethrow;
+      }
+    }
+
+    // Local / Offline fallback auth
+    _cachedUserId = 'usr_supa_${trimmedEmail.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
+    _cachedSessionToken = 'jwt_token_${DateTime.now().millisecondsSinceEpoch}';
+    _cachedPhoneNumber = trimmedEmail;
+    await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+    _authStateController.add(true);
+    return true;
+  }
+
   Future<bool> _simulateLocalAuth(String phone) async {
     _cachedPhoneNumber = phone;
     _cachedUserId = 'usr_supa_${phone.replaceAll(RegExp(r'\D'), '')}';

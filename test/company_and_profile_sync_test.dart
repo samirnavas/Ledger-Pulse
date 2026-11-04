@@ -13,6 +13,7 @@ import 'package:ledger_pulse/presentation/providers/database_providers.dart';
 import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
 import 'package:ledger_pulse/presentation/providers/sync_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'sync/support/strict_fake_remote.dart';
 
 class _FakeAuthController extends AuthController {
   @override
@@ -280,7 +281,7 @@ void main() {
       expect(prefs.getString('last_active_company_id'), equals(compNew.id));
 
       // 2. Simulate remote sync pull that has old company (cmp_old) in remote user profile
-      syncEngine.fakeRemoteStore?.upsert('user_profiles', 'usr_default', {
+      (syncEngine.fakeRemoteStore as StrictFakeRemoteSyncBackend?)?.upsert('user_profiles', 'usr_default', {
         'id': 'usr_default',
         'name': 'User Remote',
         'active_company_id': compOld.id,

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/network/sync_codec.dart';
 
 enum VoucherType {
   sales,
@@ -392,8 +393,8 @@ class VoucherModel {
       'companyId': companyId,
       'voucherNumber': voucherNumber,
       'type': type.name,
-      'date': date.toIso8601String(),
-      'dueDate': dueDate?.toIso8601String(),
+      'date': encodeTime(date),
+      'dueDate': dueDate != null ? encodeTime(dueDate!) : null,
       'partyId': partyId,
       'partyName': partyName,
       'status': status.name,
@@ -420,8 +421,8 @@ class VoucherModel {
       'categoryAccountId': categoryAccountId,
       'walletAccountId': walletAccountId,
       'toWalletAccountId': toWalletAccountId,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': encodeTime(createdAt),
+      'updatedAt': encodeTime(updatedAt),
     };
   }
 
@@ -448,8 +449,10 @@ class VoucherModel {
         (e) => e.name == map['type'],
         orElse: () => VoucherType.sales,
       ),
-      date: DateTime.parse(map['date'] as String),
-      dueDate: map['dueDate'] != null ? DateTime.parse(map['dueDate'] as String) : null,
+      date: decodeTime(map['date']),
+      dueDate: map['dueDate'] != null || map['due_date'] != null
+          ? decodeTime(map['dueDate'] ?? map['due_date'])
+          : null,
       partyId: map['partyId'] as String?,
       partyName: map['partyName'] as String?,
       status: map['status'] != null
@@ -487,12 +490,8 @@ class VoucherModel {
       categoryAccountId: (map['categoryAccountId'] ?? map['category_account_id']) as String?,
       walletAccountId: (map['walletAccountId'] ?? map['wallet_account_id']) as String?,
       toWalletAccountId: (map['toWalletAccountId'] ?? map['to_wallet_account_id']) as String?,
-      createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'] as String)
-          : DateTime.now(),
-      updatedAt: map['updatedAt'] != null
-          ? DateTime.parse(map['updatedAt'] as String)
-          : DateTime.now(),
+      createdAt: decodeTime(map['createdAt'] ?? map['created_at']),
+      updatedAt: decodeTime(map['updatedAt'] ?? map['updated_at']),
     );
   }
 }

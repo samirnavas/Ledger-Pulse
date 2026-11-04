@@ -1,4 +1,5 @@
 import 'dart:convert';
+import '../../core/network/sync_codec.dart';
 
 class JournalLineModel {
   final String id;
@@ -172,13 +173,13 @@ class JournalModel {
       'companyId': companyId,
       'journalNumber': journalNumber,
       'voucherId': voucherId,
-      'date': date.toIso8601String(),
+      'date': encodeTime(date),
       'narration': narration,
       'totalAmountInCents': totalAmountInCents,
       'status': status,
       'lines': lines.map((l) => l.toMap()).toList(),
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'createdAt': encodeTime(createdAt),
+      'updatedAt': encodeTime(updatedAt),
     };
   }
 
@@ -188,9 +189,7 @@ class JournalModel {
       companyId: map['companyId'] as String? ?? 'cmp_default',
       journalNumber: map['journalNumber'] as String,
       voucherId: map['voucherId'] as String?,
-      date: map['date'] != null
-          ? DateTime.parse(map['date'] as String)
-          : DateTime.now(),
+      date: decodeTime(map['date']),
       narration: map['narration'] as String?,
       totalAmountInCents: (map['totalAmountInCents'] as int?) ?? 0,
       status: (map['status'] as String?) ?? 'posted',
@@ -198,12 +197,8 @@ class JournalModel {
               ?.map((l) => JournalLineModel.fromMap(l as Map<String, dynamic>))
               .toList() ??
           const [],
-      createdAt: map['createdAt'] != null
-          ? DateTime.parse(map['createdAt'] as String)
-          : DateTime.now(),
-      updatedAt: map['updatedAt'] != null
-          ? DateTime.parse(map['updatedAt'] as String)
-          : DateTime.now(),
+      createdAt: decodeTime(map['createdAt'] ?? map['created_at']),
+      updatedAt: decodeTime(map['updatedAt'] ?? map['updated_at']),
     );
   }
 
