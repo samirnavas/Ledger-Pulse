@@ -171,6 +171,9 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
         mutationType: 'UPSERT',
         payload: {
           ...company.toMap(),
+          'is_cloud_sync_enabled': company.isCloudSyncEnabled,
+          'is_dropbox_sync_enabled': company.isDropboxSyncEnabled,
+          'is_active': company.isActive,
           'companyId': company.id,
           'ownerId': currentUserId,
           'owner_id': currentUserId,
@@ -269,7 +272,12 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
         mutationType: 'UPSERT',
         payload: {
           ...updatedCompany.toMap(),
+          'is_cloud_sync_enabled': updatedCompany.isCloudSyncEnabled,
+          'is_dropbox_sync_enabled': updatedCompany.isDropboxSyncEnabled,
+          'is_active': updatedCompany.isActive,
           'companyId': companyId,
+          'ownerId': currentUserId,
+          'owner_id': currentUserId,
           'action': 'upgrade_to_ledger',
         },
         companyId: companyId,
@@ -340,7 +348,12 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
         mutationType: 'UPSERT',
         payload: {
           ...updated.toMap(),
+          'is_cloud_sync_enabled': updated.isCloudSyncEnabled,
+          'is_dropbox_sync_enabled': updated.isDropboxSyncEnabled,
+          'is_active': updated.isActive,
           'companyId': updated.id,
+          'ownerId': currentUserId,
+          'owner_id': currentUserId,
         },
         companyId: updated.id,
       );

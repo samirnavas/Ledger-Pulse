@@ -61,8 +61,8 @@ class DriftVoucherRepository {
       'companyId': r.companyId,
       'voucherNumber': r.voucherNumber,
       'type': r.type,
-      'date': r.date.toIso8601String(),
-      'dueDate': r.dueDate?.toIso8601String(),
+      'date': r.date,
+      'dueDate': r.dueDate,
       'partyId': r.partyId,
       'partyName': r.partyName,
       'status': r.status,
@@ -79,8 +79,8 @@ class DriftVoucherRepository {
       'categoryAccountId': r.categoryAccountId,
       'walletAccountId': r.walletAccountId,
       'toWalletAccountId': r.toWalletAccountId,
-      'createdAt': r.createdAt.toIso8601String(),
-      'updatedAt': r.updatedAt.toIso8601String(),
+      'createdAt': r.createdAt,
+      'updatedAt': r.updatedAt,
     })).toList();
   }
 
@@ -98,8 +98,8 @@ class DriftVoucherRepository {
       'companyId': r.companyId,
       'voucherNumber': r.voucherNumber,
       'type': r.type,
-      'date': r.date.toIso8601String(),
-      'dueDate': r.dueDate?.toIso8601String(),
+      'date': r.date,
+      'dueDate': r.dueDate,
       'partyId': r.partyId,
       'partyName': r.partyName,
       'status': r.status,
@@ -116,8 +116,8 @@ class DriftVoucherRepository {
       'categoryAccountId': r.categoryAccountId,
       'walletAccountId': r.walletAccountId,
       'toWalletAccountId': r.toWalletAccountId,
-      'createdAt': r.createdAt.toIso8601String(),
-      'updatedAt': r.updatedAt.toIso8601String(),
+      'createdAt': r.createdAt,
+      'updatedAt': r.updatedAt,
     });
   }
 

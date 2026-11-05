@@ -28,6 +28,8 @@ class AuthState {
   final bool isLoading;
   final String? error;
   final String? phoneNumber;
+  final String? email;
+  final String? userName;
   final bool isOtpSent;
   final bool isAuthenticated;
 
@@ -35,6 +37,8 @@ class AuthState {
     this.isLoading = false,
     this.error,
     this.phoneNumber,
+    this.email,
+    this.userName,
     this.isOtpSent = false,
     this.isAuthenticated = false,
   });
@@ -43,6 +47,8 @@ class AuthState {
     bool? isLoading,
     String? error,
     String? phoneNumber,
+    String? email,
+    String? userName,
     bool? isOtpSent,
     bool? isAuthenticated,
   }) {
@@ -50,6 +56,8 @@ class AuthState {
       isLoading: isLoading ?? this.isLoading,
       error: error,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      email: email ?? this.email,
+      userName: userName ?? this.userName,
       isOtpSent: isOtpSent ?? this.isOtpSent,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
     );
@@ -69,6 +77,8 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(
         isAuthenticated: isAuth,
         phoneNumber: repo.currentPhoneNumber,
+        email: repo.currentUserEmail,
+        userName: repo.currentUserName,
       );
     });
 
@@ -79,6 +89,8 @@ class AuthController extends Notifier<AuthState> {
     return AuthState(
       isAuthenticated: repo.isAuthenticated,
       phoneNumber: repo.currentPhoneNumber,
+      email: repo.currentUserEmail,
+      userName: repo.currentUserName,
     );
   }
 
@@ -141,6 +153,8 @@ class AuthController extends Notifier<AuthState> {
           isLoading: false,
           isAuthenticated: true,
           phoneNumber: email,
+          email: email,
+          userName: name,
         );
         return true;
       } else {
@@ -151,11 +165,19 @@ class AuthController extends Notifier<AuthState> {
         return false;
       }
     } on AuthException catch (e) {
-      state = state.copyWith(isLoading: false, error: e.message);
+      String msg = e.message;
+      if (msg.toLowerCase().contains('already registered') ||
+          msg.toLowerCase().contains('user already exists')) {
+        msg = 'An account with this email already exists. Please sign in.';
+      }
+      state = state.copyWith(isLoading: false, error: msg);
       return false;
     } catch (e) {
-      final cleanMsg = e.toString().replaceFirst('Exception: ', '');
-      state = state.copyWith(isLoading: false, error: cleanMsg);
+      String msg = e.toString().replaceFirst('Exception: ', '');
+      if (msg.contains('SocketException') || msg.contains('Failed host lookup')) {
+        msg = 'Network error: Unable to connect to Supabase. Please check your internet connection.';
+      }
+      state = state.copyWith(isLoading: false, error: msg);
       return false;
     }
   }
@@ -175,6 +197,8 @@ class AuthController extends Notifier<AuthState> {
           isLoading: false,
           isAuthenticated: true,
           phoneNumber: email,
+          email: email,
+          userName: _repository.currentUserName,
         );
         return true;
       } else {
@@ -185,11 +209,19 @@ class AuthController extends Notifier<AuthState> {
         return false;
       }
     } on AuthException catch (e) {
-      state = state.copyWith(isLoading: false, error: e.message);
+      String msg = e.message;
+      if (msg.toLowerCase().contains('invalid login credentials') ||
+          msg.toLowerCase().contains('invalid_credentials')) {
+        msg = 'Invalid email or password. Please try again.';
+      }
+      state = state.copyWith(isLoading: false, error: msg);
       return false;
     } catch (e) {
-      final cleanMsg = e.toString().replaceFirst('Exception: ', '');
-      state = state.copyWith(isLoading: false, error: cleanMsg);
+      String msg = e.toString().replaceFirst('Exception: ', '');
+      if (msg.contains('SocketException') || msg.contains('Failed host lookup')) {
+        msg = 'Network error: Unable to connect to Supabase. Please check your internet connection.';
+      }
+      state = state.copyWith(isLoading: false, error: msg);
       return false;
     }
   }

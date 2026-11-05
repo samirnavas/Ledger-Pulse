@@ -20,6 +20,12 @@ class MockAuthRepository implements IAuthRepository {
   String? get currentSessionToken => _isAuthenticated ? 'mock_session_token_xyz' : null;
 
   @override
+  String? get currentUserEmail => _phoneNumber != null && _phoneNumber!.contains('@') ? _phoneNumber : 'demo@ledgerpulse.com';
+
+  @override
+  String? get currentUserName => 'Demo User';
+
+  @override
   Stream<bool> get authStateStream => _authStateController.stream;
 
   @override

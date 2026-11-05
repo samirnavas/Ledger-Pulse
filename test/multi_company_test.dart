@@ -12,7 +12,7 @@ void main() {
   late AppDatabase db;
   late DriftLedgerRepository repo;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     repo = DriftLedgerRepository(
       db: db,
@@ -20,6 +20,20 @@ void main() {
       currentUserId: 'usr_admin',
       currentRole: Role.admin,
     );
+    await repo.createCompany(Company(
+      id: 'cmp_1',
+      name: 'Company 1',
+      legalName: 'Company 1',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    ));
+    await repo.createCompany(Company(
+      id: 'cmp_2',
+      name: 'Company 2',
+      legalName: 'Company 2',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    ));
   });
 
   tearDown(() async {

@@ -13,6 +13,7 @@ import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
 import '../home/home_shell.dart';
 import '../providers/auth_providers.dart';
+import '../providers/company_providers.dart';
 import 'otp_screen.dart';
 
 enum AuthMode { phoneOtp, emailPassword }
@@ -28,7 +29,9 @@ class PhoneInputScreen extends ConsumerStatefulWidget {
 class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
   AuthMode _authMode = AuthMode.emailPassword;
   EmailAuthType _emailAuthType = EmailAuthType.signUp;
-  bool _isCompanyAccount = true; // default: Company account
+  bool _isCompanyAccount = true; // default: Company account (Business Ledger)
+  bool _obscurePassword = true;
+  bool _isBootstrapping = false;
 
   final TextEditingController _phoneController =
       TextEditingController(text: '98765 43210');
@@ -86,47 +89,92 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
       return;
     }
 
-    setState(() => _errorMessage = null);
+    setState(() {
+      _errorMessage = null;
+      _isBootstrapping = true;
+    });
 
-    if (_emailAuthType == EmailAuthType.signUp) {
-      if (name.isEmpty) {
-        setState(() => _errorMessage = 'Please enter your name or business name');
-        return;
+    try {
+      if (_emailAuthType == EmailAuthType.signUp) {
+        if (name.isEmpty) {
+          setState(() {
+            _errorMessage = _isCompanyAccount
+                ? 'Please enter your business or company name'
+                : 'Please enter your full name';
+            _isBootstrapping = false;
+          });
+          return;
+        }
+
+        final success = await ref
+            .read(authControllerProvider.notifier)
+            .signUpWithEmailAndPassword(
+              email: email,
+              password: password,
+              name: name,
+              isCompanyAccount: _isCompanyAccount,
+            );
+
+        if (success && mounted) {
+          // Connect user to database: create company profile and user profile
+          await ref
+              .read(companyControllerProvider.notifier)
+              .bootstrapInitialProfile(
+                name: name,
+                email: email,
+                isCompanyAccount: _isCompanyAccount,
+              );
+
+          if (mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              createAdaptivePageRoute(
+                builder: (context) => const HomeShell(),
+                transitionType: SharedAxisTransitionType.scaled,
+              ),
+              (route) => false,
+            );
+          }
+        } else if (!success && mounted) {
+          final err = ref.read(authControllerProvider).error;
+          setState(() => _errorMessage = err ?? 'Failed to create account');
+        }
+      } else {
+        final success = await ref
+            .read(authControllerProvider.notifier)
+            .signInWithEmailAndPassword(
+              email: email,
+              password: password,
+            );
+
+        if (success && mounted) {
+          // Ensure the user is connected to existing or initial profile
+          await ref
+              .read(companyControllerProvider.notifier)
+              .ensureProfileAndCompanyExist(
+                email: email,
+              );
+
+          if (mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              createAdaptivePageRoute(
+                builder: (context) => const HomeShell(),
+                transitionType: SharedAxisTransitionType.scaled,
+              ),
+              (route) => false,
+            );
+          }
+        } else if (!success && mounted) {
+          final err = ref.read(authControllerProvider).error;
+          setState(() => _errorMessage = err ?? 'Sign in failed');
+        }
       }
-      final success = await ref.read(authControllerProvider.notifier).signUpWithEmailAndPassword(
-            email: email,
-            password: password,
-            name: name,
-            isCompanyAccount: _isCompanyAccount,
-          );
-      if (success && mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          createAdaptivePageRoute(
-            builder: (context) => const HomeShell(),
-            transitionType: SharedAxisTransitionType.scaled,
-          ),
-          (route) => false,
-        );
-      } else if (!success && mounted) {
-        final err = ref.read(authControllerProvider).error;
-        setState(() => _errorMessage = err ?? 'Failed to create account');
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = 'Authentication error: $e');
       }
-    } else {
-      final success = await ref.read(authControllerProvider.notifier).signInWithEmailAndPassword(
-            email: email,
-            password: password,
-          );
-      if (success && mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          createAdaptivePageRoute(
-            builder: (context) => const HomeShell(),
-            transitionType: SharedAxisTransitionType.scaled,
-          ),
-          (route) => false,
-        );
-      } else if (!success && mounted) {
-        final err = ref.read(authControllerProvider).error;
-        setState(() => _errorMessage = err ?? 'Sign in failed');
+    } finally {
+      if (mounted) {
+        setState(() => _isBootstrapping = false);
       }
     }
   }
@@ -422,29 +470,29 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
               if (_emailAuthType == EmailAuthType.signUp) ...[
                 // ACCOUNT TYPE SELECTOR (Personal vs Company)
                 Text(
-                  'Select Account Type:',
+                  'Profile Type:',
                   style: AppTypography.labelLarge.copyWith(fontSize: 14),
                 ),
                 const SizedBox(height: 8),
                 AdaptiveSegmentedControl<bool>(
                   groupValue: _isCompanyAccount,
                   children: const {
-                    false: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.person_rounded, size: 16),
-                        SizedBox(width: 6),
-                        Text('Personal Account'),
-                      ],
-                    ),
                     true: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.business_rounded, size: 16),
                         SizedBox(width: 6),
-                        Text('Company Account'),
+                        Text('Business Ledger'),
+                      ],
+                    ),
+                    false: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.wallet_rounded, size: 16),
+                        SizedBox(width: 6),
+                        Text('Expense Tracker'),
                       ],
                     ),
                   },
@@ -459,6 +507,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                   controller: _nameController,
                   decoration: InputDecoration(
                     labelText: _isCompanyAccount ? 'Company / Business Name' : 'Your Full Name',
+                    hintText: _isCompanyAccount ? 'e.g. Acme Enterprises' : 'e.g. John Doe',
                     border: const OutlineInputBorder(),
                     prefixIcon: Icon(_isCompanyAccount ? Icons.business_rounded : Icons.person_rounded),
                   ),
@@ -471,6 +520,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
                   labelText: 'Email Address',
+                  hintText: 'name@example.com',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
@@ -479,11 +529,21 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
 
               TextField(
                 controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
                   labelText: 'Password',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock_outline_rounded),
+                  hintText: 'At least 6 characters',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    ),
+                    onPressed: () {
+                      setState(() => _obscurePassword = !_obscurePassword);
+                    },
+                    tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                  ),
                 ),
                 onSubmitted: (_) => _handleEmailSubmit(),
               ),
@@ -501,7 +561,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                 onPressed: _handleEmailSubmit,
                 isFullWidth: true,
                 height: 52,
-                isLoading: authState.isLoading,
+                isLoading: authState.isLoading || _isBootstrapping,
                 child: Text(
                   _emailAuthType == EmailAuthType.signIn ? 'Sign In' : 'Create Account',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),

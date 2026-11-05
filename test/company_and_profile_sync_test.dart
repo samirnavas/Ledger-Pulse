@@ -32,10 +32,16 @@ void main() {
     late AppDatabase db;
     late DriftLedgerRepository repo;
     late SyncEngine syncEngine;
+    late StrictFakeRemoteSyncBackend fakeRemote;
 
     setUp(() {
       db = AppDatabase(NativeDatabase.memory());
-      syncEngine = SyncEngine(db: db, simulateSyncForTesting: true);
+      fakeRemote = StrictFakeRemoteSyncBackend();
+      syncEngine = SyncEngine(
+        db: db,
+        fakeRemoteStore: fakeRemote,
+        simulateSyncForTesting: true,
+      );
       repo = DriftLedgerRepository(
         db: db,
         syncEngine: syncEngine,

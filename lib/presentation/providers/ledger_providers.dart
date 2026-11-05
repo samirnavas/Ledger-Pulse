@@ -6,6 +6,7 @@ import '../../data/models/journal_model.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../../domain/repositories/i_ledger_repository.dart';
+import 'auth_providers.dart';
 import 'company_providers.dart';
 import 'database_providers.dart';
 import 'profile_provider.dart';
@@ -18,15 +19,15 @@ export '../../data/models/journal_model.dart';
 final ledgerRepositoryProvider = Provider<ILedgerRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   final syncEngine = ref.watch(syncEngineProvider);
-  final activeCompanyId = ref.watch(userProfileProvider.select((p) => p.activeCompanyId));
-  final userId = ref.watch(userProfileProvider.select((p) => p.id));
-  final role = ref.watch(userProfileProvider.select((p) => p.role));
+  final authRepo = ref.watch(authRepositoryProvider);
+  final userId = authRepo.currentUserId ?? 'usr_default';
+  final activeCompanyId = ref.watch(activeCompanyIdProvider);
+
   final repo = DriftLedgerRepository(
     db: db,
     syncEngine: syncEngine,
     currentCompanyId: activeCompanyId.isEmpty ? 'cmp_default' : activeCompanyId,
-    currentUserId: userId.isEmpty ? 'usr_default' : userId,
-    currentRole: role,
+    currentUserId: userId,
   );
   ref.onDispose(() {
     repo.dispose();

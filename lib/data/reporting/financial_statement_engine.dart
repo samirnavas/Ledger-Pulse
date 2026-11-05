@@ -549,10 +549,13 @@ class FinancialStatementEngine {
     DateTime? targetDate,
   }) {
     final date = targetDate ?? DateTime.now();
+    final target = date.toLocal();
     final List<ReportRow> rows = [];
 
-    final dayVouchers = vouchers.where((v) =>
-        v.date.year == date.year && v.date.month == date.month && v.date.day == date.day).toList();
+    final dayVouchers = vouchers.where((v) {
+      final d = v.date.toLocal();
+      return d.year == target.year && d.month == target.month && d.day == target.day;
+    }).toList();
 
     for (final v in dayVouchers) {
       final isDebit = v.type == VoucherType.sales || v.type == VoucherType.payment || v.type == VoucherType.expense;

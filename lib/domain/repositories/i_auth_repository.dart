@@ -17,4 +17,6 @@ abstract class IAuthRepository {
   String? get currentPhoneNumber;
   String? get currentUserId;
   String? get currentSessionToken;
+  String? get currentUserEmail;
+  String? get currentUserName;
 }

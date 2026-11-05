@@ -9,6 +9,8 @@ class SupabaseAuthRepository implements IAuthRepository {
   static const String _keyUserId = 'supabase_auth_user_id';
   static const String _keySessionToken = 'supabase_auth_session_token';
   static const String _keyPhoneNumber = 'supabase_auth_phone_number';
+  static const String _keyEmail = 'supabase_auth_email';
+  static const String _keyUserName = 'supabase_auth_user_name';
 
   final SupabaseClient? _client;
   final SharedPreferences? _prefs;
@@ -18,6 +20,8 @@ class SupabaseAuthRepository implements IAuthRepository {
   String? _cachedUserId;
   String? _cachedSessionToken;
   String? _cachedPhoneNumber;
+  String? _cachedEmail;
+  String? _cachedUserName;
 
   SupabaseAuthRepository({
     SupabaseClient? client,
@@ -33,6 +37,8 @@ class SupabaseAuthRepository implements IAuthRepository {
       _cachedUserId = _prefs.getString(_keyUserId);
       _cachedSessionToken = _prefs.getString(_keySessionToken);
       _cachedPhoneNumber = _prefs.getString(_keyPhoneNumber);
+      _cachedEmail = _prefs.getString(_keyEmail);
+      _cachedUserName = _prefs.getString(_keyUserName);
     }
   }
 
@@ -51,6 +57,8 @@ class SupabaseAuthRepository implements IAuthRepository {
       _cachedUserId ??= prefs.getString(_keyUserId);
       _cachedSessionToken ??= prefs.getString(_keySessionToken);
       _cachedPhoneNumber ??= prefs.getString(_keyPhoneNumber);
+      _cachedEmail ??= prefs.getString(_keyEmail);
+      _cachedUserName ??= prefs.getString(_keyUserName);
     } catch (e) {
       debugPrint('Failed to load cached auth from SharedPreferences: $e');
     }
@@ -61,8 +69,13 @@ class SupabaseAuthRepository implements IAuthRepository {
       if (currentSession != null) {
         _cachedUserId = currentSession.user.id;
         _cachedSessionToken = currentSession.accessToken;
-        _cachedPhoneNumber = currentSession.user.phone ?? _cachedPhoneNumber;
-        await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+        _cachedPhoneNumber = currentSession.user.phone ?? currentSession.user.email ?? _cachedPhoneNumber;
+        _cachedEmail = currentSession.user.email ?? _cachedEmail;
+        final meta = currentSession.user.userMetadata;
+        if (meta != null && meta['full_name'] != null && (meta['full_name'] as String).isNotEmpty) {
+          _cachedUserName = meta['full_name'] as String;
+        }
+        await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
       }
 
       _supabaseAuthSub = client.auth.onAuthStateChange.listen((data) async {
@@ -70,8 +83,13 @@ class SupabaseAuthRepository implements IAuthRepository {
         if (session != null) {
           _cachedUserId = session.user.id;
           _cachedSessionToken = session.accessToken;
-          _cachedPhoneNumber = session.user.phone ?? _cachedPhoneNumber;
-          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+          _cachedPhoneNumber = session.user.phone ?? session.user.email ?? _cachedPhoneNumber;
+          _cachedEmail = session.user.email ?? _cachedEmail;
+          final meta = session.user.userMetadata;
+          if (meta != null && meta['full_name'] != null && (meta['full_name'] as String).isNotEmpty) {
+            _cachedUserName = meta['full_name'] as String;
+          }
+          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
           if (!_authStateController.isClosed) {
             _authStateController.add(true);
           }
@@ -79,6 +97,8 @@ class SupabaseAuthRepository implements IAuthRepository {
           _cachedUserId = null;
           _cachedSessionToken = null;
           _cachedPhoneNumber = null;
+          _cachedEmail = null;
+          _cachedUserName = null;
           await _clearAuthData();
           if (!_authStateController.isClosed) {
             _authStateController.add(false);
@@ -92,12 +112,20 @@ class SupabaseAuthRepository implements IAuthRepository {
     }
   }
 
-  Future<void> _persistAuthData(String? userId, String? token, String? phone) async {
+  Future<void> _persistAuthData(
+    String? userId,
+    String? token,
+    String? phone, [
+    String? email,
+    String? userName,
+  ]) async {
     try {
       final prefs = _prefs ?? await SharedPreferences.getInstance();
       if (userId != null) await prefs.setString(_keyUserId, userId);
       if (token != null) await prefs.setString(_keySessionToken, token);
       if (phone != null) await prefs.setString(_keyPhoneNumber, phone);
+      if (email != null) await prefs.setString(_keyEmail, email);
+      if (userName != null) await prefs.setString(_keyUserName, userName);
     } catch (e) {
       debugPrint('Error persisting Supabase auth: $e');
     }
@@ -109,6 +137,8 @@ class SupabaseAuthRepository implements IAuthRepository {
       await prefs.remove(_keyUserId);
       await prefs.remove(_keySessionToken);
       await prefs.remove(_keyPhoneNumber);
+      await prefs.remove(_keyEmail);
+      await prefs.remove(_keyUserName);
     } catch (e) {
       debugPrint('Error clearing Supabase auth: $e');
     }
@@ -130,6 +160,27 @@ class SupabaseAuthRepository implements IAuthRepository {
       return client.auth.currentUser!.phone ?? _cachedPhoneNumber;
     }
     return _cachedPhoneNumber;
+  }
+
+  @override
+  String? get currentUserEmail {
+    final client = _client;
+    if (client != null && client.auth.currentUser != null) {
+      return client.auth.currentUser!.email ?? _cachedEmail;
+    }
+    return _cachedEmail;
+  }
+
+  @override
+  String? get currentUserName {
+    final client = _client;
+    if (client != null && client.auth.currentUser != null) {
+      final meta = client.auth.currentUser!.userMetadata;
+      if (meta != null && meta['full_name'] != null && (meta['full_name'] as String).isNotEmpty) {
+        return meta['full_name'] as String;
+      }
+    }
+    return _cachedUserName;
   }
 
   @override
@@ -264,9 +315,21 @@ class SupabaseAuthRepository implements IAuthRepository {
         );
         if (response.user != null) {
           _cachedUserId = response.user!.id;
-          _cachedSessionToken = response.session?.accessToken ?? 'jwt_${DateTime.now().millisecondsSinceEpoch}';
+          var session = response.session ?? client.auth.currentSession;
+          if (session == null) {
+            try {
+              final signInResp = await client.auth.signInWithPassword(
+                email: trimmedEmail,
+                password: trimmedPassword,
+              );
+              session = signInResp.session;
+            } catch (_) {}
+          }
+          _cachedSessionToken = session?.accessToken ?? 'jwt_${DateTime.now().millisecondsSinceEpoch}';
           _cachedPhoneNumber = trimmedEmail;
-          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+          _cachedEmail = trimmedEmail;
+          _cachedUserName = name;
+          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
           _authStateController.add(true);
           return true;
         } else {
@@ -282,7 +345,9 @@ class SupabaseAuthRepository implements IAuthRepository {
     _cachedUserId = 'usr_supa_${trimmedEmail.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
     _cachedSessionToken = 'jwt_token_${DateTime.now().millisecondsSinceEpoch}';
     _cachedPhoneNumber = trimmedEmail;
-    await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+    _cachedEmail = trimmedEmail;
+    _cachedUserName = name;
+    await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
     _authStateController.add(true);
     return true;
   }
@@ -305,8 +370,13 @@ class SupabaseAuthRepository implements IAuthRepository {
         if (response.session != null) {
           _cachedUserId = response.session!.user.id;
           _cachedSessionToken = response.session!.accessToken;
-          _cachedPhoneNumber = response.session!.user.email ?? trimmedEmail;
-          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+          _cachedPhoneNumber = response.session!.user.phone ?? response.session!.user.email ?? trimmedEmail;
+          _cachedEmail = response.session!.user.email ?? trimmedEmail;
+          final meta = response.session!.user.userMetadata;
+          if (meta != null && meta['full_name'] != null && (meta['full_name'] as String).isNotEmpty) {
+            _cachedUserName = meta['full_name'] as String;
+          }
+          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
           _authStateController.add(true);
           return true;
         }
@@ -320,7 +390,8 @@ class SupabaseAuthRepository implements IAuthRepository {
     _cachedUserId = 'usr_supa_${trimmedEmail.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
     _cachedSessionToken = 'jwt_token_${DateTime.now().millisecondsSinceEpoch}';
     _cachedPhoneNumber = trimmedEmail;
-    await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+    _cachedEmail = trimmedEmail;
+    await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
     _authStateController.add(true);
     return true;
   }

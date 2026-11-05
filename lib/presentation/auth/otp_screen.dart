@@ -12,6 +12,7 @@ import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../home/home_shell.dart';
 import '../providers/auth_providers.dart';
+import '../providers/company_providers.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
@@ -60,13 +61,19 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         await ref.read(authControllerProvider.notifier).verifyOtp(otp);
 
     if (success && mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        createAdaptivePageRoute(
-          builder: (context) => const HomeShell(),
-          transitionType: SharedAxisTransitionType.scaled,
-        ),
-        (route) => false,
+      await ref.read(companyControllerProvider.notifier).ensureProfileAndCompanyExist(
+        phone: widget.phoneNumber,
       );
+
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          createAdaptivePageRoute(
+            builder: (context) => const HomeShell(),
+            transitionType: SharedAxisTransitionType.scaled,
+          ),
+          (route) => false,
+        );
+      }
     }
   }
 

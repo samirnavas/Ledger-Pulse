@@ -176,56 +176,8 @@ void main() {
     });
 
     test('SubscriptionTier.silver enforces maxCompanies limit of 1', () async {
-      final silverLicense = LicenseState(
-        tier: SubscriptionTier.silver,
-        duration: BillingDuration.monthly,
-        startDate: DateTime.now(),
-        expiryDate: DateTime.now().add(const Duration(days: 30)),
-      );
-
-      final container = ProviderContainer(
-        overrides: [
-          driftLedgerRepositoryProvider.overrideWithValue(repo),
-          subscriptionStateProvider.overrideWith(() => _StaticSubscriptionNotifier(silverLicense)),
-          userProfileProvider.overrideWith(() => _TestProfileNotifier()),
-        ],
-      );
-
-      final controller = container.read(companyControllerProvider.notifier);
-
-      final firstCompany = Company(
-        id: 'cmp_first',
-        name: 'Single Company',
-        legalName: 'Single Company',
-        mode: CompanyMode.ledger,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      // First company succeeds (0 -> 1)
-      await controller.addCompany(firstCompany);
-
-      final secondCompany = Company(
-        id: 'cmp_second',
-        name: 'Second Company (Blocked)',
-        legalName: 'Second Company',
-        mode: CompanyMode.ledger,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      // Second company must throw CompanyLimitExceededException
-      expect(
-        () => controller.addCompany(secondCompany),
-        throwsA(isA<CompanyLimitExceededException>().having(
-          (e) => e.maxCompanies,
-          'maxCompanies',
-          equals(1),
-        )),
-      );
-
-      container.dispose();
-    });
+      // Skipped because all subscription limits were unlocked to 999 in commit cc009b4
+    }, skip: 'Subscription restrictions unlocked in cc009b4');
   });
 
   group('Prompt 6 - First-Run Onboarding Flow Widget Tests', () {

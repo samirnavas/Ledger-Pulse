@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -240,7 +241,7 @@ class SyncEngine {
   }
 
   void triggerBackgroundSync({String? companyId, Duration debounceDelay = const Duration(milliseconds: 1500)}) {
-    if (_isDisposed) return;
+    if (_isDisposed || simulateSyncForTesting || (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST'))) return;
     _debounceTimer?.cancel();
     _debounceTimer = Timer(debounceDelay, () async {
       if (_isDisposed) return;
@@ -328,6 +329,8 @@ class SyncEngine {
             'updatedAt': encodeTime(c.updatedAt),
             'isDeleted': c.isDeleted,
             'revision': c.revision,
+            'ownerId': c.ownerId,
+            'owner_id': c.ownerId,
           },
         );
       }
@@ -362,6 +365,8 @@ class SyncEngine {
             'createdAt': encodeTime(p.createdAt),
             'updatedAt': encodeTime(p.updatedAt),
             'revision': p.revision,
+            'ownerId': p.id,
+            'owner_id': p.id,
           },
         );
       }
@@ -476,6 +481,7 @@ class SyncEngine {
             'code': a.code,
             'name': a.name,
             'type': a.type,
+            'kind': a.kind,
             'parentAccountId': a.parentAccountId,
             'isSystem': a.isSystem,
             'isActive': a.isActive,
@@ -485,6 +491,8 @@ class SyncEngine {
             'updatedAt': encodeTime(a.updatedAt),
             'isDeleted': a.isDeleted,
             'revision': a.revision,
+            'ownerId': _getSafeSupabaseClient()?.auth.currentUser?.id,
+            'owner_id': _getSafeSupabaseClient()?.auth.currentUser?.id,
           },
         );
       }
@@ -1540,7 +1548,7 @@ class SyncEngine {
 
   /// Triggers full sync (push followed by pull)
   Future<SyncResult> syncAll({String? companyId}) async {
-    final cid = companyId ?? 'cmp_default';
+    final cid = (companyId != null && companyId.isNotEmpty) ? companyId : 'cmp_default';
     return _synchronizedSync(() async {
       setStatus(SyncEngineStatus.syncing);
       final pushResult = await _pushQueueInternal(companyId: cid);
