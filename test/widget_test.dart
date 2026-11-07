@@ -1,12 +1,15 @@
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ledger_pulse/data/local/database.dart';
+import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
 import 'package:ledger_pulse/main.dart';
 import 'package:ledger_pulse/core/constants/strings.dart';
-import 'package:ledger_pulse/data/mock/mock_ledger_repository.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/sync_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
+import 'package:ledger_pulse/presentation/providers/company_providers.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
 import 'package:ledger_pulse/presentation/providers/sync_providers.dart';
@@ -40,8 +43,12 @@ class TestUserProfileNotifier extends UserProfileNotifier {
 void main() {
   testWidgets('LedgerPulseApp starts with SplashScreen and transitions to Dashboard with active company',
       (WidgetTester tester) async {
-    final mockRepo = MockLedgerRepository();
-    addTearDown(mockRepo.dispose);
+    final db = AppDatabase(NativeDatabase.memory());
+    final repo = DriftLedgerRepository(db: db, postingEngine: null);
+    addTearDown(() async {
+      repo.dispose();
+      await db.close();
+    });
 
     final testCompany = Company(
       id: 'cmp_test_1',
@@ -57,7 +64,8 @@ void main() {
           authControllerProvider.overrideWith(
               () => FakeAuthController(const AuthState(isAuthenticated: true))),
           ledgerUpdatesStreamProvider.overrideWith((ref) => Stream.value(null)),
-          ledgerRepositoryProvider.overrideWithValue(mockRepo),
+          ledgerRepositoryProvider.overrideWithValue(repo),
+          driftLedgerRepositoryProvider.overrideWithValue(repo),
           userProfileProvider.overrideWith(() => TestUserProfileNotifier(
                 UserProfile(
                   id: 'usr_test',
@@ -96,8 +104,12 @@ void main() {
 
   testWidgets('LedgerPulseApp displays zero-company state on fresh authenticated install without companies',
       (WidgetTester tester) async {
-    final mockRepo = MockLedgerRepository();
-    addTearDown(mockRepo.dispose);
+    final db = AppDatabase(NativeDatabase.memory());
+    final repo = DriftLedgerRepository(db: db, postingEngine: null);
+    addTearDown(() async {
+      repo.dispose();
+      await db.close();
+    });
 
     await tester.pumpWidget(
       ProviderScope(
@@ -105,7 +117,9 @@ void main() {
           authControllerProvider.overrideWith(
               () => FakeAuthController(const AuthState(isAuthenticated: true))),
           ledgerUpdatesStreamProvider.overrideWith((ref) => Stream.value(null)),
-          ledgerRepositoryProvider.overrideWithValue(mockRepo),
+          ledgerRepositoryProvider.overrideWithValue(repo),
+          driftLedgerRepositoryProvider.overrideWithValue(repo),
+          companiesProvider.overrideWith((ref) async => const <Company>[]),
           userProfileProvider.overrideWith(() => TestUserProfileNotifier(
                 UserProfile(
                   id: 'usr_fresh',
@@ -131,8 +145,12 @@ void main() {
 
   testWidgets('LedgerPulseApp transitions from SplashScreen to PhoneInput when unauthenticated',
       (WidgetTester tester) async {
-    final mockRepo = MockLedgerRepository();
-    addTearDown(mockRepo.dispose);
+    final db = AppDatabase(NativeDatabase.memory());
+    final repo = DriftLedgerRepository(db: db, postingEngine: null);
+    addTearDown(() async {
+      repo.dispose();
+      await db.close();
+    });
 
     await tester.pumpWidget(
       ProviderScope(
@@ -140,7 +158,8 @@ void main() {
           authControllerProvider.overrideWith(
               () => FakeAuthController(const AuthState(isAuthenticated: false))),
           ledgerUpdatesStreamProvider.overrideWith((ref) => Stream.value(null)),
-          ledgerRepositoryProvider.overrideWithValue(mockRepo),
+          ledgerRepositoryProvider.overrideWithValue(repo),
+          driftLedgerRepositoryProvider.overrideWithValue(repo),
           syncControllerProvider.overrideWith(FakeSyncNotifier.new),
         ],
         child: const LedgerPulseApp(),

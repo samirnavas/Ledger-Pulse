@@ -2,10 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/modules/module_catalog.dart';
 import '../../data/models/company_mode.dart';
 import 'company_providers.dart';
+import 'subscription_providers.dart';
 
 /// Reason why an [AppModule] is locked or unavailable.
 enum ModuleLockReason {
   modeNotAllowed,
+  tierTooLow,
   notEnabled,
   missingDependency,
 }
@@ -19,12 +21,18 @@ final moduleLockReasonProvider = Provider.family<ModuleLockReason?, AppModule>((
     return ModuleLockReason.modeNotAllowed;
   }
 
-  // 2. Check if company has enabled this module
+  // 2. Check subscription tier
+  final tierAllowed = ref.watch(tierAllowsProvider(module));
+  if (!tierAllowed) {
+    return ModuleLockReason.tierTooLow;
+  }
+
+  // 3. Check if company has enabled this module
   if (!company.isModuleEnabled(module)) {
     return ModuleLockReason.notEnabled;
   }
 
-  // 3. Check if any required dependencies are missing
+  // 4. Check if any required dependencies are missing
   final missing = ModuleCatalog.missingDependencies(module, company.enabledModules);
   if (missing.isNotEmpty) {
     return ModuleLockReason.missingDependency;

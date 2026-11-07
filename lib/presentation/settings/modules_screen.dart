@@ -6,13 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/modules/module_catalog.dart';
 import '../../core/theme/adaptive_theme.dart';
-import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/company_mode.dart';
 import '../providers/company_providers.dart';
-import '../providers/module_providers.dart';
 
 class ModulesScreen extends ConsumerWidget {
   const ModulesScreen({super.key});

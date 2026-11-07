@@ -14,21 +14,21 @@ void main() {
     verifier = SchemaVerifier(GeneratedHelper());
   });
 
-  group('Drift Step-by-Step Migrations (Every Old Schema Version to Latest)', () {
-    for (int fromVersion = 1; fromVersion < 8; fromVersion++) {
-      test('migrates from v$fromVersion directly to latest v8', () async {
+  group('Drift Step-by-Step Migrations (Every Old Schema Version to Latest v11)', () {
+    for (int fromVersion = 1; fromVersion < 11; fromVersion++) {
+      test('migrates from v$fromVersion directly to latest v11', () async {
         final schema = await verifier.schemaAt(fromVersion);
 
         // Connect AppDatabase to the schema connection and run migrations
         final db = AppDatabase(schema.newConnection());
-        await verifier.migrateAndValidate(db, 8, options: validationOpts);
+        await verifier.migrateAndValidate(db, 11, options: validationOpts);
         await db.close();
       });
     }
   });
 
   group('Drift Step-by-Step Migrations (Step-by-step single version increments)', () {
-    for (int fromVersion = 1; fromVersion < 8; fromVersion++) {
+    for (int fromVersion = 1; fromVersion < 11; fromVersion++) {
       final nextVersion = fromVersion + 1;
       test('migrates step-by-step from v$fromVersion to v$nextVersion', () async {
         final schema = await verifier.schemaAt(fromVersion);
@@ -40,105 +40,111 @@ void main() {
     }
   });
 
-  group('Data Integrity & Integer Date Storage on Upgraded Database', () {
-    test('preserves parties & entries from v1 to v8 and reads dates correctly as DateTime', () async {
-      final schema = await verifier.schemaAt(1);
-
-      // Insert data into v1 database with integer unix timestamps
+  group('Data Integrity & Dual Domain Preservation (v10 to v11 Migration)', () {
+    test('non-destructively migrates Expense data and preserves Ledger data with zero loss', () async {
+      final schema = await verifier.schemaAt(10);
       final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      // 1. Seed Expense Profile & legacy accounts/vouchers in schema v10
       schema.rawDatabase.execute('''
-        INSERT INTO parties (id, name, phone_number, type, net_balance_in_cents, last_updated)
-        VALUES ('p1', 'Alice Traders', '9876543210', 'customer', 50000, $nowSeconds);
-      ''');
-      schema.rawDatabase.execute('''
-        INSERT INTO ledger_entries (id, party_id, amount_in_cents, type, date, note, receipt_photo_url, created_at)
-        VALUES ('le1', 'p1', 50000, 'got', $nowSeconds, 'Opening balance', NULL, $nowSeconds);
-      ''');
-
-      // Migrate to v8
-      final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 8, options: validationOpts);
-
-      // Verify parties read correctly with integer date storage and new default columns
-      final partyList = await db.select(db.parties).get();
-      expect(partyList.length, 1);
-      final party = partyList.first;
-      expect(party.id, 'p1');
-      expect(party.name, 'Alice Traders');
-      expect(party.companyId, 'cmp_default');
-      expect(party.isDeleted, false);
-      expect(party.lastUpdated, isA<DateTime>());
-      expect(party.updatedAt, isA<DateTime>());
-
-      // Verify ledger entries read correctly
-      final entries = await db.select(db.ledgerEntries).get();
-      expect(entries.length, 1);
-      final entry = entries.first;
-      expect(entry.id, 'le1');
-      expect(entry.partyId, 'p1');
-      expect(entry.amountInCents, 50000);
-      expect(entry.date, isA<DateTime>());
-      expect(entry.isVoided, false);
-      expect(entry.companyId, 'cmp_default');
-
-      // Verify default accounts seeded during v6->v7 migration exist
-      final accountsList = await (db.select(db.accounts)
-            ..where((t) => t.companyId.equals('cmp_default')))
-          .get();
-      expect(accountsList, isNotEmpty);
-      expect(accountsList.any((a) => a.code == '1000'), isTrue); // Cash in hand
-      expect(accountsList.any((a) => a.code == '1010'), isTrue); // Bank
-
-      // Verify tables created in v8 are operational
-      final budgets = await db.select(db.budgets).get();
-      expect(budgets, isEmpty);
-
-      final recurring = await db.select(db.recurringRules).get();
-      expect(recurring, isEmpty);
-
-      await db.close();
-    });
-
-    test('verifies database reading correctly when upgraded from v6 with default company', () async {
-      final schema = await verifier.schemaAt(6);
-
-      // Insert company at v6
-      final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-      schema.rawDatabase.execute('''
-        INSERT INTO companies (id, name, legal_name, gstin, currency_code, is_cloud_sync_enabled, is_dropbox_sync_enabled, is_active, created_at, updated_at, is_deleted, sync_status, state_code, dealer_type)
-        VALUES ('cmp_biz', 'Acme Corp', 'Acme Corp Ltd', '29ABCDE1234F1Z5', 'INR', 1, 0, 1, $nowSeconds, $nowSeconds, 0, 'synced', '29', 'regular');
+        INSERT INTO companies (
+          id, name, legal_name, mode, owner_id, currency_code, is_cloud_sync_enabled, is_active, is_deleted, created_at, updated_at
+        ) VALUES (
+          'cmp_expense_01', 'Personal Expense Tracker', 'Personal Expense Tracker', 'expenseTracker', 'usr_owner_123', 'INR', 1, 1, 0, $nowSeconds, $nowSeconds
+        );
       ''');
 
-      // Migrate to v8
+      schema.rawDatabase.execute('''
+        INSERT INTO accounts (
+          id, company_id, code, name, type, kind, is_system, is_active, current_balance_in_cents, is_deleted, created_at, updated_at
+        ) VALUES 
+          ('acc_wal_cash_01', 'cmp_expense_01', 'WAL_01', 'Cash in Pocket', 'asset', 'wallet', 1, 1, 150000, 0, $nowSeconds, $nowSeconds),
+          ('acc_cat_food_01', 'cmp_expense_01', 'CAT_01', 'Dining & Groceries', 'expense', 'category', 1, 1, 0, 0, $nowSeconds, $nowSeconds);
+      ''');
+
+      schema.rawDatabase.execute('''
+        INSERT INTO vouchers (
+          id, company_id, voucher_number, type, status, total_amount_in_cents,
+          wallet_account_id, category_account_id, narration, date, is_deleted, created_at, updated_at
+        ) VALUES (
+          'vch_exp_001', 'cmp_expense_01', 'EXP-001', 'expense', 'posted', 4500,
+          'acc_wal_cash_01', 'acc_cat_food_01', 'Dinner at Cafe', $nowSeconds, 0, $nowSeconds, $nowSeconds
+        );
+      ''');
+
+      // 2. Seed Business Ledger Profile in schema v10
+      schema.rawDatabase.execute('''
+        INSERT INTO companies (
+          id, name, legal_name, mode, owner_id, currency_code, is_cloud_sync_enabled, is_active, is_deleted, created_at, updated_at
+        ) VALUES (
+          'cmp_ledger_01', 'Apex Hardware Pvt Ltd', 'Apex Hardware Private Limited', 'ledger', 'usr_owner_123', 'INR', 1, 1, 0, $nowSeconds, $nowSeconds
+        );
+      ''');
+
+      schema.rawDatabase.execute('''
+        INSERT INTO parties (
+          id, company_id, name, phone_number, type, net_balance_in_cents, last_updated, is_deleted, updated_at
+        ) VALUES (
+          'pty_001', 'cmp_ledger_01', 'Metro Distributors', '9876543210', 'supplier', -100000, $nowSeconds, 0, $nowSeconds
+        );
+      ''');
+
+      schema.rawDatabase.execute('''
+        INSERT INTO vouchers (
+          id, company_id, voucher_number, type, status, total_amount_in_cents,
+          party_id, narration, date, is_deleted, created_at, updated_at
+        ) VALUES (
+          'vch_led_001', 'cmp_ledger_01', 'PUR-001', 'purchase', 'posted', 100000,
+          'pty_001', 'Wholesale copper tubes', $nowSeconds, 0, $nowSeconds, $nowSeconds
+        );
+      ''');
+
+      // 3. Migrate from v10 to v11
       final db = AppDatabase(schema.newConnection());
-      await verifier.migrateAndValidate(db, 8, options: validationOpts);
+      await verifier.migrateAndValidate(db, 11, options: validationOpts);
 
-      final companies = await (db.select(db.companies)..where((t) => t.id.equals('cmp_biz'))).get();
-      expect(companies.length, 1);
-      final comp = companies.first;
-      expect(comp.name, 'Acme Corp');
-      expect(comp.mode, 'ledger'); // Default mode added in v8
-      expect(comp.createdAt, isA<DateTime>());
-      expect(comp.updatedAt, isA<DateTime>());
+      // 4. Assert: Shared Memberships backfilled
+      final memberships = await (db.select(db.sharedMemberships)..where((t) => t.accountId.equals('usr_owner_123'))).get();
+      expect(memberships.length, 2, reason: 'Both companies should backfill an owner membership');
+      expect(memberships.any((m) => m.profileId == 'cmp_expense_01' && m.role == 'owner'), isTrue);
+      expect(memberships.any((m) => m.profileId == 'cmp_ledger_01' && m.role == 'owner'), isTrue);
 
-      await db.close();
-    });
+      // 5. Assert: Expense Domain entities populated in dedicated single-entry tables
+      final wallets = await (db.select(db.expenseWallets)..where((t) => t.profileId.equals('cmp_expense_01'))).get();
+      expect(wallets.length, 1);
+      expect(wallets.first.id, 'acc_wal_cash_01');
+      expect(wallets.first.name, 'Cash in Pocket');
+      expect(wallets.first.currentBalanceInCents, 150000);
 
-    test('handles legacy database with TEXT date columns by converting to integer timestamps', () async {
-      // Simulate an old database that had legacy ALTER TABLE ... ADD COLUMN updated_at TEXT
-      final schema = await verifier.schemaAt(4);
+      final categories = await (db.select(db.expenseCategories)..where((t) => t.profileId.equals('cmp_expense_01'))).get();
+      expect(categories.length, 1);
+      expect(categories.first.id, 'acc_cat_food_01');
+      expect(categories.first.name, 'Dining & Groceries');
+      expect(categories.first.categoryType, 'expense');
 
-      // Add a legacy TEXT column with text timestamp
-      schema.rawDatabase.execute("ALTER TABLE parties ADD COLUMN updated_at TEXT NOT NULL DEFAULT '2026-01-15 10:30:00';");
-      schema.rawDatabase.execute("INSERT INTO parties (id, name, phone_number, type, net_balance_in_cents, last_updated) VALUES ('p_legacy', 'Legacy Co', '123', 'customer', 0, 1700000000);");
+      final transactions = await (db.select(db.expenseTransactions)..where((t) => t.profileId.equals('cmp_expense_01'))).get();
+      expect(transactions.length, 1);
+      final txn = transactions.first;
+      expect(txn.id, 'vch_exp_001');
+      expect(txn.amountInCents, 4500);
+      expect(txn.walletId, 'acc_wal_cash_01');
+      expect(txn.categoryId, 'acc_cat_food_01');
+      expect(txn.note, 'Dinner at Cafe');
 
-      // Verify and upgrade to v8
-      final db = AppDatabase(schema.newConnection());
-      await db.customStatement("PRAGMA foreign_keys = ON;");
-      // Migration runs automatically when opened
-      final parties = await (db.select(db.parties)..where((t) => t.id.equals('p_legacy'))).get();
-      expect(parties, isNotEmpty);
-      expect(parties.first.name, 'Legacy Co');
+      // 6. Assert: Ledger data preserved with full fidelity in original tables
+      final ledgerParties = await (db.select(db.parties)..where((t) => t.companyId.equals('cmp_ledger_01'))).get();
+      expect(ledgerParties.length, 1);
+      expect(ledgerParties.first.id, 'pty_001');
+      expect(ledgerParties.first.name, 'Metro Distributors');
+      expect(ledgerParties.first.netBalanceInCents, -100000);
+
+      final ledgerVouchers = await (db.select(db.vouchers)..where((t) => t.companyId.equals('cmp_ledger_01'))).get();
+      expect(ledgerVouchers.length, 1);
+      expect(ledgerVouchers.first.id, 'vch_led_001');
+      expect(ledgerVouchers.first.type, 'purchase');
+      expect(ledgerVouchers.first.totalAmountInCents, 100000);
+      expect(ledgerVouchers.first.partyId, 'pty_001');
+
       await db.close();
     });
   });

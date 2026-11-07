@@ -38,7 +38,7 @@ void main() {
       // Seed corrupted outbox row
       db.execute("INSERT INTO sync_outbox (id, table_name, record_id, mutation_type, payload) VALUES ('ob1', 'invented_table', 'rec1', 'INSERT', 'invalid json');");
 
-      db.dispose();
+      db.close();
 
       // Run repair tool in dry run mode
       repairMain([
@@ -55,7 +55,7 @@ void main() {
       final outboxCount = verifyDb.select("SELECT count(*) as cnt FROM sync_outbox;");
       expect(outboxCount.first['cnt'], equals(1));
 
-      verifyDb.dispose();
+      verifyDb.close();
       await tempDir.delete(recursive: true);
     });
 
@@ -80,7 +80,7 @@ void main() {
       db.execute("INSERT INTO ledger_entries (id, party_id, amount_in_cents, type, date) VALUES ('e2', 'p2', 5000, 'gave', '2026-11-04T10:00:00');"); // Computed 5000
       db.execute("INSERT INTO sync_outbox (id, table_name, record_id, mutation_type, payload) VALUES ('ob2', 'invented_table', 'rec2', 'INSERT', 'invalid json');");
 
-      db.dispose();
+      db.close();
 
       // Run repair tool with --apply
       repairMain([
@@ -108,7 +108,7 @@ void main() {
       final partyRow = verifyDb.select("SELECT net_balance_in_cents FROM parties WHERE id = 'p2';");
       expect(partyRow.first['net_balance_in_cents'], equals(5000));
 
-      verifyDb.dispose();
+      verifyDb.close();
       await tempDir.delete(recursive: true);
     });
   });

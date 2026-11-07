@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
-import 'package:uuid/uuid.dart';
 import '../../core/network/sync_codec.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import '../local/audit_service.dart';
@@ -17,7 +16,6 @@ import '../models/voucher_model.dart';
 class VoucherPostingEngine {
   final AppDatabase _db;
   final AuditService _auditService;
-  final _uuid = const Uuid();
 
   VoucherPostingEngine(this._db, this._auditService);
 
@@ -401,8 +399,6 @@ class VoucherPostingEngine {
         type: 'INSERT',
         fullRowMap: voucher.toMap(),
       );
-
-      return voucher;
 
       return voucher;
     });
@@ -897,7 +893,10 @@ class VoucherPostingEngine {
 
     // Insert Journal Lines
     for (final line in linesToInsert) {
-      final lineWithPending = line.copyWith(syncStatus: const Value(SyncRecordStatus.pending));
+      final lineWithPending = line.copyWith(
+        isDeleted: const Value(false),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      );
       await _db.into(_db.journalLines).insertOnConflictUpdate(lineWithPending);
 
       final lineMap = {

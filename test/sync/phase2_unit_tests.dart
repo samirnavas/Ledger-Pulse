@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/core/network/sync_codec.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
 import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
 
 import 'support/fake_remote_gateway.dart';
 
@@ -14,7 +13,7 @@ void main() {
   group('Phase 2 Engine & Sync Tests', () {
     test('1. Migration from8To9 creates sync_state table and new columns', () async {
       final db = AppDatabase(NativeDatabase.memory());
-      expect(db.schemaVersion, equals(9));
+      expect(db.schemaVersion, greaterThanOrEqualTo(9));
 
       // Verify sync_state table exists by performing a select
       final syncStates = await db.select(db.syncState).get();

@@ -1,0 +1,7 @@
+{
+  "observation_window_start": "2026-11-07T08:50:31.451506+00:00",
+  "required_observation_days": 14,
+  "earliest_cleanup_date": "2026-11-21T00:00:00Z",
+  "legacy_objects_status": "READ_ONLY_PRESERVED",
+  "clean_up_approval": "PENDING_EXPLICIT_USER_AUTHORIZATION"
+}

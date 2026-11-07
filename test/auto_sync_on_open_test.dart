@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
 import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/sync_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/presentation/home/dashboard_screen.dart';
 import 'package:ledger_pulse/presentation/providers/database_providers.dart';

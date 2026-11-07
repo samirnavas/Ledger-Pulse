@@ -54,7 +54,7 @@ void main() {
       );
 
       final walletA = await expenseRepo.createWallet(name: 'Wallet A', type: AccountType.asset);
-      final walletB = await expenseRepo.createWallet(name: 'Wallet B', type: AccountType.asset);
+      await expenseRepo.createWallet(name: 'Wallet B', type: AccountType.asset);
       final category = await expenseRepo.createCategory(name: 'Groceries', type: AccountType.expense);
 
       // 1. Add expense on Wallet A

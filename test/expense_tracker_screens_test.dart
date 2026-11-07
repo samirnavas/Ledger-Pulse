@@ -12,7 +12,6 @@ import 'package:ledger_pulse/data/local/drift_expense_repository.dart';
 import 'package:ledger_pulse/data/local/drift_voucher_repository.dart';
 import 'package:ledger_pulse/data/models/account_model.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/sync_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/data/models/voucher_model.dart';
 import 'package:ledger_pulse/presentation/expense/accounts_screen.dart';

@@ -75,6 +75,7 @@ dev_dependencies:
   build_runner: ^2.15.1
   drift_dev: 2.34.0
 
+  sqlite3: any
 dependency_overrides:
   permission_handler_android: 13.0.1
 

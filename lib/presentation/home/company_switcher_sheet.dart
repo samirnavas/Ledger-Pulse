@@ -7,9 +7,12 @@ import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/company_model.dart';
+import '../auth/profile_onboarding_screen.dart';
+import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
-import 'create_company_flow.dart';
+import '../providers/profile_session_controller.dart';
+import '../providers/profile_session_state.dart';
 
 void _showErrorMessage(BuildContext context, String message) {
   if (!context.mounted) return;
@@ -54,8 +57,12 @@ class CompanySwitcherSheet extends ConsumerStatefulWidget {
   }
 
   static void showAddCompanyDialog(BuildContext context, WidgetRef ref) {
+    final authState = ref.read(authControllerProvider);
+    final userId = authState.phoneNumber ?? 'usr_default';
     Navigator.of(context).push(
-      createAdaptivePageRoute(builder: (_) => const CreateCompanyFlow()),
+      createAdaptivePageRoute(
+        builder: (_) => ProfileOnboardingScreen(userId: userId),
+      ),
     );
   }
 
@@ -64,6 +71,22 @@ class CompanySwitcherSheet extends ConsumerStatefulWidget {
 }
 
 class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
+  void _switchWorkspace(Company company) {
+    final sessionState = ref.read(profileSessionProvider);
+    if (sessionState is ActiveProfileReadySessionState) {
+      final match = sessionState.availableProfiles
+          .where((p) => p.id == company.id)
+          .firstOrNull;
+      if (match != null) {
+        ref.read(profileSessionProvider.notifier).switchProfile(match);
+        Navigator.pop(context);
+        return;
+      }
+    }
+    ref.read(companyControllerProvider.notifier).selectCompany(company.id);
+    Navigator.pop(context);
+  }
+
   void _showAddCompanyDialog(BuildContext context) {
     CompanySwitcherSheet.showAddCompanyDialog(context, ref);
   }
@@ -654,10 +677,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 child: LiquidGlassCard(
                   borderRadius: 16,
                   borderColor: isSelected ? CupertinoColors.activeBlue : CupertinoColors.systemGrey4.withValues(alpha: 0.3),
-                  onTap: () {
-                    ref.read(companyControllerProvider.notifier).selectCompany(company.id);
-                    Navigator.pop(context);
-                  },
+                  onTap: () => _switchWorkspace(company),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     child: Row(
@@ -780,10 +800,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                   ),
                 ],
               ),
-              onTap: () {
-                ref.read(companyControllerProvider.notifier).selectCompany(company.id);
-                Navigator.pop(context);
-              },
+              onTap: () => _switchWorkspace(company),
               onLongPress: () => _showCompanyMenu(context, company),
             ),
           );

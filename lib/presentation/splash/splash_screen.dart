@@ -6,9 +6,7 @@ import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
-import '../auth/phone_input_screen.dart';
-import '../home/home_shell.dart';
-import '../providers/auth_providers.dart';
+import '../auth/app_root_gate.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   final VoidCallback? onAnimationComplete;
@@ -36,14 +34,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
-    final authState = ref.read(authControllerProvider);
-    final targetWidget = authState.isAuthenticated
-        ? const HomeShell()
-        : const PhoneInputScreen();
-
     Navigator.of(context).pushReplacement(
       createAdaptivePageRoute(
-        builder: (_) => targetWidget,
+        builder: (_) => const AppRootGate(),
         useFadeThrough: true,
       ),
     );

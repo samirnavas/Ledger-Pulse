@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/constants/colors.dart';
 import '../../../core/theme/adaptive_theme.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/widgets/adaptive_list_row.dart';
@@ -30,33 +31,7 @@ List<Color> getChartPalette(BuildContext context) {
       CupertinoColors.systemCyan,
     ];
   } else {
-    if (isDark) {
-      return const [
-        Color(0xFF818CF8), // Indigo / Periwinkle (Vibrant & crisp on dark)
-        Color(0xFF34D399), // Emerald / Mint
-        Color(0xFFFBBF24), // Amber / Warm Yellow
-        Color(0xFFF472B6), // Pink / Rose
-        Color(0xFFA78BFA), // Purple / Violet
-        Color(0xFF22D3EE), // Cyan / Sky
-        Color(0xFFF87171), // Coral Red
-        Color(0xFF2DD4BF), // Teal
-        Color(0xFF60A5FA), // Bright Blue
-        Color(0xFFA3E635), // Lime
-      ];
-    } else {
-      return const [
-        Color(0xFF4F46E5), // Indigo
-        Color(0xFF059669), // Emerald
-        Color(0xFFD97706), // Amber
-        Color(0xFFDB2777), // Pink
-        Color(0xFF7C3AED), // Purple
-        Color(0xFF0891B2), // Cyan
-        Color(0xFFDC2626), // Coral Red
-        Color(0xFF0D9488), // Teal
-        Color(0xFF2563EB), // Bright Blue
-        Color(0xFF65A30D), // Lime
-      ];
-    }
+    return isDark ? AppColors.categoryPaletteDark : AppColors.categoryPaletteLight;
   }
 }
 

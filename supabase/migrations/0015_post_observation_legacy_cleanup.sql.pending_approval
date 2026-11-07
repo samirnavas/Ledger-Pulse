@@ -1,0 +1,51 @@
+-- ==============================================================================
+-- Migration 0015: Post-Observation Legacy Object Cleanup
+-- STATUS: PENDING EXPLICIT RELEASE APPROVAL (DO NOT EXECUTE WITHOUT AUTHORIZATION)
+-- REQUIRED OBSERVATION WINDOW: 14 Days Post-Rollout
+-- ==============================================================================
+
+-- ------------------------------------------------------------------------------
+-- PRE-CONDITION VERIFICATION:
+-- Ensure all clients have upgraded to >= v2.0.0 and no active traffic calls legacy RPCs
+-- ------------------------------------------------------------------------------
+DO $$
+DECLARE
+    v_active_old_clients_count INT := 0;
+BEGIN
+    -- Verify no un-migrated shared memberships or legacy profile references
+    IF EXISTS (SELECT 1 FROM public.companies WHERE owner_id IS NOT NULL AND id NOT IN (SELECT profile_id FROM public.shared_memberships)) THEN
+        RAISE EXCEPTION 'CLEANUP ABORT: Found un-migrated company ownership not present in shared_memberships.';
+    END IF;
+
+    RAISE NOTICE 'Pre-condition check passed. Ready for authorized cleanup execution.';
+END $$;
+
+-- ------------------------------------------------------------------------------
+-- 1. DROP OBSOLETE COLUMNS (NON-REVERSIBLE WITHOUT BACKUP RESTORE)
+-- ------------------------------------------------------------------------------
+-- Drop companies_json and active_company_id from user_profiles (superseded by shared_memberships & preferences)
+-- ALTER TABLE public.user_profiles DROP COLUMN IF EXISTS companies_json;
+-- ALTER TABLE public.user_profiles DROP COLUMN IF EXISTS active_company_id;
+
+-- ------------------------------------------------------------------------------
+-- 2. DROP OBSOLETE RPC FUNCTIONS
+-- ------------------------------------------------------------------------------
+-- Drop v1/v2 sync_mutation RPC (superseded by sync_mutation_v3)
+-- DROP FUNCTION IF EXISTS public.sync_mutation(text, text, text, jsonb);
+
+-- ------------------------------------------------------------------------------
+-- 3. DROP OBSOLETE LEGACY TABLES (EXPENSE DOMAIN FULLY ISOLATED)
+-- ------------------------------------------------------------------------------
+-- Note: Statutory audit trail and voucher history are PERMANENTLY PRESERVED in accounts,
+-- vouchers, journals, journal_lines, ledger_entries, and audit_logs.
+-- DROP TABLE IF EXISTS public.budgets CASCADE;
+-- DROP TABLE IF EXISTS public.recurring_rules CASCADE;
+
+-- ------------------------------------------------------------------------------
+-- 4. FINAL CLEANUP VERIFICATION
+-- ------------------------------------------------------------------------------
+-- Verify target architecture remains 100% operational
+-- SELECT count(*) FROM public.companies;
+-- SELECT count(*) FROM public.exp_transactions;
+-- SELECT count(*) FROM public.vouchers;
+

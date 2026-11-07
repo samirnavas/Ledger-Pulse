@@ -1,0 +1,907 @@
+SOFTWARE REQUIREMENTS SPECIFICATION
+
+Ludgerpulse
+
+GST Billing, Accounting & Inventory Management Application
+
+Prepared by the Ludgerpulse Product Team
+
+.
+
+Field
+
+Detail
+
+Document Title
+
+Software Requirements Specification (SRS) – Ludgerpulse Application
+
+Version
+
+1.0
+
+Date
+
+22 September 2026
+
+Vendor / Publisher
+
+Ludgerpulse Technologies Pvt. Ltd., New Delhi, India
+
+Product Website
+
+.
+
+Platforms Covered
+
+Android, iOS, Windows Desktop, Web (LPWeb)
+
+Document Status
+
+Draft — Internal Product Specification
+
+This SRS documents the functional and non-functional requirements of Ludgerpulse and is maintained by the Ludgerpulse product team as the authoritative internal specification for the application.
+
+Table of Contents
+
+1. Introduction
+
+2. Overall Description
+
+3. Specific Requirements — Functional
+
+4. External Interface Requirements
+
+5. Non-Functional Requirements
+
+6. Data Requirements & Licensing Model
+
+7. Other Requirements, Assumptions & Appendices
+
+1. Introduction
+
+1.1 Purpose
+
+This Software Requirements Specification (SRS) documents the functional and non-functional requirements of Ludgerpulse, a cross-platform GST billing, accounting and inventory management application developed by Ludgerpulse Technologies Pvt. Ltd. The document has been prepared by the Ludgerpulse product team based on the application's feature set, pricing/subscription plans, and app-store listings. It is intended to serve as a reference for developers, QA engineers, product managers, and business analysts who need a structured understanding of the system's capabilities, either to maintain/extend the existing product or to onboard new team members.
+
+1.2 Scope
+
+Ludgerpulse is a "most simplified" offline-first accounting application designed for small and medium businesses (traders, retailers, wholesalers, manufacturers and service providers), with a particular focus on Indian GST compliance. The product spans four client surfaces that synchronize data with each other:
+
+Android mobile application
+
+iOS mobile application (iPhone/iPad)
+
+Windows desktop application
+
+Ludgerpulse Web (LPWeb) — browser-based companion for cloud-hosted companies
+
+The system covers sales and purchase invoicing, GST compliance (invoicing, returns filing data, e-Way Bill, e-Invoicing), inventory and warehouse management, receipts/payments, orders/estimates/quotes, 35+ financial and inventory reports, payroll, multi-user role-based access, data sync across devices, e-commerce marketplace import, third-party accounting software import/export (Tally, Zoho, QuickBooks, Busy, Excel), cheque printing, an audit trail, and a customizable add-on reporting engine.
+
+1.3 Intended Audience
+
+Product managers and business analysts evaluating or specifying Ludgerpulse-like functionality
+
+Software developers and QA teams implementing or testing the application
+
+UX/UI designers responsible for the mobile, desktop and web clients
+
+Technical writers producing user/help documentation
+
+Prospective partners/resellers evaluating the Partner Program
+
+1.4 Definitions, Acronyms and Abbreviations
+
+Term
+
+Definition
+
+SRS
+
+Software Requirements Specification
+
+GST
+
+Goods and Services Tax (India)
+
+GSTIN
+
+GST Identification Number
+
+GSTR-1/2/2A/3B/4/9
+
+Statutory GST return/report formats mandated by the Indian GST portal
+
+e-Way Bill
+
+Electronic document required for movement of goods above a threshold value, under Indian GST law
+
+e-Invoicing
+
+Government-mandated electronic invoice reporting/authentication under the GST system
+
+LPWeb
+
+Ludgerpulse Web — the cloud/browser-based version of the product
+
+Voucher
+
+A generic term for any accounting transaction entry — sales, purchase, receipt, payment, journal, etc.
+
+RBAC
+
+Role-Based Access Control
+
+SKU
+
+Stock Keeping Unit (inventory item)
+
+Audit Trail
+
+A chronological, tamper-evident log of edits made to accounting vouchers, mandated in India from FY 2022-23 onward
+
+Ludgerpulse Technologies
+
+Ludgerpulse Technologies Pvt. Ltd., the company that develops and publishes Ludgerpulse
+
+1.5 References
+
+1.6 Document Overview
+
+Section 2 gives an overall description of the product, its context, users and constraints. Section 3 specifies detailed functional requirements grouped by module. Section 4 covers external interface requirements. Section 5 defines non-functional (quality) requirements. Section 6 documents data and licensing requirements, and Section 7 lists assumptions, dependencies and appendices.
+
+2. Overall Description
+
+2.1 Product Perspective
+
+Ludgerpulse is a standalone, commercially licensed accounting product — not a component of a larger system. It is architected as an offline-first application: each client (Android, iOS, Windows) holds a local, encrypted copy of company data and is capable of functioning fully without an internet connection. When a subscription plan with sync is active, data is synchronized automatically across a user's registered devices via Ludgerpulse's cloud service; local-only companies can alternatively be synced manually through Dropbox. A browser-based counterpart, LPWeb, provides access to cloud-hosted companies from any device with a browser.
+
+The product positions itself as an alternative to traditional desktop accounting software (e.g., Tally) and other mobile billing apps (e.g., Vyapar, Busy, myBillBook), differentiating on ease-of-use for non-accountants, offline operation, and cross-platform licensing.
+
+2.2 Product Functions (Summary)
+
+Company/business creation and configuration (local and cloud-hosted)
+
+Sales, purchase, receipt, payment, journal and contra voucher entry
+
+Professional, customizable invoicing with print/share (WhatsApp, SMS, email)
+
+GST-compliant invoicing, GSTR report generation and JSON export, e-Way Bill and e-Invoice generation
+
+Inventory and warehouse management, including barcode generation/scanning and stock adjustments
+
+Sales/purchase orders, estimates and quotations with conversion to invoices
+
+35+ financial and inventory reports (Balance Sheet, P&L, Trial Balance, Ledger, Day Book, Cash Flow, etc.)
+
+Role-based multi-user access control
+
+Automatic multi-device data synchronization and manual Dropbox sync
+
+E-commerce marketplace order import (Amazon India, Flipkart)
+
+Import/export interoperability with Tally, Zoho, QuickBooks, Busy and Microsoft Excel
+
+Inbuilt payroll processing and salary slip generation
+
+Inbuilt cheque printing (CTS-2010 compatible)
+
+Custom/add-on report builder (SQL/XML based)
+
+Audit trail / edit log for statutory compliance
+
+Insightful business dashboard with charts and KPIs
+
+Multi-currency and loyalty-points support
+
+Subscription and license management (Silver/Gold/Diamond tiers, monthly/yearly/lifetime)
+
+2.3 User Classes and Characteristics
+
+User Class
+
+Description
+
+Technical Expertise
+
+Business Owner / Admin
+
+Full access; configures company, users, subscriptions and views all reports
+
+Low to Medium
+
+Accountant / Ludgerpulse
+
+Manages vouchers, ledgers, GST filing data, reconciliation
+
+Medium to High
+
+Sales Staff
+
+Restricted role — create/view sales invoices and orders only
+
+Low
+
+Purchase / Store Staff
+
+Restricted role — create/send purchase orders, manage inventory receipts
+
+Low
+
+Warehouse Operator
+
+Stock issue, stock wastage, barcode scanning, manufacturing journals
+
+Low
+
+Partner / Reseller
+
+Onboards and supports end-customers under the Partner Program
+
+Medium
+
+System Administrator (IT)
+
+Installs the desktop client, manages licenses/devices, oversees backups
+
+Medium to High
+
+2.4 Operating Environment
+
+Android smartphones/tablets (Google Play distribution)
+
+iOS iPhone/iPad (Apple App Store distribution)
+
+Windows desktop/laptop PCs (Windows installer distribution)
+
+Any modern web browser for LPWeb (cloud-hosted companies)
+
+Peripheral hardware support: barcode scanners (Windows), device camera as scanner (mobile), cheque/invoice printers
+
+Optional third-party dependency: Dropbox account for manual sync of local companies
+
+2.5 Design and Implementation Constraints
+
+GST-specific features (e-Way Bill, e-Invoicing, GSTR filing formats) are applicable to Indian businesses only
+
+Desktop licensing is capped per-plan (e.g., a Silver plan may license 1–5 desktop devices); mobile device sync allowances are governed by the same per-plan device count
+
+Feature availability (invoice templates, eWay Bill/eInvoice quotas, number of LPWeb companies, payment gateway integrations) varies by subscription tier: Silver, Gold, Diamond
+
+No macOS-native client exists at present (per user feedback on the Apple App Store); Windows is the only native desktop OS supported
+
+Custom/add-on reports require the user to have working knowledge of databases and XML
+
+The vendor states that customer-specific customization outside standard configuration is not offered — only general bug fixes and minor enhancements are released as free updates
+
+2.6 Assumptions and Dependencies
+
+Users have basic literacy in their operating business domain but are assumed to have no formal accounting training ("designed for non-accountants")
+
+An internet connection is required only for licensing/activation, automatic multi-device sync, e-Way Bill/e-Invoice generation, and e-commerce import; core voucher entry works fully offline
+
+Where GST/e-Way Bill/e-Invoice features are used, the business is assumed to be registered under India's GST regime and have valid GSTIN/portal credentials
+
+Payment gateway features (Razorpay, Paytm, Cashfree, UPI, Stripe) assume the business already holds active merchant accounts with those providers
+
+3. Specific Requirements — Functional
+
+Each functional area below is expressed as a set of testable requirement statements with a unique ID and an indicative priority (Must / Should / Could), derived from how the vendor markets and prices the corresponding feature.
+
+3.1 Company & User Management
+
+Req. ID
+
+Requirement Description
+
+Priority
+
+FR-CMP-01
+
+The system shall allow a user to register and create one or more companies/businesses, either as local (device-only) companies or as cloud-hosted companies on LPWeb.
+
+Must
+
+FR-CMP-02
+
+The system shall allow unlimited local companies to be created on a licensed device, and a plan-dependent number of cloud (LPWeb) companies (e.g., up to 5 on Silver, 20 on Gold, 50 on Diamond).
+
+Must
+
+FR-CMP-03
+
+The system shall allow the admin to create additional users and assign each one a role that restricts visible modules and permitted actions (e.g., sales-only, purchase-only).
+
+Must
+
+FR-CMP-04
+
+The system shall protect company data with a subscription password and a separate company password, both required to unlock data.
+
+Must
+
+FR-CMP-05
+
+The system shall allow the admin to view an audit trail / edit log of all changes made to vouchers by any user, including who made the change and when.
+
+Must
+
+FR-CMP-06
+
+The system shall allow linking/activation of a subscription license against a defined maximum number of devices as per the purchased plan.
+
+Must
+
+3.2 Sales, Purchase & Voucher Entry
+
+Req. ID
+
+Requirement Description
+
+Priority
+
+FR-VCH-01
+
+The system shall allow creation of sales invoices, purchase invoices, receipts, payments, sales/purchase orders, estimates/quotes and journal entries.
+
+Must
+
+FR-VCH-02
+
+The system shall automatically post the underlying double-entry accounting for every transaction entered by the user, without requiring the user to select debit/credit accounts manually.
+
+Must
+
+FR-VCH-03
+
+The system shall allow a sales invoice to include both goods and services on the same invoice.
+
+Must
+
+FR-VCH-04
+
+The system shall allow the user to save a sales bill as a draft and place it on hold for later completion.
+
+Should
+
+FR-VCH-05
+
+The system shall allow conversion of a sales order/estimate directly into a sales invoice, and a purchase order directly into a purchase voucher.
+
+Must
+
+FR-VCH-06
+
+The system shall allow restoring vouchers that were previously deleted.
+
+Should
+
+FR-VCH-07
+
+The system shall track unpaid and overdue invoices and allow the user to send receipts/remittance advice to customers and vendors.
+
+Must
+
+FR-VCH-08
+
+The system shall allow attaching photographs of physical receipts to expense entries.
+
+Should
+
+FR-VCH-09
+
+The system shall allow the user to share bank account details or a UPI ID on an invoice for payment collection.
+
+Should
+
+FR-VCH-10
+
+The system shall support recommended daily voucher volume thresholds per plan (e.g., ~100/day Silver, ~300/day Gold, ~500/day Diamond) as a sizing guideline, without hard-blocking normal use.
+
+Could
+
+3.3 Invoicing & Document Output
+
+Req. ID
+
+Requirement Description
+
+Priority
+
+FR-INV-01
+
+The system shall generate professional invoices selectable from multiple templates (e.g., 5 templates on Silver, 15 on Gold/Diamond).
+
+Must
+
+FR-INV-02
+
+The system shall allow the company logo and authorized signature to be added to invoice templates.
+
+Must
+
+FR-INV-03
+
+The system shall allow printing an invoice directly from the mobile or desktop app with a single action.
+
+Must
+
+FR-INV-04
+
+The system shall allow sharing an invoice via WhatsApp, SMS or other share targets supported by the device.
+
+Must
+
+FR-INV-05
+
+The system shall support multi-currency invoicing.
+
+Should
+
+FR-INV-06
+
+The system shall support a loyalty-points mechanism associated with customer transactions.
+
+Could
+
+3.4 GST Compliance (India)
+
+Req. ID
+
+Requirement Description
+
+Priority
+
+FR-GST-01
+
+The system shall allow the user to search and validate a customer's GSTIN.
+
+Must
+
+FR-GST-02
+
+The system shall generate GST-compliant invoices for both Regular and Composite dealer types.
+
+Must
+
+FR-GST-03
+
+The system shall generate statutory GST reports: GSTR-1, GSTR-2, GSTR-2A reconciliation, GSTR-3B, GSTR-4 and GSTR-9.
+
+Must
+
+FR-GST-04
+
+The system shall export GSTR reports as JSON files formatted for direct upload to the government GST portal.
+
+Must
+
+FR-GST-05
+
+The system shall generate e-Way Bills directly from a sales/purchase voucher, subject to a plan-based monthly/annual quota.
+
+Must
+
+FR-GST-06
+
+The system shall generate e-Invoices (IRN-compliant) directly from a voucher, subject to a plan-based quota.
+
+Must
+
+3.5 Inventory & Warehouse Management
+
+Req. ID
+
+Requirement Description
+
+Priority
+
+FR-INT-01
+
+The system shall maintain an item master (SKU) with attributes required for stock tracking and invoicing.
+
+Must
+
+FR-INT-02
+
+The system shall track stock quantity and valuation in real time as sales, purchase, stock-issue and stock-wastage vouchers are posted.
+
+Must
+
+FR-INT-03
+
+The system shall support multi-warehouse inventory tracking.
+
+Should
+
+FR-INT-04
+
+The system shall allow recording of manufacturing journals that consume raw-material stock and produce finished-goods stock (Bill of Materials style conversion).
+
+Should
+
+FR-INT-05
+
+The system (Windows client) shall be able to generate barcodes for inventory items.
+
+Should
+
+FR-INT-06
+
+The system shall be able to scan barcodes using a connected barcode scanner (Windows) or the device's built-in camera (mobile), and auto-populate the corresponding item on a voucher.
+
+Should
+
+FR-INT-07
+
+The system shall allow generation of sales/purchase orders to reorder optimum stock quantities.
+
+Should
+
+FR-INT-08
+
+The system shall provide inventory-specific reports (stock summary, item-wise ledger, etc.) to support inventory-level decisions.
+
+Must
+
+3.6 Reporting
+
+Req. ID
+
+Requirement Description
+
+Priority
+
+FR-RPT-01
+
+The system shall provide 35+ pre-built reports, including but not limited to Balance Sheet, Profit & Loss, Trial Balance, Ledger, Day Book, Cash Flow Statement and Chart of Accounts.
+
+Must
+
+FR-RPT-02
+
+The system shall present a dashboard summarizing key business metrics — top expenses, cash flow, income and expense trends — using charts.
+
+Must
+
+FR-RPT-03
+
+The system shall allow all reports to be exported to Excel and PDF, or sent directly to a printer.
+
+Must
+
+FR-RPT-04
+
+The system shall allow advanced users to define custom/add-on reports using database queries and XML, which then behave identically to built-in reports (available on the Windows client).
+
+Could
+
+3.7 Synchronization & Data Portability
+
+Req. ID
+
+Requirement Description
+
+Priority
+
+FR-SYN-01
+
+The system shall automatically synchronize company data across all devices registered to an active cloud subscription.
+
+Must
+
+FR-SYN-02
+
+The system shall support manual synchronization of local (non-cloud) companies via a linked Dropbox account.
+
+Should
+
+FR-SYN-03
+
+The system shall allow importing customer/supplier and inventory item masters from Tally, Zoho, QuickBooks, Busy and Microsoft Excel.
+
+Must
+
+FR-SYN-04
+
+The system shall allow exporting company masters and transactions from Ludgerpulse into Tally-compatible format.
+
+Should
+
+FR-SYN-05
+
+The system shall allow downloading and importing sales orders from Amazon (India) and Flipkart marketplaces without requiring manual re-entry.
+
+Should
+
+3.8 Payroll
+
+Req. ID
+
+Requirement Description
+
+Priority
+
+FR-PAY-01
+
+The system shall allow creation of employee records and definition of salary structures.
+
+Should
+
+FR-PAY-02
+
+The system shall process monthly payroll in a single action, crediting salaries and generating computer-generated salary slips ready for printing.
+
+Should
+
+FR-PAY-03
+
+The system shall automatically post all payroll transactions to the underlying accounting ledgers.
+
+Should
+
+3.9 Payments & Cheque Printing
+
+Req. ID
+
+Requirement Description
+
+Priority
+
+FR-PMT-01
+
+The system shall support collecting customer payments via integrated payment gateways: Razorpay, Paytm, Cashfree, UPI and Stripe (Gold/Diamond plans).
+
+Should
+
+FR-PMT-02
+
+The system (Windows client) shall automatically prompt for cheque printing, pre-filled with payment details, whenever a payment voucher is created for a vendor.
+
+Could
+
+FR-PMT-03
+
+Cheque printing output shall be compatible with the CTS-2010 cheque standard (India) and equivalent formats in other supported countries.
+
+Could
+
+3.10 Licensing & Subscription
+
+Req. ID
+
+Requirement Description
+
+Priority
+
+FR-LIC-01
+
+The system shall support tiered subscription plans — Silver, Gold and Diamond — each defining feature limits (companies, eWay Bill/eInvoice quotas, invoice templates, recommended voucher/account limits).
+
+Must
+
+FR-LIC-02
+
+The system shall support Monthly, Yearly and Lifetime billing durations, and multiple device-count tiers (1–5 devices) per plan.
+
+Must
+
+FR-LIC-03
+
+The system shall offer a free trial period prior to requiring a paid subscription.
+
+Must
+
+FR-LIC-04
+
+The system shall notify the user when a trial or subscription is nearing expiry or has expired, and route them to a renewal/login flow.
+
+Must
+
+FR-LIC-05
+
+The system shall alert users when a new application update is available and allow them to obtain it at no additional cost.
+
+Should
+
+4. External Interface Requirements
+
+4.1 User Interfaces
+
+Mobile UI (Android/iOS): touch-optimized forms for voucher entry, camera-based barcode/receipt capture, and native share sheets for invoice distribution.
+
+Desktop UI (Windows): full-featured data-entry screens, barcode-scanner input, cheque-printing dialogs, and the add-on report designer.
+
+Web UI (LPWeb): browser-based access to cloud-hosted company data with a subset of desktop functionality.
+
+All UIs shall avoid accounting jargon in favor of plain-language labels, consistent with the product's "no accounting knowledge required" design principle.
+
+4.2 Hardware Interfaces
+
+Barcode scanners connected to the Windows client via USB/Bluetooth.
+
+Device camera (mobile) used as a barcode scanner and for capturing receipt photographs.
+
+Local or network printers for invoice, report and cheque printing.
+
+4.3 Software Interfaces
+
+External System
+
+Interface Purpose
+
+Tally (TallyTM)
+
+Bi-directional master/transaction import and export
+
+Zoho, QuickBooks, Busy
+
+One-way import of customers, suppliers and inventory items
+
+Microsoft Excel
+
+Import/export of masters, transactions and generated reports
+
+Dropbox
+
+Manual data synchronization for local (non-cloud) companies
+
+Amazon (India), Flipkart
+
+Import of marketplace sales orders
+
+Razorpay, Paytm, Cashfree, UPI, Stripe
+
+Online payment collection against invoices
+
+GST Portal (Government of India)
+
+Consumption of exported GSTR JSON files; e-Way Bill / e-Invoice (IRN) generation
+
+4.4 Communication Interfaces
+
+HTTPS-based cloud sync channel between clients and Ludgerpulse's servers for automatic multi-device synchronization and licensing.
+
+WhatsApp / SMS integration for outbound sharing of invoices, orders and receipts.
+
+Email for account activation, invoice delivery of purchase confirmation and support correspondence (support@ludgerpulseapp.net).
+
+5. Non-Functional Requirements
+
+5.1 Performance
+
+The system should comfortably support the vendor's recommended daily voucher volumes per plan (≈100/day Silver, ≈300/day Gold, ≈500/day Diamond) without noticeable UI lag.
+
+The system should support the vendor's recommended account/item master sizes per plan (≈5,000 Silver, ≈7,500 Gold, ≈10,000 Diamond) while maintaining acceptable search and report-generation times.
+
+Report generation (e.g., Balance Sheet, GSTR reports) should complete within a few seconds for data volumes within the recommended plan limits.
+
+5.2 Availability & Reliability
+
+Core voucher entry and reporting must remain fully available while the device is offline; only sync, licensing, e-Way Bill/e-Invoice, and e-commerce import require connectivity.
+
+Deleted vouchers must be recoverable (soft-delete/restore) rather than being immediately purged.
+
+5.3 Security
+
+Company data shall be encrypted at rest and protected by a two-tier password scheme (subscription password + company password).
+
+Role-based access control shall restrict each user to only the modules and actions required for their function.
+
+An immutable/append-only audit trail shall record all voucher-level edits for compliance with the Indian Ministry of Corporate Affairs audit-trail mandate (effective FY starting 1 Apr 2022).
+
+5.4 Usability
+
+The application shall require no formal accounting training to operate ("Designed for non-accountants").
+
+Setup shall follow a "download, install, and use" flow with no mandatory onboarding training.
+
+The UI/UX and feature set shall remain consistent across Android, iOS and Windows so that data and user familiarity transfer seamlessly between platforms.
+
+5.5 Portability & Compatibility
+
+The application shall be available natively on Android, iOS and Windows, with a browser-based option (LPWeb) for platform-independent access.
+
+Data created on one supported platform shall be usable, without conversion, on any other supported platform for the same company.
+
+5.6 Maintainability & Supportability
+
+Minor enhancements and bug fixes shall be delivered as free updates to all active subscribers.
+
+Users shall be proactively notified in-app when a new version is available for download.
+
+Support shall be reachable via phone/WhatsApp (+91-99991 76746) and email (support@ludgerpulseapp.net).
+
+5.7 Localization
+
+The marketing/support site supports multiple Indian languages (English, Hindi, Bengali, Telugu, Tamil, Kannada, Marathi, Malayalam, Odia, Gujarati, Punjabi, Assamese, Urdu), indicating a requirement for broad language accessibility for the Indian market.
+
+Multi-currency invoicing indicates a requirement to support international/non-INR businesses in addition to GST-specific India functionality.
+
+6. Data Requirements & Licensing Model
+
+6.1 Data Requirements
+
+Master data: Companies, Users/Roles, Customers, Suppliers, Inventory Items, Warehouses, Employees, Chart of Accounts.
+
+Transactional data: Sales/Purchase Invoices, Receipts, Payments, Orders, Estimates/Quotes, Journals, Stock Issue/Wastage, Manufacturing Journals, Payroll Runs.
+
+Compliance data: GSTIN records, GSTR report snapshots, e-Way Bill numbers, e-Invoice IRNs, Audit Trail logs.
+
+6.2 Subscription Plans (as published)
+
+Plan
+
+Indicative Starting Price (USD)
+
+Key Differentiators
+
+Silver
+
+From $19/month, $85/year, $350 lifetime (1 device)
+
+5 invoice templates; up to 5 LPWeb companies; base eWay Bill/eInvoice quota; ~100 vouchers/day; ~5,000 accounts/items
+
+Gold
+
+From $25/month, $99/year, $500 lifetime (1 device)
+
+15 invoice templates; up to 20 LPWeb companies; higher eWay Bill/eInvoice quota; payment gateway collection; ~300 vouchers/day; ~7,500 accounts/items
+
+Diamond
+
+From $35/month, $139/year, $700 lifetime (1 device)
+
+15 invoice templates; up to 50 LPWeb companies; highest eWay Bill/eInvoice quota; payment gateway collection; ~500 vouchers/day; ~10,000 accounts/items
+
+Note: Prices scale with the number of licensed devices (1–5) and billing duration (Monthly, Yearly, Lifetime — valid for 10 years). Additional devices beyond 5 require contacting the vendor directly. All figures above are as published on the pricing page at the time of writing and are subject to change by the vendor.
+
+6.3 Commercial & Support Policies (as published)
+
+No refunds are processed except in cases of accidental/duplicate purchase, and only within 24 hours of purchase.
+
+Purchases made via iTunes, Play Store, Amazon, Flipkart or a distributor must be handled through that channel's own billing/refund process.
+
+Account activation is typically immediate but may take up to 24 working hours.
+
+The vendor does not provide business-specific customization; only general bug fixes and minor enhancements are released free of charge.
+
+A Partner Program exists for resellers/consultants who wish to onboard and support their own customers on Ludgerpulse.
+
+7. Other Requirements, Assumptions & Appendices
+
+7.1 Regulatory Requirements
+
+Compliance with Indian GST invoicing, return-filing data formats (GSTR-1/2/2A/3B/4/9), e-Way Bill and e-Invoicing (IRN) rules.
+
+Compliance with the Ministry of Corporate Affairs audit-trail requirement applicable to accounting software used by companies, effective for financial years starting on/after 1 April 2022.
+
+7.2 Assumptions
+
+Feature-level requirements in this SRS are derived from the application's published marketing, pricing and FAQ content as well as internal product decisions; detailed internal design documents and source code are maintained separately by the engineering team.
+
+Exact data models, APIs, and internal architecture are not publicly documented and are therefore inferred at the level of user-visible functionality only.
+
+Feature figures (e.g., "35+ reports", quota numbers) reflect the product's published claims at the time of writing and may change with product updates.
+
+7.3 Traceability Note
+
+Every functional requirement in Section 3 traces back to a feature explicitly described on the Ludgerpulse features page (ludgerpulseapp.net/appfeatures) or the pricing page (ludgerpulseapp.net/subscription-3). Where the source material described a feature only at a marketing level (e.g., "insightful reports"), the requirement has been written at the most specific level of detail the source supports.
+
+7.4 Appendix A — Reference Pages
+
+Ludgerpulse homepage — .
+
+Features page — .appfeatures/
+
+Pricing/Subscription page — .subscription-3
+
+FAQ portal — https://faq.ludgerpulseapp.net
+
+Comparison page (Vyapar/Tally/Busy/myBillBook) — .ludgerpulse-vs-tally-vs-busy-vs-quickbooks
+
+Apple App Store listing
+
+Google Play Store listing
+
+— End of Document —

@@ -10,7 +10,6 @@ import 'package:ledger_pulse/data/local/drift_voucher_repository.dart';
 import 'package:ledger_pulse/data/models/account_model.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/rbac_model.dart';
-import 'package:ledger_pulse/data/models/sync_model.dart';
 import 'package:ledger_pulse/data/models/voucher_model.dart';
 import 'package:ledger_pulse/data/security/access_control_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

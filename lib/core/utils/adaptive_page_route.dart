@@ -2,7 +2,6 @@ import 'dart:ui' show clampDouble;
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../theme/adaptive_theme.dart';
 
 export 'package:animations/animations.dart';
 
@@ -299,7 +298,6 @@ class _EnhancedPredictiveBackPageTransition extends StatefulWidget {
     required this.startBackEvent,
     required this.currentBackEvent,
     required this.child,
-    this.showShadow = true,
   });
 
   final Animation<double> animation;
@@ -308,7 +306,7 @@ class _EnhancedPredictiveBackPageTransition extends StatefulWidget {
   final PredictiveBackEvent? startBackEvent;
   final PredictiveBackEvent? currentBackEvent;
   final Widget child;
-  final bool showShadow;
+  final bool showShadow = true;
 
   @override
   State<_EnhancedPredictiveBackPageTransition> createState() =>
@@ -500,6 +498,43 @@ class _EnhancedPredictiveBackPageTransitionState
 }
 
 /// Custom PageTransitionsBuilder providing predictive back with layered drop shadows and rounded corner cards.
+class EnhancedPredictiveBackPageTransitionsBuilder extends PageTransitionsBuilder {
+  const EnhancedPredictiveBackPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return _EnhancedPredictiveBackGestureDetector(
+      route: route,
+      builder: (context, phase, startBackEvent, currentBackEvent) {
+        if (route.popGestureInProgress) {
+          return _EnhancedPredictiveBackPageTransition(
+            animation: animation,
+            phase: phase,
+            secondaryAnimation: secondaryAnimation,
+            startBackEvent: startBackEvent,
+            currentBackEvent: currentBackEvent,
+            child: child,
+          );
+        }
+
+        return FadeForwardsPageTransitionsBuilder().buildTransitions(
+          route,
+          context,
+          animation,
+          secondaryAnimation,
+          child,
+        );
+      },
+    );
+  }
+}
+
 class AdaptivePageRoute<T> extends MaterialPageRoute<T> {
   final SharedAxisTransitionType transitionType;
   final bool useFadeThrough;

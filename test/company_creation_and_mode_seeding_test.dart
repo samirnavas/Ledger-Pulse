@@ -7,14 +7,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/subscription_tier_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
-import 'package:ledger_pulse/domain/exceptions/ledger_exceptions.dart';
 import 'package:ledger_pulse/presentation/home/create_company_flow.dart';
-import 'package:ledger_pulse/presentation/providers/company_providers.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
-import 'package:ledger_pulse/presentation/providers/subscription_providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -164,11 +160,9 @@ void main() {
 
   group('Prompt 6 - Company Limit Enforcement Tests', () {
     late AppDatabase db;
-    late DriftLedgerRepository repo;
 
     setUp(() {
       db = AppDatabase(NativeDatabase.memory());
-      repo = DriftLedgerRepository(db: db, postingEngine: null);
     });
 
     tearDown(() async {
@@ -281,14 +275,6 @@ void main() {
       container.dispose();
     });
   });
-}
-
-class _StaticSubscriptionNotifier extends SubscriptionNotifier {
-  final LicenseState _initial;
-  _StaticSubscriptionNotifier(this._initial);
-
-  @override
-  LicenseState build() => _initial;
 }
 
 class _TestProfileNotifier extends UserProfileNotifier {

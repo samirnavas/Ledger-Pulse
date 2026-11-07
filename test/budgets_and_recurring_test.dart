@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
 import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
-import 'package:ledger_pulse/data/models/sync_model.dart';
 import 'package:ledger_pulse/data/local/audit_service.dart';
 import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/data/local/drift_budget_repository.dart';
@@ -149,6 +148,9 @@ void main() {
         expenseRepositoryProvider.overrideWithValue(expenseRepo),
         budgetRepositoryProvider.overrideWithValue(budgetRepo),
         recurringServiceProvider.overrideWithValue(recurringService),
+        selectedMonthProvider.overrideWith(
+          () => _TestMonthNotifier(DateTime(now.year, now.month)),
+        ),
       ],
       child: MaterialApp(
         home: child,
@@ -286,6 +288,7 @@ void main() {
         categoryId: catWarning.id,
         amountInCents: 1000000,
         period: BudgetPeriodType.monthly,
+        startDate: now,
       );
       await expenseRepo.addExpense(
         walletAccountId: wallet.id,
@@ -299,6 +302,7 @@ void main() {
         categoryId: catExceeded.id,
         amountInCents: 500000,
         period: BudgetPeriodType.monthly,
+        startDate: now,
       );
       await expenseRepo.addExpense(
         walletAccountId: wallet.id,
@@ -478,4 +482,12 @@ class _TestProfileNotifier extends UserProfileNotifier {
   void updateProfile(UserProfile updated) {
     state = updated;
   }
+}
+
+class _TestMonthNotifier extends SelectedMonthNotifier {
+  final DateTime _initial;
+  _TestMonthNotifier(this._initial);
+
+  @override
+  DateTime build() => _initial;
 }

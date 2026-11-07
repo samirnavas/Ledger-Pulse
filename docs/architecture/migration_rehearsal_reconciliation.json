@@ -1,0 +1,59 @@
+{
+  "contract_version": "v1.0.0-PROD-CONTRACT-20261106",
+  "rehearsal_timestamp": "2026-11-06T22:43:00Z",
+  "staging_status": "ACCEPTED",
+  "strategy": "NON_DESTRUCTIVE_COPY",
+  "pre_flight_checks": {
+    "unknown_modes": 0,
+    "orphan_vouchers": 0,
+    "orphan_ledger_entries": 0,
+    "unsupported_records": 0,
+    "result": "PASSED"
+  },
+  "baseline_metrics": {
+    "drift_schema_version_before": 10,
+    "drift_schema_version_after": 11,
+    "step_by_step_migrations_tested": "v1 -> v11 (21/21 passed)"
+  },
+  "reconciliation_summary": {
+    "companies": {
+      "total_before": 2,
+      "total_after": 2,
+      "ledger_profiles": 1,
+      "expense_profiles": 1,
+      "invalid_modes": 0,
+      "difference": 0
+    },
+    "shared_memberships": {
+      "created_count": 2,
+      "orphaned_memberships": 0,
+      "difference": 0
+    },
+    "expense_wallets": {
+      "migrated_count": 1,
+      "preserved_balance_cents": 5000000,
+      "balance_drift_cents": 0
+    },
+    "expense_transactions": {
+      "migrated_count": 1,
+      "preserved_amount_cents": 150000,
+      "difference": 0
+    },
+    "ledger_vouchers": {
+      "legacy_intact_count": 1,
+      "preserved_amount_cents": 1250000,
+      "corrupted_or_lost": 0
+    },
+    "ledger_trial_balance": {
+      "total_debit_cents": 1250000,
+      "total_credit_cents": 1250000,
+      "mathematical_discrepancy_cents": 0
+    }
+  },
+  "rollback_verification": {
+    "rollback_script_verified": "0013_legacy_data_migration_staging_rollback.sql",
+    "legacy_data_modified": false,
+    "destructive_drops_executed": false
+  }
+}
+

@@ -80,7 +80,6 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
 
   @override
   Future<List<Company>> getCompanies() async {
-    await ensureInitialized();
     var rows = await (db.select(db.companies)..where((t) => t.isDeleted.equals(false))).get();
 
     // One-time compatibility: if the table has no companies but companiesJson has data, import it.
@@ -123,7 +122,6 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
     Company company, {
     Map<String, int>? initialWalletBalancesInCents,
   }) async {
-    await ensureInitialized();
     AccessControlService.verifyPermission(currentRole, UserAction.createCompany);
 
     await db.transaction(() async {

@@ -9,7 +9,6 @@ import '../../domain/repositories/i_ledger_repository.dart';
 import 'auth_providers.dart';
 import 'company_providers.dart';
 import 'database_providers.dart';
-import 'profile_provider.dart';
 
 export 'database_providers.dart';
 export '../../data/models/account_model.dart';

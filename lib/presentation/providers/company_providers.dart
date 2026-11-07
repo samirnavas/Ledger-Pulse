@@ -13,6 +13,10 @@ import 'subscription_providers.dart';
 
 /// Provider for current user's active company ID, backing repository scoping without circular dependency.
 final activeCompanyIdProvider = Provider<String>((ref) {
+  final profileActiveId = ref.watch(userProfileProvider.select((p) => p.activeCompanyId));
+  if (profileActiveId.isNotEmpty) {
+    return profileActiveId;
+  }
   final authRepo = ref.watch(authRepositoryProvider);
   final uid = authRepo.currentUserId ?? 'usr_default';
   final prefs = ref.watch(sharedPreferencesProvider);

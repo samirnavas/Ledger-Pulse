@@ -14,8 +14,18 @@ void main() {
     late AppDatabase db;
     late CustomSqlReportEngine engine;
 
-    setUp(() {
+    setUp(() async {
       db = AppDatabase(NativeDatabase.memory());
+      await db.into(db.companies).insert(
+        CompaniesCompanion.insert(
+          id: 'cmp_default',
+          name: 'Default Company',
+          legalName: 'Default Company Ltd',
+          createdAt: Value(DateTime.now()),
+          updatedAt: Value(DateTime.now()),
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
       engine = CustomSqlReportEngine(db);
     });
 

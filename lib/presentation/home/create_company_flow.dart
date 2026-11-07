@@ -13,7 +13,6 @@ import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
-import '../../domain/exceptions/ledger_exceptions.dart';
 import '../providers/company_providers.dart';
 
 /// Multi-step company creation flow (adaptive Cupertino / Material 3).

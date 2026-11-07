@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io' show Platform;
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,13 +12,7 @@ import '../../data/models/transaction_model.dart';
 import '../config/supabase_config.dart';
 import 'sync_codec.dart';
 
-enum SyncEngineStatus {
-  idle,
-  syncing,
-  success,
-  partial,
-  error;
-}
+enum SyncEngineStatus { idle, syncing, success, partial, error }
 
 typedef SyncStatus = SyncEngineStatus;
 
@@ -41,10 +34,14 @@ class SyncResult {
     int? itemsPulled,
     this.errorMessage,
     DateTime? timestamp,
-  })  : status = status ?? ((success == false) ? SyncEngineStatus.error : SyncEngineStatus.success),
-        pushedCount = pushedCount ?? itemsPushed ?? 0,
-        pulledCount = pulledCount ?? itemsPulled ?? 0,
-        timestamp = timestamp ?? DateTime.now();
+  }) : status =
+           status ??
+           ((success == false)
+               ? SyncEngineStatus.error
+               : SyncEngineStatus.success),
+       pushedCount = pushedCount ?? itemsPushed ?? 0,
+       pulledCount = pulledCount ?? itemsPulled ?? 0,
+       timestamp = timestamp ?? DateTime.now();
 
   bool get isSuccess => status == SyncEngineStatus.success;
   bool get success => isSuccess;
@@ -79,7 +76,11 @@ class SupabaseGateway implements RemoteGateway {
     required String table,
     required Map<String, dynamic> row,
   }) async {
-    final response = await client.from(table).upsert(row).select().maybeSingle();
+    final response = await client
+        .from(table)
+        .upsert(row)
+        .select()
+        .maybeSingle();
     return response;
   }
 
@@ -124,7 +125,10 @@ String _toCamelCase(String input) {
   );
 }
 
-Map<String, dynamic> mapToSnakeCase(Map<String, dynamic> source, {Set<String> ignoreKeys = const {}}) {
+Map<String, dynamic> mapToSnakeCase(
+  Map<String, dynamic> source, {
+  Set<String> ignoreKeys = const {},
+}) {
   final result = <String, dynamic>{};
   source.forEach((key, value) {
     if (ignoreKeys.contains(key)) return;
@@ -134,7 +138,10 @@ Map<String, dynamic> mapToSnakeCase(Map<String, dynamic> source, {Set<String> ig
   return result;
 }
 
-Map<String, dynamic> mapToCamelCase(Map<String, dynamic> source, {Set<String> ignoreKeys = const {}}) {
+Map<String, dynamic> mapToCamelCase(
+  Map<String, dynamic> source, {
+  Set<String> ignoreKeys = const {},
+}) {
   final result = <String, dynamic>{};
   source.forEach((key, value) {
     if (ignoreKeys.contains(key)) return;
@@ -182,13 +189,14 @@ class SyncEngine {
     RemoteGateway? fakeRemoteStore,
     SupabaseClient? supabaseClient,
     this.simulateSyncForTesting = false,
-  }) : gateway = gateway ??
-            fakeRemoteStore ??
-            (supabaseClient != null
-                ? SupabaseGateway(supabaseClient)
-                : (_getSafeSupabaseClient() != null
-                    ? SupabaseGateway(_getSafeSupabaseClient()!)
-                    : _NoOpGateway()));
+  }) : gateway =
+           gateway ??
+           fakeRemoteStore ??
+           (supabaseClient != null
+               ? SupabaseGateway(supabaseClient)
+               : (_getSafeSupabaseClient() != null
+                     ? SupabaseGateway(_getSafeSupabaseClient()!)
+                     : _NoOpGateway()));
 
   RemoteGateway? get fakeRemoteStore => gateway;
 
@@ -240,8 +248,11 @@ class SyncEngine {
     }
   }
 
-  void triggerBackgroundSync({String? companyId, Duration debounceDelay = const Duration(milliseconds: 1500)}) {
-    if (_isDisposed || simulateSyncForTesting || (!kIsWeb && Platform.environment.containsKey('FLUTTER_TEST'))) return;
+  void triggerBackgroundSync({
+    String? companyId,
+    Duration debounceDelay = const Duration(milliseconds: 1500),
+  }) {
+    if (_isDisposed) return;
     _debounceTimer?.cancel();
     _debounceTimer = Timer(debounceDelay, () async {
       if (_isDisposed) return;
@@ -264,9 +275,10 @@ class SyncEngine {
   }
 
   Stream<int> watchFailed() {
-    return db.select(db.syncOutbox).watch().map(
-      (rows) => rows.where((r) => r.lastError != null).length,
-    );
+    return db
+        .select(db.syncOutbox)
+        .watch()
+        .map((rows) => rows.where((r) => r.lastError != null).length);
   }
 
   /// One-time cleanup of corrupted or non-JSON outbox rows
@@ -281,7 +293,9 @@ class SyncEngine {
         } catch (_) {}
 
         if (!realTableNames.contains(row.targetTable) || !isValidJson) {
-          await (db.delete(db.syncOutbox)..where((t) => t.id.equals(row.id))).go();
+          await (db.delete(
+            db.syncOutbox,
+          )..where((t) => t.id.equals(row.id))).go();
         }
       }
     } catch (e) {
@@ -293,9 +307,11 @@ class SyncEngine {
   Future<void> _queueUnsyncedLocalRecords(String companyId) async {
     try {
       // 1. Companies
-      final pendingCompanies = await (db.select(db.companies)
-            ..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.pending)))
-          .get();
+      final pendingCompanies =
+          await (db.select(db.companies)..where(
+                (t) => t.syncStatus.equalsValue(SyncRecordStatus.pending),
+              ))
+              .get();
       for (final c in pendingCompanies) {
         await enqueueMutation(
           db: db,
@@ -336,9 +352,11 @@ class SyncEngine {
       }
 
       // 2. UserProfiles
-      final pendingProfiles = await (db.select(db.userProfiles)
-            ..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.pending)))
-          .get();
+      final pendingProfiles =
+          await (db.select(db.userProfiles)..where(
+                (t) => t.syncStatus.equalsValue(SyncRecordStatus.pending),
+              ))
+              .get();
       for (final p in pendingProfiles) {
         await enqueueMutation(
           db: db,
@@ -372,9 +390,13 @@ class SyncEngine {
       }
 
       // 3. Parties
-      final pendingParties = await (db.select(db.parties)
-            ..where((t) => t.companyId.equals(companyId) & t.syncStatus.equalsValue(SyncRecordStatus.pending)))
-          .get();
+      final pendingParties =
+          await (db.select(db.parties)..where(
+                (t) =>
+                    t.companyId.equals(companyId) &
+                    t.syncStatus.equalsValue(SyncRecordStatus.pending),
+              ))
+              .get();
       for (final p in pendingParties) {
         await enqueueMutation(
           db: db,
@@ -397,9 +419,13 @@ class SyncEngine {
       }
 
       // 4. LedgerEntries
-      final pendingEntries = await (db.select(db.ledgerEntries)
-            ..where((t) => t.companyId.equals(companyId) & t.syncStatus.equalsValue(SyncRecordStatus.pending)))
-          .get();
+      final pendingEntries =
+          await (db.select(db.ledgerEntries)..where(
+                (t) =>
+                    t.companyId.equals(companyId) &
+                    t.syncStatus.equalsValue(SyncRecordStatus.pending),
+              ))
+              .get();
       for (final e in pendingEntries) {
         await enqueueMutation(
           db: db,
@@ -425,9 +451,13 @@ class SyncEngine {
       }
 
       // 5. Vouchers
-      final pendingVouchers = await (db.select(db.vouchers)
-            ..where((t) => t.companyId.equals(companyId) & t.syncStatus.equalsValue(SyncRecordStatus.pending)))
-          .get();
+      final pendingVouchers =
+          await (db.select(db.vouchers)..where(
+                (t) =>
+                    t.companyId.equals(companyId) &
+                    t.syncStatus.equalsValue(SyncRecordStatus.pending),
+              ))
+              .get();
       for (final v in pendingVouchers) {
         await enqueueMutation(
           db: db,
@@ -466,9 +496,13 @@ class SyncEngine {
       }
 
       // 6. Accounts
-      final pendingAccounts = await (db.select(db.accounts)
-            ..where((t) => t.companyId.equals(companyId) & t.syncStatus.equalsValue(SyncRecordStatus.pending)))
-          .get();
+      final pendingAccounts =
+          await (db.select(db.accounts)..where(
+                (t) =>
+                    t.companyId.equals(companyId) &
+                    t.syncStatus.equalsValue(SyncRecordStatus.pending),
+              ))
+              .get();
       for (final a in pendingAccounts) {
         await enqueueMutation(
           db: db,
@@ -498,9 +532,13 @@ class SyncEngine {
       }
 
       // 7. Journals
-      final pendingJournals = await (db.select(db.journals)
-            ..where((t) => t.companyId.equals(companyId) & t.syncStatus.equalsValue(SyncRecordStatus.pending)))
-          .get();
+      final pendingJournals =
+          await (db.select(db.journals)..where(
+                (t) =>
+                    t.companyId.equals(companyId) &
+                    t.syncStatus.equalsValue(SyncRecordStatus.pending),
+              ))
+              .get();
       for (final j in pendingJournals) {
         await enqueueMutation(
           db: db,
@@ -525,9 +563,13 @@ class SyncEngine {
       }
 
       // 8. JournalLines
-      final pendingLines = await (db.select(db.journalLines)
-            ..where((t) => t.companyId.equals(companyId) & t.syncStatus.equalsValue(SyncRecordStatus.pending)))
-          .get();
+      final pendingLines =
+          await (db.select(db.journalLines)..where(
+                (t) =>
+                    t.companyId.equals(companyId) &
+                    t.syncStatus.equalsValue(SyncRecordStatus.pending),
+              ))
+              .get();
       for (final l in pendingLines) {
         await enqueueMutation(
           db: db,
@@ -552,9 +594,13 @@ class SyncEngine {
       }
 
       // 9. Budgets
-      final pendingBudgets = await (db.select(db.budgets)
-            ..where((t) => t.companyId.equals(companyId) & t.syncStatus.equalsValue(SyncRecordStatus.pending)))
-          .get();
+      final pendingBudgets =
+          await (db.select(db.budgets)..where(
+                (t) =>
+                    t.companyId.equals(companyId) &
+                    t.syncStatus.equalsValue(SyncRecordStatus.pending),
+              ))
+              .get();
       for (final b in pendingBudgets) {
         await enqueueMutation(
           db: db,
@@ -579,9 +625,13 @@ class SyncEngine {
       }
 
       // 10. RecurringRules
-      final pendingRules = await (db.select(db.recurringRules)
-            ..where((t) => t.companyId.equals(companyId) & t.syncStatus.equalsValue(SyncRecordStatus.pending)))
-          .get();
+      final pendingRules =
+          await (db.select(db.recurringRules)..where(
+                (t) =>
+                    t.companyId.equals(companyId) &
+                    t.syncStatus.equalsValue(SyncRecordStatus.pending),
+              ))
+              .get();
       for (final r in pendingRules) {
         await enqueueMutation(
           db: db,
@@ -619,18 +669,40 @@ class SyncEngine {
 
   Future<void> _repairFailedSyncRecords() async {
     try {
-      await (db.update(db.vouchers)..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error)))
-          .write(const VouchersCompanion(syncStatus: Value(SyncRecordStatus.pending)));
-      await (db.update(db.budgets)..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error)))
-          .write(const BudgetsCompanion(syncStatus: Value(SyncRecordStatus.pending)));
-      await (db.update(db.recurringRules)..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error)))
-          .write(const RecurringRulesCompanion(syncStatus: Value(SyncRecordStatus.pending)));
-      await (db.update(db.accounts)..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error)))
-          .write(const AccountsCompanion(syncStatus: Value(SyncRecordStatus.pending)));
-      await (db.update(db.parties)..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error)))
-          .write(const PartiesCompanion(syncStatus: Value(SyncRecordStatus.pending)));
-      await (db.update(db.ledgerEntries)..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error)))
-          .write(const LedgerEntriesCompanion(syncStatus: Value(SyncRecordStatus.pending)));
+      await (db.update(
+        db.vouchers,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const VouchersCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+      );
+      await (db.update(
+        db.budgets,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const BudgetsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+      );
+      await (db.update(
+        db.recurringRules,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const RecurringRulesCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
+      await (db.update(
+        db.accounts,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const AccountsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+      );
+      await (db.update(
+        db.parties,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const PartiesCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+      );
+      await (db.update(
+        db.ledgerEntries,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const LedgerEntriesCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
     } catch (e) {
       debugPrint('SyncEngine repair failed records notice: $e');
     }
@@ -644,7 +716,11 @@ class SyncEngine {
 
     final now = DateTime.now();
     final query = db.select(db.syncOutbox)
-      ..where((t) => t.nextAttemptAt.isNull() | t.nextAttemptAt.isSmallerOrEqual(Variable(now)))
+      ..where(
+        (t) =>
+            t.nextAttemptAt.isNull() |
+            t.nextAttemptAt.isSmallerOrEqual(Variable(now)),
+      )
       ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
 
     final outboxRows = await query.get();
@@ -658,8 +734,12 @@ class SyncEngine {
 
     for (final outboxRow in outboxRows) {
       try {
-        final payloadMap = jsonDecode(outboxRow.payload) as Map<String, dynamic>;
-        final remoteMap = mapToSnakeCase(payloadMap, ignoreKeys: {'sync_status', 'syncStatus'});
+        final payloadMap =
+            jsonDecode(outboxRow.payload) as Map<String, dynamic>;
+        final remoteMap = mapToSnakeCase(
+          payloadMap,
+          ignoreKeys: {'sync_status', 'syncStatus'},
+        );
 
         final response = await gateway.upsertRow(
           table: outboxRow.targetTable,
@@ -676,7 +756,9 @@ class SyncEngine {
           remoteResponse: response,
         );
 
-        await (db.delete(db.syncOutbox)..where((t) => t.id.equals(outboxRow.id))).go();
+        await (db.delete(
+          db.syncOutbox,
+        )..where((t) => t.id.equals(outboxRow.id))).go();
       } catch (e) {
         final errStr = e.toString();
         tableErrors[outboxRow.targetTable] = errStr;
@@ -684,18 +766,23 @@ class SyncEngine {
         final isPermanent4xx = _isPermanentError(e);
 
         if (isPermanent4xx) {
-          await (db.update(db.syncOutbox)..where((t) => t.id.equals(outboxRow.id))).write(
-            SyncOutboxCompanion(
-              lastError: Value(errStr),
-            ),
+          await (db.update(db.syncOutbox)
+                ..where((t) => t.id.equals(outboxRow.id)))
+              .write(SyncOutboxCompanion(lastError: Value(errStr)));
+          await _markRecordError(
+            table: outboxRow.targetTable,
+            recordId: outboxRow.recordId,
           );
-          await _markRecordError(table: outboxRow.targetTable, recordId: outboxRow.recordId);
         } else {
           final newAttempts = outboxRow.attempts + 1;
           final delaySeconds = 1 << (newAttempts > 8 ? 8 : newAttempts);
-          final nextAttempt = DateTime.now().add(Duration(seconds: delaySeconds));
+          final nextAttempt = DateTime.now().add(
+            Duration(seconds: delaySeconds),
+          );
 
-          await (db.update(db.syncOutbox)..where((t) => t.id.equals(outboxRow.id))).write(
+          await (db.update(
+            db.syncOutbox,
+          )..where((t) => t.id.equals(outboxRow.id))).write(
             SyncOutboxCompanion(
               attempts: Value(newAttempts),
               lastError: Value(errStr),
@@ -706,7 +793,9 @@ class SyncEngine {
       }
     }
 
-    final finalStatus = tableErrors.isNotEmpty ? SyncEngineStatus.partial : SyncEngineStatus.success;
+    final finalStatus = tableErrors.isNotEmpty
+        ? SyncEngineStatus.partial
+        : SyncEngineStatus.success;
     setStatus(finalStatus);
 
     return SyncResult(
@@ -719,12 +808,17 @@ class SyncEngine {
   bool _isPermanentError(dynamic error) {
     if (error is PostgrestException) {
       final code = error.code ?? '';
-      if (code.startsWith('23') || code.startsWith('42') || code.startsWith('P')) {
+      if (code.startsWith('23') ||
+          code.startsWith('42') ||
+          code.startsWith('P')) {
         return true;
       }
     }
     final msg = error.toString().toLowerCase();
-    return msg.contains('violates') || msg.contains('duplicate key') || msg.contains('400') || msg.contains('422');
+    return msg.contains('violates') ||
+        msg.contains('duplicate key') ||
+        msg.contains('400') ||
+        msg.contains('422');
   }
 
   Future<void> _markRecordSyncedIfUnchanged({
@@ -736,9 +830,13 @@ class SyncEngine {
     final now = DateTime.now();
 
     if (table == 'vouchers') {
-      final local = await (db.select(db.vouchers)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final local = await (db.select(
+        db.vouchers,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       if (local != null && local.revision == pushedRevision) {
-        await (db.update(db.vouchers)..where((t) => t.id.equals(recordId))).write(
+        await (db.update(
+          db.vouchers,
+        )..where((t) => t.id.equals(recordId))).write(
           VouchersCompanion(
             syncStatus: const Value(SyncRecordStatus.synced),
             remoteUpdatedAt: Value(now),
@@ -746,9 +844,13 @@ class SyncEngine {
         );
       }
     } else if (table == 'accounts') {
-      final local = await (db.select(db.accounts)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final local = await (db.select(
+        db.accounts,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       if (local != null && local.revision == pushedRevision) {
-        await (db.update(db.accounts)..where((t) => t.id.equals(recordId))).write(
+        await (db.update(
+          db.accounts,
+        )..where((t) => t.id.equals(recordId))).write(
           AccountsCompanion(
             syncStatus: const Value(SyncRecordStatus.synced),
             remoteUpdatedAt: Value(now),
@@ -756,9 +858,13 @@ class SyncEngine {
         );
       }
     } else if (table == 'parties') {
-      final local = await (db.select(db.parties)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final local = await (db.select(
+        db.parties,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       if (local != null && local.revision == pushedRevision) {
-        await (db.update(db.parties)..where((t) => t.id.equals(recordId))).write(
+        await (db.update(
+          db.parties,
+        )..where((t) => t.id.equals(recordId))).write(
           PartiesCompanion(
             syncStatus: const Value(SyncRecordStatus.synced),
             remoteUpdatedAt: Value(now),
@@ -766,9 +872,13 @@ class SyncEngine {
         );
       }
     } else if (table == 'ledger_entries') {
-      final local = await (db.select(db.ledgerEntries)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final local = await (db.select(
+        db.ledgerEntries,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       if (local != null && local.revision == pushedRevision) {
-        await (db.update(db.ledgerEntries)..where((t) => t.id.equals(recordId))).write(
+        await (db.update(
+          db.ledgerEntries,
+        )..where((t) => t.id.equals(recordId))).write(
           LedgerEntriesCompanion(
             syncStatus: const Value(SyncRecordStatus.synced),
             remoteUpdatedAt: Value(now),
@@ -776,9 +886,13 @@ class SyncEngine {
         );
       }
     } else if (table == 'journals') {
-      final local = await (db.select(db.journals)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final local = await (db.select(
+        db.journals,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       if (local != null && local.revision == pushedRevision) {
-        await (db.update(db.journals)..where((t) => t.id.equals(recordId))).write(
+        await (db.update(
+          db.journals,
+        )..where((t) => t.id.equals(recordId))).write(
           JournalsCompanion(
             syncStatus: const Value(SyncRecordStatus.synced),
             remoteUpdatedAt: Value(now),
@@ -786,9 +900,13 @@ class SyncEngine {
         );
       }
     } else if (table == 'journal_lines') {
-      final local = await (db.select(db.journalLines)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final local = await (db.select(
+        db.journalLines,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       if (local != null && local.revision == pushedRevision) {
-        await (db.update(db.journalLines)..where((t) => t.id.equals(recordId))).write(
+        await (db.update(
+          db.journalLines,
+        )..where((t) => t.id.equals(recordId))).write(
           JournalLinesCompanion(
             syncStatus: const Value(SyncRecordStatus.synced),
             remoteUpdatedAt: Value(now),
@@ -796,9 +914,13 @@ class SyncEngine {
         );
       }
     } else if (table == 'budgets') {
-      final local = await (db.select(db.budgets)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final local = await (db.select(
+        db.budgets,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       if (local != null && local.revision == pushedRevision) {
-        await (db.update(db.budgets)..where((t) => t.id.equals(recordId))).write(
+        await (db.update(
+          db.budgets,
+        )..where((t) => t.id.equals(recordId))).write(
           BudgetsCompanion(
             syncStatus: const Value(SyncRecordStatus.synced),
             remoteUpdatedAt: Value(now),
@@ -806,9 +928,13 @@ class SyncEngine {
         );
       }
     } else if (table == 'recurring_rules') {
-      final local = await (db.select(db.recurringRules)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final local = await (db.select(
+        db.recurringRules,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       if (local != null && local.revision == pushedRevision) {
-        await (db.update(db.recurringRules)..where((t) => t.id.equals(recordId))).write(
+        await (db.update(
+          db.recurringRules,
+        )..where((t) => t.id.equals(recordId))).write(
           RecurringRulesCompanion(
             syncStatus: const Value(SyncRecordStatus.synced),
             remoteUpdatedAt: Value(now),
@@ -816,9 +942,13 @@ class SyncEngine {
         );
       }
     } else if (table == 'companies') {
-      final local = await (db.select(db.companies)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final local = await (db.select(
+        db.companies,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       if (local != null && local.revision == pushedRevision) {
-        await (db.update(db.companies)..where((t) => t.id.equals(recordId))).write(
+        await (db.update(
+          db.companies,
+        )..where((t) => t.id.equals(recordId))).write(
           CompaniesCompanion(
             syncStatus: const Value(SyncRecordStatus.synced),
             remoteUpdatedAt: Value(now),
@@ -826,9 +956,13 @@ class SyncEngine {
         );
       }
     } else if (table == 'user_profiles') {
-      final local = await (db.select(db.userProfiles)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final local = await (db.select(
+        db.userProfiles,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       if (local != null && local.revision == pushedRevision) {
-        await (db.update(db.userProfiles)..where((t) => t.id.equals(recordId))).write(
+        await (db.update(
+          db.userProfiles,
+        )..where((t) => t.id.equals(recordId))).write(
           UserProfilesCompanion(
             syncStatus: const Value(SyncRecordStatus.synced),
             remoteUpdatedAt: Value(now),
@@ -838,7 +972,10 @@ class SyncEngine {
     }
   }
 
-  Future<void> _markRecordError({required String table, required String recordId}) async {
+  Future<void> _markRecordError({
+    required String table,
+    required String recordId,
+  }) async {
     if (table == 'vouchers') {
       await (db.update(db.vouchers)..where((t) => t.id.equals(recordId))).write(
         const VouchersCompanion(syncStatus: Value(SyncRecordStatus.error)),
@@ -852,7 +989,9 @@ class SyncEngine {
         const PartiesCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'ledger_entries') {
-      await (db.update(db.ledgerEntries)..where((t) => t.id.equals(recordId))).write(
+      await (db.update(
+        db.ledgerEntries,
+      )..where((t) => t.id.equals(recordId))).write(
         const LedgerEntriesCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'journals') {
@@ -860,7 +999,9 @@ class SyncEngine {
         const JournalsCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'journal_lines') {
-      await (db.update(db.journalLines)..where((t) => t.id.equals(recordId))).write(
+      await (db.update(
+        db.journalLines,
+      )..where((t) => t.id.equals(recordId))).write(
         const JournalLinesCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'budgets') {
@@ -868,8 +1009,12 @@ class SyncEngine {
         const BudgetsCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'recurring_rules') {
-      await (db.update(db.recurringRules)..where((t) => t.id.equals(recordId))).write(
-        const RecurringRulesCompanion(syncStatus: Value(SyncRecordStatus.error)),
+      await (db.update(
+        db.recurringRules,
+      )..where((t) => t.id.equals(recordId))).write(
+        const RecurringRulesCompanion(
+          syncStatus: Value(SyncRecordStatus.error),
+        ),
       );
     }
   }
@@ -900,9 +1045,17 @@ class SyncEngine {
           bankAccountNumber: Value(c['bankAccountNumber'] as String?),
           bankIfsc: Value(c['bankIfsc'] as String?),
           upiId: Value(c['upiId'] as String?),
-          isCloudSyncEnabled: Value(c['isCloudSyncEnabled'] == true || c['isCloudSyncEnabled'] == 1),
-          isDropboxSyncEnabled: Value(c['isDropboxSyncEnabled'] == true || c['isDropboxSyncEnabled'] == 1),
-          isActive: Value(c['isActive'] == null || c['isActive'] == true || c['isActive'] == 1),
+          isCloudSyncEnabled: Value(
+            c['isCloudSyncEnabled'] == true || c['isCloudSyncEnabled'] == 1,
+          ),
+          isDropboxSyncEnabled: Value(
+            c['isDropboxSyncEnabled'] == true || c['isDropboxSyncEnabled'] == 1,
+          ),
+          isActive: Value(
+            c['isActive'] == null ||
+                c['isActive'] == true ||
+                c['isActive'] == 1,
+          ),
           mode: Value(c['mode'] as String? ?? 'ledger'),
           enabledModulesJson: Value(c['enabledModulesJson'] as String?),
           ownerId: Value(c['ownerId'] as String?),
@@ -911,7 +1064,9 @@ class SyncEngine {
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
     ),
@@ -935,7 +1090,9 @@ class SyncEngine {
           bankAccountNumber: Value(c['bankAccountNumber'] as String?),
           bankIfsc: Value(c['bankIfsc'] as String?),
           upiId: Value(c['upiId'] as String?),
-          activeCompanyId: Value(c['activeCompanyId'] as String? ?? 'cmp_default'),
+          activeCompanyId: Value(
+            c['activeCompanyId'] as String? ?? 'cmp_default',
+          ),
           role: Value(c['role'] as String? ?? 'admin'),
           companiesJson: Value(c['companiesJson'] as String?),
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
@@ -943,7 +1100,9 @@ class SyncEngine {
           updatedAt: Value(decodeTime(c['updatedAt'])),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
     ),
@@ -962,18 +1121,29 @@ class SyncEngine {
           type: Value(c['type'] as String? ?? 'asset'),
           parentAccountId: Value(c['parentAccountId'] as String?),
           isSystem: Value(c['isSystem'] == true || c['isSystem'] == 1),
-          isActive: Value(c['isActive'] == null || c['isActive'] == true || c['isActive'] == 1),
+          isActive: Value(
+            c['isActive'] == null ||
+                c['isActive'] == true ||
+                c['isActive'] == 1,
+          ),
           description: Value(c['description'] as String?),
-          currentBalanceInCents: Value((c['currentBalanceInCents'] as int?) ?? 0),
+          currentBalanceInCents: Value(
+            (c['currentBalanceInCents'] as int?) ?? 0,
+          ),
           createdAt: Value(decodeTime(c['createdAt'])),
           updatedAt: Value(decodeTime(c['updatedAt'])),
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
-      toRemote: (row) => mapToSnakeCase(row.toJson(), ignoreKeys: {'currentBalanceInCents', 'current_balance_in_cents'}),
+      toRemote: (row) => mapToSnakeCase(
+        row.toJson(),
+        ignoreKeys: {'currentBalanceInCents', 'current_balance_in_cents'},
+      ),
     ),
 
     // 4. Parties
@@ -987,20 +1157,27 @@ class SyncEngine {
           companyId: Value(c['companyId'] as String? ?? 'cmp_default'),
           name: Value(c['name'] as String? ?? ''),
           phoneNumber: Value(c['phoneNumber'] as String? ?? ''),
-          type: Value(PartyType.values.firstWhere(
-            (e) => e.name == c['type'],
-            orElse: () => PartyType.customer,
-          )),
+          type: Value(
+            PartyType.values.firstWhere(
+              (e) => e.name == c['type'],
+              orElse: () => PartyType.customer,
+            ),
+          ),
           netBalanceInCents: Value((c['netBalanceInCents'] as int?) ?? 0),
           lastUpdated: Value(decodeTime(c['lastUpdated'] ?? c['updatedAt'])),
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           updatedAt: Value(decodeTime(c['updatedAt'])),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
-      toRemote: (row) => mapToSnakeCase(row.toJson(), ignoreKeys: {'netBalanceInCents', 'net_balance_in_cents'}),
+      toRemote: (row) => mapToSnakeCase(
+        row.toJson(),
+        ignoreKeys: {'netBalanceInCents', 'net_balance_in_cents'},
+      ),
     ),
 
     // 5. AuditLogs
@@ -1026,7 +1203,9 @@ class SyncEngine {
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
       toRemote: (row) => mapToSnakeCase(row.toJson()),
@@ -1047,17 +1226,29 @@ class SyncEngine {
           unit: Value(c['unit'] as String? ?? 'PCS'),
           purchasePriceInCents: Value((c['purchasePriceInCents'] as int?) ?? 0),
           sellingPriceInCents: Value((c['sellingPriceInCents'] as int?) ?? 0),
-          currentStockQuantity: Value((c['currentStockQuantity'] as num?)?.toDouble() ?? 0.0),
-          minimumStockAlert: Value((c['minimumStockAlert'] as num?)?.toDouble() ?? 5.0),
+          currentStockQuantity: Value(
+            (c['currentStockQuantity'] as num?)?.toDouble() ?? 0.0,
+          ),
+          minimumStockAlert: Value(
+            (c['minimumStockAlert'] as num?)?.toDouble() ?? 5.0,
+          ),
           hsnCode: Value(c['hsnCode'] as String?),
-          taxRatePercent: Value((c['taxRatePercent'] as num?)?.toDouble() ?? 0.0),
-          isActive: Value(c['isActive'] == null || c['isActive'] == true || c['isActive'] == 1),
+          taxRatePercent: Value(
+            (c['taxRatePercent'] as num?)?.toDouble() ?? 0.0,
+          ),
+          isActive: Value(
+            c['isActive'] == null ||
+                c['isActive'] == true ||
+                c['isActive'] == 1,
+          ),
           createdAt: Value(decodeTime(c['createdAt'])),
           updatedAt: Value(decodeTime(c['updatedAt'])),
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
       toRemote: (row) => mapToSnakeCase(row.toJson()),
@@ -1075,7 +1266,9 @@ class SyncEngine {
           voucherNumber: Value(c['voucherNumber'] as String? ?? 'VCH-0'),
           type: Value(c['type'] as String? ?? 'expense'),
           date: Value(decodeTime(c['date'])),
-          dueDate: Value(c['dueDate'] != null ? decodeTime(c['dueDate']) : null),
+          dueDate: Value(
+            c['dueDate'] != null ? decodeTime(c['dueDate']) : null,
+          ),
           partyId: Value(c['partyId'] as String?),
           partyName: Value(c['partyName'] as String?),
           status: Value(c['status'] as String? ?? 'posted'),
@@ -1097,7 +1290,9 @@ class SyncEngine {
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
       toRemote: (row) => mapToSnakeCase(row.toJson()),
@@ -1123,7 +1318,9 @@ class SyncEngine {
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
       toRemote: (row) => mapToSnakeCase(row.toJson()),
@@ -1149,7 +1346,9 @@ class SyncEngine {
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
       toRemote: (row) => mapToSnakeCase(row.toJson()),
@@ -1170,7 +1369,9 @@ class SyncEngine {
           quantity: Value((c['quantity'] as num?)?.toDouble() ?? 0.0),
           unitCostInCents: Value((c['unitCostInCents'] as int?) ?? 0),
           totalCostInCents: Value((c['totalCostInCents'] as int?) ?? 0),
-          runningStockQuantity: Value((c['runningStockQuantity'] as num?)?.toDouble() ?? 0.0),
+          runningStockQuantity: Value(
+            (c['runningStockQuantity'] as num?)?.toDouble() ?? 0.0,
+          ),
           date: Value(decodeTime(c['date'])),
           note: Value(c['note'] as String?),
           createdAt: Value(decodeTime(c['createdAt'])),
@@ -1178,7 +1379,9 @@ class SyncEngine {
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
       toRemote: (row) => mapToSnakeCase(row.toJson()),
@@ -1195,10 +1398,12 @@ class SyncEngine {
           companyId: Value(c['companyId'] as String? ?? 'cmp_default'),
           partyId: Value(c['partyId'] as String? ?? ''),
           amountInCents: Value((c['amountInCents'] as int?) ?? 0),
-          type: Value(EntryType.values.firstWhere(
-            (e) => e.name == c['type'],
-            orElse: () => EntryType.gave,
-          )),
+          type: Value(
+            EntryType.values.firstWhere(
+              (e) => e.name == c['type'],
+              orElse: () => EntryType.gave,
+            ),
+          ),
           date: Value(decodeTime(c['date'])),
           note: Value(c['note'] as String?),
           receiptPhotoUrl: Value(c['receiptPhotoUrl'] as String?),
@@ -1208,7 +1413,9 @@ class SyncEngine {
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
       toRemote: (row) => mapToSnakeCase(row.toJson()),
@@ -1227,14 +1434,22 @@ class SyncEngine {
           periodType: Value(c['periodType'] as String? ?? 'monthly'),
           amountInCents: Value((c['amountInCents'] as int?) ?? 0),
           startDate: Value(decodeTime(c['startDate'])),
-          rolloverEnabled: Value(c['rolloverEnabled'] == true || c['rolloverEnabled'] == 1),
-          isActive: Value(c['isActive'] == null || c['isActive'] == true || c['isActive'] == 1),
+          rolloverEnabled: Value(
+            c['rolloverEnabled'] == true || c['rolloverEnabled'] == 1,
+          ),
+          isActive: Value(
+            c['isActive'] == null ||
+                c['isActive'] == true ||
+                c['isActive'] == 1,
+          ),
           createdAt: Value(decodeTime(c['createdAt'])),
           updatedAt: Value(decodeTime(c['updatedAt'])),
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
       toRemote: (row) => mapToSnakeCase(row.toJson()),
@@ -1253,14 +1468,22 @@ class SyncEngine {
           intervalType: Value(c['intervalType'] as String? ?? 'monthly'),
           intervalCount: Value((c['intervalCount'] as int?) ?? 1),
           nextRunDate: Value(decodeTime(c['nextRunDate'])),
-          endDate: Value(c['endDate'] != null ? decodeTime(c['endDate']) : null),
-          isActive: Value(c['isActive'] == null || c['isActive'] == true || c['isActive'] == 1),
+          endDate: Value(
+            c['endDate'] != null ? decodeTime(c['endDate']) : null,
+          ),
+          isActive: Value(
+            c['isActive'] == null ||
+                c['isActive'] == true ||
+                c['isActive'] == 1,
+          ),
           createdAt: Value(decodeTime(c['createdAt'])),
           updatedAt: Value(decodeTime(c['updatedAt'])),
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
           syncStatus: const Value(SyncRecordStatus.synced),
           revision: Value((c['revision'] as int?) ?? 0),
-          remoteUpdatedAt: Value(decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt'])),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
         );
       },
       toRemote: (row) => mapToSnakeCase(row.toJson()),
@@ -1282,9 +1505,13 @@ class SyncEngine {
 
     for (final table in syncTables) {
       try {
-        final syncStateRow = await (db.select(db.syncState)
-              ..where((t) => t.targetTable.equals(table.name) & t.companyId.equals(companyId)))
-            .getSingleOrNull();
+        final syncStateRow =
+            await (db.select(db.syncState)..where(
+                  (t) =>
+                      t.targetTable.equals(table.name) &
+                      t.companyId.equals(companyId),
+                ))
+                .getSingleOrNull();
 
         final cursor = syncStateRow?.lastPulledAt;
         DateTime? maxRemoteUpdatedAt = cursor;
@@ -1305,27 +1532,41 @@ class SyncEngine {
 
           await db.transaction(() async {
             for (final remoteMap in remoteRows) {
-              final remoteUpdatedStr = remoteMap['updated_at'] ?? remoteMap['updatedAt'] ?? remoteMap['created_at'];
+              final remoteUpdatedStr =
+                  remoteMap['updated_at'] ??
+                  remoteMap['updatedAt'] ??
+                  remoteMap['created_at'];
               if (remoteUpdatedStr != null) {
                 final dt = decodeTime(remoteUpdatedStr);
-                if (maxRemoteUpdatedAt == null || dt.isAfter(maxRemoteUpdatedAt!)) {
+                if (maxRemoteUpdatedAt == null ||
+                    dt.isAfter(maxRemoteUpdatedAt!)) {
                   maxRemoteUpdatedAt = dt;
                 }
               }
 
-              final recordId = (remoteMap['id'] ?? remoteMap['record_id'])?.toString();
+              final recordId = (remoteMap['id'] ?? remoteMap['record_id'])
+                  ?.toString();
               if (recordId == null) continue;
 
-              final isPendingLocal = await _isRecordPendingLocal(table.name, recordId);
+              final isPendingLocal = await _isRecordPendingLocal(
+                table.name,
+                recordId,
+              );
               if (isPendingLocal) {
                 // Protect un-pushed local edits
                 continue;
               }
 
-              final isDeleted = remoteMap['is_deleted'] == true || remoteMap['is_deleted'] == 1;
+              final isDeleted =
+                  remoteMap['is_deleted'] == true ||
+                  remoteMap['is_deleted'] == 1;
 
               if (isDeleted) {
-                await _applySoftDeleteLocally(table.name, recordId, maxRemoteUpdatedAt);
+                await _applySoftDeleteLocally(
+                  table.name,
+                  recordId,
+                  maxRemoteUpdatedAt,
+                );
               } else {
                 final companion = table.fromRemote(remoteMap);
                 await _applyRemoteUpsertLocally(table.name, companion);
@@ -1340,7 +1581,9 @@ class SyncEngine {
         }
 
         if (maxRemoteUpdatedAt != null) {
-          await db.into(db.syncState).insertOnConflictUpdate(
+          await db
+              .into(db.syncState)
+              .insertOnConflictUpdate(
                 SyncStateCompanion(
                   targetTable: Value(table.name),
                   companyId: Value(companyId),
@@ -1359,7 +1602,9 @@ class SyncEngine {
       }
     }
 
-    final finalStatus = tableErrors.isNotEmpty ? SyncEngineStatus.partial : SyncEngineStatus.success;
+    final finalStatus = tableErrors.isNotEmpty
+        ? SyncEngineStatus.partial
+        : SyncEngineStatus.success;
     setStatus(finalStatus);
 
     return SyncResult(
@@ -1371,49 +1616,79 @@ class SyncEngine {
 
   Future<bool> _isRecordPendingLocal(String table, String recordId) async {
     if (table == 'vouchers') {
-      final r = await (db.select(db.vouchers)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.vouchers,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'accounts') {
-      final r = await (db.select(db.accounts)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.accounts,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'parties') {
-      final r = await (db.select(db.parties)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.parties,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'ledger_entries') {
-      final r = await (db.select(db.ledgerEntries)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.ledgerEntries,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'journals') {
-      final r = await (db.select(db.journals)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.journals,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'journal_lines') {
-      final r = await (db.select(db.journalLines)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.journalLines,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'budgets') {
-      final r = await (db.select(db.budgets)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.budgets,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'recurring_rules') {
-      final r = await (db.select(db.recurringRules)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.recurringRules,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'companies') {
-      final r = await (db.select(db.companies)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.companies,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'user_profiles') {
-      final r = await (db.select(db.userProfiles)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.userProfiles,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'inventory_items') {
-      final r = await (db.select(db.inventoryItems)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.inventoryItems,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'stock_ledger') {
-      final r = await (db.select(db.stockLedger)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.stockLedger,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'audit_logs') {
-      final r = await (db.select(db.auditLogs)..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      final r = await (db.select(
+        db.auditLogs,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     }
     return false;
   }
 
-  Future<void> _applySoftDeleteLocally(String table, String recordId, DateTime? remoteUpdatedAt) async {
+  Future<void> _applySoftDeleteLocally(
+    String table,
+    String recordId,
+    DateTime? remoteUpdatedAt,
+  ) async {
     final dt = remoteUpdatedAt ?? DateTime.now();
 
     if (table == 'vouchers') {
@@ -1441,7 +1716,9 @@ class SyncEngine {
         ),
       );
     } else if (table == 'ledger_entries') {
-      await (db.update(db.ledgerEntries)..where((t) => t.id.equals(recordId))).write(
+      await (db.update(
+        db.ledgerEntries,
+      )..where((t) => t.id.equals(recordId))).write(
         LedgerEntriesCompanion(
           isDeleted: const Value(true),
           syncStatus: const Value(SyncRecordStatus.synced),
@@ -1457,7 +1734,9 @@ class SyncEngine {
         ),
       );
     } else if (table == 'journal_lines') {
-      await (db.update(db.journalLines)..where((t) => t.id.equals(recordId))).write(
+      await (db.update(
+        db.journalLines,
+      )..where((t) => t.id.equals(recordId))).write(
         JournalLinesCompanion(
           isDeleted: const Value(true),
           syncStatus: const Value(SyncRecordStatus.synced),
@@ -1473,7 +1752,9 @@ class SyncEngine {
         ),
       );
     } else if (table == 'recurring_rules') {
-      await (db.update(db.recurringRules)..where((t) => t.id.equals(recordId))).write(
+      await (db.update(
+        db.recurringRules,
+      )..where((t) => t.id.equals(recordId))).write(
         RecurringRulesCompanion(
           isDeleted: const Value(true),
           syncStatus: const Value(SyncRecordStatus.synced),
@@ -1483,47 +1764,82 @@ class SyncEngine {
     }
   }
 
-  Future<void> _applyRemoteUpsertLocally(String table, dynamic companion) async {
+  Future<void> _applyRemoteUpsertLocally(
+    String table,
+    dynamic companion,
+  ) async {
     if (table == 'vouchers') {
-      await db.into(db.vouchers).insertOnConflictUpdate(companion as VouchersCompanion);
+      await db
+          .into(db.vouchers)
+          .insertOnConflictUpdate(companion as VouchersCompanion);
     } else if (table == 'accounts') {
-      await db.into(db.accounts).insertOnConflictUpdate(companion as AccountsCompanion);
+      await db
+          .into(db.accounts)
+          .insertOnConflictUpdate(companion as AccountsCompanion);
     } else if (table == 'parties') {
-      await db.into(db.parties).insertOnConflictUpdate(companion as PartiesCompanion);
+      await db
+          .into(db.parties)
+          .insertOnConflictUpdate(companion as PartiesCompanion);
     } else if (table == 'ledger_entries') {
-      await db.into(db.ledgerEntries).insertOnConflictUpdate(companion as LedgerEntriesCompanion);
+      await db
+          .into(db.ledgerEntries)
+          .insertOnConflictUpdate(companion as LedgerEntriesCompanion);
     } else if (table == 'journals') {
-      await db.into(db.journals).insertOnConflictUpdate(companion as JournalsCompanion);
+      await db
+          .into(db.journals)
+          .insertOnConflictUpdate(companion as JournalsCompanion);
     } else if (table == 'journal_lines') {
-      await db.into(db.journalLines).insertOnConflictUpdate(companion as JournalLinesCompanion);
+      await db
+          .into(db.journalLines)
+          .insertOnConflictUpdate(companion as JournalLinesCompanion);
     } else if (table == 'budgets') {
-      await db.into(db.budgets).insertOnConflictUpdate(companion as BudgetsCompanion);
+      await db
+          .into(db.budgets)
+          .insertOnConflictUpdate(companion as BudgetsCompanion);
     } else if (table == 'recurring_rules') {
-      await db.into(db.recurringRules).insertOnConflictUpdate(companion as RecurringRulesCompanion);
+      await db
+          .into(db.recurringRules)
+          .insertOnConflictUpdate(companion as RecurringRulesCompanion);
     } else if (table == 'companies') {
-      await db.into(db.companies).insertOnConflictUpdate(companion as CompaniesCompanion);
+      await db
+          .into(db.companies)
+          .insertOnConflictUpdate(companion as CompaniesCompanion);
     } else if (table == 'user_profiles') {
-      await db.into(db.userProfiles).insertOnConflictUpdate(companion as UserProfilesCompanion);
+      await db
+          .into(db.userProfiles)
+          .insertOnConflictUpdate(companion as UserProfilesCompanion);
     } else if (table == 'inventory_items') {
-      await db.into(db.inventoryItems).insertOnConflictUpdate(companion as InventoryItemsCompanion);
+      await db
+          .into(db.inventoryItems)
+          .insertOnConflictUpdate(companion as InventoryItemsCompanion);
     } else if (table == 'stock_ledger') {
-      await db.into(db.stockLedger).insertOnConflictUpdate(companion as StockLedgerCompanion);
+      await db
+          .into(db.stockLedger)
+          .insertOnConflictUpdate(companion as StockLedgerCompanion);
     } else if (table == 'audit_logs') {
-      await db.into(db.auditLogs).insertOnConflictUpdate(companion as AuditLogsCompanion);
+      await db
+          .into(db.auditLogs)
+          .insertOnConflictUpdate(companion as AuditLogsCompanion);
     }
   }
 
   Future<void> _recalculateAccountBalances(String companyId) async {
-    final companyAccounts = await (db.select(db.accounts)..where((t) => t.companyId.equals(companyId))).get();
+    final companyAccounts = await (db.select(
+      db.accounts,
+    )..where((t) => t.companyId.equals(companyId))).get();
     for (final acc in companyAccounts) {
-      final query = db.select(db.journalLines).join([
-        innerJoin(db.journals, db.journals.id.equalsExp(db.journalLines.journalId)),
-      ])..where(
-        db.journalLines.accountId.equals(acc.id) &
-        db.journalLines.companyId.equals(companyId) &
-        db.journalLines.isDeleted.equals(false) &
-        db.journals.status.equals('posted'),
-      );
+      final query =
+          db.select(db.journalLines).join([
+            innerJoin(
+              db.journals,
+              db.journals.id.equalsExp(db.journalLines.journalId),
+            ),
+          ])..where(
+            db.journalLines.accountId.equals(acc.id) &
+                db.journalLines.companyId.equals(companyId) &
+                db.journalLines.isDeleted.equals(false) &
+                db.journals.status.equals('posted'),
+          );
       final lines = await query.get();
       int debit = 0;
       int credit = 0;
@@ -1536,7 +1852,9 @@ class SyncEngine {
         (e) => e.name.toLowerCase() == acc.type.toLowerCase(),
         orElse: () => AccountType.asset,
       );
-      final net = accountType.isDebitNormal ? (debit - credit) : (credit - debit);
+      final net = accountType.isDebitNormal
+          ? (debit - credit)
+          : (credit - debit);
       await (db.update(db.accounts)..where((t) => t.id.equals(acc.id))).write(
         AccountsCompanion(
           currentBalanceInCents: Value(net),
@@ -1548,7 +1866,9 @@ class SyncEngine {
 
   /// Triggers full sync (push followed by pull)
   Future<SyncResult> syncAll({String? companyId}) async {
-    final cid = (companyId != null && companyId.isNotEmpty) ? companyId : 'cmp_default';
+    final cid = (companyId != null && companyId.isNotEmpty)
+        ? companyId
+        : 'cmp_default';
     return _synchronizedSync(() async {
       setStatus(SyncEngineStatus.syncing);
       final pushResult = await _pushQueueInternal(companyId: cid);

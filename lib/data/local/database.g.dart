@@ -2778,6 +2778,1350 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfileTableData> {
   }
 }
 
+class $SharedMembershipsTable extends SharedMemberships
+    with TableInfo<$SharedMembershipsTable, SharedMembershipTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SharedMembershipsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES companies (id)',
+    ),
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+    'role',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _joinedAtMeta = const VerificationMeta(
+    'joinedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> joinedAt = GeneratedColumn<DateTime>(
+    'joined_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    profileId,
+    accountId,
+    role,
+    joinedAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shared_memberships';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SharedMembershipTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('role')) {
+      context.handle(
+        _roleMeta,
+        role.isAcceptableOrUnknown(data['role']!, _roleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_roleMeta);
+    }
+    if (data.containsKey('joined_at')) {
+      context.handle(
+        _joinedAtMeta,
+        joinedAt.isAcceptableOrUnknown(data['joined_at']!, _joinedAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SharedMembershipTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SharedMembershipTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      role: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}role'],
+      )!,
+      joinedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}joined_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SharedMembershipsTable createAlias(String alias) {
+    return $SharedMembershipsTable(attachedDatabase, alias);
+  }
+}
+
+class SharedMembershipTableData extends DataClass
+    implements Insertable<SharedMembershipTableData> {
+  final String id;
+  final String profileId;
+  final String accountId;
+  final String role;
+  final DateTime joinedAt;
+  final DateTime updatedAt;
+  const SharedMembershipTableData({
+    required this.id,
+    required this.profileId,
+    required this.accountId,
+    required this.role,
+    required this.joinedAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['profile_id'] = Variable<String>(profileId);
+    map['account_id'] = Variable<String>(accountId);
+    map['role'] = Variable<String>(role);
+    map['joined_at'] = Variable<DateTime>(joinedAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SharedMembershipsCompanion toCompanion(bool nullToAbsent) {
+    return SharedMembershipsCompanion(
+      id: Value(id),
+      profileId: Value(profileId),
+      accountId: Value(accountId),
+      role: Value(role),
+      joinedAt: Value(joinedAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SharedMembershipTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SharedMembershipTableData(
+      id: serializer.fromJson<String>(json['id']),
+      profileId: serializer.fromJson<String>(json['profileId']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      role: serializer.fromJson<String>(json['role']),
+      joinedAt: serializer.fromJson<DateTime>(json['joinedAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'profileId': serializer.toJson<String>(profileId),
+      'accountId': serializer.toJson<String>(accountId),
+      'role': serializer.toJson<String>(role),
+      'joinedAt': serializer.toJson<DateTime>(joinedAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SharedMembershipTableData copyWith({
+    String? id,
+    String? profileId,
+    String? accountId,
+    String? role,
+    DateTime? joinedAt,
+    DateTime? updatedAt,
+  }) => SharedMembershipTableData(
+    id: id ?? this.id,
+    profileId: profileId ?? this.profileId,
+    accountId: accountId ?? this.accountId,
+    role: role ?? this.role,
+    joinedAt: joinedAt ?? this.joinedAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SharedMembershipTableData copyWithCompanion(SharedMembershipsCompanion data) {
+    return SharedMembershipTableData(
+      id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      role: data.role.present ? data.role.value : this.role,
+      joinedAt: data.joinedAt.present ? data.joinedAt.value : this.joinedAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedMembershipTableData(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('accountId: $accountId, ')
+          ..write('role: $role, ')
+          ..write('joinedAt: $joinedAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, profileId, accountId, role, joinedAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SharedMembershipTableData &&
+          other.id == this.id &&
+          other.profileId == this.profileId &&
+          other.accountId == this.accountId &&
+          other.role == this.role &&
+          other.joinedAt == this.joinedAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SharedMembershipsCompanion
+    extends UpdateCompanion<SharedMembershipTableData> {
+  final Value<String> id;
+  final Value<String> profileId;
+  final Value<String> accountId;
+  final Value<String> role;
+  final Value<DateTime> joinedAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SharedMembershipsCompanion({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.role = const Value.absent(),
+    this.joinedAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SharedMembershipsCompanion.insert({
+    required String id,
+    required String profileId,
+    required String accountId,
+    required String role,
+    this.joinedAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       profileId = Value(profileId),
+       accountId = Value(accountId),
+       role = Value(role);
+  static Insertable<SharedMembershipTableData> custom({
+    Expression<String>? id,
+    Expression<String>? profileId,
+    Expression<String>? accountId,
+    Expression<String>? role,
+    Expression<DateTime>? joinedAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
+      if (accountId != null) 'account_id': accountId,
+      if (role != null) 'role': role,
+      if (joinedAt != null) 'joined_at': joinedAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SharedMembershipsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? profileId,
+    Value<String>? accountId,
+    Value<String>? role,
+    Value<DateTime>? joinedAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SharedMembershipsCompanion(
+      id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
+      accountId: accountId ?? this.accountId,
+      role: role ?? this.role,
+      joinedAt: joinedAt ?? this.joinedAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
+    if (joinedAt.present) {
+      map['joined_at'] = Variable<DateTime>(joinedAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedMembershipsCompanion(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('accountId: $accountId, ')
+          ..write('role: $role, ')
+          ..write('joinedAt: $joinedAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SharedDevicesTable extends SharedDevices
+    with TableInfo<$SharedDevicesTable, SharedDeviceTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SharedDevicesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _accountIdMeta = const VerificationMeta(
+    'accountId',
+  );
+  @override
+  late final GeneratedColumn<String> accountId = GeneratedColumn<String>(
+    'account_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceUuidMeta = const VerificationMeta(
+    'deviceUuid',
+  );
+  @override
+  late final GeneratedColumn<String> deviceUuid = GeneratedColumn<String>(
+    'device_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deviceNameMeta = const VerificationMeta(
+    'deviceName',
+  );
+  @override
+  late final GeneratedColumn<String> deviceName = GeneratedColumn<String>(
+    'device_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _platformMeta = const VerificationMeta(
+    'platform',
+  );
+  @override
+  late final GeneratedColumn<String> platform = GeneratedColumn<String>(
+    'platform',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pushTokenMeta = const VerificationMeta(
+    'pushToken',
+  );
+  @override
+  late final GeneratedColumn<String> pushToken = GeneratedColumn<String>(
+    'push_token',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSyncAtMeta = const VerificationMeta(
+    'lastSyncAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncAt = GeneratedColumn<DateTime>(
+    'last_sync_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    accountId,
+    deviceUuid,
+    deviceName,
+    platform,
+    pushToken,
+    lastSyncAt,
+    isActive,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shared_devices';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<SharedDeviceTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('account_id')) {
+      context.handle(
+        _accountIdMeta,
+        accountId.isAcceptableOrUnknown(data['account_id']!, _accountIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_accountIdMeta);
+    }
+    if (data.containsKey('device_uuid')) {
+      context.handle(
+        _deviceUuidMeta,
+        deviceUuid.isAcceptableOrUnknown(data['device_uuid']!, _deviceUuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceUuidMeta);
+    }
+    if (data.containsKey('device_name')) {
+      context.handle(
+        _deviceNameMeta,
+        deviceName.isAcceptableOrUnknown(data['device_name']!, _deviceNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_deviceNameMeta);
+    }
+    if (data.containsKey('platform')) {
+      context.handle(
+        _platformMeta,
+        platform.isAcceptableOrUnknown(data['platform']!, _platformMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_platformMeta);
+    }
+    if (data.containsKey('push_token')) {
+      context.handle(
+        _pushTokenMeta,
+        pushToken.isAcceptableOrUnknown(data['push_token']!, _pushTokenMeta),
+      );
+    }
+    if (data.containsKey('last_sync_at')) {
+      context.handle(
+        _lastSyncAtMeta,
+        lastSyncAt.isAcceptableOrUnknown(
+          data['last_sync_at']!,
+          _lastSyncAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  SharedDeviceTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SharedDeviceTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      accountId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}account_id'],
+      )!,
+      deviceUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_uuid'],
+      )!,
+      deviceName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}device_name'],
+      )!,
+      platform: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}platform'],
+      )!,
+      pushToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}push_token'],
+      ),
+      lastSyncAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_sync_at'],
+      ),
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $SharedDevicesTable createAlias(String alias) {
+    return $SharedDevicesTable(attachedDatabase, alias);
+  }
+}
+
+class SharedDeviceTableData extends DataClass
+    implements Insertable<SharedDeviceTableData> {
+  final String id;
+  final String accountId;
+  final String deviceUuid;
+  final String deviceName;
+  final String platform;
+  final String? pushToken;
+  final DateTime? lastSyncAt;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const SharedDeviceTableData({
+    required this.id,
+    required this.accountId,
+    required this.deviceUuid,
+    required this.deviceName,
+    required this.platform,
+    this.pushToken,
+    this.lastSyncAt,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['account_id'] = Variable<String>(accountId);
+    map['device_uuid'] = Variable<String>(deviceUuid);
+    map['device_name'] = Variable<String>(deviceName);
+    map['platform'] = Variable<String>(platform);
+    if (!nullToAbsent || pushToken != null) {
+      map['push_token'] = Variable<String>(pushToken);
+    }
+    if (!nullToAbsent || lastSyncAt != null) {
+      map['last_sync_at'] = Variable<DateTime>(lastSyncAt);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  SharedDevicesCompanion toCompanion(bool nullToAbsent) {
+    return SharedDevicesCompanion(
+      id: Value(id),
+      accountId: Value(accountId),
+      deviceUuid: Value(deviceUuid),
+      deviceName: Value(deviceName),
+      platform: Value(platform),
+      pushToken: pushToken == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pushToken),
+      lastSyncAt: lastSyncAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncAt),
+      isActive: Value(isActive),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory SharedDeviceTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SharedDeviceTableData(
+      id: serializer.fromJson<String>(json['id']),
+      accountId: serializer.fromJson<String>(json['accountId']),
+      deviceUuid: serializer.fromJson<String>(json['deviceUuid']),
+      deviceName: serializer.fromJson<String>(json['deviceName']),
+      platform: serializer.fromJson<String>(json['platform']),
+      pushToken: serializer.fromJson<String?>(json['pushToken']),
+      lastSyncAt: serializer.fromJson<DateTime?>(json['lastSyncAt']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'accountId': serializer.toJson<String>(accountId),
+      'deviceUuid': serializer.toJson<String>(deviceUuid),
+      'deviceName': serializer.toJson<String>(deviceName),
+      'platform': serializer.toJson<String>(platform),
+      'pushToken': serializer.toJson<String?>(pushToken),
+      'lastSyncAt': serializer.toJson<DateTime?>(lastSyncAt),
+      'isActive': serializer.toJson<bool>(isActive),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  SharedDeviceTableData copyWith({
+    String? id,
+    String? accountId,
+    String? deviceUuid,
+    String? deviceName,
+    String? platform,
+    Value<String?> pushToken = const Value.absent(),
+    Value<DateTime?> lastSyncAt = const Value.absent(),
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => SharedDeviceTableData(
+    id: id ?? this.id,
+    accountId: accountId ?? this.accountId,
+    deviceUuid: deviceUuid ?? this.deviceUuid,
+    deviceName: deviceName ?? this.deviceName,
+    platform: platform ?? this.platform,
+    pushToken: pushToken.present ? pushToken.value : this.pushToken,
+    lastSyncAt: lastSyncAt.present ? lastSyncAt.value : this.lastSyncAt,
+    isActive: isActive ?? this.isActive,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  SharedDeviceTableData copyWithCompanion(SharedDevicesCompanion data) {
+    return SharedDeviceTableData(
+      id: data.id.present ? data.id.value : this.id,
+      accountId: data.accountId.present ? data.accountId.value : this.accountId,
+      deviceUuid: data.deviceUuid.present
+          ? data.deviceUuid.value
+          : this.deviceUuid,
+      deviceName: data.deviceName.present
+          ? data.deviceName.value
+          : this.deviceName,
+      platform: data.platform.present ? data.platform.value : this.platform,
+      pushToken: data.pushToken.present ? data.pushToken.value : this.pushToken,
+      lastSyncAt: data.lastSyncAt.present
+          ? data.lastSyncAt.value
+          : this.lastSyncAt,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedDeviceTableData(')
+          ..write('id: $id, ')
+          ..write('accountId: $accountId, ')
+          ..write('deviceUuid: $deviceUuid, ')
+          ..write('deviceName: $deviceName, ')
+          ..write('platform: $platform, ')
+          ..write('pushToken: $pushToken, ')
+          ..write('lastSyncAt: $lastSyncAt, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    accountId,
+    deviceUuid,
+    deviceName,
+    platform,
+    pushToken,
+    lastSyncAt,
+    isActive,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SharedDeviceTableData &&
+          other.id == this.id &&
+          other.accountId == this.accountId &&
+          other.deviceUuid == this.deviceUuid &&
+          other.deviceName == this.deviceName &&
+          other.platform == this.platform &&
+          other.pushToken == this.pushToken &&
+          other.lastSyncAt == this.lastSyncAt &&
+          other.isActive == this.isActive &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class SharedDevicesCompanion extends UpdateCompanion<SharedDeviceTableData> {
+  final Value<String> id;
+  final Value<String> accountId;
+  final Value<String> deviceUuid;
+  final Value<String> deviceName;
+  final Value<String> platform;
+  final Value<String?> pushToken;
+  final Value<DateTime?> lastSyncAt;
+  final Value<bool> isActive;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const SharedDevicesCompanion({
+    this.id = const Value.absent(),
+    this.accountId = const Value.absent(),
+    this.deviceUuid = const Value.absent(),
+    this.deviceName = const Value.absent(),
+    this.platform = const Value.absent(),
+    this.pushToken = const Value.absent(),
+    this.lastSyncAt = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SharedDevicesCompanion.insert({
+    required String id,
+    required String accountId,
+    required String deviceUuid,
+    required String deviceName,
+    required String platform,
+    this.pushToken = const Value.absent(),
+    this.lastSyncAt = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       accountId = Value(accountId),
+       deviceUuid = Value(deviceUuid),
+       deviceName = Value(deviceName),
+       platform = Value(platform);
+  static Insertable<SharedDeviceTableData> custom({
+    Expression<String>? id,
+    Expression<String>? accountId,
+    Expression<String>? deviceUuid,
+    Expression<String>? deviceName,
+    Expression<String>? platform,
+    Expression<String>? pushToken,
+    Expression<DateTime>? lastSyncAt,
+    Expression<bool>? isActive,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (accountId != null) 'account_id': accountId,
+      if (deviceUuid != null) 'device_uuid': deviceUuid,
+      if (deviceName != null) 'device_name': deviceName,
+      if (platform != null) 'platform': platform,
+      if (pushToken != null) 'push_token': pushToken,
+      if (lastSyncAt != null) 'last_sync_at': lastSyncAt,
+      if (isActive != null) 'is_active': isActive,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SharedDevicesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? accountId,
+    Value<String>? deviceUuid,
+    Value<String>? deviceName,
+    Value<String>? platform,
+    Value<String?>? pushToken,
+    Value<DateTime?>? lastSyncAt,
+    Value<bool>? isActive,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return SharedDevicesCompanion(
+      id: id ?? this.id,
+      accountId: accountId ?? this.accountId,
+      deviceUuid: deviceUuid ?? this.deviceUuid,
+      deviceName: deviceName ?? this.deviceName,
+      platform: platform ?? this.platform,
+      pushToken: pushToken ?? this.pushToken,
+      lastSyncAt: lastSyncAt ?? this.lastSyncAt,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (accountId.present) {
+      map['account_id'] = Variable<String>(accountId.value);
+    }
+    if (deviceUuid.present) {
+      map['device_uuid'] = Variable<String>(deviceUuid.value);
+    }
+    if (deviceName.present) {
+      map['device_name'] = Variable<String>(deviceName.value);
+    }
+    if (platform.present) {
+      map['platform'] = Variable<String>(platform.value);
+    }
+    if (pushToken.present) {
+      map['push_token'] = Variable<String>(pushToken.value);
+    }
+    if (lastSyncAt.present) {
+      map['last_sync_at'] = Variable<DateTime>(lastSyncAt.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SharedDevicesCompanion(')
+          ..write('id: $id, ')
+          ..write('accountId: $accountId, ')
+          ..write('deviceUuid: $deviceUuid, ')
+          ..write('deviceName: $deviceName, ')
+          ..write('platform: $platform, ')
+          ..write('pushToken: $pushToken, ')
+          ..write('lastSyncAt: $lastSyncAt, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $UserPreferencesTable extends UserPreferences
+    with TableInfo<$UserPreferencesTable, UserPreferenceTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UserPreferencesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, profileId, value, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'user_preferences';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UserPreferenceTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key, profileId};
+  @override
+  UserPreferenceTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UserPreferenceTableData(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      ),
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $UserPreferencesTable createAlias(String alias) {
+    return $UserPreferencesTable(attachedDatabase, alias);
+  }
+}
+
+class UserPreferenceTableData extends DataClass
+    implements Insertable<UserPreferenceTableData> {
+  final String key;
+  final String? profileId;
+  final String value;
+  final DateTime updatedAt;
+  const UserPreferenceTableData({
+    required this.key,
+    this.profileId,
+    required this.value,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    if (!nullToAbsent || profileId != null) {
+      map['profile_id'] = Variable<String>(profileId);
+    }
+    map['value'] = Variable<String>(value);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  UserPreferencesCompanion toCompanion(bool nullToAbsent) {
+    return UserPreferencesCompanion(
+      key: Value(key),
+      profileId: profileId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(profileId),
+      value: Value(value),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory UserPreferenceTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UserPreferenceTableData(
+      key: serializer.fromJson<String>(json['key']),
+      profileId: serializer.fromJson<String?>(json['profileId']),
+      value: serializer.fromJson<String>(json['value']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'profileId': serializer.toJson<String?>(profileId),
+      'value': serializer.toJson<String>(value),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  UserPreferenceTableData copyWith({
+    String? key,
+    Value<String?> profileId = const Value.absent(),
+    String? value,
+    DateTime? updatedAt,
+  }) => UserPreferenceTableData(
+    key: key ?? this.key,
+    profileId: profileId.present ? profileId.value : this.profileId,
+    value: value ?? this.value,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  UserPreferenceTableData copyWithCompanion(UserPreferencesCompanion data) {
+    return UserPreferenceTableData(
+      key: data.key.present ? data.key.value : this.key,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      value: data.value.present ? data.value.value : this.value,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserPreferenceTableData(')
+          ..write('key: $key, ')
+          ..write('profileId: $profileId, ')
+          ..write('value: $value, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, profileId, value, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UserPreferenceTableData &&
+          other.key == this.key &&
+          other.profileId == this.profileId &&
+          other.value == this.value &&
+          other.updatedAt == this.updatedAt);
+}
+
+class UserPreferencesCompanion
+    extends UpdateCompanion<UserPreferenceTableData> {
+  final Value<String> key;
+  final Value<String?> profileId;
+  final Value<String> value;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const UserPreferencesCompanion({
+    this.key = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.value = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  UserPreferencesCompanion.insert({
+    required String key,
+    this.profileId = const Value.absent(),
+    required String value,
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       value = Value(value);
+  static Insertable<UserPreferenceTableData> custom({
+    Expression<String>? key,
+    Expression<String>? profileId,
+    Expression<String>? value,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (profileId != null) 'profile_id': profileId,
+      if (value != null) 'value': value,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  UserPreferencesCompanion copyWith({
+    Value<String>? key,
+    Value<String?>? profileId,
+    Value<String>? value,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return UserPreferencesCompanion(
+      key: key ?? this.key,
+      profileId: profileId ?? this.profileId,
+      value: value ?? this.value,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserPreferencesCompanion(')
+          ..write('key: $key, ')
+          ..write('profileId: $profileId, ')
+          ..write('value: $value, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PartiesTable extends Parties
     with TableInfo<$PartiesTable, PartyTableData> {
   @override
@@ -14121,11 +15465,5231 @@ class RecurringRulesCompanion extends UpdateCompanion<RecurringRuleTableData> {
   }
 }
 
+class $ExpenseWalletsTable extends ExpenseWallets
+    with TableInfo<$ExpenseWalletsTable, ExpenseWalletTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExpenseWalletsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES companies (id)',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _walletTypeMeta = const VerificationMeta(
+    'walletType',
+  );
+  @override
+  late final GeneratedColumn<String> walletType = GeneratedColumn<String>(
+    'wallet_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('cash'),
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('INR'),
+  );
+  static const VerificationMeta _startingBalanceInCentsMeta =
+      const VerificationMeta('startingBalanceInCents');
+  @override
+  late final GeneratedColumn<int> startingBalanceInCents = GeneratedColumn<int>(
+    'starting_balance_in_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _currentBalanceInCentsMeta =
+      const VerificationMeta('currentBalanceInCents');
+  @override
+  late final GeneratedColumn<int> currentBalanceInCents = GeneratedColumn<int>(
+    'current_balance_in_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _colorHexMeta = const VerificationMeta(
+    'colorHex',
+  );
+  @override
+  late final GeneratedColumn<String> colorHex = GeneratedColumn<String>(
+    'color_hex',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _iconNameMeta = const VerificationMeta(
+    'iconName',
+  );
+  @override
+  late final GeneratedColumn<String> iconName = GeneratedColumn<String>(
+    'icon_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isArchivedMeta = const VerificationMeta(
+    'isArchived',
+  );
+  @override
+  late final GeneratedColumn<bool> isArchived = GeneratedColumn<bool>(
+    'is_archived',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_archived" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  ).withConverter<SyncRecordStatus>($ExpenseWalletsTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    profileId,
+    name,
+    walletType,
+    currencyCode,
+    startingBalanceInCents,
+    currentBalanceInCents,
+    colorHex,
+    iconName,
+    isArchived,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'expense_wallets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ExpenseWalletTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('wallet_type')) {
+      context.handle(
+        _walletTypeMeta,
+        walletType.isAcceptableOrUnknown(data['wallet_type']!, _walletTypeMeta),
+      );
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('starting_balance_in_cents')) {
+      context.handle(
+        _startingBalanceInCentsMeta,
+        startingBalanceInCents.isAcceptableOrUnknown(
+          data['starting_balance_in_cents']!,
+          _startingBalanceInCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('current_balance_in_cents')) {
+      context.handle(
+        _currentBalanceInCentsMeta,
+        currentBalanceInCents.isAcceptableOrUnknown(
+          data['current_balance_in_cents']!,
+          _currentBalanceInCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('color_hex')) {
+      context.handle(
+        _colorHexMeta,
+        colorHex.isAcceptableOrUnknown(data['color_hex']!, _colorHexMeta),
+      );
+    }
+    if (data.containsKey('icon_name')) {
+      context.handle(
+        _iconNameMeta,
+        iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta),
+      );
+    }
+    if (data.containsKey('is_archived')) {
+      context.handle(
+        _isArchivedMeta,
+        isArchived.isAcceptableOrUnknown(data['is_archived']!, _isArchivedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExpenseWalletTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExpenseWalletTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      walletType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wallet_type'],
+      )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      startingBalanceInCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}starting_balance_in_cents'],
+      )!,
+      currentBalanceInCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}current_balance_in_cents'],
+      )!,
+      colorHex: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}color_hex'],
+      ),
+      iconName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_name'],
+      ),
+      isArchived: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_archived'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $ExpenseWalletsTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+    );
+  }
+
+  @override
+  $ExpenseWalletsTable createAlias(String alias) {
+    return $ExpenseWalletsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class ExpenseWalletTableData extends DataClass
+    implements Insertable<ExpenseWalletTableData> {
+  final String id;
+  final String profileId;
+  final String name;
+  final String walletType;
+  final String currencyCode;
+  final int startingBalanceInCents;
+  final int currentBalanceInCents;
+  final String? colorHex;
+  final String? iconName;
+  final bool isArchived;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
+  const ExpenseWalletTableData({
+    required this.id,
+    required this.profileId,
+    required this.name,
+    required this.walletType,
+    required this.currencyCode,
+    required this.startingBalanceInCents,
+    required this.currentBalanceInCents,
+    this.colorHex,
+    this.iconName,
+    required this.isArchived,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['profile_id'] = Variable<String>(profileId);
+    map['name'] = Variable<String>(name);
+    map['wallet_type'] = Variable<String>(walletType);
+    map['currency_code'] = Variable<String>(currencyCode);
+    map['starting_balance_in_cents'] = Variable<int>(startingBalanceInCents);
+    map['current_balance_in_cents'] = Variable<int>(currentBalanceInCents);
+    if (!nullToAbsent || colorHex != null) {
+      map['color_hex'] = Variable<String>(colorHex);
+    }
+    if (!nullToAbsent || iconName != null) {
+      map['icon_name'] = Variable<String>(iconName);
+    }
+    map['is_archived'] = Variable<bool>(isArchived);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $ExpenseWalletsTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    return map;
+  }
+
+  ExpenseWalletsCompanion toCompanion(bool nullToAbsent) {
+    return ExpenseWalletsCompanion(
+      id: Value(id),
+      profileId: Value(profileId),
+      name: Value(name),
+      walletType: Value(walletType),
+      currencyCode: Value(currencyCode),
+      startingBalanceInCents: Value(startingBalanceInCents),
+      currentBalanceInCents: Value(currentBalanceInCents),
+      colorHex: colorHex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(colorHex),
+      iconName: iconName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(iconName),
+      isArchived: Value(isArchived),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+    );
+  }
+
+  factory ExpenseWalletTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExpenseWalletTableData(
+      id: serializer.fromJson<String>(json['id']),
+      profileId: serializer.fromJson<String>(json['profileId']),
+      name: serializer.fromJson<String>(json['name']),
+      walletType: serializer.fromJson<String>(json['walletType']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      startingBalanceInCents: serializer.fromJson<int>(
+        json['startingBalanceInCents'],
+      ),
+      currentBalanceInCents: serializer.fromJson<int>(
+        json['currentBalanceInCents'],
+      ),
+      colorHex: serializer.fromJson<String?>(json['colorHex']),
+      iconName: serializer.fromJson<String?>(json['iconName']),
+      isArchived: serializer.fromJson<bool>(json['isArchived']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $ExpenseWalletsTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'profileId': serializer.toJson<String>(profileId),
+      'name': serializer.toJson<String>(name),
+      'walletType': serializer.toJson<String>(walletType),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'startingBalanceInCents': serializer.toJson<int>(startingBalanceInCents),
+      'currentBalanceInCents': serializer.toJson<int>(currentBalanceInCents),
+      'colorHex': serializer.toJson<String?>(colorHex),
+      'iconName': serializer.toJson<String?>(iconName),
+      'isArchived': serializer.toJson<bool>(isArchived),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $ExpenseWalletsTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+    };
+  }
+
+  ExpenseWalletTableData copyWith({
+    String? id,
+    String? profileId,
+    String? name,
+    String? walletType,
+    String? currencyCode,
+    int? startingBalanceInCents,
+    int? currentBalanceInCents,
+    Value<String?> colorHex = const Value.absent(),
+    Value<String?> iconName = const Value.absent(),
+    bool? isArchived,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+  }) => ExpenseWalletTableData(
+    id: id ?? this.id,
+    profileId: profileId ?? this.profileId,
+    name: name ?? this.name,
+    walletType: walletType ?? this.walletType,
+    currencyCode: currencyCode ?? this.currencyCode,
+    startingBalanceInCents:
+        startingBalanceInCents ?? this.startingBalanceInCents,
+    currentBalanceInCents: currentBalanceInCents ?? this.currentBalanceInCents,
+    colorHex: colorHex.present ? colorHex.value : this.colorHex,
+    iconName: iconName.present ? iconName.value : this.iconName,
+    isArchived: isArchived ?? this.isArchived,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+  );
+  ExpenseWalletTableData copyWithCompanion(ExpenseWalletsCompanion data) {
+    return ExpenseWalletTableData(
+      id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      name: data.name.present ? data.name.value : this.name,
+      walletType: data.walletType.present
+          ? data.walletType.value
+          : this.walletType,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
+      startingBalanceInCents: data.startingBalanceInCents.present
+          ? data.startingBalanceInCents.value
+          : this.startingBalanceInCents,
+      currentBalanceInCents: data.currentBalanceInCents.present
+          ? data.currentBalanceInCents.value
+          : this.currentBalanceInCents,
+      colorHex: data.colorHex.present ? data.colorHex.value : this.colorHex,
+      iconName: data.iconName.present ? data.iconName.value : this.iconName,
+      isArchived: data.isArchived.present
+          ? data.isArchived.value
+          : this.isArchived,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseWalletTableData(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('name: $name, ')
+          ..write('walletType: $walletType, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('startingBalanceInCents: $startingBalanceInCents, ')
+          ..write('currentBalanceInCents: $currentBalanceInCents, ')
+          ..write('colorHex: $colorHex, ')
+          ..write('iconName: $iconName, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    profileId,
+    name,
+    walletType,
+    currencyCode,
+    startingBalanceInCents,
+    currentBalanceInCents,
+    colorHex,
+    iconName,
+    isArchived,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExpenseWalletTableData &&
+          other.id == this.id &&
+          other.profileId == this.profileId &&
+          other.name == this.name &&
+          other.walletType == this.walletType &&
+          other.currencyCode == this.currencyCode &&
+          other.startingBalanceInCents == this.startingBalanceInCents &&
+          other.currentBalanceInCents == this.currentBalanceInCents &&
+          other.colorHex == this.colorHex &&
+          other.iconName == this.iconName &&
+          other.isArchived == this.isArchived &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
+}
+
+class ExpenseWalletsCompanion extends UpdateCompanion<ExpenseWalletTableData> {
+  final Value<String> id;
+  final Value<String> profileId;
+  final Value<String> name;
+  final Value<String> walletType;
+  final Value<String> currencyCode;
+  final Value<int> startingBalanceInCents;
+  final Value<int> currentBalanceInCents;
+  final Value<String?> colorHex;
+  final Value<String?> iconName;
+  final Value<bool> isArchived;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<int> rowid;
+  const ExpenseWalletsCompanion({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.walletType = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.startingBalanceInCents = const Value.absent(),
+    this.currentBalanceInCents = const Value.absent(),
+    this.colorHex = const Value.absent(),
+    this.iconName = const Value.absent(),
+    this.isArchived = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExpenseWalletsCompanion.insert({
+    required String id,
+    required String profileId,
+    required String name,
+    this.walletType = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.startingBalanceInCents = const Value.absent(),
+    this.currentBalanceInCents = const Value.absent(),
+    this.colorHex = const Value.absent(),
+    this.iconName = const Value.absent(),
+    this.isArchived = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       profileId = Value(profileId),
+       name = Value(name);
+  static Insertable<ExpenseWalletTableData> custom({
+    Expression<String>? id,
+    Expression<String>? profileId,
+    Expression<String>? name,
+    Expression<String>? walletType,
+    Expression<String>? currencyCode,
+    Expression<int>? startingBalanceInCents,
+    Expression<int>? currentBalanceInCents,
+    Expression<String>? colorHex,
+    Expression<String>? iconName,
+    Expression<bool>? isArchived,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
+      if (name != null) 'name': name,
+      if (walletType != null) 'wallet_type': walletType,
+      if (currencyCode != null) 'currency_code': currencyCode,
+      if (startingBalanceInCents != null)
+        'starting_balance_in_cents': startingBalanceInCents,
+      if (currentBalanceInCents != null)
+        'current_balance_in_cents': currentBalanceInCents,
+      if (colorHex != null) 'color_hex': colorHex,
+      if (iconName != null) 'icon_name': iconName,
+      if (isArchived != null) 'is_archived': isArchived,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExpenseWalletsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? profileId,
+    Value<String>? name,
+    Value<String>? walletType,
+    Value<String>? currencyCode,
+    Value<int>? startingBalanceInCents,
+    Value<int>? currentBalanceInCents,
+    Value<String?>? colorHex,
+    Value<String?>? iconName,
+    Value<bool>? isArchived,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<int>? rowid,
+  }) {
+    return ExpenseWalletsCompanion(
+      id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
+      name: name ?? this.name,
+      walletType: walletType ?? this.walletType,
+      currencyCode: currencyCode ?? this.currencyCode,
+      startingBalanceInCents:
+          startingBalanceInCents ?? this.startingBalanceInCents,
+      currentBalanceInCents:
+          currentBalanceInCents ?? this.currentBalanceInCents,
+      colorHex: colorHex ?? this.colorHex,
+      iconName: iconName ?? this.iconName,
+      isArchived: isArchived ?? this.isArchived,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (walletType.present) {
+      map['wallet_type'] = Variable<String>(walletType.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (startingBalanceInCents.present) {
+      map['starting_balance_in_cents'] = Variable<int>(
+        startingBalanceInCents.value,
+      );
+    }
+    if (currentBalanceInCents.present) {
+      map['current_balance_in_cents'] = Variable<int>(
+        currentBalanceInCents.value,
+      );
+    }
+    if (colorHex.present) {
+      map['color_hex'] = Variable<String>(colorHex.value);
+    }
+    if (iconName.present) {
+      map['icon_name'] = Variable<String>(iconName.value);
+    }
+    if (isArchived.present) {
+      map['is_archived'] = Variable<bool>(isArchived.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $ExpenseWalletsTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseWalletsCompanion(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('name: $name, ')
+          ..write('walletType: $walletType, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('startingBalanceInCents: $startingBalanceInCents, ')
+          ..write('currentBalanceInCents: $currentBalanceInCents, ')
+          ..write('colorHex: $colorHex, ')
+          ..write('iconName: $iconName, ')
+          ..write('isArchived: $isArchived, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ExpenseCategoriesTable extends ExpenseCategories
+    with TableInfo<$ExpenseCategoriesTable, ExpenseCategoryTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExpenseCategoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES companies (id)',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryTypeMeta = const VerificationMeta(
+    'categoryType',
+  );
+  @override
+  late final GeneratedColumn<String> categoryType = GeneratedColumn<String>(
+    'category_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('expense'),
+  );
+  static const VerificationMeta _parentCategoryIdMeta = const VerificationMeta(
+    'parentCategoryId',
+  );
+  @override
+  late final GeneratedColumn<String> parentCategoryId = GeneratedColumn<String>(
+    'parent_category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _iconNameMeta = const VerificationMeta(
+    'iconName',
+  );
+  @override
+  late final GeneratedColumn<String> iconName = GeneratedColumn<String>(
+    'icon_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _colorHexMeta = const VerificationMeta(
+    'colorHex',
+  );
+  @override
+  late final GeneratedColumn<String> colorHex = GeneratedColumn<String>(
+    'color_hex',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSystemMeta = const VerificationMeta(
+    'isSystem',
+  );
+  @override
+  late final GeneratedColumn<bool> isSystem = GeneratedColumn<bool>(
+    'is_system',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_system" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus =
+      GeneratedColumn<String>(
+        'sync_status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('pending'),
+      ).withConverter<SyncRecordStatus>(
+        $ExpenseCategoriesTable.$convertersyncStatus,
+      );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    profileId,
+    name,
+    categoryType,
+    parentCategoryId,
+    iconName,
+    colorHex,
+    isSystem,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'expense_categories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ExpenseCategoryTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('category_type')) {
+      context.handle(
+        _categoryTypeMeta,
+        categoryType.isAcceptableOrUnknown(
+          data['category_type']!,
+          _categoryTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('parent_category_id')) {
+      context.handle(
+        _parentCategoryIdMeta,
+        parentCategoryId.isAcceptableOrUnknown(
+          data['parent_category_id']!,
+          _parentCategoryIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('icon_name')) {
+      context.handle(
+        _iconNameMeta,
+        iconName.isAcceptableOrUnknown(data['icon_name']!, _iconNameMeta),
+      );
+    }
+    if (data.containsKey('color_hex')) {
+      context.handle(
+        _colorHexMeta,
+        colorHex.isAcceptableOrUnknown(data['color_hex']!, _colorHexMeta),
+      );
+    }
+    if (data.containsKey('is_system')) {
+      context.handle(
+        _isSystemMeta,
+        isSystem.isAcceptableOrUnknown(data['is_system']!, _isSystemMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExpenseCategoryTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExpenseCategoryTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      categoryType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_type'],
+      )!,
+      parentCategoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_category_id'],
+      ),
+      iconName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}icon_name'],
+      ),
+      colorHex: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}color_hex'],
+      ),
+      isSystem: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_system'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $ExpenseCategoriesTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+    );
+  }
+
+  @override
+  $ExpenseCategoriesTable createAlias(String alias) {
+    return $ExpenseCategoriesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class ExpenseCategoryTableData extends DataClass
+    implements Insertable<ExpenseCategoryTableData> {
+  final String id;
+  final String profileId;
+  final String name;
+  final String categoryType;
+  final String? parentCategoryId;
+  final String? iconName;
+  final String? colorHex;
+  final bool isSystem;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
+  const ExpenseCategoryTableData({
+    required this.id,
+    required this.profileId,
+    required this.name,
+    required this.categoryType,
+    this.parentCategoryId,
+    this.iconName,
+    this.colorHex,
+    required this.isSystem,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['profile_id'] = Variable<String>(profileId);
+    map['name'] = Variable<String>(name);
+    map['category_type'] = Variable<String>(categoryType);
+    if (!nullToAbsent || parentCategoryId != null) {
+      map['parent_category_id'] = Variable<String>(parentCategoryId);
+    }
+    if (!nullToAbsent || iconName != null) {
+      map['icon_name'] = Variable<String>(iconName);
+    }
+    if (!nullToAbsent || colorHex != null) {
+      map['color_hex'] = Variable<String>(colorHex);
+    }
+    map['is_system'] = Variable<bool>(isSystem);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $ExpenseCategoriesTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    return map;
+  }
+
+  ExpenseCategoriesCompanion toCompanion(bool nullToAbsent) {
+    return ExpenseCategoriesCompanion(
+      id: Value(id),
+      profileId: Value(profileId),
+      name: Value(name),
+      categoryType: Value(categoryType),
+      parentCategoryId: parentCategoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentCategoryId),
+      iconName: iconName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(iconName),
+      colorHex: colorHex == null && nullToAbsent
+          ? const Value.absent()
+          : Value(colorHex),
+      isSystem: Value(isSystem),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+    );
+  }
+
+  factory ExpenseCategoryTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExpenseCategoryTableData(
+      id: serializer.fromJson<String>(json['id']),
+      profileId: serializer.fromJson<String>(json['profileId']),
+      name: serializer.fromJson<String>(json['name']),
+      categoryType: serializer.fromJson<String>(json['categoryType']),
+      parentCategoryId: serializer.fromJson<String?>(json['parentCategoryId']),
+      iconName: serializer.fromJson<String?>(json['iconName']),
+      colorHex: serializer.fromJson<String?>(json['colorHex']),
+      isSystem: serializer.fromJson<bool>(json['isSystem']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $ExpenseCategoriesTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'profileId': serializer.toJson<String>(profileId),
+      'name': serializer.toJson<String>(name),
+      'categoryType': serializer.toJson<String>(categoryType),
+      'parentCategoryId': serializer.toJson<String?>(parentCategoryId),
+      'iconName': serializer.toJson<String?>(iconName),
+      'colorHex': serializer.toJson<String?>(colorHex),
+      'isSystem': serializer.toJson<bool>(isSystem),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $ExpenseCategoriesTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+    };
+  }
+
+  ExpenseCategoryTableData copyWith({
+    String? id,
+    String? profileId,
+    String? name,
+    String? categoryType,
+    Value<String?> parentCategoryId = const Value.absent(),
+    Value<String?> iconName = const Value.absent(),
+    Value<String?> colorHex = const Value.absent(),
+    bool? isSystem,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+  }) => ExpenseCategoryTableData(
+    id: id ?? this.id,
+    profileId: profileId ?? this.profileId,
+    name: name ?? this.name,
+    categoryType: categoryType ?? this.categoryType,
+    parentCategoryId: parentCategoryId.present
+        ? parentCategoryId.value
+        : this.parentCategoryId,
+    iconName: iconName.present ? iconName.value : this.iconName,
+    colorHex: colorHex.present ? colorHex.value : this.colorHex,
+    isSystem: isSystem ?? this.isSystem,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+  );
+  ExpenseCategoryTableData copyWithCompanion(ExpenseCategoriesCompanion data) {
+    return ExpenseCategoryTableData(
+      id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      name: data.name.present ? data.name.value : this.name,
+      categoryType: data.categoryType.present
+          ? data.categoryType.value
+          : this.categoryType,
+      parentCategoryId: data.parentCategoryId.present
+          ? data.parentCategoryId.value
+          : this.parentCategoryId,
+      iconName: data.iconName.present ? data.iconName.value : this.iconName,
+      colorHex: data.colorHex.present ? data.colorHex.value : this.colorHex,
+      isSystem: data.isSystem.present ? data.isSystem.value : this.isSystem,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseCategoryTableData(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('name: $name, ')
+          ..write('categoryType: $categoryType, ')
+          ..write('parentCategoryId: $parentCategoryId, ')
+          ..write('iconName: $iconName, ')
+          ..write('colorHex: $colorHex, ')
+          ..write('isSystem: $isSystem, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    profileId,
+    name,
+    categoryType,
+    parentCategoryId,
+    iconName,
+    colorHex,
+    isSystem,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExpenseCategoryTableData &&
+          other.id == this.id &&
+          other.profileId == this.profileId &&
+          other.name == this.name &&
+          other.categoryType == this.categoryType &&
+          other.parentCategoryId == this.parentCategoryId &&
+          other.iconName == this.iconName &&
+          other.colorHex == this.colorHex &&
+          other.isSystem == this.isSystem &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
+}
+
+class ExpenseCategoriesCompanion
+    extends UpdateCompanion<ExpenseCategoryTableData> {
+  final Value<String> id;
+  final Value<String> profileId;
+  final Value<String> name;
+  final Value<String> categoryType;
+  final Value<String?> parentCategoryId;
+  final Value<String?> iconName;
+  final Value<String?> colorHex;
+  final Value<bool> isSystem;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<int> rowid;
+  const ExpenseCategoriesCompanion({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.categoryType = const Value.absent(),
+    this.parentCategoryId = const Value.absent(),
+    this.iconName = const Value.absent(),
+    this.colorHex = const Value.absent(),
+    this.isSystem = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExpenseCategoriesCompanion.insert({
+    required String id,
+    required String profileId,
+    required String name,
+    this.categoryType = const Value.absent(),
+    this.parentCategoryId = const Value.absent(),
+    this.iconName = const Value.absent(),
+    this.colorHex = const Value.absent(),
+    this.isSystem = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       profileId = Value(profileId),
+       name = Value(name);
+  static Insertable<ExpenseCategoryTableData> custom({
+    Expression<String>? id,
+    Expression<String>? profileId,
+    Expression<String>? name,
+    Expression<String>? categoryType,
+    Expression<String>? parentCategoryId,
+    Expression<String>? iconName,
+    Expression<String>? colorHex,
+    Expression<bool>? isSystem,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
+      if (name != null) 'name': name,
+      if (categoryType != null) 'category_type': categoryType,
+      if (parentCategoryId != null) 'parent_category_id': parentCategoryId,
+      if (iconName != null) 'icon_name': iconName,
+      if (colorHex != null) 'color_hex': colorHex,
+      if (isSystem != null) 'is_system': isSystem,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExpenseCategoriesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? profileId,
+    Value<String>? name,
+    Value<String>? categoryType,
+    Value<String?>? parentCategoryId,
+    Value<String?>? iconName,
+    Value<String?>? colorHex,
+    Value<bool>? isSystem,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<int>? rowid,
+  }) {
+    return ExpenseCategoriesCompanion(
+      id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
+      name: name ?? this.name,
+      categoryType: categoryType ?? this.categoryType,
+      parentCategoryId: parentCategoryId ?? this.parentCategoryId,
+      iconName: iconName ?? this.iconName,
+      colorHex: colorHex ?? this.colorHex,
+      isSystem: isSystem ?? this.isSystem,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (categoryType.present) {
+      map['category_type'] = Variable<String>(categoryType.value);
+    }
+    if (parentCategoryId.present) {
+      map['parent_category_id'] = Variable<String>(parentCategoryId.value);
+    }
+    if (iconName.present) {
+      map['icon_name'] = Variable<String>(iconName.value);
+    }
+    if (colorHex.present) {
+      map['color_hex'] = Variable<String>(colorHex.value);
+    }
+    if (isSystem.present) {
+      map['is_system'] = Variable<bool>(isSystem.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $ExpenseCategoriesTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseCategoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('name: $name, ')
+          ..write('categoryType: $categoryType, ')
+          ..write('parentCategoryId: $parentCategoryId, ')
+          ..write('iconName: $iconName, ')
+          ..write('colorHex: $colorHex, ')
+          ..write('isSystem: $isSystem, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ExpenseTransactionsTable extends ExpenseTransactions
+    with TableInfo<$ExpenseTransactionsTable, ExpenseTransactionTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExpenseTransactionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES companies (id)',
+    ),
+  );
+  static const VerificationMeta _transactionTypeMeta = const VerificationMeta(
+    'transactionType',
+  );
+  @override
+  late final GeneratedColumn<String> transactionType = GeneratedColumn<String>(
+    'transaction_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountInCentsMeta = const VerificationMeta(
+    'amountInCents',
+  );
+  @override
+  late final GeneratedColumn<int> amountInCents = GeneratedColumn<int>(
+    'amount_in_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _walletIdMeta = const VerificationMeta(
+    'walletId',
+  );
+  @override
+  late final GeneratedColumn<String> walletId = GeneratedColumn<String>(
+    'wallet_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES expense_wallets (id)',
+    ),
+  );
+  static const VerificationMeta _toWalletIdMeta = const VerificationMeta(
+    'toWalletId',
+  );
+  @override
+  late final GeneratedColumn<String> toWalletId = GeneratedColumn<String>(
+    'to_wallet_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES expense_wallets (id)',
+    ),
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES expense_categories (id)',
+    ),
+  );
+  static const VerificationMeta _transactionDateMeta = const VerificationMeta(
+    'transactionDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> transactionDate =
+      GeneratedColumn<DateTime>(
+        'transaction_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _payeeOrPayerMeta = const VerificationMeta(
+    'payeeOrPayer',
+  );
+  @override
+  late final GeneratedColumn<String> payeeOrPayer = GeneratedColumn<String>(
+    'payee_or_payer',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _referenceNumberMeta = const VerificationMeta(
+    'referenceNumber',
+  );
+  @override
+  late final GeneratedColumn<String> referenceNumber = GeneratedColumn<String>(
+    'reference_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _receiptPhotoUrlMeta = const VerificationMeta(
+    'receiptPhotoUrl',
+  );
+  @override
+  late final GeneratedColumn<String> receiptPhotoUrl = GeneratedColumn<String>(
+    'receipt_photo_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isClearedMeta = const VerificationMeta(
+    'isCleared',
+  );
+  @override
+  late final GeneratedColumn<bool> isCleared = GeneratedColumn<bool>(
+    'is_cleared',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_cleared" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus =
+      GeneratedColumn<String>(
+        'sync_status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('pending'),
+      ).withConverter<SyncRecordStatus>(
+        $ExpenseTransactionsTable.$convertersyncStatus,
+      );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    profileId,
+    transactionType,
+    amountInCents,
+    walletId,
+    toWalletId,
+    categoryId,
+    transactionDate,
+    note,
+    payeeOrPayer,
+    referenceNumber,
+    receiptPhotoUrl,
+    isCleared,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'expense_transactions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ExpenseTransactionTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('transaction_type')) {
+      context.handle(
+        _transactionTypeMeta,
+        transactionType.isAcceptableOrUnknown(
+          data['transaction_type']!,
+          _transactionTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_transactionTypeMeta);
+    }
+    if (data.containsKey('amount_in_cents')) {
+      context.handle(
+        _amountInCentsMeta,
+        amountInCents.isAcceptableOrUnknown(
+          data['amount_in_cents']!,
+          _amountInCentsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountInCentsMeta);
+    }
+    if (data.containsKey('wallet_id')) {
+      context.handle(
+        _walletIdMeta,
+        walletId.isAcceptableOrUnknown(data['wallet_id']!, _walletIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_walletIdMeta);
+    }
+    if (data.containsKey('to_wallet_id')) {
+      context.handle(
+        _toWalletIdMeta,
+        toWalletId.isAcceptableOrUnknown(
+          data['to_wallet_id']!,
+          _toWalletIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('transaction_date')) {
+      context.handle(
+        _transactionDateMeta,
+        transactionDate.isAcceptableOrUnknown(
+          data['transaction_date']!,
+          _transactionDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_transactionDateMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('payee_or_payer')) {
+      context.handle(
+        _payeeOrPayerMeta,
+        payeeOrPayer.isAcceptableOrUnknown(
+          data['payee_or_payer']!,
+          _payeeOrPayerMeta,
+        ),
+      );
+    }
+    if (data.containsKey('reference_number')) {
+      context.handle(
+        _referenceNumberMeta,
+        referenceNumber.isAcceptableOrUnknown(
+          data['reference_number']!,
+          _referenceNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('receipt_photo_url')) {
+      context.handle(
+        _receiptPhotoUrlMeta,
+        receiptPhotoUrl.isAcceptableOrUnknown(
+          data['receipt_photo_url']!,
+          _receiptPhotoUrlMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_cleared')) {
+      context.handle(
+        _isClearedMeta,
+        isCleared.isAcceptableOrUnknown(data['is_cleared']!, _isClearedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExpenseTransactionTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExpenseTransactionTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      transactionType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transaction_type'],
+      )!,
+      amountInCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_in_cents'],
+      )!,
+      walletId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}wallet_id'],
+      )!,
+      toWalletId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}to_wallet_id'],
+      ),
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
+      transactionDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}transaction_date'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      payeeOrPayer: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payee_or_payer'],
+      ),
+      referenceNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reference_number'],
+      ),
+      receiptPhotoUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}receipt_photo_url'],
+      ),
+      isCleared: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_cleared'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $ExpenseTransactionsTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+    );
+  }
+
+  @override
+  $ExpenseTransactionsTable createAlias(String alias) {
+    return $ExpenseTransactionsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class ExpenseTransactionTableData extends DataClass
+    implements Insertable<ExpenseTransactionTableData> {
+  final String id;
+  final String profileId;
+  final String transactionType;
+  final int amountInCents;
+  final String walletId;
+  final String? toWalletId;
+  final String? categoryId;
+  final DateTime transactionDate;
+  final String? note;
+  final String? payeeOrPayer;
+  final String? referenceNumber;
+  final String? receiptPhotoUrl;
+  final bool isCleared;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
+  const ExpenseTransactionTableData({
+    required this.id,
+    required this.profileId,
+    required this.transactionType,
+    required this.amountInCents,
+    required this.walletId,
+    this.toWalletId,
+    this.categoryId,
+    required this.transactionDate,
+    this.note,
+    this.payeeOrPayer,
+    this.referenceNumber,
+    this.receiptPhotoUrl,
+    required this.isCleared,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['profile_id'] = Variable<String>(profileId);
+    map['transaction_type'] = Variable<String>(transactionType);
+    map['amount_in_cents'] = Variable<int>(amountInCents);
+    map['wallet_id'] = Variable<String>(walletId);
+    if (!nullToAbsent || toWalletId != null) {
+      map['to_wallet_id'] = Variable<String>(toWalletId);
+    }
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
+    map['transaction_date'] = Variable<DateTime>(transactionDate);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || payeeOrPayer != null) {
+      map['payee_or_payer'] = Variable<String>(payeeOrPayer);
+    }
+    if (!nullToAbsent || referenceNumber != null) {
+      map['reference_number'] = Variable<String>(referenceNumber);
+    }
+    if (!nullToAbsent || receiptPhotoUrl != null) {
+      map['receipt_photo_url'] = Variable<String>(receiptPhotoUrl);
+    }
+    map['is_cleared'] = Variable<bool>(isCleared);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $ExpenseTransactionsTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    return map;
+  }
+
+  ExpenseTransactionsCompanion toCompanion(bool nullToAbsent) {
+    return ExpenseTransactionsCompanion(
+      id: Value(id),
+      profileId: Value(profileId),
+      transactionType: Value(transactionType),
+      amountInCents: Value(amountInCents),
+      walletId: Value(walletId),
+      toWalletId: toWalletId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(toWalletId),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      transactionDate: Value(transactionDate),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      payeeOrPayer: payeeOrPayer == null && nullToAbsent
+          ? const Value.absent()
+          : Value(payeeOrPayer),
+      referenceNumber: referenceNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(referenceNumber),
+      receiptPhotoUrl: receiptPhotoUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(receiptPhotoUrl),
+      isCleared: Value(isCleared),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+    );
+  }
+
+  factory ExpenseTransactionTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExpenseTransactionTableData(
+      id: serializer.fromJson<String>(json['id']),
+      profileId: serializer.fromJson<String>(json['profileId']),
+      transactionType: serializer.fromJson<String>(json['transactionType']),
+      amountInCents: serializer.fromJson<int>(json['amountInCents']),
+      walletId: serializer.fromJson<String>(json['walletId']),
+      toWalletId: serializer.fromJson<String?>(json['toWalletId']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      transactionDate: serializer.fromJson<DateTime>(json['transactionDate']),
+      note: serializer.fromJson<String?>(json['note']),
+      payeeOrPayer: serializer.fromJson<String?>(json['payeeOrPayer']),
+      referenceNumber: serializer.fromJson<String?>(json['referenceNumber']),
+      receiptPhotoUrl: serializer.fromJson<String?>(json['receiptPhotoUrl']),
+      isCleared: serializer.fromJson<bool>(json['isCleared']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $ExpenseTransactionsTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'profileId': serializer.toJson<String>(profileId),
+      'transactionType': serializer.toJson<String>(transactionType),
+      'amountInCents': serializer.toJson<int>(amountInCents),
+      'walletId': serializer.toJson<String>(walletId),
+      'toWalletId': serializer.toJson<String?>(toWalletId),
+      'categoryId': serializer.toJson<String?>(categoryId),
+      'transactionDate': serializer.toJson<DateTime>(transactionDate),
+      'note': serializer.toJson<String?>(note),
+      'payeeOrPayer': serializer.toJson<String?>(payeeOrPayer),
+      'referenceNumber': serializer.toJson<String?>(referenceNumber),
+      'receiptPhotoUrl': serializer.toJson<String?>(receiptPhotoUrl),
+      'isCleared': serializer.toJson<bool>(isCleared),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $ExpenseTransactionsTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+    };
+  }
+
+  ExpenseTransactionTableData copyWith({
+    String? id,
+    String? profileId,
+    String? transactionType,
+    int? amountInCents,
+    String? walletId,
+    Value<String?> toWalletId = const Value.absent(),
+    Value<String?> categoryId = const Value.absent(),
+    DateTime? transactionDate,
+    Value<String?> note = const Value.absent(),
+    Value<String?> payeeOrPayer = const Value.absent(),
+    Value<String?> referenceNumber = const Value.absent(),
+    Value<String?> receiptPhotoUrl = const Value.absent(),
+    bool? isCleared,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+  }) => ExpenseTransactionTableData(
+    id: id ?? this.id,
+    profileId: profileId ?? this.profileId,
+    transactionType: transactionType ?? this.transactionType,
+    amountInCents: amountInCents ?? this.amountInCents,
+    walletId: walletId ?? this.walletId,
+    toWalletId: toWalletId.present ? toWalletId.value : this.toWalletId,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    transactionDate: transactionDate ?? this.transactionDate,
+    note: note.present ? note.value : this.note,
+    payeeOrPayer: payeeOrPayer.present ? payeeOrPayer.value : this.payeeOrPayer,
+    referenceNumber: referenceNumber.present
+        ? referenceNumber.value
+        : this.referenceNumber,
+    receiptPhotoUrl: receiptPhotoUrl.present
+        ? receiptPhotoUrl.value
+        : this.receiptPhotoUrl,
+    isCleared: isCleared ?? this.isCleared,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+  );
+  ExpenseTransactionTableData copyWithCompanion(
+    ExpenseTransactionsCompanion data,
+  ) {
+    return ExpenseTransactionTableData(
+      id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      transactionType: data.transactionType.present
+          ? data.transactionType.value
+          : this.transactionType,
+      amountInCents: data.amountInCents.present
+          ? data.amountInCents.value
+          : this.amountInCents,
+      walletId: data.walletId.present ? data.walletId.value : this.walletId,
+      toWalletId: data.toWalletId.present
+          ? data.toWalletId.value
+          : this.toWalletId,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      transactionDate: data.transactionDate.present
+          ? data.transactionDate.value
+          : this.transactionDate,
+      note: data.note.present ? data.note.value : this.note,
+      payeeOrPayer: data.payeeOrPayer.present
+          ? data.payeeOrPayer.value
+          : this.payeeOrPayer,
+      referenceNumber: data.referenceNumber.present
+          ? data.referenceNumber.value
+          : this.referenceNumber,
+      receiptPhotoUrl: data.receiptPhotoUrl.present
+          ? data.receiptPhotoUrl.value
+          : this.receiptPhotoUrl,
+      isCleared: data.isCleared.present ? data.isCleared.value : this.isCleared,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseTransactionTableData(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('transactionType: $transactionType, ')
+          ..write('amountInCents: $amountInCents, ')
+          ..write('walletId: $walletId, ')
+          ..write('toWalletId: $toWalletId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('transactionDate: $transactionDate, ')
+          ..write('note: $note, ')
+          ..write('payeeOrPayer: $payeeOrPayer, ')
+          ..write('referenceNumber: $referenceNumber, ')
+          ..write('receiptPhotoUrl: $receiptPhotoUrl, ')
+          ..write('isCleared: $isCleared, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    profileId,
+    transactionType,
+    amountInCents,
+    walletId,
+    toWalletId,
+    categoryId,
+    transactionDate,
+    note,
+    payeeOrPayer,
+    referenceNumber,
+    receiptPhotoUrl,
+    isCleared,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExpenseTransactionTableData &&
+          other.id == this.id &&
+          other.profileId == this.profileId &&
+          other.transactionType == this.transactionType &&
+          other.amountInCents == this.amountInCents &&
+          other.walletId == this.walletId &&
+          other.toWalletId == this.toWalletId &&
+          other.categoryId == this.categoryId &&
+          other.transactionDate == this.transactionDate &&
+          other.note == this.note &&
+          other.payeeOrPayer == this.payeeOrPayer &&
+          other.referenceNumber == this.referenceNumber &&
+          other.receiptPhotoUrl == this.receiptPhotoUrl &&
+          other.isCleared == this.isCleared &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
+}
+
+class ExpenseTransactionsCompanion
+    extends UpdateCompanion<ExpenseTransactionTableData> {
+  final Value<String> id;
+  final Value<String> profileId;
+  final Value<String> transactionType;
+  final Value<int> amountInCents;
+  final Value<String> walletId;
+  final Value<String?> toWalletId;
+  final Value<String?> categoryId;
+  final Value<DateTime> transactionDate;
+  final Value<String?> note;
+  final Value<String?> payeeOrPayer;
+  final Value<String?> referenceNumber;
+  final Value<String?> receiptPhotoUrl;
+  final Value<bool> isCleared;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<int> rowid;
+  const ExpenseTransactionsCompanion({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.transactionType = const Value.absent(),
+    this.amountInCents = const Value.absent(),
+    this.walletId = const Value.absent(),
+    this.toWalletId = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.transactionDate = const Value.absent(),
+    this.note = const Value.absent(),
+    this.payeeOrPayer = const Value.absent(),
+    this.referenceNumber = const Value.absent(),
+    this.receiptPhotoUrl = const Value.absent(),
+    this.isCleared = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExpenseTransactionsCompanion.insert({
+    required String id,
+    required String profileId,
+    required String transactionType,
+    required int amountInCents,
+    required String walletId,
+    this.toWalletId = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    required DateTime transactionDate,
+    this.note = const Value.absent(),
+    this.payeeOrPayer = const Value.absent(),
+    this.referenceNumber = const Value.absent(),
+    this.receiptPhotoUrl = const Value.absent(),
+    this.isCleared = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       profileId = Value(profileId),
+       transactionType = Value(transactionType),
+       amountInCents = Value(amountInCents),
+       walletId = Value(walletId),
+       transactionDate = Value(transactionDate);
+  static Insertable<ExpenseTransactionTableData> custom({
+    Expression<String>? id,
+    Expression<String>? profileId,
+    Expression<String>? transactionType,
+    Expression<int>? amountInCents,
+    Expression<String>? walletId,
+    Expression<String>? toWalletId,
+    Expression<String>? categoryId,
+    Expression<DateTime>? transactionDate,
+    Expression<String>? note,
+    Expression<String>? payeeOrPayer,
+    Expression<String>? referenceNumber,
+    Expression<String>? receiptPhotoUrl,
+    Expression<bool>? isCleared,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
+      if (transactionType != null) 'transaction_type': transactionType,
+      if (amountInCents != null) 'amount_in_cents': amountInCents,
+      if (walletId != null) 'wallet_id': walletId,
+      if (toWalletId != null) 'to_wallet_id': toWalletId,
+      if (categoryId != null) 'category_id': categoryId,
+      if (transactionDate != null) 'transaction_date': transactionDate,
+      if (note != null) 'note': note,
+      if (payeeOrPayer != null) 'payee_or_payer': payeeOrPayer,
+      if (referenceNumber != null) 'reference_number': referenceNumber,
+      if (receiptPhotoUrl != null) 'receipt_photo_url': receiptPhotoUrl,
+      if (isCleared != null) 'is_cleared': isCleared,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExpenseTransactionsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? profileId,
+    Value<String>? transactionType,
+    Value<int>? amountInCents,
+    Value<String>? walletId,
+    Value<String?>? toWalletId,
+    Value<String?>? categoryId,
+    Value<DateTime>? transactionDate,
+    Value<String?>? note,
+    Value<String?>? payeeOrPayer,
+    Value<String?>? referenceNumber,
+    Value<String?>? receiptPhotoUrl,
+    Value<bool>? isCleared,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<int>? rowid,
+  }) {
+    return ExpenseTransactionsCompanion(
+      id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
+      transactionType: transactionType ?? this.transactionType,
+      amountInCents: amountInCents ?? this.amountInCents,
+      walletId: walletId ?? this.walletId,
+      toWalletId: toWalletId ?? this.toWalletId,
+      categoryId: categoryId ?? this.categoryId,
+      transactionDate: transactionDate ?? this.transactionDate,
+      note: note ?? this.note,
+      payeeOrPayer: payeeOrPayer ?? this.payeeOrPayer,
+      referenceNumber: referenceNumber ?? this.referenceNumber,
+      receiptPhotoUrl: receiptPhotoUrl ?? this.receiptPhotoUrl,
+      isCleared: isCleared ?? this.isCleared,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (transactionType.present) {
+      map['transaction_type'] = Variable<String>(transactionType.value);
+    }
+    if (amountInCents.present) {
+      map['amount_in_cents'] = Variable<int>(amountInCents.value);
+    }
+    if (walletId.present) {
+      map['wallet_id'] = Variable<String>(walletId.value);
+    }
+    if (toWalletId.present) {
+      map['to_wallet_id'] = Variable<String>(toWalletId.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (transactionDate.present) {
+      map['transaction_date'] = Variable<DateTime>(transactionDate.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (payeeOrPayer.present) {
+      map['payee_or_payer'] = Variable<String>(payeeOrPayer.value);
+    }
+    if (referenceNumber.present) {
+      map['reference_number'] = Variable<String>(referenceNumber.value);
+    }
+    if (receiptPhotoUrl.present) {
+      map['receipt_photo_url'] = Variable<String>(receiptPhotoUrl.value);
+    }
+    if (isCleared.present) {
+      map['is_cleared'] = Variable<bool>(isCleared.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $ExpenseTransactionsTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseTransactionsCompanion(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('transactionType: $transactionType, ')
+          ..write('amountInCents: $amountInCents, ')
+          ..write('walletId: $walletId, ')
+          ..write('toWalletId: $toWalletId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('transactionDate: $transactionDate, ')
+          ..write('note: $note, ')
+          ..write('payeeOrPayer: $payeeOrPayer, ')
+          ..write('referenceNumber: $referenceNumber, ')
+          ..write('receiptPhotoUrl: $receiptPhotoUrl, ')
+          ..write('isCleared: $isCleared, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ExpenseBudgetsTable extends ExpenseBudgets
+    with TableInfo<$ExpenseBudgetsTable, ExpenseBudgetTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExpenseBudgetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES companies (id)',
+    ),
+  );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES expense_categories (id)',
+    ),
+  );
+  static const VerificationMeta _periodTypeMeta = const VerificationMeta(
+    'periodType',
+  );
+  @override
+  late final GeneratedColumn<String> periodType = GeneratedColumn<String>(
+    'period_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('monthly'),
+  );
+  static const VerificationMeta _amountInCentsMeta = const VerificationMeta(
+    'amountInCents',
+  );
+  @override
+  late final GeneratedColumn<int> amountInCents = GeneratedColumn<int>(
+    'amount_in_cents',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+    'start_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _alertThresholdPercentMeta =
+      const VerificationMeta('alertThresholdPercent');
+  @override
+  late final GeneratedColumn<int> alertThresholdPercent = GeneratedColumn<int>(
+    'alert_threshold_percent',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(80),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus = GeneratedColumn<String>(
+    'sync_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  ).withConverter<SyncRecordStatus>($ExpenseBudgetsTable.$convertersyncStatus);
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    profileId,
+    categoryId,
+    periodType,
+    amountInCents,
+    startDate,
+    endDate,
+    alertThresholdPercent,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'expense_budgets';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ExpenseBudgetTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
+    if (data.containsKey('period_type')) {
+      context.handle(
+        _periodTypeMeta,
+        periodType.isAcceptableOrUnknown(data['period_type']!, _periodTypeMeta),
+      );
+    }
+    if (data.containsKey('amount_in_cents')) {
+      context.handle(
+        _amountInCentsMeta,
+        amountInCents.isAcceptableOrUnknown(
+          data['amount_in_cents']!,
+          _amountInCentsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_amountInCentsMeta);
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startDateMeta);
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('alert_threshold_percent')) {
+      context.handle(
+        _alertThresholdPercentMeta,
+        alertThresholdPercent.isAcceptableOrUnknown(
+          data['alert_threshold_percent']!,
+          _alertThresholdPercentMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExpenseBudgetTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExpenseBudgetTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
+      periodType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}period_type'],
+      )!,
+      amountInCents: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}amount_in_cents'],
+      )!,
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_date'],
+      )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
+      alertThresholdPercent: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}alert_threshold_percent'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $ExpenseBudgetsTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+    );
+  }
+
+  @override
+  $ExpenseBudgetsTable createAlias(String alias) {
+    return $ExpenseBudgetsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class ExpenseBudgetTableData extends DataClass
+    implements Insertable<ExpenseBudgetTableData> {
+  final String id;
+  final String profileId;
+  final String? categoryId;
+  final String periodType;
+  final int amountInCents;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final int alertThresholdPercent;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
+  const ExpenseBudgetTableData({
+    required this.id,
+    required this.profileId,
+    this.categoryId,
+    required this.periodType,
+    required this.amountInCents,
+    required this.startDate,
+    this.endDate,
+    required this.alertThresholdPercent,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['profile_id'] = Variable<String>(profileId);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
+    map['period_type'] = Variable<String>(periodType);
+    map['amount_in_cents'] = Variable<int>(amountInCents);
+    map['start_date'] = Variable<DateTime>(startDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    map['alert_threshold_percent'] = Variable<int>(alertThresholdPercent);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $ExpenseBudgetsTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    return map;
+  }
+
+  ExpenseBudgetsCompanion toCompanion(bool nullToAbsent) {
+    return ExpenseBudgetsCompanion(
+      id: Value(id),
+      profileId: Value(profileId),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
+      periodType: Value(periodType),
+      amountInCents: Value(amountInCents),
+      startDate: Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      alertThresholdPercent: Value(alertThresholdPercent),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+    );
+  }
+
+  factory ExpenseBudgetTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExpenseBudgetTableData(
+      id: serializer.fromJson<String>(json['id']),
+      profileId: serializer.fromJson<String>(json['profileId']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
+      periodType: serializer.fromJson<String>(json['periodType']),
+      amountInCents: serializer.fromJson<int>(json['amountInCents']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      alertThresholdPercent: serializer.fromJson<int>(
+        json['alertThresholdPercent'],
+      ),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $ExpenseBudgetsTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'profileId': serializer.toJson<String>(profileId),
+      'categoryId': serializer.toJson<String?>(categoryId),
+      'periodType': serializer.toJson<String>(periodType),
+      'amountInCents': serializer.toJson<int>(amountInCents),
+      'startDate': serializer.toJson<DateTime>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'alertThresholdPercent': serializer.toJson<int>(alertThresholdPercent),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $ExpenseBudgetsTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+    };
+  }
+
+  ExpenseBudgetTableData copyWith({
+    String? id,
+    String? profileId,
+    Value<String?> categoryId = const Value.absent(),
+    String? periodType,
+    int? amountInCents,
+    DateTime? startDate,
+    Value<DateTime?> endDate = const Value.absent(),
+    int? alertThresholdPercent,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+  }) => ExpenseBudgetTableData(
+    id: id ?? this.id,
+    profileId: profileId ?? this.profileId,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
+    periodType: periodType ?? this.periodType,
+    amountInCents: amountInCents ?? this.amountInCents,
+    startDate: startDate ?? this.startDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    alertThresholdPercent: alertThresholdPercent ?? this.alertThresholdPercent,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+  );
+  ExpenseBudgetTableData copyWithCompanion(ExpenseBudgetsCompanion data) {
+    return ExpenseBudgetTableData(
+      id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
+      periodType: data.periodType.present
+          ? data.periodType.value
+          : this.periodType,
+      amountInCents: data.amountInCents.present
+          ? data.amountInCents.value
+          : this.amountInCents,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      alertThresholdPercent: data.alertThresholdPercent.present
+          ? data.alertThresholdPercent.value
+          : this.alertThresholdPercent,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseBudgetTableData(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('periodType: $periodType, ')
+          ..write('amountInCents: $amountInCents, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('alertThresholdPercent: $alertThresholdPercent, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    profileId,
+    categoryId,
+    periodType,
+    amountInCents,
+    startDate,
+    endDate,
+    alertThresholdPercent,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExpenseBudgetTableData &&
+          other.id == this.id &&
+          other.profileId == this.profileId &&
+          other.categoryId == this.categoryId &&
+          other.periodType == this.periodType &&
+          other.amountInCents == this.amountInCents &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
+          other.alertThresholdPercent == this.alertThresholdPercent &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
+}
+
+class ExpenseBudgetsCompanion extends UpdateCompanion<ExpenseBudgetTableData> {
+  final Value<String> id;
+  final Value<String> profileId;
+  final Value<String?> categoryId;
+  final Value<String> periodType;
+  final Value<int> amountInCents;
+  final Value<DateTime> startDate;
+  final Value<DateTime?> endDate;
+  final Value<int> alertThresholdPercent;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<int> rowid;
+  const ExpenseBudgetsCompanion({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.categoryId = const Value.absent(),
+    this.periodType = const Value.absent(),
+    this.amountInCents = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.alertThresholdPercent = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExpenseBudgetsCompanion.insert({
+    required String id,
+    required String profileId,
+    this.categoryId = const Value.absent(),
+    this.periodType = const Value.absent(),
+    required int amountInCents,
+    required DateTime startDate,
+    this.endDate = const Value.absent(),
+    this.alertThresholdPercent = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       profileId = Value(profileId),
+       amountInCents = Value(amountInCents),
+       startDate = Value(startDate);
+  static Insertable<ExpenseBudgetTableData> custom({
+    Expression<String>? id,
+    Expression<String>? profileId,
+    Expression<String>? categoryId,
+    Expression<String>? periodType,
+    Expression<int>? amountInCents,
+    Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
+    Expression<int>? alertThresholdPercent,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
+      if (categoryId != null) 'category_id': categoryId,
+      if (periodType != null) 'period_type': periodType,
+      if (amountInCents != null) 'amount_in_cents': amountInCents,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+      if (alertThresholdPercent != null)
+        'alert_threshold_percent': alertThresholdPercent,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExpenseBudgetsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? profileId,
+    Value<String?>? categoryId,
+    Value<String>? periodType,
+    Value<int>? amountInCents,
+    Value<DateTime>? startDate,
+    Value<DateTime?>? endDate,
+    Value<int>? alertThresholdPercent,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<int>? rowid,
+  }) {
+    return ExpenseBudgetsCompanion(
+      id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
+      categoryId: categoryId ?? this.categoryId,
+      periodType: periodType ?? this.periodType,
+      amountInCents: amountInCents ?? this.amountInCents,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      alertThresholdPercent:
+          alertThresholdPercent ?? this.alertThresholdPercent,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
+    if (periodType.present) {
+      map['period_type'] = Variable<String>(periodType.value);
+    }
+    if (amountInCents.present) {
+      map['amount_in_cents'] = Variable<int>(amountInCents.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (alertThresholdPercent.present) {
+      map['alert_threshold_percent'] = Variable<int>(
+        alertThresholdPercent.value,
+      );
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $ExpenseBudgetsTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseBudgetsCompanion(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('categoryId: $categoryId, ')
+          ..write('periodType: $periodType, ')
+          ..write('amountInCents: $amountInCents, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('alertThresholdPercent: $alertThresholdPercent, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ExpenseRecurringRulesTable extends ExpenseRecurringRules
+    with TableInfo<$ExpenseRecurringRulesTable, ExpenseRecurringRuleTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExpenseRecurringRulesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES companies (id)',
+    ),
+  );
+  static const VerificationMeta _templateJsonMeta = const VerificationMeta(
+    'templateJson',
+  );
+  @override
+  late final GeneratedColumn<String> templateJson = GeneratedColumn<String>(
+    'template_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _intervalTypeMeta = const VerificationMeta(
+    'intervalType',
+  );
+  @override
+  late final GeneratedColumn<String> intervalType = GeneratedColumn<String>(
+    'interval_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _intervalCountMeta = const VerificationMeta(
+    'intervalCount',
+  );
+  @override
+  late final GeneratedColumn<int> intervalCount = GeneratedColumn<int>(
+    'interval_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _nextRunDateMeta = const VerificationMeta(
+    'nextRunDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextRunDate = GeneratedColumn<DateTime>(
+    'next_run_date',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus =
+      GeneratedColumn<String>(
+        'sync_status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('pending'),
+      ).withConverter<SyncRecordStatus>(
+        $ExpenseRecurringRulesTable.$convertersyncStatus,
+      );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _remoteUpdatedAtMeta = const VerificationMeta(
+    'remoteUpdatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> remoteUpdatedAt =
+      GeneratedColumn<DateTime>(
+        'remote_updated_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    profileId,
+    templateJson,
+    intervalType,
+    intervalCount,
+    nextRunDate,
+    endDate,
+    isActive,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'expense_recurring_rules';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ExpenseRecurringRuleTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('template_json')) {
+      context.handle(
+        _templateJsonMeta,
+        templateJson.isAcceptableOrUnknown(
+          data['template_json']!,
+          _templateJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_templateJsonMeta);
+    }
+    if (data.containsKey('interval_type')) {
+      context.handle(
+        _intervalTypeMeta,
+        intervalType.isAcceptableOrUnknown(
+          data['interval_type']!,
+          _intervalTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_intervalTypeMeta);
+    }
+    if (data.containsKey('interval_count')) {
+      context.handle(
+        _intervalCountMeta,
+        intervalCount.isAcceptableOrUnknown(
+          data['interval_count']!,
+          _intervalCountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('next_run_date')) {
+      context.handle(
+        _nextRunDateMeta,
+        nextRunDate.isAcceptableOrUnknown(
+          data['next_run_date']!,
+          _nextRunDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_nextRunDateMeta);
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    if (data.containsKey('remote_updated_at')) {
+      context.handle(
+        _remoteUpdatedAtMeta,
+        remoteUpdatedAt.isAcceptableOrUnknown(
+          data['remote_updated_at']!,
+          _remoteUpdatedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExpenseRecurringRuleTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExpenseRecurringRuleTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      templateJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}template_json'],
+      )!,
+      intervalType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}interval_type'],
+      )!,
+      intervalCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}interval_count'],
+      )!,
+      nextRunDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_run_date'],
+      )!,
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $ExpenseRecurringRulesTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+      remoteUpdatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}remote_updated_at'],
+      ),
+    );
+  }
+
+  @override
+  $ExpenseRecurringRulesTable createAlias(String alias) {
+    return $ExpenseRecurringRulesTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class ExpenseRecurringRuleTableData extends DataClass
+    implements Insertable<ExpenseRecurringRuleTableData> {
+  final String id;
+  final String profileId;
+  final String templateJson;
+  final String intervalType;
+  final int intervalCount;
+  final DateTime nextRunDate;
+  final DateTime? endDate;
+  final bool isActive;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  final int revision;
+  final DateTime? remoteUpdatedAt;
+  const ExpenseRecurringRuleTableData({
+    required this.id,
+    required this.profileId,
+    required this.templateJson,
+    required this.intervalType,
+    required this.intervalCount,
+    required this.nextRunDate,
+    this.endDate,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.isDeleted,
+    required this.syncStatus,
+    required this.revision,
+    this.remoteUpdatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['profile_id'] = Variable<String>(profileId);
+    map['template_json'] = Variable<String>(templateJson);
+    map['interval_type'] = Variable<String>(intervalType);
+    map['interval_count'] = Variable<int>(intervalCount);
+    map['next_run_date'] = Variable<DateTime>(nextRunDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $ExpenseRecurringRulesTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    map['revision'] = Variable<int>(revision);
+    if (!nullToAbsent || remoteUpdatedAt != null) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt);
+    }
+    return map;
+  }
+
+  ExpenseRecurringRulesCompanion toCompanion(bool nullToAbsent) {
+    return ExpenseRecurringRulesCompanion(
+      id: Value(id),
+      profileId: Value(profileId),
+      templateJson: Value(templateJson),
+      intervalType: Value(intervalType),
+      intervalCount: Value(intervalCount),
+      nextRunDate: Value(nextRunDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      isActive: Value(isActive),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+      revision: Value(revision),
+      remoteUpdatedAt: remoteUpdatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(remoteUpdatedAt),
+    );
+  }
+
+  factory ExpenseRecurringRuleTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExpenseRecurringRuleTableData(
+      id: serializer.fromJson<String>(json['id']),
+      profileId: serializer.fromJson<String>(json['profileId']),
+      templateJson: serializer.fromJson<String>(json['templateJson']),
+      intervalType: serializer.fromJson<String>(json['intervalType']),
+      intervalCount: serializer.fromJson<int>(json['intervalCount']),
+      nextRunDate: serializer.fromJson<DateTime>(json['nextRunDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $ExpenseRecurringRulesTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+      revision: serializer.fromJson<int>(json['revision']),
+      remoteUpdatedAt: serializer.fromJson<DateTime?>(json['remoteUpdatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'profileId': serializer.toJson<String>(profileId),
+      'templateJson': serializer.toJson<String>(templateJson),
+      'intervalType': serializer.toJson<String>(intervalType),
+      'intervalCount': serializer.toJson<int>(intervalCount),
+      'nextRunDate': serializer.toJson<DateTime>(nextRunDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'isActive': serializer.toJson<bool>(isActive),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $ExpenseRecurringRulesTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+      'revision': serializer.toJson<int>(revision),
+      'remoteUpdatedAt': serializer.toJson<DateTime?>(remoteUpdatedAt),
+    };
+  }
+
+  ExpenseRecurringRuleTableData copyWith({
+    String? id,
+    String? profileId,
+    String? templateJson,
+    String? intervalType,
+    int? intervalCount,
+    DateTime? nextRunDate,
+    Value<DateTime?> endDate = const Value.absent(),
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+    int? revision,
+    Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+  }) => ExpenseRecurringRuleTableData(
+    id: id ?? this.id,
+    profileId: profileId ?? this.profileId,
+    templateJson: templateJson ?? this.templateJson,
+    intervalType: intervalType ?? this.intervalType,
+    intervalCount: intervalCount ?? this.intervalCount,
+    nextRunDate: nextRunDate ?? this.nextRunDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    isActive: isActive ?? this.isActive,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+    remoteUpdatedAt: remoteUpdatedAt.present
+        ? remoteUpdatedAt.value
+        : this.remoteUpdatedAt,
+  );
+  ExpenseRecurringRuleTableData copyWithCompanion(
+    ExpenseRecurringRulesCompanion data,
+  ) {
+    return ExpenseRecurringRuleTableData(
+      id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      templateJson: data.templateJson.present
+          ? data.templateJson.value
+          : this.templateJson,
+      intervalType: data.intervalType.present
+          ? data.intervalType.value
+          : this.intervalType,
+      intervalCount: data.intervalCount.present
+          ? data.intervalCount.value
+          : this.intervalCount,
+      nextRunDate: data.nextRunDate.present
+          ? data.nextRunDate.value
+          : this.nextRunDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+      remoteUpdatedAt: data.remoteUpdatedAt.present
+          ? data.remoteUpdatedAt.value
+          : this.remoteUpdatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseRecurringRuleTableData(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('templateJson: $templateJson, ')
+          ..write('intervalType: $intervalType, ')
+          ..write('intervalCount: $intervalCount, ')
+          ..write('nextRunDate: $nextRunDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    profileId,
+    templateJson,
+    intervalType,
+    intervalCount,
+    nextRunDate,
+    endDate,
+    isActive,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    syncStatus,
+    revision,
+    remoteUpdatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExpenseRecurringRuleTableData &&
+          other.id == this.id &&
+          other.profileId == this.profileId &&
+          other.templateJson == this.templateJson &&
+          other.intervalType == this.intervalType &&
+          other.intervalCount == this.intervalCount &&
+          other.nextRunDate == this.nextRunDate &&
+          other.endDate == this.endDate &&
+          other.isActive == this.isActive &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision &&
+          other.remoteUpdatedAt == this.remoteUpdatedAt);
+}
+
+class ExpenseRecurringRulesCompanion
+    extends UpdateCompanion<ExpenseRecurringRuleTableData> {
+  final Value<String> id;
+  final Value<String> profileId;
+  final Value<String> templateJson;
+  final Value<String> intervalType;
+  final Value<int> intervalCount;
+  final Value<DateTime> nextRunDate;
+  final Value<DateTime?> endDate;
+  final Value<bool> isActive;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<DateTime?> remoteUpdatedAt;
+  final Value<int> rowid;
+  const ExpenseRecurringRulesCompanion({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.templateJson = const Value.absent(),
+    this.intervalType = const Value.absent(),
+    this.intervalCount = const Value.absent(),
+    this.nextRunDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExpenseRecurringRulesCompanion.insert({
+    required String id,
+    required String profileId,
+    required String templateJson,
+    required String intervalType,
+    this.intervalCount = const Value.absent(),
+    required DateTime nextRunDate,
+    this.endDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.remoteUpdatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       profileId = Value(profileId),
+       templateJson = Value(templateJson),
+       intervalType = Value(intervalType),
+       nextRunDate = Value(nextRunDate);
+  static Insertable<ExpenseRecurringRuleTableData> custom({
+    Expression<String>? id,
+    Expression<String>? profileId,
+    Expression<String>? templateJson,
+    Expression<String>? intervalType,
+    Expression<int>? intervalCount,
+    Expression<DateTime>? nextRunDate,
+    Expression<DateTime>? endDate,
+    Expression<bool>? isActive,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<DateTime>? remoteUpdatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
+      if (templateJson != null) 'template_json': templateJson,
+      if (intervalType != null) 'interval_type': intervalType,
+      if (intervalCount != null) 'interval_count': intervalCount,
+      if (nextRunDate != null) 'next_run_date': nextRunDate,
+      if (endDate != null) 'end_date': endDate,
+      if (isActive != null) 'is_active': isActive,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (remoteUpdatedAt != null) 'remote_updated_at': remoteUpdatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExpenseRecurringRulesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? profileId,
+    Value<String>? templateJson,
+    Value<String>? intervalType,
+    Value<int>? intervalCount,
+    Value<DateTime>? nextRunDate,
+    Value<DateTime?>? endDate,
+    Value<bool>? isActive,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<DateTime?>? remoteUpdatedAt,
+    Value<int>? rowid,
+  }) {
+    return ExpenseRecurringRulesCompanion(
+      id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
+      templateJson: templateJson ?? this.templateJson,
+      intervalType: intervalType ?? this.intervalType,
+      intervalCount: intervalCount ?? this.intervalCount,
+      nextRunDate: nextRunDate ?? this.nextRunDate,
+      endDate: endDate ?? this.endDate,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      remoteUpdatedAt: remoteUpdatedAt ?? this.remoteUpdatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (templateJson.present) {
+      map['template_json'] = Variable<String>(templateJson.value);
+    }
+    if (intervalType.present) {
+      map['interval_type'] = Variable<String>(intervalType.value);
+    }
+    if (intervalCount.present) {
+      map['interval_count'] = Variable<int>(intervalCount.value);
+    }
+    if (nextRunDate.present) {
+      map['next_run_date'] = Variable<DateTime>(nextRunDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $ExpenseRecurringRulesTable.$convertersyncStatus.toSql(
+          syncStatus.value,
+        ),
+      );
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (remoteUpdatedAt.present) {
+      map['remote_updated_at'] = Variable<DateTime>(remoteUpdatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseRecurringRulesCompanion(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('templateJson: $templateJson, ')
+          ..write('intervalType: $intervalType, ')
+          ..write('intervalCount: $intervalCount, ')
+          ..write('nextRunDate: $nextRunDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('remoteUpdatedAt: $remoteUpdatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ExpenseAttachmentsTable extends ExpenseAttachments
+    with TableInfo<$ExpenseAttachmentsTable, ExpenseAttachmentTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExpenseAttachmentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _profileIdMeta = const VerificationMeta(
+    'profileId',
+  );
+  @override
+  late final GeneratedColumn<String> profileId = GeneratedColumn<String>(
+    'profile_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES companies (id)',
+    ),
+  );
+  static const VerificationMeta _transactionIdMeta = const VerificationMeta(
+    'transactionId',
+  );
+  @override
+  late final GeneratedColumn<String> transactionId = GeneratedColumn<String>(
+    'transaction_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES expense_transactions (id)',
+    ),
+  );
+  static const VerificationMeta _filePathMeta = const VerificationMeta(
+    'filePath',
+  );
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+    'file_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fileTypeMeta = const VerificationMeta(
+    'fileType',
+  );
+  @override
+  late final GeneratedColumn<String> fileType = GeneratedColumn<String>(
+    'file_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fileSizeMeta = const VerificationMeta(
+    'fileSize',
+  );
+  @override
+  late final GeneratedColumn<int> fileSize = GeneratedColumn<int>(
+    'file_size',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<SyncRecordStatus, String>
+  syncStatus =
+      GeneratedColumn<String>(
+        'sync_status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('pending'),
+      ).withConverter<SyncRecordStatus>(
+        $ExpenseAttachmentsTable.$convertersyncStatus,
+      );
+  static const VerificationMeta _revisionMeta = const VerificationMeta(
+    'revision',
+  );
+  @override
+  late final GeneratedColumn<int> revision = GeneratedColumn<int>(
+    'revision',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    profileId,
+    transactionId,
+    filePath,
+    fileType,
+    fileSize,
+    createdAt,
+    isDeleted,
+    syncStatus,
+    revision,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'expense_attachments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ExpenseAttachmentTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('profile_id')) {
+      context.handle(
+        _profileIdMeta,
+        profileId.isAcceptableOrUnknown(data['profile_id']!, _profileIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_profileIdMeta);
+    }
+    if (data.containsKey('transaction_id')) {
+      context.handle(
+        _transactionIdMeta,
+        transactionId.isAcceptableOrUnknown(
+          data['transaction_id']!,
+          _transactionIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_transactionIdMeta);
+    }
+    if (data.containsKey('file_path')) {
+      context.handle(
+        _filePathMeta,
+        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_filePathMeta);
+    }
+    if (data.containsKey('file_type')) {
+      context.handle(
+        _fileTypeMeta,
+        fileType.isAcceptableOrUnknown(data['file_type']!, _fileTypeMeta),
+      );
+    }
+    if (data.containsKey('file_size')) {
+      context.handle(
+        _fileSizeMeta,
+        fileSize.isAcceptableOrUnknown(data['file_size']!, _fileSizeMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('revision')) {
+      context.handle(
+        _revisionMeta,
+        revision.isAcceptableOrUnknown(data['revision']!, _revisionMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ExpenseAttachmentTableData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExpenseAttachmentTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      profileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}profile_id'],
+      )!,
+      transactionId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transaction_id'],
+      )!,
+      filePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_path'],
+      )!,
+      fileType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_type'],
+      ),
+      fileSize: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}file_size'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncStatus: $ExpenseAttachmentsTable.$convertersyncStatus.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}sync_status'],
+        )!,
+      ),
+      revision: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}revision'],
+      )!,
+    );
+  }
+
+  @override
+  $ExpenseAttachmentsTable createAlias(String alias) {
+    return $ExpenseAttachmentsTable(attachedDatabase, alias);
+  }
+
+  static JsonTypeConverter2<SyncRecordStatus, String, String>
+  $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
+    SyncRecordStatus.values,
+  );
+}
+
+class ExpenseAttachmentTableData extends DataClass
+    implements Insertable<ExpenseAttachmentTableData> {
+  final String id;
+  final String profileId;
+  final String transactionId;
+  final String filePath;
+  final String? fileType;
+  final int? fileSize;
+  final DateTime createdAt;
+  final bool isDeleted;
+  final SyncRecordStatus syncStatus;
+  final int revision;
+  const ExpenseAttachmentTableData({
+    required this.id,
+    required this.profileId,
+    required this.transactionId,
+    required this.filePath,
+    this.fileType,
+    this.fileSize,
+    required this.createdAt,
+    required this.isDeleted,
+    required this.syncStatus,
+    required this.revision,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['profile_id'] = Variable<String>(profileId);
+    map['transaction_id'] = Variable<String>(transactionId);
+    map['file_path'] = Variable<String>(filePath);
+    if (!nullToAbsent || fileType != null) {
+      map['file_type'] = Variable<String>(fileType);
+    }
+    if (!nullToAbsent || fileSize != null) {
+      map['file_size'] = Variable<int>(fileSize);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    {
+      map['sync_status'] = Variable<String>(
+        $ExpenseAttachmentsTable.$convertersyncStatus.toSql(syncStatus),
+      );
+    }
+    map['revision'] = Variable<int>(revision);
+    return map;
+  }
+
+  ExpenseAttachmentsCompanion toCompanion(bool nullToAbsent) {
+    return ExpenseAttachmentsCompanion(
+      id: Value(id),
+      profileId: Value(profileId),
+      transactionId: Value(transactionId),
+      filePath: Value(filePath),
+      fileType: fileType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileType),
+      fileSize: fileSize == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileSize),
+      createdAt: Value(createdAt),
+      isDeleted: Value(isDeleted),
+      syncStatus: Value(syncStatus),
+      revision: Value(revision),
+    );
+  }
+
+  factory ExpenseAttachmentTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExpenseAttachmentTableData(
+      id: serializer.fromJson<String>(json['id']),
+      profileId: serializer.fromJson<String>(json['profileId']),
+      transactionId: serializer.fromJson<String>(json['transactionId']),
+      filePath: serializer.fromJson<String>(json['filePath']),
+      fileType: serializer.fromJson<String?>(json['fileType']),
+      fileSize: serializer.fromJson<int?>(json['fileSize']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncStatus: $ExpenseAttachmentsTable.$convertersyncStatus.fromJson(
+        serializer.fromJson<String>(json['syncStatus']),
+      ),
+      revision: serializer.fromJson<int>(json['revision']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'profileId': serializer.toJson<String>(profileId),
+      'transactionId': serializer.toJson<String>(transactionId),
+      'filePath': serializer.toJson<String>(filePath),
+      'fileType': serializer.toJson<String?>(fileType),
+      'fileSize': serializer.toJson<int?>(fileSize),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncStatus': serializer.toJson<String>(
+        $ExpenseAttachmentsTable.$convertersyncStatus.toJson(syncStatus),
+      ),
+      'revision': serializer.toJson<int>(revision),
+    };
+  }
+
+  ExpenseAttachmentTableData copyWith({
+    String? id,
+    String? profileId,
+    String? transactionId,
+    String? filePath,
+    Value<String?> fileType = const Value.absent(),
+    Value<int?> fileSize = const Value.absent(),
+    DateTime? createdAt,
+    bool? isDeleted,
+    SyncRecordStatus? syncStatus,
+    int? revision,
+  }) => ExpenseAttachmentTableData(
+    id: id ?? this.id,
+    profileId: profileId ?? this.profileId,
+    transactionId: transactionId ?? this.transactionId,
+    filePath: filePath ?? this.filePath,
+    fileType: fileType.present ? fileType.value : this.fileType,
+    fileSize: fileSize.present ? fileSize.value : this.fileSize,
+    createdAt: createdAt ?? this.createdAt,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncStatus: syncStatus ?? this.syncStatus,
+    revision: revision ?? this.revision,
+  );
+  ExpenseAttachmentTableData copyWithCompanion(
+    ExpenseAttachmentsCompanion data,
+  ) {
+    return ExpenseAttachmentTableData(
+      id: data.id.present ? data.id.value : this.id,
+      profileId: data.profileId.present ? data.profileId.value : this.profileId,
+      transactionId: data.transactionId.present
+          ? data.transactionId.value
+          : this.transactionId,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      fileType: data.fileType.present ? data.fileType.value : this.fileType,
+      fileSize: data.fileSize.present ? data.fileSize.value : this.fileSize,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncStatus: data.syncStatus.present
+          ? data.syncStatus.value
+          : this.syncStatus,
+      revision: data.revision.present ? data.revision.value : this.revision,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseAttachmentTableData(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('filePath: $filePath, ')
+          ..write('fileType: $fileType, ')
+          ..write('fileSize: $fileSize, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    profileId,
+    transactionId,
+    filePath,
+    fileType,
+    fileSize,
+    createdAt,
+    isDeleted,
+    syncStatus,
+    revision,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExpenseAttachmentTableData &&
+          other.id == this.id &&
+          other.profileId == this.profileId &&
+          other.transactionId == this.transactionId &&
+          other.filePath == this.filePath &&
+          other.fileType == this.fileType &&
+          other.fileSize == this.fileSize &&
+          other.createdAt == this.createdAt &&
+          other.isDeleted == this.isDeleted &&
+          other.syncStatus == this.syncStatus &&
+          other.revision == this.revision);
+}
+
+class ExpenseAttachmentsCompanion
+    extends UpdateCompanion<ExpenseAttachmentTableData> {
+  final Value<String> id;
+  final Value<String> profileId;
+  final Value<String> transactionId;
+  final Value<String> filePath;
+  final Value<String?> fileType;
+  final Value<int?> fileSize;
+  final Value<DateTime> createdAt;
+  final Value<bool> isDeleted;
+  final Value<SyncRecordStatus> syncStatus;
+  final Value<int> revision;
+  final Value<int> rowid;
+  const ExpenseAttachmentsCompanion({
+    this.id = const Value.absent(),
+    this.profileId = const Value.absent(),
+    this.transactionId = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.fileType = const Value.absent(),
+    this.fileSize = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExpenseAttachmentsCompanion.insert({
+    required String id,
+    required String profileId,
+    required String transactionId,
+    required String filePath,
+    this.fileType = const Value.absent(),
+    this.fileSize = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncStatus = const Value.absent(),
+    this.revision = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       profileId = Value(profileId),
+       transactionId = Value(transactionId),
+       filePath = Value(filePath);
+  static Insertable<ExpenseAttachmentTableData> custom({
+    Expression<String>? id,
+    Expression<String>? profileId,
+    Expression<String>? transactionId,
+    Expression<String>? filePath,
+    Expression<String>? fileType,
+    Expression<int>? fileSize,
+    Expression<DateTime>? createdAt,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncStatus,
+    Expression<int>? revision,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (profileId != null) 'profile_id': profileId,
+      if (transactionId != null) 'transaction_id': transactionId,
+      if (filePath != null) 'file_path': filePath,
+      if (fileType != null) 'file_type': fileType,
+      if (fileSize != null) 'file_size': fileSize,
+      if (createdAt != null) 'created_at': createdAt,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncStatus != null) 'sync_status': syncStatus,
+      if (revision != null) 'revision': revision,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExpenseAttachmentsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? profileId,
+    Value<String>? transactionId,
+    Value<String>? filePath,
+    Value<String?>? fileType,
+    Value<int?>? fileSize,
+    Value<DateTime>? createdAt,
+    Value<bool>? isDeleted,
+    Value<SyncRecordStatus>? syncStatus,
+    Value<int>? revision,
+    Value<int>? rowid,
+  }) {
+    return ExpenseAttachmentsCompanion(
+      id: id ?? this.id,
+      profileId: profileId ?? this.profileId,
+      transactionId: transactionId ?? this.transactionId,
+      filePath: filePath ?? this.filePath,
+      fileType: fileType ?? this.fileType,
+      fileSize: fileSize ?? this.fileSize,
+      createdAt: createdAt ?? this.createdAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncStatus: syncStatus ?? this.syncStatus,
+      revision: revision ?? this.revision,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (profileId.present) {
+      map['profile_id'] = Variable<String>(profileId.value);
+    }
+    if (transactionId.present) {
+      map['transaction_id'] = Variable<String>(transactionId.value);
+    }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (fileType.present) {
+      map['file_type'] = Variable<String>(fileType.value);
+    }
+    if (fileSize.present) {
+      map['file_size'] = Variable<int>(fileSize.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncStatus.present) {
+      map['sync_status'] = Variable<String>(
+        $ExpenseAttachmentsTable.$convertersyncStatus.toSql(syncStatus.value),
+      );
+    }
+    if (revision.present) {
+      map['revision'] = Variable<int>(revision.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExpenseAttachmentsCompanion(')
+          ..write('id: $id, ')
+          ..write('profileId: $profileId, ')
+          ..write('transactionId: $transactionId, ')
+          ..write('filePath: $filePath, ')
+          ..write('fileType: $fileType, ')
+          ..write('fileSize: $fileSize, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncStatus: $syncStatus, ')
+          ..write('revision: $revision, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $CompaniesTable companies = $CompaniesTable(this);
   late final $UserProfilesTable userProfiles = $UserProfilesTable(this);
+  late final $SharedMembershipsTable sharedMemberships =
+      $SharedMembershipsTable(this);
+  late final $SharedDevicesTable sharedDevices = $SharedDevicesTable(this);
+  late final $UserPreferencesTable userPreferences = $UserPreferencesTable(
+    this,
+  );
   late final $PartiesTable parties = $PartiesTable(this);
   late final $LedgerEntriesTable ledgerEntries = $LedgerEntriesTable(this);
   late final $AuditLogsTable auditLogs = $AuditLogsTable(this);
@@ -14139,6 +20703,24 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $JournalLinesTable journalLines = $JournalLinesTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $RecurringRulesTable recurringRules = $RecurringRulesTable(this);
+  late final $ExpenseWalletsTable expenseWallets = $ExpenseWalletsTable(this);
+  late final $ExpenseCategoriesTable expenseCategories =
+      $ExpenseCategoriesTable(this);
+  late final $ExpenseTransactionsTable expenseTransactions =
+      $ExpenseTransactionsTable(this);
+  late final $ExpenseBudgetsTable expenseBudgets = $ExpenseBudgetsTable(this);
+  late final $ExpenseRecurringRulesTable expenseRecurringRules =
+      $ExpenseRecurringRulesTable(this);
+  late final $ExpenseAttachmentsTable expenseAttachments =
+      $ExpenseAttachmentsTable(this);
+  late final Index sharedMembershipsProfileAccountIdx = Index(
+    'shared_memberships_profile_account_idx',
+    'CREATE UNIQUE INDEX shared_memberships_profile_account_idx ON shared_memberships (profile_id, account_id)',
+  );
+  late final Index sharedDevicesAccountDeviceIdx = Index(
+    'shared_devices_account_device_idx',
+    'CREATE UNIQUE INDEX shared_devices_account_device_idx ON shared_devices (account_id, device_uuid)',
+  );
   late final Index partiesCompanyIdx = Index(
     'parties_company_idx',
     'CREATE INDEX parties_company_idx ON parties (company_id)',
@@ -14171,6 +20753,38 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     'journal_lines_account_idx',
     'CREATE INDEX journal_lines_account_idx ON journal_lines (account_id)',
   );
+  late final Index expWalletsProfileIdx = Index(
+    'exp_wallets_profile_idx',
+    'CREATE INDEX exp_wallets_profile_idx ON expense_wallets (profile_id)',
+  );
+  late final Index expCategoriesProfileTypeIdx = Index(
+    'exp_categories_profile_type_idx',
+    'CREATE INDEX exp_categories_profile_type_idx ON expense_categories (profile_id, category_type)',
+  );
+  late final Index expTxnsProfileDateIdx = Index(
+    'exp_txns_profile_date_idx',
+    'CREATE INDEX exp_txns_profile_date_idx ON expense_transactions (profile_id, transaction_date)',
+  );
+  late final Index expTxnsWalletIdx = Index(
+    'exp_txns_wallet_idx',
+    'CREATE INDEX exp_txns_wallet_idx ON expense_transactions (wallet_id)',
+  );
+  late final Index expTxnsCategoryIdx = Index(
+    'exp_txns_category_idx',
+    'CREATE INDEX exp_txns_category_idx ON expense_transactions (category_id)',
+  );
+  late final Index expBudgetsProfileCategoryIdx = Index(
+    'exp_budgets_profile_category_idx',
+    'CREATE INDEX exp_budgets_profile_category_idx ON expense_budgets (profile_id, category_id)',
+  );
+  late final Index expRecurringProfileNextIdx = Index(
+    'exp_recurring_profile_next_idx',
+    'CREATE INDEX exp_recurring_profile_next_idx ON expense_recurring_rules (profile_id, next_run_date)',
+  );
+  late final Index expAttachmentsProfileTxnIdx = Index(
+    'exp_attachments_profile_txn_idx',
+    'CREATE INDEX exp_attachments_profile_txn_idx ON expense_attachments (profile_id, transaction_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -14178,6 +20792,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     companies,
     userProfiles,
+    sharedMemberships,
+    sharedDevices,
+    userPreferences,
     parties,
     ledgerEntries,
     auditLogs,
@@ -14191,6 +20808,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     journalLines,
     budgets,
     recurringRules,
+    expenseWallets,
+    expenseCategories,
+    expenseTransactions,
+    expenseBudgets,
+    expenseRecurringRules,
+    expenseAttachments,
+    sharedMembershipsProfileAccountIdx,
+    sharedDevicesAccountDeviceIdx,
     partiesCompanyIdx,
     ledgerEntriesCompanyPartyDateIdx,
     syncOutboxTableRecordIdx,
@@ -14199,6 +20824,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     accountsCompanyKindIdx,
     journalLinesJournalIdx,
     journalLinesAccountIdx,
+    expWalletsProfileIdx,
+    expCategoriesProfileTypeIdx,
+    expTxnsProfileDateIdx,
+    expTxnsWalletIdx,
+    expTxnsCategoryIdx,
+    expBudgetsProfileCategoryIdx,
+    expRecurringProfileNextIdx,
+    expAttachmentsProfileTxnIdx,
   ];
 }
 
@@ -14273,6 +20906,30 @@ final class $$CompaniesTableReferences
     extends BaseReferences<_$AppDatabase, $CompaniesTable, CompanyTableData> {
   $$CompaniesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
+  static MultiTypedResultKey<
+    $SharedMembershipsTable,
+    List<SharedMembershipTableData>
+  >
+  _sharedMembershipsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.sharedMemberships,
+        aliasName: 'companies__id__shared_memberships__profile_id',
+      );
+
+  $$SharedMembershipsTableProcessedTableManager get sharedMembershipsRefs {
+    final manager = $$SharedMembershipsTableTableManager(
+      $_db,
+      $_db.sharedMemberships,
+    ).filter((f) => f.profileId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _sharedMembershipsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<$PartiesTable, List<PartyTableData>>
   _partiesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.parties,
@@ -14304,6 +20961,139 @@ final class $$CompaniesTableReferences
     ).filter((f) => f.companyId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_ledgerEntriesRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ExpenseWalletsTable, List<ExpenseWalletTableData>>
+  _expenseWalletsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.expenseWallets,
+    aliasName: 'companies__id__expense_wallets__profile_id',
+  );
+
+  $$ExpenseWalletsTableProcessedTableManager get expenseWalletsRefs {
+    final manager = $$ExpenseWalletsTableTableManager(
+      $_db,
+      $_db.expenseWallets,
+    ).filter((f) => f.profileId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_expenseWalletsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ExpenseCategoriesTable,
+    List<ExpenseCategoryTableData>
+  >
+  _expenseCategoriesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.expenseCategories,
+        aliasName: 'companies__id__expense_categories__profile_id',
+      );
+
+  $$ExpenseCategoriesTableProcessedTableManager get expenseCategoriesRefs {
+    final manager = $$ExpenseCategoriesTableTableManager(
+      $_db,
+      $_db.expenseCategories,
+    ).filter((f) => f.profileId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _expenseCategoriesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ExpenseTransactionsTable,
+    List<ExpenseTransactionTableData>
+  >
+  _expenseTransactionsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.expenseTransactions,
+        aliasName: 'companies__id__expense_transactions__profile_id',
+      );
+
+  $$ExpenseTransactionsTableProcessedTableManager get expenseTransactionsRefs {
+    final manager = $$ExpenseTransactionsTableTableManager(
+      $_db,
+      $_db.expenseTransactions,
+    ).filter((f) => f.profileId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _expenseTransactionsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ExpenseBudgetsTable, List<ExpenseBudgetTableData>>
+  _expenseBudgetsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.expenseBudgets,
+    aliasName: 'companies__id__expense_budgets__profile_id',
+  );
+
+  $$ExpenseBudgetsTableProcessedTableManager get expenseBudgetsRefs {
+    final manager = $$ExpenseBudgetsTableTableManager(
+      $_db,
+      $_db.expenseBudgets,
+    ).filter((f) => f.profileId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_expenseBudgetsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ExpenseRecurringRulesTable,
+    List<ExpenseRecurringRuleTableData>
+  >
+  _expenseRecurringRulesRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.expenseRecurringRules,
+        aliasName: 'companies__id__expense_recurring_rules__profile_id',
+      );
+
+  $$ExpenseRecurringRulesTableProcessedTableManager
+  get expenseRecurringRulesRefs {
+    final manager = $$ExpenseRecurringRulesTableTableManager(
+      $_db,
+      $_db.expenseRecurringRules,
+    ).filter((f) => f.profileId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _expenseRecurringRulesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ExpenseAttachmentsTable,
+    List<ExpenseAttachmentTableData>
+  >
+  _expenseAttachmentsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.expenseAttachments,
+        aliasName: 'companies__id__expense_attachments__profile_id',
+      );
+
+  $$ExpenseAttachmentsTableProcessedTableManager get expenseAttachmentsRefs {
+    final manager = $$ExpenseAttachmentsTableTableManager(
+      $_db,
+      $_db.expenseAttachments,
+    ).filter((f) => f.profileId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _expenseAttachmentsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -14465,6 +21255,31 @@ class $$CompaniesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  Expression<bool> sharedMembershipsRefs(
+    Expression<bool> Function($$SharedMembershipsTableFilterComposer f) f,
+  ) {
+    final $$SharedMembershipsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.sharedMemberships,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$SharedMembershipsTableFilterComposer(
+            $db: $db,
+            $table: $db.sharedMemberships,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<bool> partiesRefs(
     Expression<bool> Function($$PartiesTableFilterComposer f) f,
   ) {
@@ -14506,6 +21321,157 @@ class $$CompaniesTableFilterComposer
           }) => $$LedgerEntriesTableFilterComposer(
             $db: $db,
             $table: $db.ledgerEntries,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> expenseWalletsRefs(
+    Expression<bool> Function($$ExpenseWalletsTableFilterComposer f) f,
+  ) {
+    final $$ExpenseWalletsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseWallets,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseWalletsTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseWallets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> expenseCategoriesRefs(
+    Expression<bool> Function($$ExpenseCategoriesTableFilterComposer f) f,
+  ) {
+    final $$ExpenseCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseCategories,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> expenseTransactionsRefs(
+    Expression<bool> Function($$ExpenseTransactionsTableFilterComposer f) f,
+  ) {
+    final $$ExpenseTransactionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseTransactions,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseTransactionsTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseTransactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> expenseBudgetsRefs(
+    Expression<bool> Function($$ExpenseBudgetsTableFilterComposer f) f,
+  ) {
+    final $$ExpenseBudgetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseBudgets,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseBudgetsTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseBudgets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> expenseRecurringRulesRefs(
+    Expression<bool> Function($$ExpenseRecurringRulesTableFilterComposer f) f,
+  ) {
+    final $$ExpenseRecurringRulesTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.expenseRecurringRules,
+          getReferencedColumn: (t) => t.profileId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseRecurringRulesTableFilterComposer(
+                $db: $db,
+                $table: $db.expenseRecurringRules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> expenseAttachmentsRefs(
+    Expression<bool> Function($$ExpenseAttachmentsTableFilterComposer f) f,
+  ) {
+    final $$ExpenseAttachmentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseAttachments,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseAttachmentsTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseAttachments,
             $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
             joinBuilder: joinBuilder,
             $removeJoinBuilderFromRootComposer:
@@ -14790,6 +21756,32 @@ class $$CompaniesTableAnnotationComposer
   GeneratedColumn<String> get ownerId =>
       $composableBuilder(column: $table.ownerId, builder: (column) => column);
 
+  Expression<T> sharedMembershipsRefs<T extends Object>(
+    Expression<T> Function($$SharedMembershipsTableAnnotationComposer a) f,
+  ) {
+    final $$SharedMembershipsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.sharedMemberships,
+          getReferencedColumn: (t) => t.profileId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$SharedMembershipsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.sharedMemberships,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
   Expression<T> partiesRefs<T extends Object>(
     Expression<T> Function($$PartiesTableAnnotationComposer a) f,
   ) {
@@ -14839,6 +21831,160 @@ class $$CompaniesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> expenseWalletsRefs<T extends Object>(
+    Expression<T> Function($$ExpenseWalletsTableAnnotationComposer a) f,
+  ) {
+    final $$ExpenseWalletsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseWallets,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseWalletsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.expenseWallets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> expenseCategoriesRefs<T extends Object>(
+    Expression<T> Function($$ExpenseCategoriesTableAnnotationComposer a) f,
+  ) {
+    final $$ExpenseCategoriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.expenseCategories,
+          getReferencedColumn: (t) => t.profileId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseCategoriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.expenseCategories,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> expenseTransactionsRefs<T extends Object>(
+    Expression<T> Function($$ExpenseTransactionsTableAnnotationComposer a) f,
+  ) {
+    final $$ExpenseTransactionsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.expenseTransactions,
+          getReferencedColumn: (t) => t.profileId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseTransactionsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.expenseTransactions,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> expenseBudgetsRefs<T extends Object>(
+    Expression<T> Function($$ExpenseBudgetsTableAnnotationComposer a) f,
+  ) {
+    final $$ExpenseBudgetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseBudgets,
+      getReferencedColumn: (t) => t.profileId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseBudgetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.expenseBudgets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> expenseRecurringRulesRefs<T extends Object>(
+    Expression<T> Function($$ExpenseRecurringRulesTableAnnotationComposer a) f,
+  ) {
+    final $$ExpenseRecurringRulesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.expenseRecurringRules,
+          getReferencedColumn: (t) => t.profileId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseRecurringRulesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.expenseRecurringRules,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> expenseAttachmentsRefs<T extends Object>(
+    Expression<T> Function($$ExpenseAttachmentsTableAnnotationComposer a) f,
+  ) {
+    final $$ExpenseAttachmentsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.expenseAttachments,
+          getReferencedColumn: (t) => t.profileId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseAttachmentsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.expenseAttachments,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$CompaniesTableTableManager
@@ -14854,7 +22000,17 @@ class $$CompaniesTableTableManager
           $$CompaniesTableUpdateCompanionBuilder,
           (CompanyTableData, $$CompaniesTableReferences),
           CompanyTableData,
-          PrefetchHooks Function({bool partiesRefs, bool ledgerEntriesRefs})
+          PrefetchHooks Function({
+            bool sharedMembershipsRefs,
+            bool partiesRefs,
+            bool ledgerEntriesRefs,
+            bool expenseWalletsRefs,
+            bool expenseCategoriesRefs,
+            bool expenseTransactionsRefs,
+            bool expenseBudgetsRefs,
+            bool expenseRecurringRulesRefs,
+            bool expenseAttachmentsRefs,
+          })
         > {
   $$CompaniesTableTableManager(_$AppDatabase db, $CompaniesTable table)
     : super(
@@ -15004,16 +22160,54 @@ class $$CompaniesTableTableManager
               )
               .toList(),
           prefetchHooksCallback:
-              ({partiesRefs = false, ledgerEntriesRefs = false}) {
+              ({
+                sharedMembershipsRefs = false,
+                partiesRefs = false,
+                ledgerEntriesRefs = false,
+                expenseWalletsRefs = false,
+                expenseCategoriesRefs = false,
+                expenseTransactionsRefs = false,
+                expenseBudgetsRefs = false,
+                expenseRecurringRulesRefs = false,
+                expenseAttachmentsRefs = false,
+              }) {
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
+                    if (sharedMembershipsRefs) db.sharedMemberships,
                     if (partiesRefs) db.parties,
                     if (ledgerEntriesRefs) db.ledgerEntries,
+                    if (expenseWalletsRefs) db.expenseWallets,
+                    if (expenseCategoriesRefs) db.expenseCategories,
+                    if (expenseTransactionsRefs) db.expenseTransactions,
+                    if (expenseBudgetsRefs) db.expenseBudgets,
+                    if (expenseRecurringRulesRefs) db.expenseRecurringRules,
+                    if (expenseAttachmentsRefs) db.expenseAttachments,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
                     return [
+                      if (sharedMembershipsRefs)
+                        await $_getPrefetchedData<
+                          CompanyTableData,
+                          $CompaniesTable,
+                          SharedMembershipTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CompaniesTableReferences
+                              ._sharedMembershipsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CompaniesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).sharedMembershipsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.profileId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (partiesRefs)
                         await $_getPrefetchedData<
                           CompanyTableData,
@@ -15056,6 +22250,132 @@ class $$CompaniesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (expenseWalletsRefs)
+                        await $_getPrefetchedData<
+                          CompanyTableData,
+                          $CompaniesTable,
+                          ExpenseWalletTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CompaniesTableReferences
+                              ._expenseWalletsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CompaniesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).expenseWalletsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.profileId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (expenseCategoriesRefs)
+                        await $_getPrefetchedData<
+                          CompanyTableData,
+                          $CompaniesTable,
+                          ExpenseCategoryTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CompaniesTableReferences
+                              ._expenseCategoriesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CompaniesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).expenseCategoriesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.profileId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (expenseTransactionsRefs)
+                        await $_getPrefetchedData<
+                          CompanyTableData,
+                          $CompaniesTable,
+                          ExpenseTransactionTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CompaniesTableReferences
+                              ._expenseTransactionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CompaniesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).expenseTransactionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.profileId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (expenseBudgetsRefs)
+                        await $_getPrefetchedData<
+                          CompanyTableData,
+                          $CompaniesTable,
+                          ExpenseBudgetTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CompaniesTableReferences
+                              ._expenseBudgetsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CompaniesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).expenseBudgetsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.profileId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (expenseRecurringRulesRefs)
+                        await $_getPrefetchedData<
+                          CompanyTableData,
+                          $CompaniesTable,
+                          ExpenseRecurringRuleTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CompaniesTableReferences
+                              ._expenseRecurringRulesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CompaniesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).expenseRecurringRulesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.profileId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (expenseAttachmentsRefs)
+                        await $_getPrefetchedData<
+                          CompanyTableData,
+                          $CompaniesTable,
+                          ExpenseAttachmentTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$CompaniesTableReferences
+                              ._expenseAttachmentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$CompaniesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).expenseAttachmentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.profileId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -15076,7 +22396,17 @@ typedef $$CompaniesTableProcessedTableManager =
       $$CompaniesTableUpdateCompanionBuilder,
       (CompanyTableData, $$CompaniesTableReferences),
       CompanyTableData,
-      PrefetchHooks Function({bool partiesRefs, bool ledgerEntriesRefs})
+      PrefetchHooks Function({
+        bool sharedMembershipsRefs,
+        bool partiesRefs,
+        bool ledgerEntriesRefs,
+        bool expenseWalletsRefs,
+        bool expenseCategoriesRefs,
+        bool expenseTransactionsRefs,
+        bool expenseBudgetsRefs,
+        bool expenseRecurringRulesRefs,
+        bool expenseAttachmentsRefs,
+      })
     >;
 typedef $$UserProfilesTableCreateCompanionBuilder =
     UserProfilesCompanion Function({
@@ -15602,6 +22932,858 @@ typedef $$UserProfilesTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $UserProfilesTable, UserProfileTableData>,
       ),
       UserProfileTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$SharedMembershipsTableCreateCompanionBuilder =
+    SharedMembershipsCompanion Function({
+      required String id,
+      required String profileId,
+      required String accountId,
+      required String role,
+      Value<DateTime> joinedAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SharedMembershipsTableUpdateCompanionBuilder =
+    SharedMembershipsCompanion Function({
+      Value<String> id,
+      Value<String> profileId,
+      Value<String> accountId,
+      Value<String> role,
+      Value<DateTime> joinedAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$SharedMembershipsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $SharedMembershipsTable,
+          SharedMembershipTableData
+        > {
+  $$SharedMembershipsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CompaniesTable _profileIdTable(_$AppDatabase db) =>
+      db.companies.createAlias('shared_memberships__profile_id__companies__id');
+
+  $$CompaniesTableProcessedTableManager get profileId {
+    final $_column = $_itemColumn<String>('profile_id')!;
+
+    final manager = $$CompaniesTableTableManager(
+      $_db,
+      $_db.companies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_profileIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$SharedMembershipsTableFilterComposer
+    extends Composer<_$AppDatabase, $SharedMembershipsTable> {
+  $$SharedMembershipsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get joinedAt => $composableBuilder(
+    column: $table.joinedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CompaniesTableFilterComposer get profileId {
+    final $$CompaniesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableFilterComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SharedMembershipsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SharedMembershipsTable> {
+  $$SharedMembershipsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get role => $composableBuilder(
+    column: $table.role,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get joinedAt => $composableBuilder(
+    column: $table.joinedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CompaniesTableOrderingComposer get profileId {
+    final $$CompaniesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableOrderingComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SharedMembershipsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SharedMembershipsTable> {
+  $$SharedMembershipsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get joinedAt =>
+      $composableBuilder(column: $table.joinedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$CompaniesTableAnnotationComposer get profileId {
+    final $$CompaniesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$SharedMembershipsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SharedMembershipsTable,
+          SharedMembershipTableData,
+          $$SharedMembershipsTableFilterComposer,
+          $$SharedMembershipsTableOrderingComposer,
+          $$SharedMembershipsTableAnnotationComposer,
+          $$SharedMembershipsTableCreateCompanionBuilder,
+          $$SharedMembershipsTableUpdateCompanionBuilder,
+          (SharedMembershipTableData, $$SharedMembershipsTableReferences),
+          SharedMembershipTableData,
+          PrefetchHooks Function({bool profileId})
+        > {
+  $$SharedMembershipsTableTableManager(
+    _$AppDatabase db,
+    $SharedMembershipsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SharedMembershipsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SharedMembershipsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SharedMembershipsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> profileId = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<String> role = const Value.absent(),
+                Value<DateTime> joinedAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SharedMembershipsCompanion(
+                id: id,
+                profileId: profileId,
+                accountId: accountId,
+                role: role,
+                joinedAt: joinedAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String profileId,
+                required String accountId,
+                required String role,
+                Value<DateTime> joinedAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SharedMembershipsCompanion.insert(
+                id: id,
+                profileId: profileId,
+                accountId: accountId,
+                role: role,
+                joinedAt: joinedAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$SharedMembershipsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({profileId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (profileId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.profileId,
+                                referencedTable:
+                                    $$SharedMembershipsTableReferences
+                                        ._profileIdTable(db),
+                                referencedColumn:
+                                    $$SharedMembershipsTableReferences
+                                        ._profileIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$SharedMembershipsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SharedMembershipsTable,
+      SharedMembershipTableData,
+      $$SharedMembershipsTableFilterComposer,
+      $$SharedMembershipsTableOrderingComposer,
+      $$SharedMembershipsTableAnnotationComposer,
+      $$SharedMembershipsTableCreateCompanionBuilder,
+      $$SharedMembershipsTableUpdateCompanionBuilder,
+      (SharedMembershipTableData, $$SharedMembershipsTableReferences),
+      SharedMembershipTableData,
+      PrefetchHooks Function({bool profileId})
+    >;
+typedef $$SharedDevicesTableCreateCompanionBuilder =
+    SharedDevicesCompanion Function({
+      required String id,
+      required String accountId,
+      required String deviceUuid,
+      required String deviceName,
+      required String platform,
+      Value<String?> pushToken,
+      Value<DateTime?> lastSyncAt,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$SharedDevicesTableUpdateCompanionBuilder =
+    SharedDevicesCompanion Function({
+      Value<String> id,
+      Value<String> accountId,
+      Value<String> deviceUuid,
+      Value<String> deviceName,
+      Value<String> platform,
+      Value<String?> pushToken,
+      Value<DateTime?> lastSyncAt,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$SharedDevicesTableFilterComposer
+    extends Composer<_$AppDatabase, $SharedDevicesTable> {
+  $$SharedDevicesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceUuid => $composableBuilder(
+    column: $table.deviceUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get deviceName => $composableBuilder(
+    column: $table.deviceName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get platform => $composableBuilder(
+    column: $table.platform,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pushToken => $composableBuilder(
+    column: $table.pushToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SharedDevicesTableOrderingComposer
+    extends Composer<_$AppDatabase, $SharedDevicesTable> {
+  $$SharedDevicesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get accountId => $composableBuilder(
+    column: $table.accountId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceUuid => $composableBuilder(
+    column: $table.deviceUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get deviceName => $composableBuilder(
+    column: $table.deviceName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get platform => $composableBuilder(
+    column: $table.platform,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pushToken => $composableBuilder(
+    column: $table.pushToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SharedDevicesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SharedDevicesTable> {
+  $$SharedDevicesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get accountId =>
+      $composableBuilder(column: $table.accountId, builder: (column) => column);
+
+  GeneratedColumn<String> get deviceUuid => $composableBuilder(
+    column: $table.deviceUuid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get deviceName => $composableBuilder(
+    column: $table.deviceName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get platform =>
+      $composableBuilder(column: $table.platform, builder: (column) => column);
+
+  GeneratedColumn<String> get pushToken =>
+      $composableBuilder(column: $table.pushToken, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get lastSyncAt => $composableBuilder(
+    column: $table.lastSyncAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$SharedDevicesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SharedDevicesTable,
+          SharedDeviceTableData,
+          $$SharedDevicesTableFilterComposer,
+          $$SharedDevicesTableOrderingComposer,
+          $$SharedDevicesTableAnnotationComposer,
+          $$SharedDevicesTableCreateCompanionBuilder,
+          $$SharedDevicesTableUpdateCompanionBuilder,
+          (
+            SharedDeviceTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $SharedDevicesTable,
+              SharedDeviceTableData
+            >,
+          ),
+          SharedDeviceTableData,
+          PrefetchHooks Function()
+        > {
+  $$SharedDevicesTableTableManager(_$AppDatabase db, $SharedDevicesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SharedDevicesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SharedDevicesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SharedDevicesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> accountId = const Value.absent(),
+                Value<String> deviceUuid = const Value.absent(),
+                Value<String> deviceName = const Value.absent(),
+                Value<String> platform = const Value.absent(),
+                Value<String?> pushToken = const Value.absent(),
+                Value<DateTime?> lastSyncAt = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SharedDevicesCompanion(
+                id: id,
+                accountId: accountId,
+                deviceUuid: deviceUuid,
+                deviceName: deviceName,
+                platform: platform,
+                pushToken: pushToken,
+                lastSyncAt: lastSyncAt,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String accountId,
+                required String deviceUuid,
+                required String deviceName,
+                required String platform,
+                Value<String?> pushToken = const Value.absent(),
+                Value<DateTime?> lastSyncAt = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => SharedDevicesCompanion.insert(
+                id: id,
+                accountId: accountId,
+                deviceUuid: deviceUuid,
+                deviceName: deviceName,
+                platform: platform,
+                pushToken: pushToken,
+                lastSyncAt: lastSyncAt,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SharedDevicesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SharedDevicesTable,
+      SharedDeviceTableData,
+      $$SharedDevicesTableFilterComposer,
+      $$SharedDevicesTableOrderingComposer,
+      $$SharedDevicesTableAnnotationComposer,
+      $$SharedDevicesTableCreateCompanionBuilder,
+      $$SharedDevicesTableUpdateCompanionBuilder,
+      (
+        SharedDeviceTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $SharedDevicesTable,
+          SharedDeviceTableData
+        >,
+      ),
+      SharedDeviceTableData,
+      PrefetchHooks Function()
+    >;
+typedef $$UserPreferencesTableCreateCompanionBuilder =
+    UserPreferencesCompanion Function({
+      required String key,
+      Value<String?> profileId,
+      required String value,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$UserPreferencesTableUpdateCompanionBuilder =
+    UserPreferencesCompanion Function({
+      Value<String> key,
+      Value<String?> profileId,
+      Value<String> value,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$UserPreferencesTableFilterComposer
+    extends Composer<_$AppDatabase, $UserPreferencesTable> {
+  $$UserPreferencesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$UserPreferencesTableOrderingComposer
+    extends Composer<_$AppDatabase, $UserPreferencesTable> {
+  $$UserPreferencesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get profileId => $composableBuilder(
+    column: $table.profileId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$UserPreferencesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UserPreferencesTable> {
+  $$UserPreferencesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get profileId =>
+      $composableBuilder(column: $table.profileId, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$UserPreferencesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $UserPreferencesTable,
+          UserPreferenceTableData,
+          $$UserPreferencesTableFilterComposer,
+          $$UserPreferencesTableOrderingComposer,
+          $$UserPreferencesTableAnnotationComposer,
+          $$UserPreferencesTableCreateCompanionBuilder,
+          $$UserPreferencesTableUpdateCompanionBuilder,
+          (
+            UserPreferenceTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $UserPreferencesTable,
+              UserPreferenceTableData
+            >,
+          ),
+          UserPreferenceTableData,
+          PrefetchHooks Function()
+        > {
+  $$UserPreferencesTableTableManager(
+    _$AppDatabase db,
+    $UserPreferencesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UserPreferencesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UserPreferencesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UserPreferencesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> key = const Value.absent(),
+                Value<String?> profileId = const Value.absent(),
+                Value<String> value = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UserPreferencesCompanion(
+                key: key,
+                profileId: profileId,
+                value: value,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String key,
+                Value<String?> profileId = const Value.absent(),
+                required String value,
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UserPreferencesCompanion.insert(
+                key: key,
+                profileId: profileId,
+                value: value,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$UserPreferencesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $UserPreferencesTable,
+      UserPreferenceTableData,
+      $$UserPreferencesTableFilterComposer,
+      $$UserPreferencesTableOrderingComposer,
+      $$UserPreferencesTableAnnotationComposer,
+      $$UserPreferencesTableCreateCompanionBuilder,
+      $$UserPreferencesTableUpdateCompanionBuilder,
+      (
+        UserPreferenceTableData,
+        BaseReferences<
+          _$AppDatabase,
+          $UserPreferencesTable,
+          UserPreferenceTableData
+        >,
+      ),
+      UserPreferenceTableData,
       PrefetchHooks Function()
     >;
 typedef $$PartiesTableCreateCompanionBuilder =
@@ -18871,6 +27053,57 @@ final class $$AccountsTableReferences
     extends BaseReferences<_$AppDatabase, $AccountsTable, AccountTableData> {
   $$AccountsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
+  static MultiTypedResultKey<$VouchersTable, List<VoucherTableData>>
+  _categoryVouchersTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.vouchers,
+    aliasName: 'accounts__id__vouchers__category_account_id',
+  );
+
+  $$VouchersTableProcessedTableManager get categoryVouchers {
+    final manager = $$VouchersTableTableManager($_db, $_db.vouchers).filter(
+      (f) => f.categoryAccountId.id.sqlEquals($_itemColumn<String>('id')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_categoryVouchersTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$VouchersTable, List<VoucherTableData>>
+  _walletVouchersTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.vouchers,
+    aliasName: 'accounts__id__vouchers__wallet_account_id',
+  );
+
+  $$VouchersTableProcessedTableManager get walletVouchers {
+    final manager = $$VouchersTableTableManager($_db, $_db.vouchers).filter(
+      (f) => f.walletAccountId.id.sqlEquals($_itemColumn<String>('id')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_walletVouchersTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$VouchersTable, List<VoucherTableData>>
+  _toWalletVouchersTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.vouchers,
+    aliasName: 'accounts__id__vouchers__to_wallet_account_id',
+  );
+
+  $$VouchersTableProcessedTableManager get toWalletVouchers {
+    final manager = $$VouchersTableTableManager($_db, $_db.vouchers).filter(
+      (f) => f.toWalletAccountId.id.sqlEquals($_itemColumn<String>('id')!),
+    );
+
+    final cache = $_typedResult.readTableOrNull(_toWalletVouchersTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
   static MultiTypedResultKey<$JournalLinesTable, List<JournalLineTableData>>
   _journalLinesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.journalLines,
@@ -18984,6 +27217,81 @@ class $$AccountsTableFilterComposer
     column: $table.remoteUpdatedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> categoryVouchers(
+    Expression<bool> Function($$VouchersTableFilterComposer f) f,
+  ) {
+    final $$VouchersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.vouchers,
+      getReferencedColumn: (t) => t.categoryAccountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VouchersTableFilterComposer(
+            $db: $db,
+            $table: $db.vouchers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> walletVouchers(
+    Expression<bool> Function($$VouchersTableFilterComposer f) f,
+  ) {
+    final $$VouchersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.vouchers,
+      getReferencedColumn: (t) => t.walletAccountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VouchersTableFilterComposer(
+            $db: $db,
+            $table: $db.vouchers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> toWalletVouchers(
+    Expression<bool> Function($$VouchersTableFilterComposer f) f,
+  ) {
+    final $$VouchersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.vouchers,
+      getReferencedColumn: (t) => t.toWalletAccountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VouchersTableFilterComposer(
+            $db: $db,
+            $table: $db.vouchers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<bool> journalLinesRefs(
     Expression<bool> Function($$JournalLinesTableFilterComposer f) f,
@@ -19177,6 +27485,81 @@ class $$AccountsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  Expression<T> categoryVouchers<T extends Object>(
+    Expression<T> Function($$VouchersTableAnnotationComposer a) f,
+  ) {
+    final $$VouchersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.vouchers,
+      getReferencedColumn: (t) => t.categoryAccountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VouchersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.vouchers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> walletVouchers<T extends Object>(
+    Expression<T> Function($$VouchersTableAnnotationComposer a) f,
+  ) {
+    final $$VouchersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.vouchers,
+      getReferencedColumn: (t) => t.walletAccountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VouchersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.vouchers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> toWalletVouchers<T extends Object>(
+    Expression<T> Function($$VouchersTableAnnotationComposer a) f,
+  ) {
+    final $$VouchersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.vouchers,
+      getReferencedColumn: (t) => t.toWalletAccountId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$VouchersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.vouchers,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
   Expression<T> journalLinesRefs<T extends Object>(
     Expression<T> Function($$JournalLinesTableAnnotationComposer a) f,
   ) {
@@ -19216,7 +27599,12 @@ class $$AccountsTableTableManager
           $$AccountsTableUpdateCompanionBuilder,
           (AccountTableData, $$AccountsTableReferences),
           AccountTableData,
-          PrefetchHooks Function({bool journalLinesRefs})
+          PrefetchHooks Function({
+            bool categoryVouchers,
+            bool walletVouchers,
+            bool toWalletVouchers,
+            bool journalLinesRefs,
+          })
         > {
   $$AccountsTableTableManager(_$AppDatabase db, $AccountsTable table)
     : super(
@@ -19317,35 +27705,112 @@ class $$AccountsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({journalLinesRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (journalLinesRefs) db.journalLines],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (journalLinesRefs)
-                    await $_getPrefetchedData<
-                      AccountTableData,
-                      $AccountsTable,
-                      JournalLineTableData
-                    >(
-                      currentTable: table,
-                      referencedTable: $$AccountsTableReferences
-                          ._journalLinesRefsTable(db),
-                      managerFromTypedResult: (p0) => $$AccountsTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).journalLinesRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where((e) => e.accountId == item.id),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({
+                categoryVouchers = false,
+                walletVouchers = false,
+                toWalletVouchers = false,
+                journalLinesRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (categoryVouchers) db.vouchers,
+                    if (walletVouchers) db.vouchers,
+                    if (toWalletVouchers) db.vouchers,
+                    if (journalLinesRefs) db.journalLines,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (categoryVouchers)
+                        await $_getPrefetchedData<
+                          AccountTableData,
+                          $AccountsTable,
+                          VoucherTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AccountsTableReferences
+                              ._categoryVouchersTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AccountsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).categoryVouchers,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryAccountId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (walletVouchers)
+                        await $_getPrefetchedData<
+                          AccountTableData,
+                          $AccountsTable,
+                          VoucherTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AccountsTableReferences
+                              ._walletVouchersTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AccountsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).walletVouchers,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.walletAccountId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (toWalletVouchers)
+                        await $_getPrefetchedData<
+                          AccountTableData,
+                          $AccountsTable,
+                          VoucherTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AccountsTableReferences
+                              ._toWalletVouchersTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AccountsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).toWalletVouchers,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.toWalletAccountId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (journalLinesRefs)
+                        await $_getPrefetchedData<
+                          AccountTableData,
+                          $AccountsTable,
+                          JournalLineTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$AccountsTableReferences
+                              ._journalLinesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$AccountsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).journalLinesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.accountId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -19362,7 +27827,12 @@ typedef $$AccountsTableProcessedTableManager =
       $$AccountsTableUpdateCompanionBuilder,
       (AccountTableData, $$AccountsTableReferences),
       AccountTableData,
-      PrefetchHooks Function({bool journalLinesRefs})
+      PrefetchHooks Function({
+        bool categoryVouchers,
+        bool walletVouchers,
+        bool toWalletVouchers,
+        bool journalLinesRefs,
+      })
     >;
 typedef $$VouchersTableCreateCompanionBuilder =
     VouchersCompanion Function({
@@ -22177,6 +30647,3935 @@ typedef $$RecurringRulesTableProcessedTableManager =
       RecurringRuleTableData,
       PrefetchHooks Function()
     >;
+typedef $$ExpenseWalletsTableCreateCompanionBuilder =
+    ExpenseWalletsCompanion Function({
+      required String id,
+      required String profileId,
+      required String name,
+      Value<String> walletType,
+      Value<String> currencyCode,
+      Value<int> startingBalanceInCents,
+      Value<int> currentBalanceInCents,
+      Value<String?> colorHex,
+      Value<String?> iconName,
+      Value<bool> isArchived,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+typedef $$ExpenseWalletsTableUpdateCompanionBuilder =
+    ExpenseWalletsCompanion Function({
+      Value<String> id,
+      Value<String> profileId,
+      Value<String> name,
+      Value<String> walletType,
+      Value<String> currencyCode,
+      Value<int> startingBalanceInCents,
+      Value<int> currentBalanceInCents,
+      Value<String?> colorHex,
+      Value<String?> iconName,
+      Value<bool> isArchived,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+
+final class $$ExpenseWalletsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ExpenseWalletsTable,
+          ExpenseWalletTableData
+        > {
+  $$ExpenseWalletsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CompaniesTable _profileIdTable(_$AppDatabase db) =>
+      db.companies.createAlias('expense_wallets__profile_id__companies__id');
+
+  $$CompaniesTableProcessedTableManager get profileId {
+    final $_column = $_itemColumn<String>('profile_id')!;
+
+    final manager = $$CompaniesTableTableManager(
+      $_db,
+      $_db.companies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_profileIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ExpenseWalletsTableFilterComposer
+    extends Composer<_$AppDatabase, $ExpenseWalletsTable> {
+  $$ExpenseWalletsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get walletType => $composableBuilder(
+    column: $table.walletType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get startingBalanceInCents => $composableBuilder(
+    column: $table.startingBalanceInCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get currentBalanceInCents => $composableBuilder(
+    column: $table.currentBalanceInCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get colorHex => $composableBuilder(
+    column: $table.colorHex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconName => $composableBuilder(
+    column: $table.iconName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CompaniesTableFilterComposer get profileId {
+    final $$CompaniesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableFilterComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseWalletsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExpenseWalletsTable> {
+  $$ExpenseWalletsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get walletType => $composableBuilder(
+    column: $table.walletType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get startingBalanceInCents => $composableBuilder(
+    column: $table.startingBalanceInCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get currentBalanceInCents => $composableBuilder(
+    column: $table.currentBalanceInCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get colorHex => $composableBuilder(
+    column: $table.colorHex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconName => $composableBuilder(
+    column: $table.iconName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CompaniesTableOrderingComposer get profileId {
+    final $$CompaniesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableOrderingComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseWalletsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExpenseWalletsTable> {
+  $$ExpenseWalletsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get walletType => $composableBuilder(
+    column: $table.walletType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get startingBalanceInCents => $composableBuilder(
+    column: $table.startingBalanceInCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get currentBalanceInCents => $composableBuilder(
+    column: $table.currentBalanceInCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get colorHex =>
+      $composableBuilder(column: $table.colorHex, builder: (column) => column);
+
+  GeneratedColumn<String> get iconName =>
+      $composableBuilder(column: $table.iconName, builder: (column) => column);
+
+  GeneratedColumn<bool> get isArchived => $composableBuilder(
+    column: $table.isArchived,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  $$CompaniesTableAnnotationComposer get profileId {
+    final $$CompaniesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseWalletsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExpenseWalletsTable,
+          ExpenseWalletTableData,
+          $$ExpenseWalletsTableFilterComposer,
+          $$ExpenseWalletsTableOrderingComposer,
+          $$ExpenseWalletsTableAnnotationComposer,
+          $$ExpenseWalletsTableCreateCompanionBuilder,
+          $$ExpenseWalletsTableUpdateCompanionBuilder,
+          (ExpenseWalletTableData, $$ExpenseWalletsTableReferences),
+          ExpenseWalletTableData,
+          PrefetchHooks Function({bool profileId})
+        > {
+  $$ExpenseWalletsTableTableManager(
+    _$AppDatabase db,
+    $ExpenseWalletsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExpenseWalletsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExpenseWalletsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ExpenseWalletsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> profileId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> walletType = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<int> startingBalanceInCents = const Value.absent(),
+                Value<int> currentBalanceInCents = const Value.absent(),
+                Value<String?> colorHex = const Value.absent(),
+                Value<String?> iconName = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseWalletsCompanion(
+                id: id,
+                profileId: profileId,
+                name: name,
+                walletType: walletType,
+                currencyCode: currencyCode,
+                startingBalanceInCents: startingBalanceInCents,
+                currentBalanceInCents: currentBalanceInCents,
+                colorHex: colorHex,
+                iconName: iconName,
+                isArchived: isArchived,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String profileId,
+                required String name,
+                Value<String> walletType = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<int> startingBalanceInCents = const Value.absent(),
+                Value<int> currentBalanceInCents = const Value.absent(),
+                Value<String?> colorHex = const Value.absent(),
+                Value<String?> iconName = const Value.absent(),
+                Value<bool> isArchived = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseWalletsCompanion.insert(
+                id: id,
+                profileId: profileId,
+                name: name,
+                walletType: walletType,
+                currencyCode: currencyCode,
+                startingBalanceInCents: startingBalanceInCents,
+                currentBalanceInCents: currentBalanceInCents,
+                colorHex: colorHex,
+                iconName: iconName,
+                isArchived: isArchived,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ExpenseWalletsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({profileId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (profileId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.profileId,
+                                referencedTable: $$ExpenseWalletsTableReferences
+                                    ._profileIdTable(db),
+                                referencedColumn:
+                                    $$ExpenseWalletsTableReferences
+                                        ._profileIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ExpenseWalletsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExpenseWalletsTable,
+      ExpenseWalletTableData,
+      $$ExpenseWalletsTableFilterComposer,
+      $$ExpenseWalletsTableOrderingComposer,
+      $$ExpenseWalletsTableAnnotationComposer,
+      $$ExpenseWalletsTableCreateCompanionBuilder,
+      $$ExpenseWalletsTableUpdateCompanionBuilder,
+      (ExpenseWalletTableData, $$ExpenseWalletsTableReferences),
+      ExpenseWalletTableData,
+      PrefetchHooks Function({bool profileId})
+    >;
+typedef $$ExpenseCategoriesTableCreateCompanionBuilder =
+    ExpenseCategoriesCompanion Function({
+      required String id,
+      required String profileId,
+      required String name,
+      Value<String> categoryType,
+      Value<String?> parentCategoryId,
+      Value<String?> iconName,
+      Value<String?> colorHex,
+      Value<bool> isSystem,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+typedef $$ExpenseCategoriesTableUpdateCompanionBuilder =
+    ExpenseCategoriesCompanion Function({
+      Value<String> id,
+      Value<String> profileId,
+      Value<String> name,
+      Value<String> categoryType,
+      Value<String?> parentCategoryId,
+      Value<String?> iconName,
+      Value<String?> colorHex,
+      Value<bool> isSystem,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+
+final class $$ExpenseCategoriesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ExpenseCategoriesTable,
+          ExpenseCategoryTableData
+        > {
+  $$ExpenseCategoriesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CompaniesTable _profileIdTable(_$AppDatabase db) =>
+      db.companies.createAlias('expense_categories__profile_id__companies__id');
+
+  $$CompaniesTableProcessedTableManager get profileId {
+    final $_column = $_itemColumn<String>('profile_id')!;
+
+    final manager = $$CompaniesTableTableManager(
+      $_db,
+      $_db.companies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_profileIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ExpenseTransactionsTable,
+    List<ExpenseTransactionTableData>
+  >
+  _expenseTransactionsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.expenseTransactions,
+        aliasName: 'expense_categories__id__expense_transactions__category_id',
+      );
+
+  $$ExpenseTransactionsTableProcessedTableManager get expenseTransactionsRefs {
+    final manager = $$ExpenseTransactionsTableTableManager(
+      $_db,
+      $_db.expenseTransactions,
+    ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _expenseTransactionsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ExpenseBudgetsTable, List<ExpenseBudgetTableData>>
+  _expenseBudgetsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.expenseBudgets,
+    aliasName: 'expense_categories__id__expense_budgets__category_id',
+  );
+
+  $$ExpenseBudgetsTableProcessedTableManager get expenseBudgetsRefs {
+    final manager = $$ExpenseBudgetsTableTableManager(
+      $_db,
+      $_db.expenseBudgets,
+    ).filter((f) => f.categoryId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_expenseBudgetsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ExpenseCategoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $ExpenseCategoriesTable> {
+  $$ExpenseCategoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get categoryType => $composableBuilder(
+    column: $table.categoryType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentCategoryId => $composableBuilder(
+    column: $table.parentCategoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get iconName => $composableBuilder(
+    column: $table.iconName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get colorHex => $composableBuilder(
+    column: $table.colorHex,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSystem => $composableBuilder(
+    column: $table.isSystem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CompaniesTableFilterComposer get profileId {
+    final $$CompaniesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableFilterComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> expenseTransactionsRefs(
+    Expression<bool> Function($$ExpenseTransactionsTableFilterComposer f) f,
+  ) {
+    final $$ExpenseTransactionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseTransactions,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseTransactionsTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseTransactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> expenseBudgetsRefs(
+    Expression<bool> Function($$ExpenseBudgetsTableFilterComposer f) f,
+  ) {
+    final $$ExpenseBudgetsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseBudgets,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseBudgetsTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseBudgets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ExpenseCategoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExpenseCategoriesTable> {
+  $$ExpenseCategoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get categoryType => $composableBuilder(
+    column: $table.categoryType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get parentCategoryId => $composableBuilder(
+    column: $table.parentCategoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get iconName => $composableBuilder(
+    column: $table.iconName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get colorHex => $composableBuilder(
+    column: $table.colorHex,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSystem => $composableBuilder(
+    column: $table.isSystem,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CompaniesTableOrderingComposer get profileId {
+    final $$CompaniesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableOrderingComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseCategoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExpenseCategoriesTable> {
+  $$ExpenseCategoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get categoryType => $composableBuilder(
+    column: $table.categoryType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get parentCategoryId => $composableBuilder(
+    column: $table.parentCategoryId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get iconName =>
+      $composableBuilder(column: $table.iconName, builder: (column) => column);
+
+  GeneratedColumn<String> get colorHex =>
+      $composableBuilder(column: $table.colorHex, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSystem =>
+      $composableBuilder(column: $table.isSystem, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  $$CompaniesTableAnnotationComposer get profileId {
+    final $$CompaniesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> expenseTransactionsRefs<T extends Object>(
+    Expression<T> Function($$ExpenseTransactionsTableAnnotationComposer a) f,
+  ) {
+    final $$ExpenseTransactionsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.expenseTransactions,
+          getReferencedColumn: (t) => t.categoryId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseTransactionsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.expenseTransactions,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> expenseBudgetsRefs<T extends Object>(
+    Expression<T> Function($$ExpenseBudgetsTableAnnotationComposer a) f,
+  ) {
+    final $$ExpenseBudgetsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseBudgets,
+      getReferencedColumn: (t) => t.categoryId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseBudgetsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.expenseBudgets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ExpenseCategoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExpenseCategoriesTable,
+          ExpenseCategoryTableData,
+          $$ExpenseCategoriesTableFilterComposer,
+          $$ExpenseCategoriesTableOrderingComposer,
+          $$ExpenseCategoriesTableAnnotationComposer,
+          $$ExpenseCategoriesTableCreateCompanionBuilder,
+          $$ExpenseCategoriesTableUpdateCompanionBuilder,
+          (ExpenseCategoryTableData, $$ExpenseCategoriesTableReferences),
+          ExpenseCategoryTableData,
+          PrefetchHooks Function({
+            bool profileId,
+            bool expenseTransactionsRefs,
+            bool expenseBudgetsRefs,
+          })
+        > {
+  $$ExpenseCategoriesTableTableManager(
+    _$AppDatabase db,
+    $ExpenseCategoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExpenseCategoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExpenseCategoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ExpenseCategoriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> profileId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> categoryType = const Value.absent(),
+                Value<String?> parentCategoryId = const Value.absent(),
+                Value<String?> iconName = const Value.absent(),
+                Value<String?> colorHex = const Value.absent(),
+                Value<bool> isSystem = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseCategoriesCompanion(
+                id: id,
+                profileId: profileId,
+                name: name,
+                categoryType: categoryType,
+                parentCategoryId: parentCategoryId,
+                iconName: iconName,
+                colorHex: colorHex,
+                isSystem: isSystem,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String profileId,
+                required String name,
+                Value<String> categoryType = const Value.absent(),
+                Value<String?> parentCategoryId = const Value.absent(),
+                Value<String?> iconName = const Value.absent(),
+                Value<String?> colorHex = const Value.absent(),
+                Value<bool> isSystem = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseCategoriesCompanion.insert(
+                id: id,
+                profileId: profileId,
+                name: name,
+                categoryType: categoryType,
+                parentCategoryId: parentCategoryId,
+                iconName: iconName,
+                colorHex: colorHex,
+                isSystem: isSystem,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ExpenseCategoriesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                profileId = false,
+                expenseTransactionsRefs = false,
+                expenseBudgetsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (expenseTransactionsRefs) db.expenseTransactions,
+                    if (expenseBudgetsRefs) db.expenseBudgets,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (profileId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.profileId,
+                                    referencedTable:
+                                        $$ExpenseCategoriesTableReferences
+                                            ._profileIdTable(db),
+                                    referencedColumn:
+                                        $$ExpenseCategoriesTableReferences
+                                            ._profileIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (expenseTransactionsRefs)
+                        await $_getPrefetchedData<
+                          ExpenseCategoryTableData,
+                          $ExpenseCategoriesTable,
+                          ExpenseTransactionTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ExpenseCategoriesTableReferences
+                              ._expenseTransactionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ExpenseCategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).expenseTransactionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (expenseBudgetsRefs)
+                        await $_getPrefetchedData<
+                          ExpenseCategoryTableData,
+                          $ExpenseCategoriesTable,
+                          ExpenseBudgetTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ExpenseCategoriesTableReferences
+                              ._expenseBudgetsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ExpenseCategoriesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).expenseBudgetsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.categoryId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ExpenseCategoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExpenseCategoriesTable,
+      ExpenseCategoryTableData,
+      $$ExpenseCategoriesTableFilterComposer,
+      $$ExpenseCategoriesTableOrderingComposer,
+      $$ExpenseCategoriesTableAnnotationComposer,
+      $$ExpenseCategoriesTableCreateCompanionBuilder,
+      $$ExpenseCategoriesTableUpdateCompanionBuilder,
+      (ExpenseCategoryTableData, $$ExpenseCategoriesTableReferences),
+      ExpenseCategoryTableData,
+      PrefetchHooks Function({
+        bool profileId,
+        bool expenseTransactionsRefs,
+        bool expenseBudgetsRefs,
+      })
+    >;
+typedef $$ExpenseTransactionsTableCreateCompanionBuilder =
+    ExpenseTransactionsCompanion Function({
+      required String id,
+      required String profileId,
+      required String transactionType,
+      required int amountInCents,
+      required String walletId,
+      Value<String?> toWalletId,
+      Value<String?> categoryId,
+      required DateTime transactionDate,
+      Value<String?> note,
+      Value<String?> payeeOrPayer,
+      Value<String?> referenceNumber,
+      Value<String?> receiptPhotoUrl,
+      Value<bool> isCleared,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+typedef $$ExpenseTransactionsTableUpdateCompanionBuilder =
+    ExpenseTransactionsCompanion Function({
+      Value<String> id,
+      Value<String> profileId,
+      Value<String> transactionType,
+      Value<int> amountInCents,
+      Value<String> walletId,
+      Value<String?> toWalletId,
+      Value<String?> categoryId,
+      Value<DateTime> transactionDate,
+      Value<String?> note,
+      Value<String?> payeeOrPayer,
+      Value<String?> referenceNumber,
+      Value<String?> receiptPhotoUrl,
+      Value<bool> isCleared,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+
+final class $$ExpenseTransactionsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ExpenseTransactionsTable,
+          ExpenseTransactionTableData
+        > {
+  $$ExpenseTransactionsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CompaniesTable _profileIdTable(_$AppDatabase db) => db.companies
+      .createAlias('expense_transactions__profile_id__companies__id');
+
+  $$CompaniesTableProcessedTableManager get profileId {
+    final $_column = $_itemColumn<String>('profile_id')!;
+
+    final manager = $$CompaniesTableTableManager(
+      $_db,
+      $_db.companies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_profileIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ExpenseWalletsTable _walletIdTable(_$AppDatabase db) => db
+      .expenseWallets
+      .createAlias('expense_transactions__wallet_id__expense_wallets__id');
+
+  $$ExpenseWalletsTableProcessedTableManager get walletId {
+    final $_column = $_itemColumn<String>('wallet_id')!;
+
+    final manager = $$ExpenseWalletsTableTableManager(
+      $_db,
+      $_db.expenseWallets,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_walletIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ExpenseWalletsTable _toWalletIdTable(_$AppDatabase db) => db
+      .expenseWallets
+      .createAlias('expense_transactions__to_wallet_id__expense_wallets__id');
+
+  $$ExpenseWalletsTableProcessedTableManager? get toWalletId {
+    final $_column = $_itemColumn<String>('to_wallet_id');
+    if ($_column == null) return null;
+    final manager = $$ExpenseWalletsTableTableManager(
+      $_db,
+      $_db.expenseWallets,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_toWalletIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ExpenseCategoriesTable _categoryIdTable(_$AppDatabase db) => db
+      .expenseCategories
+      .createAlias('expense_transactions__category_id__expense_categories__id');
+
+  $$ExpenseCategoriesTableProcessedTableManager? get categoryId {
+    final $_column = $_itemColumn<String>('category_id');
+    if ($_column == null) return null;
+    final manager = $$ExpenseCategoriesTableTableManager(
+      $_db,
+      $_db.expenseCategories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $ExpenseAttachmentsTable,
+    List<ExpenseAttachmentTableData>
+  >
+  _expenseAttachmentsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.expenseAttachments,
+        aliasName:
+            'expense_transactions__id__expense_attachments__transaction_id',
+      );
+
+  $$ExpenseAttachmentsTableProcessedTableManager get expenseAttachmentsRefs {
+    final manager = $$ExpenseAttachmentsTableTableManager(
+      $_db,
+      $_db.expenseAttachments,
+    ).filter((f) => f.transactionId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _expenseAttachmentsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$ExpenseTransactionsTableFilterComposer
+    extends Composer<_$AppDatabase, $ExpenseTransactionsTable> {
+  $$ExpenseTransactionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transactionType => $composableBuilder(
+    column: $table.transactionType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountInCents => $composableBuilder(
+    column: $table.amountInCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get transactionDate => $composableBuilder(
+    column: $table.transactionDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payeeOrPayer => $composableBuilder(
+    column: $table.payeeOrPayer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get referenceNumber => $composableBuilder(
+    column: $table.referenceNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get receiptPhotoUrl => $composableBuilder(
+    column: $table.receiptPhotoUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isCleared => $composableBuilder(
+    column: $table.isCleared,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CompaniesTableFilterComposer get profileId {
+    final $$CompaniesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableFilterComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseWalletsTableFilterComposer get walletId {
+    final $$ExpenseWalletsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.walletId,
+      referencedTable: $db.expenseWallets,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseWalletsTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseWallets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseWalletsTableFilterComposer get toWalletId {
+    final $$ExpenseWalletsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.toWalletId,
+      referencedTable: $db.expenseWallets,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseWalletsTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseWallets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseCategoriesTableFilterComposer get categoryId {
+    final $$ExpenseCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.expenseCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> expenseAttachmentsRefs(
+    Expression<bool> Function($$ExpenseAttachmentsTableFilterComposer f) f,
+  ) {
+    final $$ExpenseAttachmentsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.expenseAttachments,
+      getReferencedColumn: (t) => t.transactionId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseAttachmentsTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseAttachments,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+}
+
+class $$ExpenseTransactionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExpenseTransactionsTable> {
+  $$ExpenseTransactionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get transactionType => $composableBuilder(
+    column: $table.transactionType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountInCents => $composableBuilder(
+    column: $table.amountInCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get transactionDate => $composableBuilder(
+    column: $table.transactionDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payeeOrPayer => $composableBuilder(
+    column: $table.payeeOrPayer,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get referenceNumber => $composableBuilder(
+    column: $table.referenceNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get receiptPhotoUrl => $composableBuilder(
+    column: $table.receiptPhotoUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isCleared => $composableBuilder(
+    column: $table.isCleared,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CompaniesTableOrderingComposer get profileId {
+    final $$CompaniesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableOrderingComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseWalletsTableOrderingComposer get walletId {
+    final $$ExpenseWalletsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.walletId,
+      referencedTable: $db.expenseWallets,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseWalletsTableOrderingComposer(
+            $db: $db,
+            $table: $db.expenseWallets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseWalletsTableOrderingComposer get toWalletId {
+    final $$ExpenseWalletsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.toWalletId,
+      referencedTable: $db.expenseWallets,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseWalletsTableOrderingComposer(
+            $db: $db,
+            $table: $db.expenseWallets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseCategoriesTableOrderingComposer get categoryId {
+    final $$ExpenseCategoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.expenseCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseCategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.expenseCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseTransactionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExpenseTransactionsTable> {
+  $$ExpenseTransactionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get transactionType => $composableBuilder(
+    column: $table.transactionType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get amountInCents => $composableBuilder(
+    column: $table.amountInCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get transactionDate => $composableBuilder(
+    column: $table.transactionDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get payeeOrPayer => $composableBuilder(
+    column: $table.payeeOrPayer,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get referenceNumber => $composableBuilder(
+    column: $table.referenceNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get receiptPhotoUrl => $composableBuilder(
+    column: $table.receiptPhotoUrl,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isCleared =>
+      $composableBuilder(column: $table.isCleared, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  $$CompaniesTableAnnotationComposer get profileId {
+    final $$CompaniesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseWalletsTableAnnotationComposer get walletId {
+    final $$ExpenseWalletsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.walletId,
+      referencedTable: $db.expenseWallets,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseWalletsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.expenseWallets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseWalletsTableAnnotationComposer get toWalletId {
+    final $$ExpenseWalletsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.toWalletId,
+      referencedTable: $db.expenseWallets,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseWalletsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.expenseWallets,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseCategoriesTableAnnotationComposer get categoryId {
+    final $$ExpenseCategoriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.categoryId,
+          referencedTable: $db.expenseCategories,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseCategoriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.expenseCategories,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  Expression<T> expenseAttachmentsRefs<T extends Object>(
+    Expression<T> Function($$ExpenseAttachmentsTableAnnotationComposer a) f,
+  ) {
+    final $$ExpenseAttachmentsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.expenseAttachments,
+          getReferencedColumn: (t) => t.transactionId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseAttachmentsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.expenseAttachments,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$ExpenseTransactionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExpenseTransactionsTable,
+          ExpenseTransactionTableData,
+          $$ExpenseTransactionsTableFilterComposer,
+          $$ExpenseTransactionsTableOrderingComposer,
+          $$ExpenseTransactionsTableAnnotationComposer,
+          $$ExpenseTransactionsTableCreateCompanionBuilder,
+          $$ExpenseTransactionsTableUpdateCompanionBuilder,
+          (ExpenseTransactionTableData, $$ExpenseTransactionsTableReferences),
+          ExpenseTransactionTableData,
+          PrefetchHooks Function({
+            bool profileId,
+            bool walletId,
+            bool toWalletId,
+            bool categoryId,
+            bool expenseAttachmentsRefs,
+          })
+        > {
+  $$ExpenseTransactionsTableTableManager(
+    _$AppDatabase db,
+    $ExpenseTransactionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExpenseTransactionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExpenseTransactionsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ExpenseTransactionsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> profileId = const Value.absent(),
+                Value<String> transactionType = const Value.absent(),
+                Value<int> amountInCents = const Value.absent(),
+                Value<String> walletId = const Value.absent(),
+                Value<String?> toWalletId = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                Value<DateTime> transactionDate = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> payeeOrPayer = const Value.absent(),
+                Value<String?> referenceNumber = const Value.absent(),
+                Value<String?> receiptPhotoUrl = const Value.absent(),
+                Value<bool> isCleared = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseTransactionsCompanion(
+                id: id,
+                profileId: profileId,
+                transactionType: transactionType,
+                amountInCents: amountInCents,
+                walletId: walletId,
+                toWalletId: toWalletId,
+                categoryId: categoryId,
+                transactionDate: transactionDate,
+                note: note,
+                payeeOrPayer: payeeOrPayer,
+                referenceNumber: referenceNumber,
+                receiptPhotoUrl: receiptPhotoUrl,
+                isCleared: isCleared,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String profileId,
+                required String transactionType,
+                required int amountInCents,
+                required String walletId,
+                Value<String?> toWalletId = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                required DateTime transactionDate,
+                Value<String?> note = const Value.absent(),
+                Value<String?> payeeOrPayer = const Value.absent(),
+                Value<String?> referenceNumber = const Value.absent(),
+                Value<String?> receiptPhotoUrl = const Value.absent(),
+                Value<bool> isCleared = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseTransactionsCompanion.insert(
+                id: id,
+                profileId: profileId,
+                transactionType: transactionType,
+                amountInCents: amountInCents,
+                walletId: walletId,
+                toWalletId: toWalletId,
+                categoryId: categoryId,
+                transactionDate: transactionDate,
+                note: note,
+                payeeOrPayer: payeeOrPayer,
+                referenceNumber: referenceNumber,
+                receiptPhotoUrl: receiptPhotoUrl,
+                isCleared: isCleared,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ExpenseTransactionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                profileId = false,
+                walletId = false,
+                toWalletId = false,
+                categoryId = false,
+                expenseAttachmentsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (expenseAttachmentsRefs) db.expenseAttachments,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (profileId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.profileId,
+                                    referencedTable:
+                                        $$ExpenseTransactionsTableReferences
+                                            ._profileIdTable(db),
+                                    referencedColumn:
+                                        $$ExpenseTransactionsTableReferences
+                                            ._profileIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (walletId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.walletId,
+                                    referencedTable:
+                                        $$ExpenseTransactionsTableReferences
+                                            ._walletIdTable(db),
+                                    referencedColumn:
+                                        $$ExpenseTransactionsTableReferences
+                                            ._walletIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (toWalletId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.toWalletId,
+                                    referencedTable:
+                                        $$ExpenseTransactionsTableReferences
+                                            ._toWalletIdTable(db),
+                                    referencedColumn:
+                                        $$ExpenseTransactionsTableReferences
+                                            ._toWalletIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (categoryId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.categoryId,
+                                    referencedTable:
+                                        $$ExpenseTransactionsTableReferences
+                                            ._categoryIdTable(db),
+                                    referencedColumn:
+                                        $$ExpenseTransactionsTableReferences
+                                            ._categoryIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (expenseAttachmentsRefs)
+                        await $_getPrefetchedData<
+                          ExpenseTransactionTableData,
+                          $ExpenseTransactionsTable,
+                          ExpenseAttachmentTableData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$ExpenseTransactionsTableReferences
+                              ._expenseAttachmentsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$ExpenseTransactionsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).expenseAttachmentsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.transactionId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$ExpenseTransactionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExpenseTransactionsTable,
+      ExpenseTransactionTableData,
+      $$ExpenseTransactionsTableFilterComposer,
+      $$ExpenseTransactionsTableOrderingComposer,
+      $$ExpenseTransactionsTableAnnotationComposer,
+      $$ExpenseTransactionsTableCreateCompanionBuilder,
+      $$ExpenseTransactionsTableUpdateCompanionBuilder,
+      (ExpenseTransactionTableData, $$ExpenseTransactionsTableReferences),
+      ExpenseTransactionTableData,
+      PrefetchHooks Function({
+        bool profileId,
+        bool walletId,
+        bool toWalletId,
+        bool categoryId,
+        bool expenseAttachmentsRefs,
+      })
+    >;
+typedef $$ExpenseBudgetsTableCreateCompanionBuilder =
+    ExpenseBudgetsCompanion Function({
+      required String id,
+      required String profileId,
+      Value<String?> categoryId,
+      Value<String> periodType,
+      required int amountInCents,
+      required DateTime startDate,
+      Value<DateTime?> endDate,
+      Value<int> alertThresholdPercent,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+typedef $$ExpenseBudgetsTableUpdateCompanionBuilder =
+    ExpenseBudgetsCompanion Function({
+      Value<String> id,
+      Value<String> profileId,
+      Value<String?> categoryId,
+      Value<String> periodType,
+      Value<int> amountInCents,
+      Value<DateTime> startDate,
+      Value<DateTime?> endDate,
+      Value<int> alertThresholdPercent,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+
+final class $$ExpenseBudgetsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ExpenseBudgetsTable,
+          ExpenseBudgetTableData
+        > {
+  $$ExpenseBudgetsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CompaniesTable _profileIdTable(_$AppDatabase db) =>
+      db.companies.createAlias('expense_budgets__profile_id__companies__id');
+
+  $$CompaniesTableProcessedTableManager get profileId {
+    final $_column = $_itemColumn<String>('profile_id')!;
+
+    final manager = $$CompaniesTableTableManager(
+      $_db,
+      $_db.companies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_profileIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ExpenseCategoriesTable _categoryIdTable(_$AppDatabase db) => db
+      .expenseCategories
+      .createAlias('expense_budgets__category_id__expense_categories__id');
+
+  $$ExpenseCategoriesTableProcessedTableManager? get categoryId {
+    final $_column = $_itemColumn<String>('category_id');
+    if ($_column == null) return null;
+    final manager = $$ExpenseCategoriesTableTableManager(
+      $_db,
+      $_db.expenseCategories,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_categoryIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ExpenseBudgetsTableFilterComposer
+    extends Composer<_$AppDatabase, $ExpenseBudgetsTable> {
+  $$ExpenseBudgetsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get periodType => $composableBuilder(
+    column: $table.periodType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get amountInCents => $composableBuilder(
+    column: $table.amountInCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get alertThresholdPercent => $composableBuilder(
+    column: $table.alertThresholdPercent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CompaniesTableFilterComposer get profileId {
+    final $$CompaniesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableFilterComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseCategoriesTableFilterComposer get categoryId {
+    final $$ExpenseCategoriesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.expenseCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseCategoriesTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseBudgetsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExpenseBudgetsTable> {
+  $$ExpenseBudgetsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get periodType => $composableBuilder(
+    column: $table.periodType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get amountInCents => $composableBuilder(
+    column: $table.amountInCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get alertThresholdPercent => $composableBuilder(
+    column: $table.alertThresholdPercent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CompaniesTableOrderingComposer get profileId {
+    final $$CompaniesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableOrderingComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseCategoriesTableOrderingComposer get categoryId {
+    final $$ExpenseCategoriesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.categoryId,
+      referencedTable: $db.expenseCategories,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseCategoriesTableOrderingComposer(
+            $db: $db,
+            $table: $db.expenseCategories,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseBudgetsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExpenseBudgetsTable> {
+  $$ExpenseBudgetsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get periodType => $composableBuilder(
+    column: $table.periodType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get amountInCents => $composableBuilder(
+    column: $table.amountInCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<int> get alertThresholdPercent => $composableBuilder(
+    column: $table.alertThresholdPercent,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  $$CompaniesTableAnnotationComposer get profileId {
+    final $$CompaniesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseCategoriesTableAnnotationComposer get categoryId {
+    final $$ExpenseCategoriesTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.categoryId,
+          referencedTable: $db.expenseCategories,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseCategoriesTableAnnotationComposer(
+                $db: $db,
+                $table: $db.expenseCategories,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ExpenseBudgetsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExpenseBudgetsTable,
+          ExpenseBudgetTableData,
+          $$ExpenseBudgetsTableFilterComposer,
+          $$ExpenseBudgetsTableOrderingComposer,
+          $$ExpenseBudgetsTableAnnotationComposer,
+          $$ExpenseBudgetsTableCreateCompanionBuilder,
+          $$ExpenseBudgetsTableUpdateCompanionBuilder,
+          (ExpenseBudgetTableData, $$ExpenseBudgetsTableReferences),
+          ExpenseBudgetTableData,
+          PrefetchHooks Function({bool profileId, bool categoryId})
+        > {
+  $$ExpenseBudgetsTableTableManager(
+    _$AppDatabase db,
+    $ExpenseBudgetsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExpenseBudgetsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExpenseBudgetsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ExpenseBudgetsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> profileId = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
+                Value<String> periodType = const Value.absent(),
+                Value<int> amountInCents = const Value.absent(),
+                Value<DateTime> startDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<int> alertThresholdPercent = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseBudgetsCompanion(
+                id: id,
+                profileId: profileId,
+                categoryId: categoryId,
+                periodType: periodType,
+                amountInCents: amountInCents,
+                startDate: startDate,
+                endDate: endDate,
+                alertThresholdPercent: alertThresholdPercent,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String profileId,
+                Value<String?> categoryId = const Value.absent(),
+                Value<String> periodType = const Value.absent(),
+                required int amountInCents,
+                required DateTime startDate,
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<int> alertThresholdPercent = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseBudgetsCompanion.insert(
+                id: id,
+                profileId: profileId,
+                categoryId: categoryId,
+                periodType: periodType,
+                amountInCents: amountInCents,
+                startDate: startDate,
+                endDate: endDate,
+                alertThresholdPercent: alertThresholdPercent,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ExpenseBudgetsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({profileId = false, categoryId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (profileId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.profileId,
+                                referencedTable: $$ExpenseBudgetsTableReferences
+                                    ._profileIdTable(db),
+                                referencedColumn:
+                                    $$ExpenseBudgetsTableReferences
+                                        ._profileIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (categoryId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.categoryId,
+                                referencedTable: $$ExpenseBudgetsTableReferences
+                                    ._categoryIdTable(db),
+                                referencedColumn:
+                                    $$ExpenseBudgetsTableReferences
+                                        ._categoryIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ExpenseBudgetsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExpenseBudgetsTable,
+      ExpenseBudgetTableData,
+      $$ExpenseBudgetsTableFilterComposer,
+      $$ExpenseBudgetsTableOrderingComposer,
+      $$ExpenseBudgetsTableAnnotationComposer,
+      $$ExpenseBudgetsTableCreateCompanionBuilder,
+      $$ExpenseBudgetsTableUpdateCompanionBuilder,
+      (ExpenseBudgetTableData, $$ExpenseBudgetsTableReferences),
+      ExpenseBudgetTableData,
+      PrefetchHooks Function({bool profileId, bool categoryId})
+    >;
+typedef $$ExpenseRecurringRulesTableCreateCompanionBuilder =
+    ExpenseRecurringRulesCompanion Function({
+      required String id,
+      required String profileId,
+      required String templateJson,
+      required String intervalType,
+      Value<int> intervalCount,
+      required DateTime nextRunDate,
+      Value<DateTime?> endDate,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+typedef $$ExpenseRecurringRulesTableUpdateCompanionBuilder =
+    ExpenseRecurringRulesCompanion Function({
+      Value<String> id,
+      Value<String> profileId,
+      Value<String> templateJson,
+      Value<String> intervalType,
+      Value<int> intervalCount,
+      Value<DateTime> nextRunDate,
+      Value<DateTime?> endDate,
+      Value<bool> isActive,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<DateTime?> remoteUpdatedAt,
+      Value<int> rowid,
+    });
+
+final class $$ExpenseRecurringRulesTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ExpenseRecurringRulesTable,
+          ExpenseRecurringRuleTableData
+        > {
+  $$ExpenseRecurringRulesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CompaniesTable _profileIdTable(_$AppDatabase db) => db.companies
+      .createAlias('expense_recurring_rules__profile_id__companies__id');
+
+  $$CompaniesTableProcessedTableManager get profileId {
+    final $_column = $_itemColumn<String>('profile_id')!;
+
+    final manager = $$CompaniesTableTableManager(
+      $_db,
+      $_db.companies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_profileIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ExpenseRecurringRulesTableFilterComposer
+    extends Composer<_$AppDatabase, $ExpenseRecurringRulesTable> {
+  $$ExpenseRecurringRulesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get templateJson => $composableBuilder(
+    column: $table.templateJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get intervalType => $composableBuilder(
+    column: $table.intervalType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get intervalCount => $composableBuilder(
+    column: $table.intervalCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextRunDate => $composableBuilder(
+    column: $table.nextRunDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CompaniesTableFilterComposer get profileId {
+    final $$CompaniesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableFilterComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseRecurringRulesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExpenseRecurringRulesTable> {
+  $$ExpenseRecurringRulesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get templateJson => $composableBuilder(
+    column: $table.templateJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get intervalType => $composableBuilder(
+    column: $table.intervalType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get intervalCount => $composableBuilder(
+    column: $table.intervalCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextRunDate => $composableBuilder(
+    column: $table.nextRunDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CompaniesTableOrderingComposer get profileId {
+    final $$CompaniesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableOrderingComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseRecurringRulesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExpenseRecurringRulesTable> {
+  $$ExpenseRecurringRulesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get templateJson => $composableBuilder(
+    column: $table.templateJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get intervalType => $composableBuilder(
+    column: $table.intervalType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get intervalCount => $composableBuilder(
+    column: $table.intervalCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get nextRunDate => $composableBuilder(
+    column: $table.nextRunDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get remoteUpdatedAt => $composableBuilder(
+    column: $table.remoteUpdatedAt,
+    builder: (column) => column,
+  );
+
+  $$CompaniesTableAnnotationComposer get profileId {
+    final $$CompaniesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseRecurringRulesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExpenseRecurringRulesTable,
+          ExpenseRecurringRuleTableData,
+          $$ExpenseRecurringRulesTableFilterComposer,
+          $$ExpenseRecurringRulesTableOrderingComposer,
+          $$ExpenseRecurringRulesTableAnnotationComposer,
+          $$ExpenseRecurringRulesTableCreateCompanionBuilder,
+          $$ExpenseRecurringRulesTableUpdateCompanionBuilder,
+          (
+            ExpenseRecurringRuleTableData,
+            $$ExpenseRecurringRulesTableReferences,
+          ),
+          ExpenseRecurringRuleTableData,
+          PrefetchHooks Function({bool profileId})
+        > {
+  $$ExpenseRecurringRulesTableTableManager(
+    _$AppDatabase db,
+    $ExpenseRecurringRulesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExpenseRecurringRulesTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$ExpenseRecurringRulesTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$ExpenseRecurringRulesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> profileId = const Value.absent(),
+                Value<String> templateJson = const Value.absent(),
+                Value<String> intervalType = const Value.absent(),
+                Value<int> intervalCount = const Value.absent(),
+                Value<DateTime> nextRunDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseRecurringRulesCompanion(
+                id: id,
+                profileId: profileId,
+                templateJson: templateJson,
+                intervalType: intervalType,
+                intervalCount: intervalCount,
+                nextRunDate: nextRunDate,
+                endDate: endDate,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String profileId,
+                required String templateJson,
+                required String intervalType,
+                Value<int> intervalCount = const Value.absent(),
+                required DateTime nextRunDate,
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<DateTime?> remoteUpdatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseRecurringRulesCompanion.insert(
+                id: id,
+                profileId: profileId,
+                templateJson: templateJson,
+                intervalType: intervalType,
+                intervalCount: intervalCount,
+                nextRunDate: nextRunDate,
+                endDate: endDate,
+                isActive: isActive,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                remoteUpdatedAt: remoteUpdatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ExpenseRecurringRulesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({profileId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (profileId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.profileId,
+                                referencedTable:
+                                    $$ExpenseRecurringRulesTableReferences
+                                        ._profileIdTable(db),
+                                referencedColumn:
+                                    $$ExpenseRecurringRulesTableReferences
+                                        ._profileIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ExpenseRecurringRulesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExpenseRecurringRulesTable,
+      ExpenseRecurringRuleTableData,
+      $$ExpenseRecurringRulesTableFilterComposer,
+      $$ExpenseRecurringRulesTableOrderingComposer,
+      $$ExpenseRecurringRulesTableAnnotationComposer,
+      $$ExpenseRecurringRulesTableCreateCompanionBuilder,
+      $$ExpenseRecurringRulesTableUpdateCompanionBuilder,
+      (ExpenseRecurringRuleTableData, $$ExpenseRecurringRulesTableReferences),
+      ExpenseRecurringRuleTableData,
+      PrefetchHooks Function({bool profileId})
+    >;
+typedef $$ExpenseAttachmentsTableCreateCompanionBuilder =
+    ExpenseAttachmentsCompanion Function({
+      required String id,
+      required String profileId,
+      required String transactionId,
+      required String filePath,
+      Value<String?> fileType,
+      Value<int?> fileSize,
+      Value<DateTime> createdAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<int> rowid,
+    });
+typedef $$ExpenseAttachmentsTableUpdateCompanionBuilder =
+    ExpenseAttachmentsCompanion Function({
+      Value<String> id,
+      Value<String> profileId,
+      Value<String> transactionId,
+      Value<String> filePath,
+      Value<String?> fileType,
+      Value<int?> fileSize,
+      Value<DateTime> createdAt,
+      Value<bool> isDeleted,
+      Value<SyncRecordStatus> syncStatus,
+      Value<int> revision,
+      Value<int> rowid,
+    });
+
+final class $$ExpenseAttachmentsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $ExpenseAttachmentsTable,
+          ExpenseAttachmentTableData
+        > {
+  $$ExpenseAttachmentsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $CompaniesTable _profileIdTable(_$AppDatabase db) => db.companies
+      .createAlias('expense_attachments__profile_id__companies__id');
+
+  $$CompaniesTableProcessedTableManager get profileId {
+    final $_column = $_itemColumn<String>('profile_id')!;
+
+    final manager = $$CompaniesTableTableManager(
+      $_db,
+      $_db.companies,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_profileIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $ExpenseTransactionsTable _transactionIdTable(_$AppDatabase db) =>
+      db.expenseTransactions.createAlias(
+        'expense_attachments__transaction_id__expense_transactions__id',
+      );
+
+  $$ExpenseTransactionsTableProcessedTableManager get transactionId {
+    final $_column = $_itemColumn<String>('transaction_id')!;
+
+    final manager = $$ExpenseTransactionsTableTableManager(
+      $_db,
+      $_db.expenseTransactions,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_transactionIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ExpenseAttachmentsTableFilterComposer
+    extends Composer<_$AppDatabase, $ExpenseAttachmentsTable> {
+  $$ExpenseAttachmentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileType => $composableBuilder(
+    column: $table.fileType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fileSize => $composableBuilder(
+    column: $table.fileSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<SyncRecordStatus, SyncRecordStatus, String>
+  get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
+  );
+
+  ColumnFilters<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$CompaniesTableFilterComposer get profileId {
+    final $$CompaniesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableFilterComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseTransactionsTableFilterComposer get transactionId {
+    final $$ExpenseTransactionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transactionId,
+      referencedTable: $db.expenseTransactions,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ExpenseTransactionsTableFilterComposer(
+            $db: $db,
+            $table: $db.expenseTransactions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ExpenseAttachmentsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ExpenseAttachmentsTable> {
+  $$ExpenseAttachmentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileType => $composableBuilder(
+    column: $table.fileType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fileSize => $composableBuilder(
+    column: $table.fileSize,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncStatus => $composableBuilder(
+    column: $table.syncStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get revision => $composableBuilder(
+    column: $table.revision,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$CompaniesTableOrderingComposer get profileId {
+    final $$CompaniesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableOrderingComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseTransactionsTableOrderingComposer get transactionId {
+    final $$ExpenseTransactionsTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.transactionId,
+          referencedTable: $db.expenseTransactions,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseTransactionsTableOrderingComposer(
+                $db: $db,
+                $table: $db.expenseTransactions,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ExpenseAttachmentsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ExpenseAttachmentsTable> {
+  $$ExpenseAttachmentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<String> get fileType =>
+      $composableBuilder(column: $table.fileType, builder: (column) => column);
+
+  GeneratedColumn<int> get fileSize =>
+      $composableBuilder(column: $table.fileSize, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<SyncRecordStatus, String> get syncStatus =>
+      $composableBuilder(
+        column: $table.syncStatus,
+        builder: (column) => column,
+      );
+
+  GeneratedColumn<int> get revision =>
+      $composableBuilder(column: $table.revision, builder: (column) => column);
+
+  $$CompaniesTableAnnotationComposer get profileId {
+    final $$CompaniesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.profileId,
+      referencedTable: $db.companies,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$CompaniesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.companies,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$ExpenseTransactionsTableAnnotationComposer get transactionId {
+    final $$ExpenseTransactionsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.transactionId,
+          referencedTable: $db.expenseTransactions,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$ExpenseTransactionsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.expenseTransactions,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$ExpenseAttachmentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ExpenseAttachmentsTable,
+          ExpenseAttachmentTableData,
+          $$ExpenseAttachmentsTableFilterComposer,
+          $$ExpenseAttachmentsTableOrderingComposer,
+          $$ExpenseAttachmentsTableAnnotationComposer,
+          $$ExpenseAttachmentsTableCreateCompanionBuilder,
+          $$ExpenseAttachmentsTableUpdateCompanionBuilder,
+          (ExpenseAttachmentTableData, $$ExpenseAttachmentsTableReferences),
+          ExpenseAttachmentTableData,
+          PrefetchHooks Function({bool profileId, bool transactionId})
+        > {
+  $$ExpenseAttachmentsTableTableManager(
+    _$AppDatabase db,
+    $ExpenseAttachmentsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ExpenseAttachmentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ExpenseAttachmentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ExpenseAttachmentsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> profileId = const Value.absent(),
+                Value<String> transactionId = const Value.absent(),
+                Value<String> filePath = const Value.absent(),
+                Value<String?> fileType = const Value.absent(),
+                Value<int?> fileSize = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseAttachmentsCompanion(
+                id: id,
+                profileId: profileId,
+                transactionId: transactionId,
+                filePath: filePath,
+                fileType: fileType,
+                fileSize: fileSize,
+                createdAt: createdAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String profileId,
+                required String transactionId,
+                required String filePath,
+                Value<String?> fileType = const Value.absent(),
+                Value<int?> fileSize = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<SyncRecordStatus> syncStatus = const Value.absent(),
+                Value<int> revision = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ExpenseAttachmentsCompanion.insert(
+                id: id,
+                profileId: profileId,
+                transactionId: transactionId,
+                filePath: filePath,
+                fileType: fileType,
+                fileSize: fileSize,
+                createdAt: createdAt,
+                isDeleted: isDeleted,
+                syncStatus: syncStatus,
+                revision: revision,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ExpenseAttachmentsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({profileId = false, transactionId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (profileId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.profileId,
+                                referencedTable:
+                                    $$ExpenseAttachmentsTableReferences
+                                        ._profileIdTable(db),
+                                referencedColumn:
+                                    $$ExpenseAttachmentsTableReferences
+                                        ._profileIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+                    if (transactionId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.transactionId,
+                                referencedTable:
+                                    $$ExpenseAttachmentsTableReferences
+                                        ._transactionIdTable(db),
+                                referencedColumn:
+                                    $$ExpenseAttachmentsTableReferences
+                                        ._transactionIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ExpenseAttachmentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ExpenseAttachmentsTable,
+      ExpenseAttachmentTableData,
+      $$ExpenseAttachmentsTableFilterComposer,
+      $$ExpenseAttachmentsTableOrderingComposer,
+      $$ExpenseAttachmentsTableAnnotationComposer,
+      $$ExpenseAttachmentsTableCreateCompanionBuilder,
+      $$ExpenseAttachmentsTableUpdateCompanionBuilder,
+      (ExpenseAttachmentTableData, $$ExpenseAttachmentsTableReferences),
+      ExpenseAttachmentTableData,
+      PrefetchHooks Function({bool profileId, bool transactionId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -22185,6 +34584,12 @@ class $AppDatabaseManager {
       $$CompaniesTableTableManager(_db, _db.companies);
   $$UserProfilesTableTableManager get userProfiles =>
       $$UserProfilesTableTableManager(_db, _db.userProfiles);
+  $$SharedMembershipsTableTableManager get sharedMemberships =>
+      $$SharedMembershipsTableTableManager(_db, _db.sharedMemberships);
+  $$SharedDevicesTableTableManager get sharedDevices =>
+      $$SharedDevicesTableTableManager(_db, _db.sharedDevices);
+  $$UserPreferencesTableTableManager get userPreferences =>
+      $$UserPreferencesTableTableManager(_db, _db.userPreferences);
   $$PartiesTableTableManager get parties =>
       $$PartiesTableTableManager(_db, _db.parties);
   $$LedgerEntriesTableTableManager get ledgerEntries =>
@@ -22211,4 +34616,16 @@ class $AppDatabaseManager {
       $$BudgetsTableTableManager(_db, _db.budgets);
   $$RecurringRulesTableTableManager get recurringRules =>
       $$RecurringRulesTableTableManager(_db, _db.recurringRules);
+  $$ExpenseWalletsTableTableManager get expenseWallets =>
+      $$ExpenseWalletsTableTableManager(_db, _db.expenseWallets);
+  $$ExpenseCategoriesTableTableManager get expenseCategories =>
+      $$ExpenseCategoriesTableTableManager(_db, _db.expenseCategories);
+  $$ExpenseTransactionsTableTableManager get expenseTransactions =>
+      $$ExpenseTransactionsTableTableManager(_db, _db.expenseTransactions);
+  $$ExpenseBudgetsTableTableManager get expenseBudgets =>
+      $$ExpenseBudgetsTableTableManager(_db, _db.expenseBudgets);
+  $$ExpenseRecurringRulesTableTableManager get expenseRecurringRules =>
+      $$ExpenseRecurringRulesTableTableManager(_db, _db.expenseRecurringRules);
+  $$ExpenseAttachmentsTableTableManager get expenseAttachments =>
+      $$ExpenseAttachmentsTableTableManager(_db, _db.expenseAttachments);
 }

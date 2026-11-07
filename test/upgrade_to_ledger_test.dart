@@ -16,7 +16,6 @@ import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/data/reporting/financial_statement_engine.dart';
 import 'package:ledger_pulse/data/services/recurring_service.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
-import 'package:ledger_pulse/data/models/sync_model.dart';
 import 'package:ledger_pulse/presentation/home/dashboard_screen.dart';
 import 'package:ledger_pulse/presentation/home/home_shell.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
@@ -536,6 +535,7 @@ void main() {
       // 4. Tap Confirm Upgrade
       await tester.tap(find.byKey(const Key('confirm_upgrade_button')));
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 2));
 
       // 5. Verify the active company is upgraded to ledger mode
       final activeComp = container.read(activeCompanyProvider);

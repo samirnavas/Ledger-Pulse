@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Security & Temp Rollout Artifacts
+tool/
+timestamp_repairs_*.csv
+supabase/.temp/
+docs/architecture/cloud_backup_pre_rollout.json

@@ -9,12 +9,11 @@ import '../security/access_control_service.dart';
 import 'database.dart';
 import 'drift_ledger_base.dart';
 
-/// Calculates net party balance from ledger entry rows, excluding deleted rows
-/// and treating voided entries as net zero.
+/// Calculates net party balance from ledger entry rows, excluding deleted rows.
 int calculatePartyBalanceFromRows(List<LedgerEntryTableData> rows) {
   int netBalance = 0;
   for (final row in rows) {
-    if (row.isDeleted || row.isVoided) continue;
+    if (row.isDeleted) continue;
     if (row.type == EntryType.gave) {
       netBalance += row.amountInCents;
     } else {
@@ -422,11 +421,45 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
           .write(
         LedgerEntriesCompanion(
           isVoided: const Value(true),
-          isDeleted: const Value(true),
+          isDeleted: const Value(false),
           updatedAt: Value(now),
           syncStatus: const Value(SyncRecordStatus.pending),
         ),
       );
+
+      final offsettingType = original.type == EntryType.gave
+          ? EntryType.got
+          : EntryType.gave;
+      final offsetEntryId = uuid.v4();
+      final offsetNote = 'Offset: Voided entry #${original.id}'
+          '${original.note != null && original.note!.isNotEmpty ? ' (${original.note})' : ''}';
+
+      final offsetEntry = LedgerEntry(
+        id: offsetEntryId,
+        partyId: original.partyId,
+        amountInCents: original.amountInCents,
+        type: offsettingType,
+        date: now,
+        note: offsetNote,
+      );
+
+      await db.into(db.ledgerEntries).insert(
+            LedgerEntriesCompanion.insert(
+              id: offsetEntry.id,
+              companyId: Value(currentCompanyId),
+              partyId: offsetEntry.partyId,
+              amountInCents: offsetEntry.amountInCents,
+              type: offsetEntry.type,
+              date: offsetEntry.date,
+              note: Value(offsetEntry.note),
+              receiptPhotoUrl: Value(offsetEntry.receiptPhotoUrl),
+              isVoided: const Value(false),
+              createdAt: Value(offsetEntry.date),
+              updatedAt: Value(now),
+              isDeleted: const Value(false),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
 
       final jnlId = 'jnl_entry_$entryId';
       await (db.update(db.journals)..where((t) => t.id.equals(jnlId) & t.companyId.equals(currentCompanyId))).write(
@@ -469,12 +502,22 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
         },
       );
 
+      await recordOutboxEntry(
+        targetTable: 'ledger_entries',
+        recordId: offsetEntry.id,
+        mutationType: 'INSERT',
+        payload: {
+          ...offsetEntry.toMap(),
+          'companyId': currentCompanyId,
+        },
+      );
+
       await recordAuditLog(
         entityType: 'ledger_entry',
         entityId: original.id,
         action: AuditAction.voided,
         oldState: oldMap,
-        newState: {'id': original.id, 'isVoided': true, 'isDeleted': true},
+        newState: {'id': original.id, 'isVoided': true, 'offsetEntryId': offsetEntry.id},
       );
 
       await _recalculatePartyBalanceInTx(original.partyId);

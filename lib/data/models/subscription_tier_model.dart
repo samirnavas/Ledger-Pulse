@@ -110,7 +110,7 @@ class LicenseState {
     this.gstCreditsUsedThisMonth = 0,
   });
 
-  bool get isExpired => false;
+  bool get isExpired => DateTime.now().isAfter(expiryDate);
   int get daysRemaining => 99999;
   int get remainingGstCredits => 999999;
   bool get canCreateCompany => true;

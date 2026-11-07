@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
@@ -77,7 +79,7 @@ void repairMain(List<String> args) {
 
     print('\nRepair processing completed successfully.');
   } finally {
-    db.dispose();
+    db.close();
   }
 }
 

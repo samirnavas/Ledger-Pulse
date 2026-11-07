@@ -4,13 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/constants/colors.dart';
 import '../../core/constants/mode_strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_bottom_nav.dart';
-import '../../core/widgets/adaptive_chip.dart';
 import '../../core/widgets/adaptive_list_row.dart';
 import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
@@ -25,8 +23,8 @@ import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/sync_model.dart';
 import '../../data/models/voucher_model.dart';
-import '../home/company_switcher_sheet.dart';
 import '../home/sync_settings_sheet.dart';
+import '../widgets/active_profile_indicator_pill.dart';
 import '../providers/budget_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
@@ -136,65 +134,6 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
     return SmartFabSwitcher(fab: fabChild);
   }
 
-  Widget _buildCompanySwitcherTitle(
-    BuildContext context,
-    Company company,
-    bool isIos,
-  ) {
-    return InkWell(
-      key: const Key('expense_company_switcher_button'),
-      onTap: () {
-        HapticFeedback.lightImpact();
-        CompanySwitcherSheet.show(context);
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(
-                isIos
-                    ? CupertinoIcons.money_dollar_circle_fill
-                    : Icons.account_balance_wallet_rounded,
-                size: 18,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                company.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              isIos
-                  ? CupertinoIcons.chevron_down
-                  : Icons.keyboard_arrow_down_rounded,
-              size: 18,
-              color: isIos
-                  ? CupertinoColors.secondaryLabel
-                  : Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     ref.watch(autoSyncProvider);
@@ -283,7 +222,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
     Widget? titleWidget;
     String? titleText;
     if (clampedIndex == 0) {
-      titleWidget = _buildCompanySwitcherTitle(context, company, isIos);
+      titleWidget = const ActiveProfileIndicatorPill();
     } else if (hasBudgets && clampedIndex == 1) {
       titleText = modeStrings.budgetsTab;
     } else if ((hasBudgets && clampedIndex == 2) || (!hasBudgets && clampedIndex == 1)) {
@@ -669,7 +608,6 @@ class _ExpenseHomeView extends ConsumerWidget {
     final modeStrings = ModeStrings.of(company.mode);
     final selectedMonth = ref.watch(selectedMonthProvider);
     final summaryAsync = ref.watch(monthSummaryProvider);
-    final walletsAsync = ref.watch(walletsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final transactionsAsync = ref.watch(transactionsProvider);
     final allCategoriesBudgetAsync = ref.watch(allCategoriesBudgetProvider);

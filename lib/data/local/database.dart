@@ -400,9 +400,194 @@ class RecurringRules extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+@DataClassName('SharedMembershipTableData')
+@TableIndex(name: 'shared_memberships_profile_account_idx', columns: {#profileId, #accountId}, unique: true)
+class SharedMemberships extends Table {
+  TextColumn get id => text()();
+  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get accountId => text()();
+  TextColumn get role => text()(); // owner, admin, accountant, manager, data_entry, viewer
+  DateTimeColumn get joinedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('SharedDeviceTableData')
+@TableIndex(name: 'shared_devices_account_device_idx', columns: {#accountId, #deviceUuid}, unique: true)
+class SharedDevices extends Table {
+  TextColumn get id => text()();
+  TextColumn get accountId => text()();
+  TextColumn get deviceUuid => text()();
+  TextColumn get deviceName => text()();
+  TextColumn get platform => text()(); // android, ios, windows, web, macos, linux
+  TextColumn get pushToken => text().nullable()();
+  DateTimeColumn get lastSyncAt => dateTime().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('UserPreferenceTableData')
+class UserPreferences extends Table {
+  TextColumn get key => text()();
+  TextColumn get profileId => text().nullable()();
+  TextColumn get value => text()();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column> get primaryKey => {key, profileId};
+}
+
+@DataClassName('ExpenseWalletTableData')
+@TableIndex(name: 'exp_wallets_profile_idx', columns: {#profileId})
+class ExpenseWallets extends Table {
+  TextColumn get id => text()();
+  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get name => text()();
+  TextColumn get walletType => text().withDefault(const Constant('cash'))(); // cash, bank, credit_card, digital_wallet, savings
+  TextColumn get currencyCode => text().withDefault(const Constant('INR'))();
+  IntColumn get startingBalanceInCents => integer().withDefault(const Constant(0))();
+  IntColumn get currentBalanceInCents => integer().withDefault(const Constant(0))();
+  TextColumn get colorHex => text().nullable()();
+  TextColumn get iconName => text().nullable()();
+  BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+  DateTimeColumn get remoteUpdatedAt => dateTime().named('remote_updated_at').nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ExpenseCategoryTableData')
+@TableIndex(name: 'exp_categories_profile_type_idx', columns: {#profileId, #categoryType})
+class ExpenseCategories extends Table {
+  TextColumn get id => text()();
+  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get name => text()();
+  TextColumn get categoryType => text().withDefault(const Constant('expense'))(); // expense, income
+  TextColumn get parentCategoryId => text().nullable()();
+  TextColumn get iconName => text().nullable()();
+  TextColumn get colorHex => text().nullable()();
+  BoolColumn get isSystem => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+  DateTimeColumn get remoteUpdatedAt => dateTime().named('remote_updated_at').nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ExpenseTransactionTableData')
+@TableIndex(name: 'exp_txns_profile_date_idx', columns: {#profileId, #transactionDate})
+@TableIndex(name: 'exp_txns_wallet_idx', columns: {#walletId})
+@TableIndex(name: 'exp_txns_category_idx', columns: {#categoryId})
+class ExpenseTransactions extends Table {
+  TextColumn get id => text()();
+  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get transactionType => text()(); // expense, income, transfer
+  IntColumn get amountInCents => integer()();
+  @ReferenceName('outgoingTransactions')
+  TextColumn get walletId => text().references(ExpenseWallets, #id)();
+  @ReferenceName('incomingTransactions')
+  TextColumn get toWalletId => text().references(ExpenseWallets, #id).nullable()();
+  TextColumn get categoryId => text().references(ExpenseCategories, #id).nullable()();
+  DateTimeColumn get transactionDate => dateTime()();
+  TextColumn get note => text().nullable()();
+  TextColumn get payeeOrPayer => text().nullable()();
+  TextColumn get referenceNumber => text().nullable()();
+  TextColumn get receiptPhotoUrl => text().nullable()();
+  BoolColumn get isCleared => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+  DateTimeColumn get remoteUpdatedAt => dateTime().named('remote_updated_at').nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ExpenseBudgetTableData')
+@TableIndex(name: 'exp_budgets_profile_category_idx', columns: {#profileId, #categoryId})
+class ExpenseBudgets extends Table {
+  TextColumn get id => text()();
+  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get categoryId => text().references(ExpenseCategories, #id).nullable()();
+  TextColumn get periodType => text().withDefault(const Constant('monthly'))(); // monthly, weekly, yearly
+  IntColumn get amountInCents => integer()();
+  DateTimeColumn get startDate => dateTime()();
+  DateTimeColumn get endDate => dateTime().nullable()();
+  IntColumn get alertThresholdPercent => integer().withDefault(const Constant(80))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+  DateTimeColumn get remoteUpdatedAt => dateTime().named('remote_updated_at').nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ExpenseRecurringRuleTableData')
+@TableIndex(name: 'exp_recurring_profile_next_idx', columns: {#profileId, #nextRunDate})
+class ExpenseRecurringRules extends Table {
+  TextColumn get id => text()();
+  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get templateJson => text()();
+  TextColumn get intervalType => text()(); // daily, weekly, monthly, yearly
+  IntColumn get intervalCount => integer().withDefault(const Constant(1))();
+  DateTimeColumn get nextRunDate => dateTime()();
+  DateTimeColumn get endDate => dateTime().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+  DateTimeColumn get remoteUpdatedAt => dateTime().named('remote_updated_at').nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ExpenseAttachmentTableData')
+@TableIndex(name: 'exp_attachments_profile_txn_idx', columns: {#profileId, #transactionId})
+class ExpenseAttachments extends Table {
+  TextColumn get id => text()();
+  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get transactionId => text().references(ExpenseTransactions, #id)();
+  TextColumn get filePath => text()();
+  TextColumn get fileType => text().nullable()(); // image/jpeg, application/pdf
+  IntColumn get fileSize => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(tables: [
   Companies,
   UserProfiles,
+  SharedMemberships,
+  SharedDevices,
+  UserPreferences,
   Parties,
   LedgerEntries,
   AuditLogs,
@@ -416,6 +601,12 @@ class RecurringRules extends Table {
   JournalLines,
   Budgets,
   RecurringRules,
+  ExpenseWallets,
+  ExpenseCategories,
+  ExpenseTransactions,
+  ExpenseBudgets,
+  ExpenseRecurringRules,
+  ExpenseAttachments,
 ])
 class AppDatabase extends _$AppDatabase {
   final String userId;
@@ -425,7 +616,7 @@ class AppDatabase extends _$AppDatabase {
         super(e ?? _openConnection(userId ?? 'usr_default'));
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -572,10 +763,28 @@ class AppDatabase extends _$AppDatabase {
           },
           from8To9: (m, schema) async {
             await m.createTable(schema.syncState);
-            await m.addColumn(schema.syncOutbox, schema.syncOutbox.attempts);
-            await m.addColumn(schema.syncOutbox, schema.syncOutbox.lastError);
-            await m.addColumn(schema.syncOutbox, schema.syncOutbox.nextAttemptAt);
-
+            // Recreate sync_outbox to gain the UNIQUE (table_name, record_id) table constraint
+            await customStatement('''
+              CREATE TABLE IF NOT EXISTS "sync_outbox_v9" (
+                "id" TEXT NOT NULL,
+                "table_name" TEXT NOT NULL,
+                "record_id" TEXT NOT NULL,
+                "mutation_type" TEXT NOT NULL,
+                "payload" TEXT NOT NULL,
+                "attempts" INTEGER NOT NULL DEFAULT 0,
+                "last_error" TEXT NULL,
+                "next_attempt_at" INTEGER NULL,
+                "created_at" INTEGER NOT NULL DEFAULT (CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER)),
+                PRIMARY KEY ("id"),
+                UNIQUE ("table_name", "record_id")
+              );
+            ''');
+            await customStatement('''
+              INSERT OR IGNORE INTO "sync_outbox_v9" ("id", "table_name", "record_id", "mutation_type", "payload", "created_at")
+              SELECT "id", "table_name", "record_id", "mutation_type", "payload", "created_at" FROM "sync_outbox";
+            ''');
+            await customStatement('DROP TABLE "sync_outbox";');
+            await customStatement('ALTER TABLE "sync_outbox_v9" RENAME TO "sync_outbox";');
             await customStatement(
                 'CREATE UNIQUE INDEX IF NOT EXISTS sync_outbox_table_record_idx ON sync_outbox (table_name, record_id);');
 
@@ -647,12 +856,122 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
                 'CREATE UNIQUE INDEX IF NOT EXISTS accounts_company_code_idx ON accounts (company_id, code) WHERE is_deleted = 0;');
           },
+          from10To11: (m, schema) async {
+            // 1. Create shared governance & system tables
+            await m.createTable(schema.sharedMemberships);
+            await m.createTable(schema.sharedDevices);
+            await m.createTable(schema.userPreferences);
+
+            // 2. Create dedicated single-entry Expense tables
+            await m.createTable(schema.expenseWallets);
+            await m.createTable(schema.expenseCategories);
+            await m.createTable(schema.expenseTransactions);
+            await m.createTable(schema.expenseBudgets);
+            await m.createTable(schema.expenseRecurringRules);
+            await m.createTable(schema.expenseAttachments);
+
+            // 2b. Create indexes on newly added tables
+            await m.createIndex(schema.sharedMembershipsProfileAccountIdx);
+            await m.createIndex(schema.sharedDevicesAccountDeviceIdx);
+            await m.createIndex(schema.expWalletsProfileIdx);
+            await m.createIndex(schema.expCategoriesProfileTypeIdx);
+            await m.createIndex(schema.expTxnsProfileDateIdx);
+            await m.createIndex(schema.expTxnsWalletIdx);
+            await m.createIndex(schema.expTxnsCategoryIdx);
+            await m.createIndex(schema.expBudgetsProfileCategoryIdx);
+            await m.createIndex(schema.expRecurringProfileNextIdx);
+            await m.createIndex(schema.expAttachmentsProfileTxnIdx);
+
+            // 3. Backfill shared_memberships from companies.owner_id
+            await customStatement('''
+              INSERT OR IGNORE INTO shared_memberships (id, profile_id, account_id, role, joined_at, updated_at)
+              SELECT lower(hex(randomblob(16))), id, owner_id, 'owner', 
+                     COALESCE(created_at, CAST(strftime('%s', 'now') AS INTEGER)), 
+                     COALESCE(updated_at, CAST(strftime('%s', 'now') AS INTEGER))
+              FROM companies
+              WHERE owner_id IS NOT NULL AND owner_id != '';
+            ''');
+
+            // 4. Backfill Wallets from accounts where kind = 'wallet'
+            await customStatement('''
+              INSERT OR IGNORE INTO expense_wallets (
+                id, profile_id, name, wallet_type, starting_balance_in_cents, current_balance_in_cents,
+                created_at, updated_at, is_deleted, sync_status, revision
+              )
+              SELECT a.id, a.company_id, a.name, 'cash', 0, a.current_balance_in_cents,
+                     a.created_at, a.updated_at, a.is_deleted, a.sync_status, a.revision
+              FROM accounts a
+              JOIN companies c ON c.id = a.company_id
+              WHERE c.mode IN ('expense', 'expenseTracker') 
+                AND a.kind = 'wallet'
+                AND a.is_deleted = 0;
+            ''');
+
+            // 5. Backfill Categories from accounts where kind = 'category'
+            await customStatement('''
+              INSERT OR IGNORE INTO expense_categories (
+                id, profile_id, name, category_type, is_system,
+                created_at, updated_at, is_deleted, sync_status, revision
+              )
+              SELECT a.id, a.company_id, a.name,
+                     CASE WHEN a.type = 'income' THEN 'income' ELSE 'expense' END,
+                     a.is_system, a.created_at, a.updated_at, a.is_deleted, a.sync_status, a.revision
+              FROM accounts a
+              JOIN companies c ON c.id = a.company_id
+              WHERE c.mode IN ('expense', 'expenseTracker')
+                AND (a.kind = 'category' OR a.type IN ('income', 'expense'))
+                AND a.is_deleted = 0;
+            ''');
+
+            // 6. Backfill Transactions from vouchers (expense, income, transfer)
+            await customStatement('''
+              INSERT OR IGNORE INTO expense_transactions (
+                id, profile_id, transaction_type, amount_in_cents,
+                wallet_id, to_wallet_id, category_id, transaction_date,
+                note, reference_number, receipt_photo_url,
+                created_at, updated_at, is_deleted, sync_status, revision
+              )
+              SELECT v.id, v.company_id, v.type, v.total_amount_in_cents,
+                     COALESCE(v.wallet_account_id, (SELECT id FROM expense_wallets WHERE profile_id = v.company_id LIMIT 1), 'wal_default'),
+                     v.to_wallet_account_id, v.category_account_id, v.date,
+                     v.narration, v.reference_number, v.receipt_photo_url,
+                     v.created_at, v.updated_at, v.is_deleted, v.sync_status, v.revision
+              FROM vouchers v
+              JOIN companies c ON c.id = v.company_id
+              WHERE c.mode IN ('expense', 'expenseTracker')
+                AND v.type IN ('expense', 'income', 'transfer')
+                AND v.is_deleted = 0;
+            ''');
+
+            // 7. Backfill Budgets
+            await customStatement('''
+              INSERT OR IGNORE INTO expense_budgets (
+                id, profile_id, category_id, period_type, amount_in_cents,
+                start_date, created_at, updated_at, is_deleted, sync_status, revision
+              )
+              SELECT b.id, b.company_id, b.category_account_id, b.period_type, b.amount_in_cents,
+                     b.start_date, b.created_at, b.updated_at, b.is_deleted, b.sync_status, b.revision
+              FROM budgets b
+              JOIN companies c ON c.id = b.company_id
+              WHERE c.mode IN ('expense', 'expenseTracker') AND b.is_deleted = 0;
+            ''');
+
+            // 8. Backfill Recurring Rules
+            await customStatement('''
+              INSERT OR IGNORE INTO expense_recurring_rules (
+                id, profile_id, template_json, interval_type, interval_count,
+                next_run_date, end_date, is_active, created_at, updated_at, is_deleted, sync_status, revision
+              )
+              SELECT r.id, r.company_id, r.template_json, r.interval_type, r.interval_count,
+                     r.next_run_date, r.end_date, r.is_active, r.created_at, r.updated_at, r.is_deleted, r.sync_status, r.revision
+              FROM recurring_rules r
+              JOIN companies c ON c.id = r.company_id
+              WHERE c.mode IN ('expense', 'expenseTracker') AND r.is_deleted = 0;
+            ''');
+          },
         ),
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
-          try {
-            await customStatement('ALTER TABLE companies ADD COLUMN owner_id TEXT;');
-          } catch (_) {}
         },
       );
 }

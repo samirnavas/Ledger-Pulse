@@ -838,6 +838,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
         updatedAt: DateTime.now(),
       );
       await ref.read(companyControllerProvider.notifier).updateCompany(updated);
+      if (!context.mounted) return;
       showAppFeedback(context, 'Base currency updated to $picked');
     }
   }

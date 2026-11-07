@@ -10,13 +10,16 @@ import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../core/widgets/splitting_fab.dart';
 import '../../data/models/user_profile_model.dart';
-import '../auth/phone_input_screen.dart';
+import '../auth/app_root_gate.dart';
+import '../auth/profile_selector_screen.dart';
 import '../home/company_switcher_sheet.dart';
 import '../home/sync_settings_sheet.dart';
 import '../../data/models/company_mode.dart';
 import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
+import '../providers/profile_session_controller.dart';
+import '../providers/profile_session_state.dart';
 import '../providers/sync_providers.dart';
 import '../inventory/inventory_screen.dart';
 import '../reports/audit_log_screen.dart';
@@ -283,10 +286,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _performLogout() async {
     await ref.read(authControllerProvider.notifier).logout();
+    ref.read(profileSessionProvider.notifier).logout();
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         createAdaptivePageRoute(
-          builder: (context) => const PhoneInputScreen(),
+          builder: (context) => const AppRootGate(),
           transitionType: SharedAxisTransitionType.scaled,
         ),
         (route) => false,
@@ -350,6 +354,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   visualDensity: VisualDensity.compact,
                 ),
                 onTap: () => CompanySwitcherSheet.show(context),
+              ),
+              const SizedBox(height: 10),
+              _buildActionTile(
+                context,
+                title: 'Manage Workspaces & Members',
+                subtitle: 'Switch, create workspaces and view team access',
+                icon: isIos ? CupertinoIcons.square_grid_2x2 : Icons.workspaces_outline,
+                isIos: isIos,
+                onTap: () {
+                  final sessionState = ref.read(profileSessionProvider);
+                  if (sessionState is ActiveProfileReadySessionState) {
+                    Navigator.of(context).push(
+                      createAdaptivePageRoute(
+                        builder: (_) => ProfileSelectorScreen(
+                          userId: sessionState.userId,
+                          profiles: sessionState.availableProfiles,
+                        ),
+                      ),
+                    );
+                  } else {
+                    CompanySwitcherSheet.show(context);
+                  }
+                },
               ),
               const SizedBox(height: 10),
               _buildActionTile(

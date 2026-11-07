@@ -14,6 +14,12 @@ const realTableNames = <String>{
   'ledger_entries',
   'budgets',
   'recurring_rules',
+  'exp_wallets',
+  'exp_categories',
+  'exp_transactions',
+  'exp_budgets',
+  'exp_recurring_rules',
+  'shared_memberships',
 };
 
 const _uuid = Uuid();

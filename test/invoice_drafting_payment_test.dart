@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
@@ -17,10 +18,20 @@ void main() {
   late AuditService auditService;
   late VoucherPostingEngine postingEngine;
 
-  setUp(() {
+  setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
     auditService = AuditService(db);
     postingEngine = VoucherPostingEngine(db, auditService);
+    await db.into(db.companies).insert(
+      CompaniesCompanion.insert(
+        id: 'cmp_default',
+        name: 'Default Company',
+        legalName: 'Default Company Ltd',
+        createdAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      ),
+      mode: InsertMode.insertOrIgnore,
+    );
   });
 
   tearDown(() async {

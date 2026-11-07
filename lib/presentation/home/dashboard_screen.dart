@@ -8,7 +8,6 @@ import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_bottom_nav.dart';
-import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
@@ -23,6 +22,7 @@ import '../../core/modules/module_catalog.dart';
 import '../inventory/inventory_screen.dart';
 import '../inventory/manufacturing_journal_screen.dart';
 import '../payments/cts2010_cheque_preview_screen.dart';
+import '../widgets/active_profile_indicator_pill.dart';
 import '../payroll/employee_list_screen.dart';
 import '../profile/profile_screen.dart';
 import '../../data/models/company_model.dart';
@@ -34,7 +34,6 @@ import '../reports/desktop_custom_report_studio.dart';
 import '../reports/receivables_payables_screen.dart';
 import '../reports/reporting_hub_screen.dart';
 import 'add_party_dialog.dart';
-import 'company_switcher_sheet.dart';
 import 'dashboard_bi_hub_card.dart';
 import 'dashboard_sidebar_drawer.dart';
 import '../../data/models/sync_model.dart';
@@ -263,12 +262,9 @@ class DashboardScreen extends ConsumerWidget {
     ref.watch(autoSyncProvider);
     final syncStatus = ref.watch(syncControllerProvider);
     final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final isPartiesEnabled = ref.watch(moduleEnabledProvider(AppModule.parties));
     final isVouchersEnabled = ref.watch(moduleEnabledProvider(AppModule.vouchers));
-    final isPayrollEnabled = ref.watch(moduleEnabledProvider(AppModule.payroll));
-    final isGstEnabled = ref.watch(moduleEnabledProvider(AppModule.gst));
 
     final activeFilter = ref.watch(selectedPartyTypeFilterProvider);
     final summaryAsync = ref.watch(businessSummaryProvider);
@@ -304,53 +300,7 @@ class DashboardScreen extends ConsumerWidget {
                   fontSize: 18,
                 ),
               )
-            : InkWell(
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  CompanySwitcherSheet.show(context);
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Icon(
-                          isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded,
-                          size: 18,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          ref.watch(activeCompanyProvider).name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        isIos ? CupertinoIcons.chevron_down : Icons.keyboard_arrow_down_rounded,
-                        size: 18,
-                        color: isIos
-                            ? CupertinoColors.secondaryLabel
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            : const ActiveProfileIndicatorPill(),
         actions: [
           // 1. Sync & Backup Center Button (Manual trigger & backup menu)
           if (isIos)

@@ -6,6 +6,8 @@ import '../../data/models/party_model.dart';
 import '../expense/expense_home_screen.dart';
 import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
+import '../providers/profile_session_controller.dart';
+import '../providers/profile_session_state.dart';
 import 'dashboard_screen.dart';
 
 /// Root shell that dynamically swaps between [DashboardScreen] (for [CompanyMode.ledger])
@@ -23,17 +25,6 @@ class HomeShell extends ConsumerStatefulWidget {
 
 class _HomeShellState extends ConsumerState<HomeShell> {
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final companies = ref.read(userCompaniesProvider);
-      if (companies.isEmpty) {
-        ref.read(companyControllerProvider.notifier).ensureProfileAndCompanyExist();
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     // Reset mode-specific state whenever the active company changes
     ref.listen<Company>(activeCompanyProvider, (previous, next) {
@@ -46,14 +37,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       }
     });
 
-    final companies = ref.watch(userCompaniesProvider);
-    if (companies.isEmpty) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator.adaptive(),
-        ),
-      );
-    }
+    ref.listen<ProfileSessionState>(profileSessionProvider, (previous, next) {
+      if (previous is ActiveProfileReadySessionState &&
+          next is ActiveProfileReadySessionState &&
+          previous.activeProfile.id != next.activeProfile.id) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            resetModeSpecificState(ref);
+          }
+        });
+      }
+    });
 
     // Watch mode via select for targeted rebuilds
     final mode = ref.watch(activeCompanyProvider.select((c) => c.mode));

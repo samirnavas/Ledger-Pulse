@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:uuid/uuid.dart';
 import '../../core/network/sync_engine.dart';
@@ -11,7 +10,6 @@ import '../mock/mock_seed_data.dart';
 import '../models/audit_log_model.dart';
 import '../models/party_model.dart';
 import '../models/rbac_model.dart';
-import '../models/sync_model.dart';
 import '../models/transaction_model.dart';
 import 'audit_service.dart';
 import 'database.dart';
@@ -121,7 +119,17 @@ class DriftLedgerRepository extends DriftLedgerRepositoryBase
   }
 
   Future<void> _seedIfEmpty() async {
-    // Fresh installs have no parties, entries, or pre-made company.
+    // Ensure the company row exists so FK constraints are satisfied.
+    await _db.into(_db.companies).insert(
+      CompaniesCompanion.insert(
+        id: _currentCompanyId,
+        name: _currentCompanyId == 'cmp_default' ? 'Default Company' : _currentCompanyId,
+        legalName: _currentCompanyId == 'cmp_default' ? 'Default Company Ltd' : '$_currentCompanyId Ltd',
+        createdAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      ),
+      mode: InsertMode.insertOrIgnore,
+    );
   }
 
   /// Shared helper to record outbox entries across all mixins.
@@ -169,6 +177,7 @@ class DriftLedgerRepository extends DriftLedgerRepositoryBase
 
   /// Populates the sample dataset on demand for testing / demonstration purposes.
   Future<void> loadSampleData() async {
+    await ensureInitialized();
     List<Party> initialParties = [];
     List<LedgerEntry> initialEntries = [];
 

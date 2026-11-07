@@ -55,10 +55,13 @@ final trialDaysRemainingProvider = Provider<int>((ref) {
 
 /// Checks whether a subscription tier entitles access to an [AppModule].
 bool tierAllows(SubscriptionTier tier, AppModule module) {
-  return true;
+  final minTier = ModuleCatalog.minTierFor(module);
+  return tier.index >= minTier.index;
 }
 
 /// Entitlement provider for an [AppModule] based on current subscription state and expiry.
 final tierAllowsProvider = Provider.family<bool, AppModule>((ref, module) {
-  return true;
+  final license = ref.watch(subscriptionStateProvider);
+  if (license.isExpired) return false;
+  return tierAllows(license.tier, module);
 });

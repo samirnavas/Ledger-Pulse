@@ -11,9 +11,9 @@ import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
-import '../home/home_shell.dart';
 import '../providers/auth_providers.dart';
-import '../providers/company_providers.dart';
+import '../providers/profile_session_controller.dart';
+import 'app_root_gate.dart';
 import 'otp_screen.dart';
 
 enum AuthMode { phoneOtp, emailPassword }
@@ -27,7 +27,7 @@ class PhoneInputScreen extends ConsumerStatefulWidget {
 }
 
 class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
-  AuthMode _authMode = AuthMode.emailPassword;
+  AuthMode _authMode = AuthMode.phoneOtp;
   EmailAuthType _emailAuthType = EmailAuthType.signUp;
   bool _isCompanyAccount = true; // default: Company account (Business Ledger)
   bool _obscurePassword = true;
@@ -116,19 +116,14 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
             );
 
         if (success && mounted) {
-          // Connect user to database: create company profile and user profile
           await ref
-              .read(companyControllerProvider.notifier)
-              .bootstrapInitialProfile(
-                name: name,
-                email: email,
-                isCompanyAccount: _isCompanyAccount,
-              );
+              .read(profileSessionProvider.notifier)
+              .loadProfilesForUser(email);
 
           if (mounted) {
             Navigator.of(context).pushAndRemoveUntil(
               createAdaptivePageRoute(
-                builder: (context) => const HomeShell(),
+                builder: (context) => const AppRootGate(),
                 transitionType: SharedAxisTransitionType.scaled,
               ),
               (route) => false,
@@ -147,17 +142,14 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
             );
 
         if (success && mounted) {
-          // Ensure the user is connected to existing or initial profile
           await ref
-              .read(companyControllerProvider.notifier)
-              .ensureProfileAndCompanyExist(
-                email: email,
-              );
+              .read(profileSessionProvider.notifier)
+              .loadProfilesForUser(email);
 
           if (mounted) {
             Navigator.of(context).pushAndRemoveUntil(
               createAdaptivePageRoute(
-                builder: (context) => const HomeShell(),
+                builder: (context) => const AppRootGate(),
                 transitionType: SharedAxisTransitionType.scaled,
               ),
               (route) => false,
