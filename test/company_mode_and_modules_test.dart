@@ -16,12 +16,14 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('CompanyMode and AppModule parsing tests', () {
-    test('CompanyMode name-based parsing parses valid names and ignores unknown values', () {
+    test('CompanyMode name-based parsing parses valid names and rejects unknown values', () {
       expect(CompanyMode.fromName('ledger'), equals(CompanyMode.ledger));
       expect(CompanyMode.fromName('expenseTracker'), equals(CompanyMode.expenseTracker));
       expect(CompanyMode.fromName('EXPENSETRACKER'), equals(CompanyMode.expenseTracker));
-      expect(CompanyMode.fromName('unknown_mode'), equals(CompanyMode.ledger));
-      expect(CompanyMode.fromName(null), equals(CompanyMode.ledger));
+      expect(CompanyMode.fromName('expense'), equals(CompanyMode.expenseTracker));
+      expect(CompanyMode.fromName('expense_tracker'), equals(CompanyMode.expenseTracker));
+      expect(() => CompanyMode.fromName('unknown_mode'), throwsA(isA<UnknownProfileTypeException>()));
+      expect(() => CompanyMode.fromName(null), throwsA(isA<UnknownProfileTypeException>()));
       expect(CompanyMode.fromName(null, fallback: CompanyMode.expenseTracker), equals(CompanyMode.expenseTracker));
     });
 
@@ -103,7 +105,7 @@ void main() {
       );
 
       final map = company.toMap();
-      expect(map['mode'], equals('expenseTracker'));
+      expect(map['mode'], equals('expense'));
       expect(map['enabledModules'], isA<String>());
 
       final restored = Company.fromMap(map);
@@ -182,17 +184,21 @@ void main() {
       expect(fetched.isModuleEnabled(AppModule.budgets), isTrue);
       expect(fetched.isModuleEnabled(AppModule.parties), isFalse);
 
-      // Update company mode and modules
+      // Update company modules (profile type mode is immutable)
+      expect(
+        () => fetched.copyWith(mode: CompanyMode.ledger),
+        throwsA(isA<StateError>()),
+      );
+
       final updatedComp = fetched.copyWith(
-        mode: CompanyMode.ledger,
-        enabledModules: {AppModule.parties, AppModule.vouchers, AppModule.gst},
+        enabledModules: {AppModule.vouchers, AppModule.recurring},
       );
       await ledgerRepo.updateCompany(updatedComp);
 
       final reFetchedList = await ledgerRepo.getCompanies();
       final reFetched = reFetchedList.firstWhere((c) => c.id == 'c_test_modes');
-      expect(reFetched.mode, equals(CompanyMode.ledger));
-      expect(reFetched.enabledModules, equals({AppModule.parties, AppModule.vouchers, AppModule.gst}));
+      expect(reFetched.mode, equals(CompanyMode.expenseTracker));
+      expect(reFetched.enabledModules, equals({AppModule.vouchers, AppModule.recurring}));
     });
 
     test('VoucherModel and drift_voucher_repository persist categoryAccountId, walletAccountId, toWalletAccountId', () async {

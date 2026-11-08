@@ -11,6 +11,7 @@ import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
+import '../../core/widgets/liquid_glass_card.dart';
 import '../providers/auth_providers.dart';
 import '../providers/profile_session_controller.dart';
 import 'app_root_gate.dart';
@@ -29,7 +30,6 @@ class PhoneInputScreen extends ConsumerStatefulWidget {
 class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
   AuthMode _authMode = AuthMode.phoneOtp;
   EmailAuthType _emailAuthType = EmailAuthType.signUp;
-  bool _isCompanyAccount = true; // default: Company account (Business Ledger)
   bool _obscurePassword = true;
   bool _isBootstrapping = false;
 
@@ -98,39 +98,46 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
       if (_emailAuthType == EmailAuthType.signUp) {
         if (name.isEmpty) {
           setState(() {
-            _errorMessage = _isCompanyAccount
-                ? 'Please enter your business or company name'
-                : 'Please enter your full name';
+            _errorMessage = 'Please enter your full name';
             _isBootstrapping = false;
           });
           return;
         }
 
-        final success = await ref
+        final result = await ref
             .read(authControllerProvider.notifier)
             .signUpWithEmailAndPassword(
               email: email,
               password: password,
               name: name,
-              isCompanyAccount: _isCompanyAccount,
             );
 
-        if (success && mounted) {
-          await ref
-              .read(profileSessionProvider.notifier)
-              .loadProfilesForUser(email);
-
-          if (mounted) {
-            Navigator.of(context).pushAndRemoveUntil(
-              createAdaptivePageRoute(
-                builder: (context) => const AppRootGate(),
-                transitionType: SharedAxisTransitionType.scaled,
-              ),
-              (route) => false,
-            );
+        if (result.isSuccess) {
+          if (result.requiresEmailConfirmation) {
+            // Handled reactively by AuthState.isEmailConfirmationPending
+            return;
           }
-        } else if (!success && mounted) {
-          final err = ref.read(authControllerProvider).error;
+
+          final userId = ref.read(authControllerProvider).userId ??
+              ref.read(authRepositoryProvider).currentUserId;
+
+          if (userId != null && mounted) {
+            await ref
+                .read(profileSessionProvider.notifier)
+                .loadProfilesForUser(userId);
+
+            if (mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                createAdaptivePageRoute(
+                  builder: (context) => const AppRootGate(),
+                  transitionType: SharedAxisTransitionType.scaled,
+                ),
+                (route) => false,
+              );
+            }
+          }
+        } else if (mounted) {
+          final err = ref.read(authControllerProvider).error ?? result.message;
           setState(() => _errorMessage = err ?? 'Failed to create account');
         }
       } else {
@@ -142,18 +149,23 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
             );
 
         if (success && mounted) {
-          await ref
-              .read(profileSessionProvider.notifier)
-              .loadProfilesForUser(email);
+          final userId = ref.read(authControllerProvider).userId ??
+              ref.read(authRepositoryProvider).currentUserId;
 
-          if (mounted) {
-            Navigator.of(context).pushAndRemoveUntil(
-              createAdaptivePageRoute(
-                builder: (context) => const AppRootGate(),
-                transitionType: SharedAxisTransitionType.scaled,
-              ),
-              (route) => false,
-            );
+          if (userId != null && mounted) {
+            await ref
+                .read(profileSessionProvider.notifier)
+                .loadProfilesForUser(userId, isLogin: true);
+
+            if (mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                createAdaptivePageRoute(
+                  builder: (context) => const AppRootGate(),
+                  transitionType: SharedAxisTransitionType.scaled,
+                ),
+                (route) => false,
+              );
+            }
           }
         } else if (!success && mounted) {
           final err = ref.read(authControllerProvider).error;
@@ -169,6 +181,131 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
         setState(() => _isBootstrapping = false);
       }
     }
+  }
+
+  Widget _buildEmailConfirmationPendingView(
+    BuildContext context,
+    AuthState authState,
+    bool isIos,
+    bool isDark,
+  ) {
+    final email = authState.confirmationEmail ?? _emailController.text.trim();
+    final primaryColor = isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary;
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        const SizedBox(height: 16),
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: primaryColor.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(
+            isIos ? CupertinoIcons.mail_solid : Icons.mark_email_read_rounded,
+            color: primaryColor,
+            size: 38,
+          ),
+        ),
+        const SizedBox(height: 20),
+        const Text(
+          'Verify Your Email',
+          style: AppTypography.displayMedium,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'We have sent a verification link to:',
+          style: AppTypography.bodyMedium.copyWith(
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Text(
+            email,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: isIos ? (isDark ? Colors.white : Colors.black) : Theme.of(context).colorScheme.onSurface,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Please open your email and tap the confirmation link to activate your account. Once verified, return here to sign in.',
+          style: AppTypography.bodySmall.copyWith(
+            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            fontSize: 13,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 28),
+        AdaptiveButton(
+          onPressed: () {
+            ref.read(authControllerProvider.notifier).clearConfirmationPending();
+            setState(() {
+              _emailAuthType = EmailAuthType.signIn;
+              _errorMessage = null;
+            });
+          },
+          isFullWidth: true,
+          height: 52,
+          child: const Text(
+            'Proceed to Sign In',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextButton(
+          onPressed: () {
+            ref.read(authControllerProvider.notifier).clearConfirmationPending();
+            setState(() {
+              _emailAuthType = EmailAuthType.signUp;
+              _errorMessage = null;
+            });
+          },
+          child: Text(
+            'Use a different email address',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: primaryColor,
+            ),
+          ),
+        ),
+      ],
+    );
+
+    return isIos
+        ? LiquidGlassCard(
+            borderRadius: 24,
+            padding: const EdgeInsets.all(20),
+            child: content,
+          )
+        : Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+            ),
+            color: Theme.of(context).colorScheme.surfaceContainerLow,
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: content,
+            ),
+          );
   }
 
   @override
@@ -416,6 +553,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
+            ] else if (authState.isEmailConfirmationPending) ...[
+              // EMAIL CONFIRMATION PENDING STATE
+              _buildEmailConfirmationPendingView(context, authState, isIos, isDark),
             ] else ...[
               // EMAIL & PASSWORD MODE
               Column(
@@ -457,57 +597,26 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               if (_emailAuthType == EmailAuthType.signUp) ...[
-                // ACCOUNT TYPE SELECTOR (Personal vs Company)
-                Text(
-                  'Profile Type:',
-                  style: AppTypography.labelLarge.copyWith(fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                AdaptiveSegmentedControl<bool>(
-                  groupValue: _isCompanyAccount,
-                  children: const {
-                    true: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.business_rounded, size: 16),
-                        SizedBox(width: 6),
-                        Text('Business Ledger'),
-                      ],
-                    ),
-                    false: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.wallet_rounded, size: 16),
-                        SizedBox(width: 6),
-                        Text('Expense Tracker'),
-                      ],
-                    ),
-                  },
-                  onValueChanged: (val) {
-                    HapticFeedback.lightImpact();
-                    setState(() => _isCompanyAccount = val);
-                  },
-                ),
-                const SizedBox(height: 16),
-
+                // PERSONAL DETAILS ONLY: FULL NAME
                 TextField(
+                  key: const Key('signup_name_field'),
                   controller: _nameController,
-                  decoration: InputDecoration(
-                    labelText: _isCompanyAccount ? 'Company / Business Name' : 'Your Full Name',
-                    hintText: _isCompanyAccount ? 'e.g. Acme Enterprises' : 'e.g. John Doe',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: Icon(_isCompanyAccount ? Icons.business_rounded : Icons.person_rounded),
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    hintText: 'e.g. John Doe',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_outline_rounded),
                   ),
                 ),
                 const SizedBox(height: 16),
               ],
 
               TextField(
+                key: const Key('auth_email_field'),
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
@@ -520,6 +629,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
               const SizedBox(height: 16),
 
               TextField(
+                key: const Key('auth_password_field'),
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(

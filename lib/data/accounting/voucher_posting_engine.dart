@@ -431,7 +431,8 @@ class VoucherPostingEngine {
     final outputGstAccountId = '${companyId}_${DefaultAccounts.outputGstId}';
     final inputGstAccountId = '${companyId}_${DefaultAccounts.inputGstId}';
     final companyRow = await (_db.select(_db.companies)..where((t) => t.id.equals(companyId))).getSingleOrNull();
-    final isExpenseCompany = companyRow?.mode == CompanyMode.expenseTracker.name;
+    final isExpenseCompany = companyRow != null &&
+        CompanyMode.tryParse(companyRow.mode) == CompanyMode.expenseTracker;
 
     final cashAccountId = isExpenseCompany
         ? '${companyId}_${ExpenseTrackerDefaults.walletCashId}'

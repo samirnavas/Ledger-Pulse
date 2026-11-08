@@ -2,10 +2,33 @@ import 'dart:async';
 import '../../domain/repositories/i_auth_repository.dart';
 
 class MockAuthRepository implements IAuthRepository {
+  static const String validMockUuid = '11111111-2222-4333-8444-555555555555';
+  static const String validMockJwt =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMTExMTExMS0yMjIyLTQzMzMtODQ0NC01NTU1NTU1NTU1NTUiLCJpYXQiOjE1MTYyMzkwMjJ9.mock_signature';
+
   final _authStateController = StreamController<bool>.broadcast();
-  bool _isAuthenticated = true; // Default to authenticated for instant preview, can logout/login
-  String? _phoneNumber = '+91 98765 43210';
+  bool _isAuthenticated;
+  String? _phoneNumber;
+  String? _email;
+  String? _userId;
+  String? _sessionToken;
+  String? _userName;
   String? _pendingPhone;
+  bool requiresEmailConfirmationOnSignUp;
+
+  MockAuthRepository({
+    bool isAuthenticated = true,
+    String? userId,
+    String? email = 'demo@ledgerpulse.com',
+    String? phoneNumber = '+91 98765 43210',
+    String? userName = 'Demo User',
+    this.requiresEmailConfirmationOnSignUp = false,
+  })  : _isAuthenticated = isAuthenticated,
+        _userId = userId ?? (isAuthenticated ? validMockUuid : null),
+        _sessionToken = isAuthenticated ? validMockJwt : null,
+        _email = email,
+        _phoneNumber = phoneNumber,
+        _userName = userName;
 
   @override
   bool get isAuthenticated => _isAuthenticated;
@@ -14,23 +37,27 @@ class MockAuthRepository implements IAuthRepository {
   String? get currentPhoneNumber => _phoneNumber;
 
   @override
-  String? get currentUserId => _isAuthenticated ? 'usr_mock_123' : null;
+  String? get currentUserId => _isAuthenticated ? (_userId ?? validMockUuid) : null;
 
   @override
-  String? get currentSessionToken => _isAuthenticated ? 'mock_session_token_xyz' : null;
+  String? get currentSessionToken => _isAuthenticated ? (_sessionToken ?? validMockJwt) : null;
 
   @override
-  String? get currentUserEmail => _phoneNumber != null && _phoneNumber!.contains('@') ? _phoneNumber : 'demo@ledgerpulse.com';
+  String? get currentUserEmail => _email ?? (_phoneNumber != null && _phoneNumber!.contains('@') ? _phoneNumber : 'demo@ledgerpulse.com');
 
   @override
-  String? get currentUserName => 'Demo User';
+  String? get currentUserName => _userName ?? 'Demo User';
 
   @override
   Stream<bool> get authStateStream => _authStateController.stream;
 
+  void setCustomUserId(String? id) {
+    _userId = id;
+  }
+
   @override
   Future<void> sendOtp(String phoneNumber) async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 50));
     final digitsOnly = phoneNumber.replaceAll(RegExp(r'\D'), '');
     if (digitsOnly.length < 10) {
       throw Exception('Please enter a valid 10-digit phone number');
@@ -40,9 +67,11 @@ class MockAuthRepository implements IAuthRepository {
 
   @override
   Future<bool> verifyOtp(String phoneNumber, String otp) async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    await Future.delayed(const Duration(milliseconds: 50));
     if (otp.trim() == '123456') {
       _phoneNumber = _pendingPhone ?? phoneNumber;
+      _userId ??= validMockUuid;
+      _sessionToken = validMockJwt;
       _isAuthenticated = true;
       _authStateController.add(true);
       return true;
@@ -51,17 +80,38 @@ class MockAuthRepository implements IAuthRepository {
   }
 
   @override
-  Future<bool> signUpWithEmailAndPassword({
+  Future<SignUpResult> signUpWithEmailAndPassword({
     required String email,
     required String password,
     required String name,
-    required bool isCompanyAccount,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _phoneNumber = email;
+    await Future.delayed(const Duration(milliseconds: 50));
+    _email = email;
+    _userName = name;
+
+    if (requiresEmailConfirmationOnSignUp) {
+      _isAuthenticated = false;
+      _sessionToken = null;
+      _userId ??= validMockUuid;
+      return SignUpResult(
+        isSuccess: true,
+        requiresEmailConfirmation: true,
+        userId: _userId,
+        email: email,
+        message: 'Account created. Please check your email to confirm your account.',
+      );
+    }
+
+    _userId ??= validMockUuid;
+    _sessionToken = validMockJwt;
     _isAuthenticated = true;
     _authStateController.add(true);
-    return true;
+    return SignUpResult(
+      isSuccess: true,
+      requiresEmailConfirmation: false,
+      userId: _userId,
+      email: email,
+    );
   }
 
   @override
@@ -69,8 +119,10 @@ class MockAuthRepository implements IAuthRepository {
     required String email,
     required String password,
   }) async {
-    await Future.delayed(const Duration(milliseconds: 300));
-    _phoneNumber = email;
+    await Future.delayed(const Duration(milliseconds: 50));
+    _email = email;
+    _userId ??= validMockUuid;
+    _sessionToken = validMockJwt;
     _isAuthenticated = true;
     _authStateController.add(true);
     return true;
@@ -78,9 +130,12 @@ class MockAuthRepository implements IAuthRepository {
 
   @override
   Future<void> logout() async {
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 50));
     _isAuthenticated = false;
+    _userId = null;
+    _sessionToken = null;
     _phoneNumber = null;
+    _email = null;
     _authStateController.add(false);
   }
 

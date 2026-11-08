@@ -61,9 +61,14 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
         await ref.read(authControllerProvider.notifier).verifyOtp(otp);
 
     if (success && mounted) {
-      await ref
-          .read(profileSessionProvider.notifier)
-          .loadProfilesForUser(widget.phoneNumber);
+      final userId = ref.read(authControllerProvider).userId ??
+          ref.read(authRepositoryProvider).currentUserId;
+
+      if (userId != null) {
+        await ref
+            .read(profileSessionProvider.notifier)
+            .loadProfilesForUser(userId, isLogin: true);
+      }
 
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(

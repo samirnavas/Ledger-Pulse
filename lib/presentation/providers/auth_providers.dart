@@ -27,39 +27,52 @@ final authStateProvider = StreamProvider<bool>((ref) {
 class AuthState {
   final bool isLoading;
   final String? error;
+  final String? userId;
   final String? phoneNumber;
   final String? email;
   final String? userName;
   final bool isOtpSent;
   final bool isAuthenticated;
+  final bool isEmailConfirmationPending;
+  final String? confirmationEmail;
 
   const AuthState({
     this.isLoading = false,
     this.error,
+    this.userId,
     this.phoneNumber,
     this.email,
     this.userName,
     this.isOtpSent = false,
     this.isAuthenticated = false,
+    this.isEmailConfirmationPending = false,
+    this.confirmationEmail,
   });
 
   AuthState copyWith({
     bool? isLoading,
     String? error,
+    String? userId,
     String? phoneNumber,
     String? email,
     String? userName,
     bool? isOtpSent,
     bool? isAuthenticated,
+    bool? isEmailConfirmationPending,
+    String? confirmationEmail,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      userId: userId ?? this.userId,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       email: email ?? this.email,
       userName: userName ?? this.userName,
       isOtpSent: isOtpSent ?? this.isOtpSent,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      isEmailConfirmationPending:
+          isEmailConfirmationPending ?? this.isEmailConfirmationPending,
+      confirmationEmail: confirmationEmail ?? this.confirmationEmail,
     );
   }
 }
@@ -76,6 +89,7 @@ class AuthController extends Notifier<AuthState> {
     _authSub = repo.authStateStream.listen((isAuth) {
       state = state.copyWith(
         isAuthenticated: isAuth,
+        userId: repo.currentUserId,
         phoneNumber: repo.currentPhoneNumber,
         email: repo.currentUserEmail,
         userName: repo.currentUserName,
@@ -88,9 +102,18 @@ class AuthController extends Notifier<AuthState> {
 
     return AuthState(
       isAuthenticated: repo.isAuthenticated,
+      userId: repo.currentUserId,
       phoneNumber: repo.currentPhoneNumber,
       email: repo.currentUserEmail,
       userName: repo.currentUserName,
+    );
+  }
+
+  void clearConfirmationPending() {
+    state = state.copyWith(
+      isEmailConfirmationPending: false,
+      confirmationEmail: null,
+      error: null,
     );
   }
 
@@ -119,12 +142,14 @@ class AuthController extends Notifier<AuthState> {
         state = state.copyWith(
           isLoading: false,
           isAuthenticated: true,
+          userId: _repository.currentUserId,
+          phoneNumber: _repository.currentPhoneNumber ?? state.phoneNumber,
         );
         return true;
       } else {
         state = state.copyWith(
           isLoading: false,
-          error: 'Invalid verification code. Please use 123456.',
+          error: 'Invalid verification code. Please try again.',
         );
         return false;
       }
@@ -134,35 +159,50 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  Future<bool> signUpWithEmailAndPassword({
+  Future<SignUpResult> signUpWithEmailAndPassword({
     required String email,
     required String password,
     required String name,
-    required bool isCompanyAccount,
   }) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      isEmailConfirmationPending: false,
+    );
     try {
-      final success = await _repository.signUpWithEmailAndPassword(
+      final result = await _repository.signUpWithEmailAndPassword(
         email: email,
         password: password,
         name: name,
-        isCompanyAccount: isCompanyAccount,
       );
-      if (success) {
-        state = state.copyWith(
-          isLoading: false,
-          isAuthenticated: true,
-          phoneNumber: email,
-          email: email,
-          userName: name,
-        );
-        return true;
+      if (result.isSuccess) {
+        if (result.requiresEmailConfirmation) {
+          state = state.copyWith(
+            isLoading: false,
+            isAuthenticated: false,
+            isEmailConfirmationPending: true,
+            confirmationEmail: email,
+            userId: result.userId,
+            email: email,
+            userName: name,
+          );
+        } else {
+          state = state.copyWith(
+            isLoading: false,
+            isAuthenticated: true,
+            isEmailConfirmationPending: false,
+            userId: result.userId ?? _repository.currentUserId,
+            email: email,
+            userName: name,
+          );
+        }
+        return result;
       } else {
         state = state.copyWith(
           isLoading: false,
-          error: 'Failed to create account. Please check your info and try again.',
+          error: result.message ?? 'Failed to create account. Please check your info and try again.',
         );
-        return false;
+        return result;
       }
     } on AuthException catch (e) {
       String msg = e.message;
@@ -171,14 +211,14 @@ class AuthController extends Notifier<AuthState> {
         msg = 'An account with this email already exists. Please sign in.';
       }
       state = state.copyWith(isLoading: false, error: msg);
-      return false;
+      return SignUpResult(isSuccess: false, message: msg);
     } catch (e) {
       String msg = e.toString().replaceFirst('Exception: ', '');
       if (msg.contains('SocketException') || msg.contains('Failed host lookup')) {
         msg = 'Network error: Unable to connect to Supabase. Please check your internet connection.';
       }
       state = state.copyWith(isLoading: false, error: msg);
-      return false;
+      return SignUpResult(isSuccess: false, message: msg);
     }
   }
 
@@ -186,7 +226,11 @@ class AuthController extends Notifier<AuthState> {
     required String email,
     required String password,
   }) async {
-    state = state.copyWith(isLoading: true, error: null);
+    state = state.copyWith(
+      isLoading: true,
+      error: null,
+      isEmailConfirmationPending: false,
+    );
     try {
       final success = await _repository.signInWithEmailAndPassword(
         email: email,
@@ -196,7 +240,7 @@ class AuthController extends Notifier<AuthState> {
         state = state.copyWith(
           isLoading: false,
           isAuthenticated: true,
-          phoneNumber: email,
+          userId: _repository.currentUserId,
           email: email,
           userName: _repository.currentUserName,
         );
@@ -210,6 +254,16 @@ class AuthController extends Notifier<AuthState> {
       }
     } on AuthException catch (e) {
       String msg = e.message;
+      if (msg.toLowerCase().contains('email not confirmed')) {
+        msg = 'Please verify your email before signing in. Check your inbox for the confirmation link.';
+        state = state.copyWith(
+          isLoading: false,
+          error: msg,
+          isEmailConfirmationPending: true,
+          confirmationEmail: email,
+        );
+        return false;
+      }
       if (msg.toLowerCase().contains('invalid login credentials') ||
           msg.toLowerCase().contains('invalid_credentials')) {
         msg = 'Invalid email or password. Please try again.';

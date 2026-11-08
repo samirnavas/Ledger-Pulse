@@ -12,6 +12,7 @@ import '../../core/widgets/adaptive_picker.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../domain/models/workspace_profile_header.dart';
+import '../providers/auth_providers.dart';
 import '../providers/profile_session_controller.dart';
 import 'app_root_gate.dart';
 
@@ -64,7 +65,7 @@ class _ProfileOnboardingScreenState
 
     try {
       final repo = ref.read(profileRepositoryProvider);
-      await repo.createProfile(
+      final created = await repo.createProfile(
         name: name,
         type: _selectedType,
         currencyCode: _selectedCurrency,
@@ -78,6 +79,10 @@ class _ProfileOnboardingScreenState
             : null,
         accountId: widget.userId,
       );
+
+      // Save preference for newly created profile so it immediately becomes active
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs?.setString('last_active_profile_${widget.userId}', created.id);
 
       // Reload profile session so state machine transitions to active profile
       await ref

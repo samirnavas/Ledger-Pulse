@@ -58,7 +58,13 @@ class CompanySwitcherSheet extends ConsumerStatefulWidget {
 
   static void showAddCompanyDialog(BuildContext context, WidgetRef ref) {
     final authState = ref.read(authControllerProvider);
-    final userId = authState.phoneNumber ?? 'usr_default';
+    final userId = authState.userId ?? ref.read(authRepositoryProvider).currentUserId;
+    if (userId == null || userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to add a workspace profile.')),
+      );
+      return;
+    }
     Navigator.of(context).push(
       createAdaptivePageRoute(
         builder: (_) => ProfileOnboardingScreen(userId: userId),

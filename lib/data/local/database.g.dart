@@ -300,7 +300,7 @@ class $CompaniesTable extends Companies
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('synced'),
+    defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($CompaniesTable.$convertersyncStatus);
   static const VerificationMeta _revisionMeta = const VerificationMeta(
     'revision',
@@ -1805,7 +1805,7 @@ class $UserProfilesTable extends UserProfiles
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: false,
-    defaultValue: const Constant('synced'),
+    defaultValue: const Constant('pending'),
   ).withConverter<SyncRecordStatus>($UserProfilesTable.$convertersyncStatus);
   static const VerificationMeta _revisionMeta = const VerificationMeta(
     'revision',

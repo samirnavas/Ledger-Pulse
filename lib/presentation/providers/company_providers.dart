@@ -184,20 +184,9 @@ class CompanyController extends Notifier<void> {
       debugPrint('ensureProfileAndCompanyExist pull notice: $e');
     }
 
-    // Still empty -> bootstrap initial profile & company
-    final authRepo = ref.read(authRepositoryProvider);
-    final effectiveName = name ??
-        authRepo.currentUserName ??
-        (email != null && email.contains('@')
-            ? email.split('@').first
-            : (phone != null && phone.isNotEmpty ? phone : 'My Account'));
-    final effectiveEmail = email ?? authRepo.currentUserEmail ?? '';
-
-    await bootstrapInitialProfile(
-      name: effectiveName,
-      email: effectiveEmail,
-      isCompanyAccount: isCompanyAccount,
-    );
+    // Still empty -> do not silently bootstrap a Ledger profile or any company.
+    // The user has 0 profiles and must be routed to profile onboarding.
+    return;
   }
 
   Future<void> selectCompany(String companyId) async {

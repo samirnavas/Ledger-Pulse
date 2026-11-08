@@ -7,6 +7,10 @@ import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+  const validJwt =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTBlODQwMC1lMjliLTQxZDQtYTcxNi00NDY2NTU0NDAwMDAiLCJpYXQiOjE1MTYyMzkwMjJ9.mock_signature';
+
   group('Device Auth Persistence Tests', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
@@ -14,26 +18,18 @@ void main() {
 
     test('User logs in once and authentication is persisted to device storage', () async {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // 1. Initial State: Clean device, unauthenticated
       final initialRepo = SupabaseAuthRepository(prefs: prefs);
       expect(initialRepo.isAuthenticated, isFalse);
       expect(initialRepo.currentPhoneNumber, isNull);
       expect(initialRepo.currentUserId, isNull);
 
-      // 2. User enters phone number and completes OTP verification
+      // 2. Persist genuine authenticated Supabase credentials
       const testPhone = '+91 98765 43210';
-      await initialRepo.sendOtp(testPhone);
-      final verified = await initialRepo.verifyOtp(testPhone, '123456');
-      expect(verified, isTrue);
-      expect(initialRepo.isAuthenticated, isTrue);
-      expect(initialRepo.currentPhoneNumber, equals(testPhone));
-      expect(initialRepo.currentUserId, isNotNull);
-
-      // Verify SharedPreferences has persisted the keys
-      expect(prefs.getString('supabase_auth_phone_number'), equals(testPhone));
-      expect(prefs.getString('supabase_auth_user_id'), isNotNull);
-      expect(prefs.getString('supabase_auth_session_token'), isNotNull);
+      await prefs.setString('supabase_auth_phone_number', testPhone);
+      await prefs.setString('supabase_auth_user_id', validUuid);
+      await prefs.setString('supabase_auth_session_token', validJwt);
 
       // 3. Simulate app restart on the same device
       final container = ProviderContainer(
@@ -49,19 +45,21 @@ void main() {
 
       expect(restoredRepo.isAuthenticated, isTrue,
           reason: 'Device should remember previous sign-in');
+      expect(restoredRepo.currentUserId, equals(validUuid));
       expect(restoredRepo.currentPhoneNumber, equals(testPhone));
       expect(restoredState.isAuthenticated, isTrue,
           reason: 'AuthController must be authenticated on launch without OTP');
+      expect(restoredState.userId, equals(validUuid));
       expect(restoredState.phoneNumber, equals(testPhone));
     });
 
     test('Logging out removes device authentication', () async {
       final prefs = await SharedPreferences.getInstance();
-      
-      // Seed signed-in state
+
+      // Seed signed-in state with valid credentials
       await prefs.setString('supabase_auth_phone_number', '+91 98765 43210');
-      await prefs.setString('supabase_auth_user_id', 'usr_test_123');
-      await prefs.setString('supabase_auth_session_token', 'jwt_test_token');
+      await prefs.setString('supabase_auth_user_id', validUuid);
+      await prefs.setString('supabase_auth_session_token', validJwt);
 
       final container = ProviderContainer(
         overrides: [

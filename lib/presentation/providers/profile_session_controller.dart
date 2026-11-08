@@ -1,7 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
+import '../../core/network/sync_codec.dart';
 import '../../core/network/sync_engine.dart';
 import '../../data/local/database.dart';
+import '../../data/local/outbox_helper.dart';
 import '../../domain/models/workspace_profile_header.dart';
 import '../../domain/repositories/i_profile_repository.dart';
 import 'auth_providers.dart';
@@ -18,6 +21,8 @@ class DriftProfileRepository implements IProfileRepository {
   @override
   Future<List<WorkspaceProfileHeader>> getAccessibleProfiles(
       String accountId) async {
+    if (accountId.isEmpty) return [];
+
     // 1. Query shared_memberships joined with companies
     final query = db.select(db.companies).join([
       innerJoin(
@@ -25,8 +30,7 @@ class DriftProfileRepository implements IProfileRepository {
         db.sharedMemberships.profileId.equalsExp(db.companies.id),
       ),
     ])
-      ..where((db.sharedMemberships.accountId.equals(accountId) |
-              db.sharedMemberships.accountId.equals('usr_default')) &
+      ..where(db.sharedMemberships.accountId.equals(accountId) &
           db.companies.isDeleted.equals(false));
 
     final rows = await query.get();
@@ -51,6 +55,29 @@ class DriftProfileRepository implements IProfileRepository {
       );
     }
 
+    // 2. Also include companies owned directly by accountId if membership wasn't backfilled
+    final existingIds = result.map((p) => p.id).toSet();
+    final ownerQuery = db.select(db.companies)
+      ..where((c) => c.ownerId.equals(accountId) & c.isDeleted.equals(false));
+    final ownerRows = await ownerQuery.get();
+    for (final company in ownerRows) {
+      if (!existingIds.contains(company.id)) {
+        result.add(
+          WorkspaceProfileHeader(
+            id: company.id,
+            name: company.name,
+            legalName: company.legalName,
+            type: ProfileType.fromString(company.mode),
+            role: ProfileRole.owner,
+            currencyCode: company.currencyCode,
+            gstin: company.gstin,
+            isActive: company.isActive,
+            updatedAt: company.updatedAt,
+          ),
+        );
+      }
+    }
+
     return result;
   }
 
@@ -68,30 +95,45 @@ class DriftProfileRepository implements IProfileRepository {
         'prf_${DateTime.now().millisecondsSinceEpoch.toRadixString(16)}';
     final now = DateTime.now();
     final effectiveLegalName = legalName ?? name;
-    final effectiveAccountId = (accountId != null && accountId.isNotEmpty)
-        ? accountId
-        : 'usr_default';
+
+    if (accountId == null || accountId.isEmpty) {
+      throw ArgumentError(
+        'A valid authenticated user UUID is required to create a workspace profile.',
+      );
+    }
+    final uuidRegex = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    if (!uuidRegex.hasMatch(accountId)) {
+      throw ArgumentError(
+        'A valid authenticated user UUID is required. Received: "$accountId"',
+      );
+    }
+    final effectiveAccountId = accountId;
+    final membershipId = const Uuid().v4();
 
     await db.transaction(() async {
-      // 1. Insert company
+      // 1. Insert company with pending syncStatus and verified ownerId
       await db.into(db.companies).insertOnConflictUpdate(
             CompaniesCompanion.insert(
               id: profileId,
               name: name,
               legalName: effectiveLegalName,
-              mode: Value(type == ProfileType.expense ? 'expense' : 'ledger'),
+              ownerId: Value(effectiveAccountId),
+              mode: Value(type.canonicalValue),
               currencyCode: Value(currencyCode),
               gstin: Value(gstin),
               createdAt: Value(now),
               updatedAt: Value(now),
               isDeleted: const Value(false),
+              syncStatus: const Value(SyncRecordStatus.pending),
             ),
           );
 
-      // 2. Insert membership
+      // 2. Insert membership using valid UUID
       await db.into(db.sharedMemberships).insertOnConflictUpdate(
             SharedMembershipsCompanion.insert(
-              id: 'mem_${DateTime.now().millisecondsSinceEpoch}',
+              id: membershipId,
               profileId: profileId,
               accountId: effectiveAccountId,
               role: 'owner',
@@ -100,12 +142,58 @@ class DriftProfileRepository implements IProfileRepository {
             ),
           );
 
-      // 3. Seed defaults
+      // 3. Enqueue company outbox mutation (MUST BE ENQUEUED BEFORE membership)
+      await enqueueMutation(
+        db: db,
+        table: 'companies',
+        recordId: profileId,
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': profileId,
+          'name': name,
+          'legal_name': effectiveLegalName,
+          'legalName': effectiveLegalName,
+          'owner_id': effectiveAccountId,
+          'ownerId': effectiveAccountId,
+          'mode': type.canonicalValue,
+          'currency_code': currencyCode,
+          'currencyCode': currencyCode,
+          'gstin': gstin,
+          'created_at': encodeTime(now),
+          'createdAt': encodeTime(now),
+          'updated_at': encodeTime(now),
+          'updatedAt': encodeTime(now),
+          'is_deleted': false,
+          'isDeleted': false,
+          'is_cloud_sync_enabled': true,
+          'is_active': true,
+          'revision': 0,
+        },
+      );
+
+      // 4. Enqueue membership outbox mutation (AFTER company)
+      await enqueueMutation(
+        db: db,
+        table: 'shared_memberships',
+        recordId: membershipId,
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': membershipId,
+          'profile_id': profileId,
+          'account_id': effectiveAccountId,
+          'role': 'owner',
+          'joined_at': encodeTime(now),
+          'updated_at': encodeTime(now),
+        },
+      );
+
+      // 5. Seed defaults
       if (type == ProfileType.expense) {
         // Cash wallet
+        final walletId = '${profileId}_wal_cash';
         await db.into(db.expenseWallets).insertOnConflictUpdate(
               ExpenseWalletsCompanion.insert(
-                id: '${profileId}_wal_cash',
+                id: walletId,
                 profileId: profileId,
                 name: 'Cash in Hand',
                 walletType: const Value('cash'),
@@ -114,8 +202,32 @@ class DriftProfileRepository implements IProfileRepository {
                 iconName: const Value('payments'),
                 createdAt: Value(now),
                 updatedAt: Value(now),
+                syncStatus: const Value(SyncRecordStatus.pending),
               ),
             );
+
+        await enqueueMutation(
+          db: db,
+          table: 'exp_wallets',
+          recordId: walletId,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': walletId,
+            'profile_id': profileId,
+            'name': 'Cash in Hand',
+            'wallet_type': 'cash',
+            'currency_code': currencyCode,
+            'starting_balance_in_cents': 0,
+            'current_balance_in_cents': 0,
+            'color_hex': '#006C4C',
+            'icon_name': 'payments',
+            'is_archived': false,
+            'is_deleted': false,
+            'revision': 0,
+            'created_at': encodeTime(now),
+            'updated_at': encodeTime(now),
+          },
+        );
 
         // Core Categories
         final defaultCats = [
@@ -126,9 +238,10 @@ class DriftProfileRepository implements IProfileRepository {
         ];
 
         for (final cat in defaultCats) {
+          final catId = '${profileId}_cat_${cat.$1.toLowerCase().replaceAll(RegExp(r'\W+'), '_')}';
           await db.into(db.expenseCategories).insertOnConflictUpdate(
                 ExpenseCategoriesCompanion.insert(
-                  id: '${profileId}_cat_${cat.$1.toLowerCase().replaceAll(RegExp(r'\W+'), '_')}',
+                  id: catId,
                   profileId: profileId,
                   name: cat.$1,
                   categoryType: Value(cat.$2),
@@ -137,11 +250,35 @@ class DriftProfileRepository implements IProfileRepository {
                   isSystem: const Value(true),
                   createdAt: Value(now),
                   updatedAt: Value(now),
+                  syncStatus: const Value(SyncRecordStatus.pending),
                 ),
               );
+
+          await enqueueMutation(
+            db: db,
+            table: 'exp_categories',
+            recordId: catId,
+            type: 'UPSERT',
+            fullRowMap: {
+              'id': catId,
+              'profile_id': profileId,
+              'name': cat.$1,
+              'category_type': cat.$2,
+              'color_hex': cat.$3,
+              'icon_name': cat.$4,
+              'is_system': true,
+              'is_deleted': false,
+              'revision': 0,
+              'created_at': encodeTime(now),
+              'updated_at': encodeTime(now),
+            },
+          );
         }
       }
     });
+
+    // 6. Trigger background sync after transaction commit
+    syncEngine.triggerBackgroundSync(companyId: profileId);
 
     return WorkspaceProfileHeader(
       id: profileId,
@@ -157,12 +294,28 @@ class DriftProfileRepository implements IProfileRepository {
 
   @override
   Future<void> deleteProfile(String profileId) async {
+    final now = DateTime.now();
     await (db.update(db.companies)..where((t) => t.id.equals(profileId))).write(
       CompaniesCompanion(
         isDeleted: const Value(true),
-        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value(SyncRecordStatus.pending),
+        updatedAt: Value(now),
       ),
     );
+    await enqueueMutation(
+      db: db,
+      table: 'companies',
+      recordId: profileId,
+      type: 'UPSERT',
+      fullRowMap: {
+        'id': profileId,
+        'is_deleted': true,
+        'isDeleted': true,
+        'updated_at': encodeTime(now),
+        'updatedAt': encodeTime(now),
+      },
+    );
+    syncEngine.triggerBackgroundSync(companyId: profileId);
   }
 }
 
@@ -176,53 +329,66 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
   @override
   ProfileSessionState build() {
     final authState = ref.watch(authControllerProvider);
-    if (!authState.isAuthenticated) {
+    if (!authState.isAuthenticated || authState.userId == null || authState.userId!.isEmpty) {
       return const UnauthenticatedSessionState();
     }
 
-    final userId = authState.phoneNumber ?? 'usr_default';
+    final userId = authState.userId!;
     Future.microtask(() => loadProfilesForUser(userId));
     return LoadingProfilesSessionState(userId);
   }
 
-  Future<void> loadProfilesForUser(String userId) async {
+  Future<void> loadProfilesForUser(String userId, {bool isLogin = false}) async {
     try {
       final repo = ref.read(profileRepositoryProvider);
       final profiles = await repo.getAccessibleProfiles(userId);
+      if (!ref.mounted) return;
 
       if (profiles.isEmpty) {
         state = OnboardingRequiredSessionState(userId);
       } else if (profiles.length == 1) {
+        final single = profiles.first;
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs?.setString('last_active_profile_$userId', single.id);
+
         state = ActiveProfileReadySessionState(
           userId: userId,
-          activeProfile: profiles.first,
+          activeProfile: single,
           availableProfiles: profiles,
         );
-        _syncActiveCompany(profiles.first);
+        _syncActiveCompany(single);
       } else {
         // Multiple profiles available
-        final prefs = ref.read(sharedPreferencesProvider);
-        final lastActiveId = prefs?.getString('last_active_profile_$userId');
-
-        final matched = profiles.where((p) => p.id == lastActiveId).firstOrNull;
-
-        if (matched != null) {
-          state = ActiveProfileReadySessionState(
-            userId: userId,
-            activeProfile: matched,
-            availableProfiles: profiles,
-          );
-          _syncActiveCompany(matched);
-        } else {
-          // If no active profile saved or previous one revoked, show profile selector
+        if (isLogin) {
+          // On fresh login with multiple profiles: strictly present profile selector
           state = ProfileSelectionRequiredSessionState(
             userId: userId,
             profiles: profiles,
           );
+        } else {
+          final prefs = ref.read(sharedPreferencesProvider);
+          final lastActiveId = prefs?.getString('last_active_profile_$userId');
+          final matched = profiles.where((p) => p.id == lastActiveId).firstOrNull;
+
+          if (matched != null) {
+            state = ActiveProfileReadySessionState(
+              userId: userId,
+              activeProfile: matched,
+              availableProfiles: profiles,
+            );
+            _syncActiveCompany(matched);
+          } else {
+            state = ProfileSelectionRequiredSessionState(
+              userId: userId,
+              profiles: profiles,
+            );
+          }
         }
       }
     } catch (e) {
-      state = SessionErrorState(e.toString());
+      if (ref.mounted) {
+        state = SessionErrorState(e.toString());
+      }
     }
   }
 
@@ -236,18 +402,23 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
     }
   }
 
-  void switchProfile(WorkspaceProfileHeader profile) {
-    if (state is ActiveProfileReadySessionState ||
-        state is ProfileSelectionRequiredSessionState) {
-      final userId = state is ActiveProfileReadySessionState
-          ? (state as ActiveProfileReadySessionState).userId
-          : (state as ProfileSelectionRequiredSessionState).userId;
-      final available = state is ActiveProfileReadySessionState
-          ? (state as ActiveProfileReadySessionState).availableProfiles
-          : (state as ProfileSelectionRequiredSessionState).profiles;
+  Future<void> switchProfile(WorkspaceProfileHeader profile) async {
+    final userId = state is ActiveProfileReadySessionState
+        ? (state as ActiveProfileReadySessionState).userId
+        : (state is ProfileSelectionRequiredSessionState
+            ? (state as ProfileSelectionRequiredSessionState).userId
+            : null);
 
-      // Ensure membership is not revoked
-      final isAuthorized = available.any((p) => p.id == profile.id);
+    if (userId == null || userId.isEmpty) {
+      state = const SessionErrorState('Cannot switch profile while unauthenticated.');
+      return;
+    }
+
+    try {
+      final repo = ref.read(profileRepositoryProvider);
+      // Verify membership against database rather than trusting in-memory state
+      final freshProfiles = await repo.getAccessibleProfiles(userId);
+      final isAuthorized = freshProfiles.any((p) => p.id == profile.id);
       if (!isAuthorized) {
         state = const SessionErrorState(
           'Access Revoked: Your access to this workspace has been removed.',
@@ -255,15 +426,20 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
         return;
       }
 
+      final targetProfile = freshProfiles.firstWhere((p) => p.id == profile.id);
       final prefs = ref.read(sharedPreferencesProvider);
-      prefs?.setString('last_active_profile_$userId', profile.id);
+      await prefs?.setString('last_active_profile_$userId', targetProfile.id);
 
       state = ActiveProfileReadySessionState(
         userId: userId,
-        activeProfile: profile,
-        availableProfiles: available,
+        activeProfile: targetProfile,
+        availableProfiles: freshProfiles,
       );
-      _syncActiveCompany(profile);
+      _syncActiveCompany(targetProfile);
+    } catch (e) {
+      if (ref.mounted) {
+        state = SessionErrorState(e.toString());
+      }
     }
   }
 
@@ -277,7 +453,11 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
 
   Future<void> retry() async {
     final authState = ref.read(authControllerProvider);
-    final userId = authState.phoneNumber ?? 'usr_default';
+    final userId = authState.userId;
+    if (userId == null || userId.isEmpty) {
+      state = const UnauthenticatedSessionState();
+      return;
+    }
     state = LoadingProfilesSessionState(userId);
     await loadProfilesForUser(userId);
   }
@@ -291,4 +471,3 @@ final profileSessionProvider =
     NotifierProvider<ProfileSessionController, ProfileSessionState>(
   ProfileSessionController.new,
 );
-

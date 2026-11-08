@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/local/database.dart';
 import '../../data/local/outbox_helper.dart';
 import '../../data/models/account_model.dart';
+import '../../data/models/company_mode.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../config/supabase_config.dart';
@@ -95,7 +96,11 @@ class SupabaseGateway implements RemoteGateway {
     var query = client.from(table).select();
 
     if (table != 'companies' && table != 'user_profiles') {
-      query = query.eq('company_id', companyId);
+      if (table == 'shared_memberships' || table.startsWith('exp_')) {
+        query = query.eq('profile_id', companyId);
+      } else {
+        query = query.eq('company_id', companyId);
+      }
     }
 
     if (cursor != null) {
@@ -349,6 +354,27 @@ class SyncEngine {
             'owner_id': c.ownerId,
           },
         );
+
+        // Enqueue shared_memberships for this profile immediately after the profile
+        final memberships = await (db.select(db.sharedMemberships)
+              ..where((t) => t.profileId.equals(c.id)))
+            .get();
+        for (final m in memberships) {
+          await enqueueMutation(
+            db: db,
+            table: 'shared_memberships',
+            recordId: m.id,
+            type: 'UPSERT',
+            fullRowMap: {
+              'id': m.id,
+              'profile_id': m.profileId,
+              'account_id': m.accountId,
+              'role': m.role,
+              'joined_at': encodeTime(m.joinedAt),
+              'updated_at': encodeTime(m.updatedAt),
+            },
+          );
+        }
       }
 
       // 2. UserProfiles
@@ -1056,7 +1082,7 @@ class SyncEngine {
                 c['isActive'] == true ||
                 c['isActive'] == 1,
           ),
-          mode: Value(c['mode'] as String? ?? 'ledger'),
+          mode: Value(CompanyMode.fromName(c['mode']?.toString()).canonicalValue),
           enabledModulesJson: Value(c['enabledModulesJson'] as String?),
           ownerId: Value(c['ownerId'] as String?),
           createdAt: Value(decodeTime(c['createdAt'])),
@@ -1067,6 +1093,24 @@ class SyncEngine {
           remoteUpdatedAt: Value(
             decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
           ),
+        );
+      },
+    ),
+
+    // SharedMemberships
+    SyncTable<SharedMembershipTableData, SharedMembershipsCompanion>(
+      name: 'shared_memberships',
+      parentTables: ['companies'],
+      toRemote: (row) => mapToSnakeCase(row.toJson()),
+      fromRemote: (map) {
+        final c = mapToCamelCase(map);
+        return SharedMembershipsCompanion(
+          id: Value(c['id'] as String),
+          profileId: Value(c['profileId'] as String),
+          accountId: Value(c['accountId'] as String),
+          role: Value(c['role'] as String? ?? 'viewer'),
+          joinedAt: Value(decodeTime(c['joinedAt'] ?? c['joined_at'])),
+          updatedAt: Value(decodeTime(c['updatedAt'] ?? c['updated_at'])),
         );
       },
     ),
@@ -1665,6 +1709,13 @@ class SyncEngine {
         db.userProfiles,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
+    } else if (table == 'shared_memberships') {
+      final outboxItem = await (db.select(db.syncOutbox)
+            ..where((t) =>
+                t.targetTable.equals('shared_memberships') &
+                t.recordId.equals(recordId)))
+          .getSingleOrNull();
+      return outboxItem != null;
     } else if (table == 'inventory_items') {
       final r = await (db.select(
         db.inventoryItems,
@@ -1808,6 +1859,10 @@ class SyncEngine {
       await db
           .into(db.userProfiles)
           .insertOnConflictUpdate(companion as UserProfilesCompanion);
+    } else if (table == 'shared_memberships') {
+      await db
+          .into(db.sharedMemberships)
+          .insertOnConflictUpdate(companion as SharedMembershipsCompanion);
     } else if (table == 'inventory_items') {
       await db
           .into(db.inventoryItems)

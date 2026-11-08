@@ -12,6 +12,21 @@ class SupabaseAuthRepository implements IAuthRepository {
   static const String _keyEmail = 'supabase_auth_email';
   static const String _keyUserName = 'supabase_auth_user_name';
 
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  static bool isValidUuid(String? id) {
+    if (id == null) return false;
+    return _uuidRegex.hasMatch(id);
+  }
+
+  static bool isValidJwt(String? token) {
+    if (token == null || token.isEmpty) return false;
+    final parts = token.split('.');
+    return parts.length == 3 && parts.every((p) => p.isNotEmpty);
+  }
+
   final SupabaseClient? _client;
   final SharedPreferences? _prefs;
   final StreamController<bool> _authStateController = StreamController<bool>.broadcast();
@@ -34,11 +49,32 @@ class SupabaseAuthRepository implements IAuthRepository {
 
   void _loadFromPrefsSync() {
     if (_prefs != null) {
-      _cachedUserId = _prefs.getString(_keyUserId);
-      _cachedSessionToken = _prefs.getString(_keySessionToken);
-      _cachedPhoneNumber = _prefs.getString(_keyPhoneNumber);
-      _cachedEmail = _prefs.getString(_keyEmail);
-      _cachedUserName = _prefs.getString(_keyUserName);
+      final uid = _prefs.getString(_keyUserId);
+      final token = _prefs.getString(_keySessionToken);
+      if (isValidUuid(uid) && isValidJwt(token)) {
+        _cachedUserId = uid;
+        _cachedSessionToken = token;
+        _cachedPhoneNumber = _prefs.getString(_keyPhoneNumber);
+        _cachedEmail = _prefs.getString(_keyEmail);
+        _cachedUserName = _prefs.getString(_keyUserName);
+      } else if (uid != null || token != null) {
+        _clearAuthDataSync();
+      }
+    }
+  }
+
+  void _clearAuthDataSync() {
+    _cachedUserId = null;
+    _cachedSessionToken = null;
+    _cachedPhoneNumber = null;
+    _cachedEmail = null;
+    _cachedUserName = null;
+    if (_prefs != null) {
+      _prefs.remove(_keyUserId);
+      _prefs.remove(_keySessionToken);
+      _prefs.remove(_keyPhoneNumber);
+      _prefs.remove(_keyEmail);
+      _prefs.remove(_keyUserName);
     }
   }
 
@@ -54,11 +90,17 @@ class SupabaseAuthRepository implements IAuthRepository {
   Future<void> _init() async {
     try {
       final prefs = _prefs ?? await SharedPreferences.getInstance();
-      _cachedUserId ??= prefs.getString(_keyUserId);
-      _cachedSessionToken ??= prefs.getString(_keySessionToken);
-      _cachedPhoneNumber ??= prefs.getString(_keyPhoneNumber);
-      _cachedEmail ??= prefs.getString(_keyEmail);
-      _cachedUserName ??= prefs.getString(_keyUserName);
+      final uid = prefs.getString(_keyUserId);
+      final token = prefs.getString(_keySessionToken);
+      if (isValidUuid(uid) && isValidJwt(token)) {
+        _cachedUserId ??= uid;
+        _cachedSessionToken ??= token;
+        _cachedPhoneNumber ??= prefs.getString(_keyPhoneNumber);
+        _cachedEmail ??= prefs.getString(_keyEmail);
+        _cachedUserName ??= prefs.getString(_keyUserName);
+      } else if (uid != null || token != null) {
+        await _clearAuthData();
+      }
     } catch (e) {
       debugPrint('Failed to load cached auth from SharedPreferences: $e');
     }
@@ -66,10 +108,12 @@ class SupabaseAuthRepository implements IAuthRepository {
     final client = _client;
     if (client != null) {
       final currentSession = client.auth.currentSession;
-      if (currentSession != null) {
+      if (currentSession != null &&
+          isValidUuid(currentSession.user.id) &&
+          isValidJwt(currentSession.accessToken)) {
         _cachedUserId = currentSession.user.id;
         _cachedSessionToken = currentSession.accessToken;
-        _cachedPhoneNumber = currentSession.user.phone ?? currentSession.user.email ?? _cachedPhoneNumber;
+        _cachedPhoneNumber = currentSession.user.phone ?? _cachedPhoneNumber;
         _cachedEmail = currentSession.user.email ?? _cachedEmail;
         final meta = currentSession.user.userMetadata;
         if (meta != null && meta['full_name'] != null && (meta['full_name'] as String).isNotEmpty) {
@@ -80,10 +124,12 @@ class SupabaseAuthRepository implements IAuthRepository {
 
       _supabaseAuthSub = client.auth.onAuthStateChange.listen((data) async {
         final session = data.session;
-        if (session != null) {
+        if (session != null &&
+            isValidUuid(session.user.id) &&
+            isValidJwt(session.accessToken)) {
           _cachedUserId = session.user.id;
           _cachedSessionToken = session.accessToken;
-          _cachedPhoneNumber = session.user.phone ?? session.user.email ?? _cachedPhoneNumber;
+          _cachedPhoneNumber = session.user.phone ?? _cachedPhoneNumber;
           _cachedEmail = session.user.email ?? _cachedEmail;
           final meta = session.user.userMetadata;
           if (meta != null && meta['full_name'] != null && (meta['full_name'] as String).isNotEmpty) {
@@ -148,9 +194,16 @@ class SupabaseAuthRepository implements IAuthRepository {
   bool get isAuthenticated {
     final client = _client;
     if (client != null && client.auth.currentSession != null) {
-      return true;
+      final session = client.auth.currentSession!;
+      if (isValidUuid(session.user.id) && isValidJwt(session.accessToken)) {
+        return true;
+      }
     }
-    return _cachedUserId != null && _cachedSessionToken != null;
+    // Legitimate offline access for an already authenticated user
+    if (_cachedUserId != null && _cachedSessionToken != null) {
+      return isValidUuid(_cachedUserId) && isValidJwt(_cachedSessionToken);
+    }
+    return false;
   }
 
   @override
@@ -187,35 +240,30 @@ class SupabaseAuthRepository implements IAuthRepository {
   String? get currentUserId {
     final client = _client;
     if (client != null && client.auth.currentUser != null) {
-      return client.auth.currentUser!.id;
+      final id = client.auth.currentUser!.id;
+      if (isValidUuid(id)) return id;
     }
-    return _cachedUserId;
+    if (_cachedUserId != null && isValidUuid(_cachedUserId)) {
+      return _cachedUserId;
+    }
+    return null;
   }
 
   @override
   String? get currentSessionToken {
     final client = _client;
     if (client != null && client.auth.currentSession != null) {
-      return client.auth.currentSession!.accessToken;
+      final token = client.auth.currentSession!.accessToken;
+      if (isValidJwt(token)) return token;
     }
-    return _cachedSessionToken;
+    if (_cachedSessionToken != null && isValidJwt(_cachedSessionToken)) {
+      return _cachedSessionToken;
+    }
+    return null;
   }
 
   @override
   Stream<bool> get authStateStream => _authStateController.stream;
-
-  static const Set<String> _demoPhoneNumbers = {
-    '9876543210',
-    '9811122334',
-    '9922334455',
-    '9765432190',
-  };
-
-  bool _isDemoPhone(String phone) {
-    final digits = phone.replaceAll(RegExp(r'\D'), '');
-    final last10 = digits.length >= 10 ? digits.substring(digits.length - 10) : digits;
-    return _demoPhoneNumbers.contains(last10);
-  }
 
   @override
   Future<void> sendOtp(String phoneNumber) async {
@@ -227,23 +275,12 @@ class SupabaseAuthRepository implements IAuthRepository {
     final formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : '+91$digitsOnly';
     final client = _client;
 
-    if (_isDemoPhone(formattedPhone)) {
-      // Demo phone number: simulate instant OTP dispatch
-      await Future.delayed(const Duration(milliseconds: 250));
-      _cachedPhoneNumber = formattedPhone;
-      return;
-    }
-
     if (client != null && SupabaseConfig.isConfigured) {
-      try {
-        await client.auth.signInWithOtp(phone: formattedPhone);
-      } catch (e) {
-        debugPrint('Supabase signInWithOtp notice (fallback to demo/offline mode): $e');
-        // If SMS provider is not active, allow testing via demo OTP
-      }
+      await client.auth.signInWithOtp(phone: formattedPhone);
     } else {
-      // Offline fallback / mock mode
-      await Future.delayed(const Duration(milliseconds: 300));
+      throw const AuthException(
+        'Cloud authentication is unavailable. Please check your network connection.',
+      );
     }
     _cachedPhoneNumber = formattedPhone;
   }
@@ -255,11 +292,6 @@ class SupabaseAuthRepository implements IAuthRepository {
     final trimmedOtp = otp.trim();
     final client = _client;
 
-    // Direct demo bypass for demo number or mock OTP '123456'
-    if (_isDemoPhone(formattedPhone) || trimmedOtp == '123456') {
-      return _simulateLocalAuth(formattedPhone);
-    }
-
     if (client != null && SupabaseConfig.isConfigured) {
       try {
         final response = await client.auth.verifyOTP(
@@ -267,89 +299,92 @@ class SupabaseAuthRepository implements IAuthRepository {
           token: trimmedOtp,
           type: OtpType.sms,
         );
-        if (response.session != null) {
-          _cachedUserId = response.session!.user.id;
-          _cachedSessionToken = response.session!.accessToken;
-          _cachedPhoneNumber = response.session!.user.phone ?? formattedPhone;
-          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
+        final session = response.session;
+        if (session != null &&
+            isValidUuid(session.user.id) &&
+            isValidJwt(session.accessToken)) {
+          _cachedUserId = session.user.id;
+          _cachedSessionToken = session.accessToken;
+          _cachedPhoneNumber = session.user.phone ?? formattedPhone;
+          _cachedEmail = session.user.email;
+          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail);
           _authStateController.add(true);
           return true;
         }
       } catch (e) {
         debugPrint('Supabase verifyOtp error: $e');
-        if (trimmedOtp == '123456') {
-          return _simulateLocalAuth(formattedPhone);
-        }
         rethrow;
       }
-    }
-
-    // Offline / Demo verification with 123456
-    if (trimmedOtp == '123456') {
-      return _simulateLocalAuth(formattedPhone);
     }
     return false;
   }
 
   @override
-  Future<bool> signUpWithEmailAndPassword({
+  Future<SignUpResult> signUpWithEmailAndPassword({
     required String email,
     required String password,
     required String name,
-    required bool isCompanyAccount,
   }) async {
     final trimmedEmail = email.trim();
     final trimmedPassword = password.trim();
+    final trimmedName = name.trim();
     final client = _client;
 
-    if (client != null && SupabaseConfig.isConfigured) {
-      try {
-        final response = await client.auth.signUp(
-          email: trimmedEmail,
-          password: trimmedPassword,
-          data: {
-            'full_name': name,
-            'is_company_account': isCompanyAccount,
-            'account_type': isCompanyAccount ? 'company' : 'personal',
-          },
-        );
-        if (response.user != null) {
-          _cachedUserId = response.user!.id;
-          var session = response.session ?? client.auth.currentSession;
-          if (session == null) {
-            try {
-              final signInResp = await client.auth.signInWithPassword(
-                email: trimmedEmail,
-                password: trimmedPassword,
-              );
-              session = signInResp.session;
-            } catch (_) {}
-          }
-          _cachedSessionToken = session?.accessToken ?? 'jwt_${DateTime.now().millisecondsSinceEpoch}';
-          _cachedPhoneNumber = trimmedEmail;
-          _cachedEmail = trimmedEmail;
-          _cachedUserName = name;
-          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
-          _authStateController.add(true);
-          return true;
-        } else {
-          throw Exception('Failed to create user on Supabase Auth');
-        }
-      } catch (e) {
-        debugPrint('Supabase signUpWithEmailAndPassword error: $e');
-        rethrow;
-      }
+    if (client == null || !SupabaseConfig.isConfigured) {
+      throw const AuthException(
+        'Cloud authentication is unavailable. Please check your network connection.',
+      );
     }
 
-    // Local / Offline fallback auth
-    _cachedUserId = 'usr_supa_${trimmedEmail.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
-    _cachedSessionToken = 'jwt_token_${DateTime.now().millisecondsSinceEpoch}';
-    _cachedPhoneNumber = trimmedEmail;
-    _cachedEmail = trimmedEmail;
-    _cachedUserName = name;
-    await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
-    _authStateController.add(true);
-    return true;
+    try {
+      final response = await client.auth.signUp(
+        email: trimmedEmail,
+        password: trimmedPassword,
+        data: {
+          'full_name': trimmedName,
+        },
+      );
+
+      final user = response.user;
+      if (user == null) {
+        throw const AuthException('Failed to create user on Supabase Auth');
+      }
+
+      final session = response.session;
+      if (session != null &&
+          isValidUuid(session.user.id) &&
+          isValidJwt(session.accessToken)) {
+        // Genuine session immediately available
+        _cachedUserId = session.user.id;
+        _cachedSessionToken = session.accessToken;
+        _cachedPhoneNumber = session.user.phone ?? _cachedPhoneNumber;
+        _cachedEmail = session.user.email ?? trimmedEmail;
+        _cachedUserName = trimmedName;
+
+        await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
+        _authStateController.add(true);
+
+        return SignUpResult(
+          isSuccess: true,
+          requiresEmailConfirmation: false,
+          userId: session.user.id,
+          email: trimmedEmail,
+        );
+      } else {
+        // User created, but Supabase requires email verification before session is granted
+        // Do not authenticate user, do not create fake token
+        return SignUpResult(
+          isSuccess: true,
+          requiresEmailConfirmation: true,
+          userId: user.id,
+          email: trimmedEmail,
+          message: 'Account created. Please check your email to confirm your account before signing in.',
+        );
+      }
+    } catch (e) {
+      debugPrint('Supabase signUpWithEmailAndPassword error: $e');
+      rethrow;
+    }
   }
 
   @override
@@ -361,48 +396,39 @@ class SupabaseAuthRepository implements IAuthRepository {
     final trimmedPassword = password.trim();
     final client = _client;
 
-    if (client != null && SupabaseConfig.isConfigured) {
-      try {
-        final response = await client.auth.signInWithPassword(
-          email: trimmedEmail,
-          password: trimmedPassword,
-        );
-        if (response.session != null) {
-          _cachedUserId = response.session!.user.id;
-          _cachedSessionToken = response.session!.accessToken;
-          _cachedPhoneNumber = response.session!.user.phone ?? response.session!.user.email ?? trimmedEmail;
-          _cachedEmail = response.session!.user.email ?? trimmedEmail;
-          final meta = response.session!.user.userMetadata;
-          if (meta != null && meta['full_name'] != null && (meta['full_name'] as String).isNotEmpty) {
-            _cachedUserName = meta['full_name'] as String;
-          }
-          await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
-          _authStateController.add(true);
-          return true;
-        }
-      } catch (e) {
-        debugPrint('Supabase signInWithEmailAndPassword error: $e');
-        rethrow;
-      }
+    if (client == null || !SupabaseConfig.isConfigured) {
+      throw const AuthException(
+        'Cloud authentication is unavailable. Please check your network connection.',
+      );
     }
 
-    // Local / Offline fallback auth
-    _cachedUserId = 'usr_supa_${trimmedEmail.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
-    _cachedSessionToken = 'jwt_token_${DateTime.now().millisecondsSinceEpoch}';
-    _cachedPhoneNumber = trimmedEmail;
-    _cachedEmail = trimmedEmail;
-    await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
-    _authStateController.add(true);
-    return true;
-  }
+    try {
+      final response = await client.auth.signInWithPassword(
+        email: trimmedEmail,
+        password: trimmedPassword,
+      );
 
-  Future<bool> _simulateLocalAuth(String phone) async {
-    _cachedPhoneNumber = phone;
-    _cachedUserId = 'usr_supa_${phone.replaceAll(RegExp(r'\D'), '')}';
-    _cachedSessionToken = 'jwt_token_${DateTime.now().millisecondsSinceEpoch}';
-    await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber);
-    _authStateController.add(true);
-    return true;
+      final session = response.session;
+      if (session != null &&
+          isValidUuid(session.user.id) &&
+          isValidJwt(session.accessToken)) {
+        _cachedUserId = session.user.id;
+        _cachedSessionToken = session.accessToken;
+        _cachedPhoneNumber = session.user.phone ?? _cachedPhoneNumber;
+        _cachedEmail = session.user.email ?? trimmedEmail;
+        final meta = session.user.userMetadata;
+        if (meta != null && meta['full_name'] != null && (meta['full_name'] as String).isNotEmpty) {
+          _cachedUserName = meta['full_name'] as String;
+        }
+        await _persistAuthData(_cachedUserId, _cachedSessionToken, _cachedPhoneNumber, _cachedEmail, _cachedUserName);
+        _authStateController.add(true);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Supabase signInWithEmailAndPassword error: $e');
+      rethrow;
+    }
   }
 
   @override
@@ -418,6 +444,8 @@ class SupabaseAuthRepository implements IAuthRepository {
     _cachedUserId = null;
     _cachedSessionToken = null;
     _cachedPhoneNumber = null;
+    _cachedEmail = null;
+    _cachedUserName = null;
     await _clearAuthData();
     _authStateController.add(false);
   }

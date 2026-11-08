@@ -95,7 +95,7 @@ class WidgetSyncService {
       // 1. Save data fields
       await HomeWidget.saveWidgetData<String>('company_name', company.name);
       await HomeWidget.saveWidgetData<String>('company_id', company.id);
-      await HomeWidget.saveWidgetData<String>('mode', company.mode.name);
+      await HomeWidget.saveWidgetData<String>('mode', company.mode.canonicalValue);
       await HomeWidget.saveWidgetData<String>('currency_symbol', currencySym);
       await HomeWidget.saveWidgetData<String>('cash_in_label', cashInLabel);
       await HomeWidget.saveWidgetData<String>('cash_out_label', cashOutLabel);

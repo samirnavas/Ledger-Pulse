@@ -1,18 +1,84 @@
 import 'dart:convert';
 
+/// Thrown when an unknown or invalid profile type / company mode is encountered.
+class UnknownProfileTypeException implements Exception {
+  final String? rawValue;
+  const UnknownProfileTypeException(this.rawValue);
+
+  @override
+  String toString() =>
+      'UnknownProfileTypeException: Unrecognized profile type "$rawValue". '
+      'Supported canonical types are "expense" (aliases: "expenseTracker", "expense_tracker") '
+      'and "ledger".';
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UnknownProfileTypeException && other.rawValue == rawValue;
+
+  @override
+  int get hashCode => rawValue.hashCode;
+}
+
 enum CompanyMode {
   ledger,
   expenseTracker;
 
-  static CompanyMode fromName(String? name, {CompanyMode fallback = CompanyMode.ledger}) {
-    if (name == null) return fallback;
-    final lower = name.trim().toLowerCase();
-    for (final val in CompanyMode.values) {
-      if (val.name.toLowerCase() == lower) {
-        return val;
-      }
+  /// Canonical wire/persistence string representation for Expense profiles.
+  static const String canonicalExpense = 'expense';
+
+  /// Canonical wire/persistence string representation for Ledger profiles.
+  static const String canonicalLedger = 'ledger';
+
+  /// All recognized string representations for Expense profiles.
+  static const Set<String> legacyExpenseAliases = {
+    'expense',
+    'expensetracker',
+    'expense_tracker',
+  };
+
+  /// All recognized string representations for Ledger profiles.
+  static const Set<String> legacyLedgerAliases = {
+    'ledger',
+  };
+
+  /// Returns the canonical string representation for persistence and wire serialization.
+  String get canonicalValue {
+    switch (this) {
+      case CompanyMode.expenseTracker:
+        return canonicalExpense;
+      case CompanyMode.ledger:
+        return canonicalLedger;
     }
-    return fallback;
+  }
+
+  /// Parses a string into a [CompanyMode], recognizing canonical and legacy values:
+  /// - Expense: 'expense', 'expenseTracker', 'expense_tracker'
+  /// - Ledger: 'ledger'
+  ///
+  /// Returns `null` if the value is unrecognized or null.
+  static CompanyMode? tryParse(String? name) {
+    if (name == null) return null;
+    final normalized = name.trim().toLowerCase().replaceAll('-', '_');
+    if (legacyExpenseAliases.contains(normalized)) {
+      return CompanyMode.expenseTracker;
+    }
+    if (legacyLedgerAliases.contains(normalized)) {
+      return CompanyMode.ledger;
+    }
+    return null;
+  }
+
+  /// Parses a string into a [CompanyMode], recognizing canonical and legacy values.
+  ///
+  /// Does NOT silently interpret unknown or null values as Ledger.
+  /// If [name] is unrecognized and [fallback] is provided, returns [fallback].
+  /// Otherwise, throws [UnknownProfileTypeException].
+  static CompanyMode fromName(String? name, {CompanyMode? fallback}) {
+    final parsed = tryParse(name);
+    if (parsed != null) return parsed;
+    if (fallback != null) return fallback;
+    throw UnknownProfileTypeException(name);
   }
 }
 

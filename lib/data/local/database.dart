@@ -42,7 +42,7 @@ class Companies extends Table {
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
-  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('synced'))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
   IntColumn get revision => integer().withDefault(const Constant(0))();
   DateTimeColumn get remoteUpdatedAt => dateTime().named('remote_updated_at').nullable()();
   TextColumn get ownerId => text().named('owner_id').nullable()();
@@ -71,7 +71,7 @@ class UserProfiles extends Table {
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
-  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('synced'))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().withDefault(const Constant('pending'))();
   IntColumn get revision => integer().withDefault(const Constant(0))();
   DateTimeColumn get remoteUpdatedAt => dateTime().named('remote_updated_at').nullable()();
 

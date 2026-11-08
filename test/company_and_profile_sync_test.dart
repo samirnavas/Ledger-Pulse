@@ -9,7 +9,7 @@ import 'package:ledger_pulse/data/models/rbac_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/database_providers.dart';
+import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
 import 'package:ledger_pulse/presentation/providers/sync_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -187,10 +187,15 @@ void main() {
     });
 
     test('UserProfileNotifier loads and persists profile to database via Riverpod', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
           syncEngineProvider.overrideWithValue(syncEngine),
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          ledgerRepositoryProvider.overrideWithValue(repo),
+          driftLedgerRepositoryProvider.overrideWithValue(repo),
           authControllerProvider.overrideWith(() => _FakeAuthController()),
         ],
       );
@@ -276,6 +281,8 @@ void main() {
           appDatabaseProvider.overrideWithValue(db),
           syncEngineProvider.overrideWithValue(syncEngine),
           sharedPreferencesProvider.overrideWithValue(prefs),
+          ledgerRepositoryProvider.overrideWithValue(repo),
+          driftLedgerRepositoryProvider.overrideWithValue(repo),
           authControllerProvider.overrideWith(() => _FakeAuthController()),
         ],
       );

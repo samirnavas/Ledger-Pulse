@@ -29,6 +29,7 @@ class Company {
   final Set<AppModule> enabledModules;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? ownerId;
 
   const Company({
     required this.id,
@@ -55,6 +56,7 @@ class Company {
     this.enabledModules = AppModule.allModules,
     required this.createdAt,
     required this.updatedAt,
+    this.ownerId,
   });
 
   bool isModuleEnabled(AppModule module) => enabledModules.contains(module);
@@ -86,7 +88,13 @@ class Company {
     Set<AppModule>? enabledModules,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? ownerId,
   }) {
+    if (mode != null && mode != this.mode) {
+      throw StateError(
+        'Profile type is immutable after creation. Cannot change from "${this.mode.canonicalValue}" to "${mode.canonicalValue}".',
+      );
+    }
     return Company(
       id: id ?? this.id,
       name: name ?? this.name,
@@ -112,6 +120,7 @@ class Company {
       enabledModules: enabledModules ?? this.enabledModules,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      ownerId: ownerId ?? this.ownerId,
     );
   }
 
@@ -121,28 +130,48 @@ class Company {
       'id': id,
       'name': name,
       'legalName': legalName,
+      'legal_name': legalName,
       'gstin': gstin,
       'stateCode': stateCode,
+      'state_code': stateCode,
       'dealerType': dealerType,
+      'dealer_type': dealerType,
       'currencyCode': currencyCode,
+      'currency_code': currencyCode,
       'address': address,
       'email': email,
       'phoneNumber': phoneNumber,
+      'phone_number': phoneNumber,
       'logoUrl': logoUrl,
+      'logo_url': logoUrl,
       'signatureUrl': signatureUrl,
+      'signature_url': signatureUrl,
       'signatoryName': signatoryName,
+      'signatory_name': signatoryName,
       'bankName': bankName,
+      'bank_name': bankName,
       'bankAccountNumber': bankAccountNumber,
+      'bank_account_number': bankAccountNumber,
       'bankIfsc': bankIfsc,
+      'bank_ifsc': bankIfsc,
       'upiId': upiId,
+      'upi_id': upiId,
       'isCloudSyncEnabled': isCloudSyncEnabled ? 1 : 0,
+      'is_cloud_sync_enabled': isCloudSyncEnabled,
       'isDropboxSyncEnabled': isDropboxSyncEnabled ? 1 : 0,
+      'is_dropbox_sync_enabled': isDropboxSyncEnabled,
       'isActive': isActive ? 1 : 0,
-      'mode': mode.name,
+      'is_active': isActive,
+      'mode': mode.canonicalValue,
       'enabledModules': modulesJson,
       'enabledModulesJson': modulesJson,
+      'enabled_modules': modulesJson,
       'createdAt': encodeTime(createdAt),
+      'created_at': encodeTime(createdAt),
       'updatedAt': encodeTime(updatedAt),
+      'updated_at': encodeTime(updatedAt),
+      'ownerId': ownerId,
+      'owner_id': ownerId,
     };
   }
 
@@ -168,14 +197,17 @@ class Company {
       isCloudSyncEnabled: map['isCloudSyncEnabled'] == 1 || map['isCloudSyncEnabled'] == true || map['is_cloud_sync_enabled'] == true,
       isDropboxSyncEnabled: map['isDropboxSyncEnabled'] == 1 || map['isDropboxSyncEnabled'] == true || map['is_dropbox_sync_enabled'] == true,
       isActive: map['isActive'] == null || map['isActive'] == 1 || map['isActive'] == true || map['is_active'] == true,
-      mode: map['mode'] != null
+      mode: map.containsKey('mode') && map['mode'] != null
           ? CompanyMode.fromName(map['mode']?.toString())
-          : CompanyMode.ledger,
+          : (map.containsKey('mode')
+              ? throw const UnknownProfileTypeException(null)
+              : CompanyMode.ledger),
       enabledModules: AppModule.parseSet(
         map['enabled_modules'] ?? map['enabledModules'] ?? map['enabledModulesJson'] ?? map['enabled_modules_json'],
       ),
       createdAt: decodeTime(map['createdAt'] ?? map['created_at']),
       updatedAt: decodeTime(map['updatedAt'] ?? map['updated_at']),
+      ownerId: (map['ownerId'] ?? map['owner_id']) as String?,
     );
   }
 
@@ -207,7 +239,8 @@ class Company {
         other.enabledModules.length == enabledModules.length &&
         other.enabledModules.containsAll(enabledModules) &&
         other.createdAt == createdAt &&
-        other.updatedAt == updatedAt;
+        other.updatedAt == updatedAt &&
+        other.ownerId == ownerId;
   }
 
   @override
@@ -236,5 +269,6 @@ class Company {
         Object.hashAllUnordered(enabledModules),
         createdAt,
         updatedAt,
+        ownerId,
       ]);
 }

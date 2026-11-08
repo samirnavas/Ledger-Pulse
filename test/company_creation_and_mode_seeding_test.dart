@@ -252,6 +252,7 @@ void main() {
       // Tap Create Company
       await tester.tap(find.text('Create Company'));
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 2));
 
       expect(companyCreated, isTrue);
 

@@ -1,13 +1,64 @@
 import 'package:flutter/foundation.dart';
+import '../../data/models/company_mode.dart';
+
+export '../../data/models/company_mode.dart' show UnknownProfileTypeException;
 
 enum ProfileType {
   expense,
   ledger;
 
-  static ProfileType fromString(String val) {
-    final lower = val.toLowerCase().trim();
-    if (lower == 'expense' || lower == 'expensetracker') return ProfileType.expense;
-    return ProfileType.ledger;
+  /// Canonical wire/persistence string representation for Expense profiles.
+  static const String canonicalExpense = CompanyMode.canonicalExpense;
+
+  /// Canonical wire/persistence string representation for Ledger profiles.
+  static const String canonicalLedger = CompanyMode.canonicalLedger;
+
+  /// Returns the canonical string representation for persistence and wire serialization.
+  String get canonicalValue {
+    switch (this) {
+      case ProfileType.expense:
+        return canonicalExpense;
+      case ProfileType.ledger:
+        return canonicalLedger;
+    }
+  }
+
+  /// Parses a string into a [ProfileType], recognizing canonical and legacy values:
+  /// - Expense: 'expense', 'expenseTracker', 'expense_tracker'
+  /// - Ledger: 'ledger'
+  ///
+  /// Returns `null` if the value is unrecognized or null.
+  static ProfileType? tryParse(String? val) {
+    final mode = CompanyMode.tryParse(val);
+    if (mode == null) return null;
+    switch (mode) {
+      case CompanyMode.expenseTracker:
+        return ProfileType.expense;
+      case CompanyMode.ledger:
+        return ProfileType.ledger;
+    }
+  }
+
+  /// Parses a string into a [ProfileType], recognizing canonical and legacy values.
+  ///
+  /// Does NOT silently interpret unknown or null values as Ledger.
+  /// If [val] is unrecognized and [fallback] is provided, returns [fallback].
+  /// Otherwise, throws [UnknownProfileTypeException].
+  static ProfileType fromString(String? val, {ProfileType? fallback}) {
+    final parsed = tryParse(val);
+    if (parsed != null) return parsed;
+    if (fallback != null) return fallback;
+    throw UnknownProfileTypeException(val);
+  }
+
+  /// Converts this [ProfileType] into its corresponding [CompanyMode].
+  CompanyMode toCompanyMode() {
+    switch (this) {
+      case ProfileType.expense:
+        return CompanyMode.expenseTracker;
+      case ProfileType.ledger:
+        return CompanyMode.ledger;
+    }
   }
 }
 

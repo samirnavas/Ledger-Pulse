@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 import '../../core/modules/module_catalog.dart';
+import '../../core/network/sync_codec.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/rbac_model.dart';
 import '../../data/models/user_profile_model.dart';
@@ -45,6 +47,11 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
 
   Future<void> _insertCompanyDirectly(Company comp) async {
     await db.transaction(() async {
+      final isValidUuid = currentUserId.isNotEmpty &&
+          RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+              .hasMatch(currentUserId);
+      final effectiveOwnerId = comp.ownerId ?? (isValidUuid ? currentUserId : null);
+
       await db.into(db.companies).insertOnConflictUpdate(
             CompaniesCompanion.insert(
               id: comp.id,
@@ -67,7 +74,8 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
               isCloudSyncEnabled: Value(comp.isCloudSyncEnabled),
               isDropboxSyncEnabled: Value(comp.isDropboxSyncEnabled),
               isActive: Value(comp.isActive),
-              ownerId: Value(currentUserId),
+              mode: Value(comp.mode.canonicalValue),
+              ownerId: Value(effectiveOwnerId),
               isDeleted: const Value(false),
               createdAt: Value(comp.createdAt),
               updatedAt: Value(comp.updatedAt),
@@ -115,6 +123,7 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
           : AppModule.allModules,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
+      ownerId: r.ownerId,
     )).toList();
   }
 
@@ -125,6 +134,11 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
     AccessControlService.verifyPermission(currentRole, UserAction.createCompany);
 
     await db.transaction(() async {
+      final isValidUuid = currentUserId.isNotEmpty &&
+          RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+              .hasMatch(currentUserId);
+      final effectiveOwnerId = company.ownerId ?? (isValidUuid ? currentUserId : null);
+
       await db.into(db.companies).insertOnConflictUpdate(
             CompaniesCompanion.insert(
               id: company.id,
@@ -147,9 +161,9 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
               isCloudSyncEnabled: Value(company.isCloudSyncEnabled),
               isDropboxSyncEnabled: Value(company.isDropboxSyncEnabled),
               isActive: Value(company.isActive),
-              mode: Value(company.mode.name),
+              mode: Value(company.mode.canonicalValue),
               enabledModulesJson: Value(jsonEncode(company.enabledModules.map((m) => m.name).toList())),
-              ownerId: Value(currentUserId),
+              ownerId: Value(effectiveOwnerId),
               isDeleted: const Value(false),
               createdAt: Value(company.createdAt),
               updatedAt: Value(company.updatedAt),
@@ -173,11 +187,41 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
           'is_dropbox_sync_enabled': company.isDropboxSyncEnabled,
           'is_active': company.isActive,
           'companyId': company.id,
-          'ownerId': currentUserId,
-          'owner_id': currentUserId,
+          'ownerId': effectiveOwnerId,
+          'owner_id': effectiveOwnerId,
         },
         companyId: company.id,
       );
+
+      if (currentUserId.isNotEmpty &&
+          RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+              .hasMatch(currentUserId)) {
+        final membershipId = const Uuid().v4();
+        await db.into(db.sharedMemberships).insertOnConflictUpdate(
+              SharedMembershipsCompanion.insert(
+                id: membershipId,
+                profileId: company.id,
+                accountId: currentUserId,
+                role: 'owner',
+                joinedAt: Value(company.createdAt),
+                updatedAt: Value(company.updatedAt),
+              ),
+            );
+        await recordOutboxEntry(
+          targetTable: 'shared_memberships',
+          recordId: membershipId,
+          mutationType: 'UPSERT',
+          payload: {
+            'id': membershipId,
+            'profile_id': company.id,
+            'account_id': currentUserId,
+            'role': 'owner',
+            'joined_at': encodeTime(company.createdAt),
+            'updated_at': encodeTime(company.updatedAt),
+          },
+          companyId: company.id,
+        );
+      }
 
       await recordAuditLog(
         entityType: 'company',
@@ -274,8 +318,8 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
           'is_dropbox_sync_enabled': updatedCompany.isDropboxSyncEnabled,
           'is_active': updatedCompany.isActive,
           'companyId': companyId,
-          'ownerId': currentUserId,
-          'owner_id': currentUserId,
+          'ownerId': updatedCompany.ownerId,
+          'owner_id': updatedCompany.ownerId,
           'action': 'upgrade_to_ledger',
         },
         companyId: companyId,
@@ -333,7 +377,7 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
           isCloudSyncEnabled: Value(updated.isCloudSyncEnabled),
           isDropboxSyncEnabled: Value(updated.isDropboxSyncEnabled),
           isActive: Value(updated.isActive),
-          mode: Value(updated.mode.name),
+          mode: Value(existing?.mode ?? updated.mode.canonicalValue),
           enabledModulesJson: Value(jsonEncode(updated.enabledModules.map((m) => m.name).toList())),
           updatedAt: Value(updated.updatedAt),
           syncStatus: const Value(SyncRecordStatus.pending),
@@ -350,8 +394,8 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
           'is_dropbox_sync_enabled': updated.isDropboxSyncEnabled,
           'is_active': updated.isActive,
           'companyId': updated.id,
-          'ownerId': currentUserId,
-          'owner_id': currentUserId,
+          'ownerId': updated.ownerId,
+          'owner_id': updated.ownerId,
         },
         companyId: updated.id,
       );
@@ -545,10 +589,20 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
       syncStatus: const Value(SyncRecordStatus.pending),
     );
 
+    final isValidUuid = currentUserId.isNotEmpty &&
+        RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+            .hasMatch(currentUserId);
+
     await db.transaction(() async {
       await db.into(db.userProfiles).insertOnConflictUpdate(profileCompanion);
 
       for (final comp in profile.companies) {
+        if (comp.ownerId != null && isValidUuid && comp.ownerId != currentUserId) {
+          // Security boundary: Never overwrite another user's company
+          continue;
+        }
+        final effectiveOwnerId = comp.ownerId ?? (isValidUuid ? currentUserId : null);
+
         await db.into(db.companies).insertOnConflictUpdate(
               CompaniesCompanion.insert(
                 id: comp.id,
@@ -571,9 +625,9 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
                 isCloudSyncEnabled: Value(comp.isCloudSyncEnabled),
                 isDropboxSyncEnabled: Value(comp.isDropboxSyncEnabled),
                 isActive: Value(comp.isActive),
-                mode: Value(comp.mode.name),
+                mode: Value(comp.mode.canonicalValue),
                 enabledModulesJson: Value(jsonEncode(comp.enabledModules.map((m) => m.name).toList())),
-                ownerId: Value(currentUserId),
+                ownerId: Value(effectiveOwnerId),
                 isDeleted: const Value(false),
                 createdAt: Value(comp.createdAt),
                 updatedAt: Value(comp.updatedAt),
@@ -589,8 +643,8 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
           payload: {
             ...comp.toMap(),
             'companyId': comp.id,
-            'ownerId': currentUserId,
-            'owner_id': currentUserId,
+            'ownerId': effectiveOwnerId,
+            'owner_id': effectiveOwnerId,
           },
           companyId: comp.id,
         );
