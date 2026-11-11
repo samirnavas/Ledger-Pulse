@@ -3762,6 +3762,7 @@ class SyncEngine {
               db.journalLines.accountId.equals(acc.id) &
                   db.journalLines.companyId.equals(companyId) &
                   db.journalLines.isDeleted.equals(false) &
+                  db.journals.isDeleted.equals(false) &
                   db.journals.status.equals('posted'),
             );
         final lines = await query.get();

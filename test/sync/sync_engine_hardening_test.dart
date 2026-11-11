@@ -2631,6 +2631,128 @@ void main() {
       expect(cursor, isNotNull);
       expect(cursor!.lastPulledAt!.toUtc(), equals(t));
     });
+
+    // 64. Recalculation excludes soft-deleted journals while preserving active normal journals
+    test('64. Recalculation excludes soft-deleted journals while preserving active normal journals', () async {
+      // 1. Create account with initial balance
+      await db.into(db.accounts).insert(
+        const AccountsCompanion(
+          id: drift.Value('acc_soft_del_1'),
+          companyId: drift.Value(testCompanyId),
+          code: drift.Value('ACC_SD1'),
+          name: drift.Value('Soft Delete Recalc Account'),
+          type: drift.Value('asset'),
+          kind: drift.Value('other'),
+          currentBalanceInCents: drift.Value(800),
+          syncStatus: drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+
+      final t0 = DateTime.utc(2026, 6, 10, 10, 0, 0);
+      final t1 = DateTime.utc(2026, 6, 10, 11, 0, 0);
+      final t2 = DateTime.utc(2026, 6, 10, 12, 0, 0);
+
+      // Local initial journal rows (both active initially contributing 500 + 300 = 800)
+      await db.into(db.journals).insert(
+        JournalsCompanion(
+          id: const drift.Value('j_del_1'),
+          companyId: const drift.Value(testCompanyId),
+          journalNumber: const drift.Value('JN-DEL-1'),
+          status: const drift.Value('posted'),
+          isDeleted: const drift.Value(false),
+          date: drift.Value(t0),
+          createdAt: drift.Value(t0),
+          updatedAt: drift.Value(t0),
+          syncStatus: const drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+      await db.into(db.journalLines).insert(
+        JournalLinesCompanion(
+          id: const drift.Value('jl_del_1'),
+          companyId: const drift.Value(testCompanyId),
+          journalId: const drift.Value('j_del_1'),
+          accountId: const drift.Value('acc_soft_del_1'),
+          debitInCents: const drift.Value(500),
+          creditInCents: const drift.Value(0),
+          isDeleted: const drift.Value(false),
+          createdAt: drift.Value(t0),
+          updatedAt: drift.Value(t0),
+          syncStatus: const drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+
+      await db.into(db.journals).insert(
+        JournalsCompanion(
+          id: const drift.Value('j_normal_1'),
+          companyId: const drift.Value(testCompanyId),
+          journalNumber: const drift.Value('JN-NORM-1'),
+          status: const drift.Value('posted'),
+          isDeleted: const drift.Value(false),
+          date: drift.Value(t1),
+          createdAt: drift.Value(t1),
+          updatedAt: drift.Value(t1),
+          syncStatus: const drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+      await db.into(db.journalLines).insert(
+        JournalLinesCompanion(
+          id: const drift.Value('jl_normal_1'),
+          companyId: const drift.Value(testCompanyId),
+          journalId: const drift.Value('j_normal_1'),
+          accountId: const drift.Value('acc_soft_del_1'),
+          debitInCents: const drift.Value(300),
+          creditInCents: const drift.Value(0),
+          isDeleted: const drift.Value(false),
+          createdAt: drift.Value(t1),
+          updatedAt: drift.Value(t1),
+          syncStatus: const drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+
+      // 3. Remote has soft-deleted j_del_1, while its line jl_del_1 remains active (is_deleted: false)
+      gateway.tables.putIfAbsent('journals', () => {})['j_del_1'] = {
+        'id': 'j_del_1',
+        'company_id': testCompanyId,
+        'journal_number': 'JN-DEL-1',
+        'status': 'posted',
+        'date': encodeTime(t0),
+        'created_at': encodeTime(t0),
+        'updated_at': encodeTime(t2),
+        'is_deleted': true,
+      };
+      gateway.tables.putIfAbsent('journals', () => {})['j_normal_1'] = {
+        'id': 'j_normal_1',
+        'company_id': testCompanyId,
+        'journal_number': 'JN-NORM-1',
+        'status': 'posted',
+        'date': encodeTime(t1),
+        'created_at': encodeTime(t1),
+        'updated_at': encodeTime(t1),
+        'is_deleted': false,
+      };
+
+      // 4. Run pull and account balance recalculation
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.success);
+
+      // Verify that j_del_1 is soft-deleted locally, but jl_del_1 remains isDeleted == false
+      final localJournalDel = await (db.select(db.journals)..where((t) => t.id.equals('j_del_1'))).getSingle();
+      expect(localJournalDel.isDeleted, isTrue);
+      final localLineDel = await (db.select(db.journalLines)..where((t) => t.id.equals('jl_del_1'))).getSingle();
+      expect(localLineDel.isDeleted, isFalse);
+
+      // 5. Verify that deleted journal's line NO LONGER contributes to account balance:
+      // Only j_normal_1 contributes (300 cents), so balance is 300, not 800.
+      final acc = await (db.select(db.accounts)..where((t) => t.id.equals('acc_soft_del_1'))).getSingle();
+      expect(acc.currentBalanceInCents, 300);
+
+      // 6. Verify that the pull cursor advanced only after successful recalculation
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('journals') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNotNull);
+      expect(cursor!.lastPulledAt!.toUtc(), equals(t2));
+    });
   });
 }
 
