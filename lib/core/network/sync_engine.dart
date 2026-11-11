@@ -60,6 +60,7 @@ abstract class RemoteGateway {
   Future<List<Map<String, dynamic>>> pullRows({
     required String table,
     required String companyId,
+    String? activeUserId,
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,
@@ -89,26 +90,32 @@ class SupabaseGateway implements RemoteGateway {
   Future<List<Map<String, dynamic>>> pullRows({
     required String table,
     required String companyId,
+    String? activeUserId,
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,
   }) async {
     var query = client.from(table).select();
 
-    if (table != 'companies' && table != 'user_profiles') {
-      if (table == 'shared_memberships' || table.startsWith('exp_')) {
-        query = query.eq('profile_id', companyId);
-      } else {
-        query = query.eq('company_id', companyId);
+    if (table == 'companies') {
+      query = query.eq('id', companyId);
+    } else if (table == 'user_profiles') {
+      if (activeUserId != null && activeUserId.isNotEmpty) {
+        query = query.eq('id', activeUserId);
       }
+    } else if (table == 'shared_memberships' || table.startsWith('exp_')) {
+      query = query.eq('profile_id', companyId);
+    } else {
+      query = query.eq('company_id', companyId);
     }
 
     if (cursor != null) {
-      query = query.gt('updated_at', encodeTime(cursor));
+      query = query.gte('updated_at', encodeTime(cursor));
     }
 
     final List<dynamic> responseList = await query
         .order('updated_at', ascending: true)
+        .order('id', ascending: true)
         .range(offset, offset + pageSize - 1);
 
     return responseList.cast<Map<String, dynamic>>();
@@ -215,13 +222,23 @@ class SyncEngine {
     }
   }
 
+  int _sessionGeneration = 0;
   bool _isDisposed = false;
+
+  int get sessionGeneration => _sessionGeneration;
+  bool get isDisposed => _isDisposed;
+
+  /// Invalidates any in-flight sync operations so their results and database writes are discarded.
+  void invalidateSession() {
+    _sessionGeneration++;
+  }
 
   SyncEngineStatus get currentStatus => _currentStatus;
   Stream<SyncEngineStatus> get statusStream => _statusController.stream;
 
   void dispose() {
     _isDisposed = true;
+    _sessionGeneration++;
     _debounceTimer?.cancel();
     _statusController.close();
   }
@@ -379,15 +396,69 @@ class SyncEngine {
     }
   }
 
+  /// Determines whether a queued mutation belongs to the workspace currently being synchronized.
+  static bool _recordBelongsToWorkspace({
+    required String targetTable,
+    required Map<String, dynamic> payloadMap,
+    required String companyId,
+    String? activeUserId,
+  }) {
+    if (companyId == 'cmp_default') {
+      return true;
+    }
+    switch (targetTable) {
+      case 'companies':
+        final id = payloadMap['id']?.toString();
+        return id == companyId;
+
+      case 'user_profiles':
+        if (activeUserId == null || activeUserId.isEmpty) return false;
+        final id = payloadMap['id']?.toString();
+        return id == activeUserId;
+
+      case 'shared_memberships':
+      case 'exp_wallets':
+      case 'exp_categories':
+      case 'exp_transactions':
+      case 'exp_budgets':
+      case 'exp_recurring_rules':
+        final profileId =
+            (payloadMap['profile_id'] ?? payloadMap['profileId'])?.toString();
+        return profileId == companyId;
+
+      case 'accounts':
+      case 'parties':
+      case 'vouchers':
+      case 'journals':
+      case 'journal_lines':
+      case 'ledger_entries':
+      case 'budgets':
+      case 'recurring_rules':
+      case 'inventory_items':
+      case 'stock_ledger':
+      case 'audit_logs':
+        final rowCompanyId =
+            (payloadMap['company_id'] ?? payloadMap['companyId'])?.toString();
+        return rowCompanyId == companyId;
+
+      default:
+        return false;
+    }
+  }
+
   /// Queues any domain records with syncStatus == pending into sync_outbox if missing
   Future<void> _queueUnsyncedLocalRecords(String companyId) async {
     try {
-      // 1. Companies
-      final pendingCompanies =
-          await (db.select(db.companies)..where(
-                (t) => t.syncStatus.equalsValue(SyncRecordStatus.pending),
-              ))
-              .get();
+      // 1. Companies (scoped to the requested companyId if not cmp_default)
+      final pendingCompaniesQuery = db.select(db.companies)
+        ..where(
+          (t) =>
+              (companyId != 'cmp_default'
+                  ? t.id.equals(companyId)
+                  : const Constant(true)) &
+              t.syncStatus.equalsValue(SyncRecordStatus.pending),
+        );
+      final pendingCompanies = await pendingCompaniesQuery.get();
       for (final c in pendingCompanies) {
         await enqueueMutation(
           db: db,
@@ -448,12 +519,18 @@ class SyncEngine {
         }
       }
 
-      // 2. UserProfiles
-      final pendingProfiles =
-          await (db.select(db.userProfiles)..where(
-                (t) => t.syncStatus.equalsValue(SyncRecordStatus.pending),
-              ))
-              .get();
+      // 2. UserProfiles (scoped to active authenticated user session)
+      final pendingProfilesQuery = db.select(db.userProfiles)
+        ..where(
+          (t) =>
+              (activeUserId != null
+                  ? t.id.equals(activeUserId!)
+                  : (companyId == 'cmp_default'
+                      ? const Constant(true)
+                      : const Constant(false))) &
+              t.syncStatus.equalsValue(SyncRecordStatus.pending),
+        );
+      final pendingProfiles = await pendingProfilesQuery.get();
       for (final p in pendingProfiles) {
         await enqueueMutation(
           db: db,
@@ -1014,127 +1091,303 @@ class SyncEngine {
     });
   }
 
-  Future<void> _repairFailedSyncRecords() async {
+  Future<void> _repairFailedSyncRecords({required String companyId}) async {
     try {
-      await (db.update(
-        db.vouchers,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const VouchersCompanion(syncStatus: Value(SyncRecordStatus.pending)),
-      );
-      await (db.update(
-        db.budgets,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const BudgetsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
-      );
-      await (db.update(
-        db.recurringRules,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const RecurringRulesCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
-      await (db.update(
-        db.accounts,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const AccountsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
-      );
-      await (db.update(
-        db.parties,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const PartiesCompanion(syncStatus: Value(SyncRecordStatus.pending)),
-      );
-      await (db.update(
-        db.ledgerEntries,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const LedgerEntriesCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
-      await (db.update(
-        db.journals,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const JournalsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
-      );
-      await (db.update(
-        db.journalLines,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const JournalLinesCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
-      await (db.update(
-        db.expenseWallets,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const ExpenseWalletsCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
-      await (db.update(
-        db.expenseCategories,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const ExpenseCategoriesCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
-      await (db.update(
-        db.expenseTransactions,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const ExpenseTransactionsCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
-      await (db.update(
-        db.expenseBudgets,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const ExpenseBudgetsCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
-      await (db.update(
-        db.expenseRecurringRules,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const ExpenseRecurringRulesCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
-      await (db.update(
-        db.inventoryItems,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const InventoryItemsCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
-      await (db.update(
-        db.stockLedger,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const StockLedgerCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
-      await (db.update(
-        db.auditLogs,
-      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
-        const AuditLogsCompanion(
-          syncStatus: Value(SyncRecordStatus.pending),
-        ),
-      );
+      final permanentOutbox = await (db.select(db.syncOutbox)
+            ..where((t) => t.lastError.isNotNull() & t.nextAttemptAt.isNull()))
+          .get();
+      final permanentKeys =
+          permanentOutbox.map((r) => '${r.targetTable}:${r.recordId}').toSet();
+
+      // Vouchers
+      final errVouchers = await (db.select(db.vouchers)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final v in errVouchers) {
+        if (!permanentKeys.contains('vouchers:${v.id}')) {
+          await (db.update(db.vouchers)..where((t) => t.id.equals(v.id))).write(
+            const VouchersCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // Budgets
+      final errBudgets = await (db.select(db.budgets)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final b in errBudgets) {
+        if (!permanentKeys.contains('budgets:${b.id}')) {
+          await (db.update(db.budgets)..where((t) => t.id.equals(b.id))).write(
+            const BudgetsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // RecurringRules
+      final errRules = await (db.select(db.recurringRules)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final r in errRules) {
+        if (!permanentKeys.contains('recurring_rules:${r.id}')) {
+          await (db.update(db.recurringRules)..where((t) => t.id.equals(r.id))).write(
+            const RecurringRulesCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // Accounts
+      final errAccounts = await (db.select(db.accounts)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final a in errAccounts) {
+        if (!permanentKeys.contains('accounts:${a.id}')) {
+          await (db.update(db.accounts)..where((t) => t.id.equals(a.id))).write(
+            const AccountsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // Parties
+      final errParties = await (db.select(db.parties)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final p in errParties) {
+        if (!permanentKeys.contains('parties:${p.id}')) {
+          await (db.update(db.parties)..where((t) => t.id.equals(p.id))).write(
+            const PartiesCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // LedgerEntries
+      final errEntries = await (db.select(db.ledgerEntries)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final l in errEntries) {
+        if (!permanentKeys.contains('ledger_entries:${l.id}')) {
+          await (db.update(db.ledgerEntries)..where((t) => t.id.equals(l.id))).write(
+            const LedgerEntriesCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // Journals
+      final errJournals = await (db.select(db.journals)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final j in errJournals) {
+        if (!permanentKeys.contains('journals:${j.id}')) {
+          await (db.update(db.journals)..where((t) => t.id.equals(j.id))).write(
+            const JournalsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // JournalLines
+      final errLines = await (db.select(db.journalLines)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final jl in errLines) {
+        if (!permanentKeys.contains('journal_lines:${jl.id}')) {
+          await (db.update(db.journalLines)..where((t) => t.id.equals(jl.id))).write(
+            const JournalLinesCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // ExpenseWallets
+      final errWallets = await (db.select(db.expenseWallets)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.profileId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final w in errWallets) {
+        if (!permanentKeys.contains('exp_wallets:${w.id}')) {
+          await (db.update(db.expenseWallets)..where((t) => t.id.equals(w.id))).write(
+            const ExpenseWalletsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // ExpenseCategories
+      final errCategories = await (db.select(db.expenseCategories)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.profileId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final c in errCategories) {
+        if (!permanentKeys.contains('exp_categories:${c.id}')) {
+          await (db.update(db.expenseCategories)..where((t) => t.id.equals(c.id))).write(
+            const ExpenseCategoriesCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // ExpenseTransactions
+      final errTxns = await (db.select(db.expenseTransactions)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.profileId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final tx in errTxns) {
+        if (!permanentKeys.contains('exp_transactions:${tx.id}')) {
+          await (db.update(db.expenseTransactions)..where((t) => t.id.equals(tx.id))).write(
+            const ExpenseTransactionsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // ExpenseBudgets
+      final errExpBudgets = await (db.select(db.expenseBudgets)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.profileId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final eb in errExpBudgets) {
+        if (!permanentKeys.contains('exp_budgets:${eb.id}')) {
+          await (db.update(db.expenseBudgets)..where((t) => t.id.equals(eb.id))).write(
+            const ExpenseBudgetsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // ExpenseRecurringRules
+      final errExpRules = await (db.select(db.expenseRecurringRules)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.profileId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final er in errExpRules) {
+        if (!permanentKeys.contains('exp_recurring_rules:${er.id}')) {
+          await (db.update(db.expenseRecurringRules)..where((t) => t.id.equals(er.id))).write(
+            const ExpenseRecurringRulesCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // InventoryItems
+      final errItems = await (db.select(db.inventoryItems)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final it in errItems) {
+        if (!permanentKeys.contains('inventory_items:${it.id}')) {
+          await (db.update(db.inventoryItems)..where((t) => t.id.equals(it.id))).write(
+            const InventoryItemsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // StockLedger
+      final errStock = await (db.select(db.stockLedger)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final sl in errStock) {
+        if (!permanentKeys.contains('stock_ledger:${sl.id}')) {
+          await (db.update(db.stockLedger)..where((t) => t.id.equals(sl.id))).write(
+            const StockLedgerCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // AuditLogs
+      final errAudit = await (db.select(db.auditLogs)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.companyId.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final al in errAudit) {
+        if (!permanentKeys.contains('audit_logs:${al.id}')) {
+          await (db.update(db.auditLogs)..where((t) => t.id.equals(al.id))).write(
+            const AuditLogsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
     } catch (e) {
       debugPrint('SyncEngine repair failed records notice: $e');
     }
   }
 
   Future<SyncResult> _pushQueueInternal({required String companyId}) async {
+    final currentGeneration = _sessionGeneration;
+    if (_isDisposed || _sessionGeneration != currentGeneration) {
+      return SyncResult(
+        status: SyncEngineStatus.idle,
+        tableErrors: {'aborted': 'Engine was disposed or session invalidated'},
+      );
+    }
+
     setStatus(SyncEngineStatus.syncing);
     await _cleanupCorruptedOutbox();
-    await _repairFailedSyncRecords();
+    await _repairFailedSyncRecords(companyId: companyId);
     await _queueUnsyncedLocalRecords(companyId);
 
+    if (_isDisposed || _sessionGeneration != currentGeneration) {
+      return SyncResult(
+        status: SyncEngineStatus.idle,
+        tableErrors: {'aborted': 'Engine was disposed or session invalidated'},
+      );
+    }
+
     final now = DateTime.now();
+    // Exclude permanent failures (lastError is not null AND nextAttemptAt is null)
     final query = db.select(db.syncOutbox)
       ..where(
         (t) =>
-            t.nextAttemptAt.isNull() |
-            t.nextAttemptAt.isSmallerOrEqual(Variable(now)),
+            (t.lastError.isNull() & t.nextAttemptAt.isNull()) |
+            (t.nextAttemptAt.isNotNull() &
+                t.nextAttemptAt.isSmallerOrEqual(Variable(now))),
       )
       ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
 
@@ -1157,10 +1410,22 @@ class SyncEngine {
     int pushedCount = 0;
 
     for (final outboxRow in outboxRows) {
-      if (_isDisposed) break;
+      if (_isDisposed || _sessionGeneration != currentGeneration) break;
+
+      final payloadMap =
+          jsonDecode(outboxRow.payload) as Map<String, dynamic>;
+
+      // Workspace scoping: Skip rows belonging to other workspaces
+      if (!_recordBelongsToWorkspace(
+        targetTable: outboxRow.targetTable,
+        payloadMap: payloadMap,
+        companyId: companyId,
+        activeUserId: activeUserId,
+      )) {
+        continue;
+      }
+
       try {
-        final payloadMap =
-            jsonDecode(outboxRow.payload) as Map<String, dynamic>;
         final remoteMap = mapToSnakeCase(
           payloadMap,
           ignoreKeys: {'sync_status', 'syncStatus'},
@@ -1170,6 +1435,11 @@ class SyncEngine {
           table: outboxRow.targetTable,
           row: remoteMap,
         );
+
+        // Session generation check immediately after awaiting remote call
+        if (_isDisposed || _sessionGeneration != currentGeneration) {
+          break;
+        }
 
         pushedCount++;
 
@@ -1181,26 +1451,41 @@ class SyncEngine {
           remoteResponse: response,
         );
 
+        if (_isDisposed || _sessionGeneration != currentGeneration) break;
+
         await (db.delete(
           db.syncOutbox,
         )..where((t) => t.id.equals(outboxRow.id))).go();
       } catch (e) {
+        if (_isDisposed || _sessionGeneration != currentGeneration) break;
+
         final errStr = e.toString();
         tableErrors[outboxRow.targetTable] = errStr;
 
         final isPermanent4xx = _isPermanentError(e);
+        final newAttempts = outboxRow.attempts + 1;
+        const maxRetries = 5;
 
-        if (isPermanent4xx) {
+        if (isPermanent4xx || newAttempts >= maxRetries) {
+          final finalErr = isPermanent4xx
+              ? 'Permanent failure: $errStr'
+              : 'Exceeded retry limit ($maxRetries attempts): $errStr';
+
           await (db.update(db.syncOutbox)
                 ..where((t) => t.id.equals(outboxRow.id)))
-              .write(SyncOutboxCompanion(lastError: Value(errStr)));
+              .write(SyncOutboxCompanion(
+                attempts: Value(newAttempts),
+                lastError: Value(finalErr),
+                nextAttemptAt: const Value(null),
+              ));
+
           await _markRecordError(
             table: outboxRow.targetTable,
             recordId: outboxRow.recordId,
           );
         } else {
-          final newAttempts = outboxRow.attempts + 1;
-          final delaySeconds = 1 << (newAttempts > 8 ? 8 : newAttempts);
+          final delaySeconds =
+              (1 << (newAttempts > 6 ? 6 : newAttempts)).clamp(1, 300);
           final nextAttempt = DateTime.now().add(
             Duration(seconds: delaySeconds),
           );
@@ -1210,12 +1495,20 @@ class SyncEngine {
           )..where((t) => t.id.equals(outboxRow.id))).write(
             SyncOutboxCompanion(
               attempts: Value(newAttempts),
-              lastError: Value(errStr),
+              lastError: Value('Temporary failure (attempt $newAttempts): $errStr'),
               nextAttemptAt: Value(nextAttempt),
             ),
           );
         }
       }
+    }
+
+    if (_isDisposed || _sessionGeneration != currentGeneration) {
+      return SyncResult(
+        status: SyncEngineStatus.idle,
+        tableErrors: {'aborted': 'Session invalidated during push'},
+        pushedCount: pushedCount,
+      );
     }
 
     final SyncEngineStatus finalStatus;
@@ -1241,12 +1534,30 @@ class SyncEngine {
           code.startsWith('P')) {
         return true;
       }
+      final statusCode = int.tryParse(error.code ?? '');
+      if (statusCode != null &&
+          statusCode >= 400 &&
+          statusCode < 500 &&
+          statusCode != 408 &&
+          statusCode != 429) {
+        return true;
+      }
     }
     final msg = error.toString().toLowerCase();
     return msg.contains('violates') ||
         msg.contains('duplicate key') ||
+        msg.contains('foreign key') ||
+        msg.contains('constraint') ||
         msg.contains('400') ||
-        msg.contains('422');
+        msg.contains('401') ||
+        msg.contains('403') ||
+        msg.contains('404') ||
+        msg.contains('409') ||
+        msg.contains('422') ||
+        msg.contains('bad request') ||
+        msg.contains('unauthorized') ||
+        msg.contains('forbidden') ||
+        msg.contains('schema error');
   }
 
   Future<void> _markRecordSyncedIfUnchanged({
@@ -2298,11 +2609,21 @@ class SyncEngine {
   }
 
   Future<SyncResult> _pullChangesInternal({required String companyId}) async {
+    final currentGeneration = _sessionGeneration;
+    if (_isDisposed || _sessionGeneration != currentGeneration) {
+      return SyncResult(
+        status: SyncEngineStatus.idle,
+        tableErrors: {'aborted': 'Engine was disposed or session invalidated'},
+      );
+    }
+
     setStatus(SyncEngineStatus.syncing);
     final tableErrors = <String, String>{};
     int totalPulled = 0;
 
     for (final table in syncTables) {
+      if (_isDisposed || _sessionGeneration != currentGeneration) break;
+
       try {
         final syncStateRow =
             await (db.select(db.syncState)..where(
@@ -2314,34 +2635,44 @@ class SyncEngine {
 
         final cursor = syncStateRow?.lastPulledAt;
         DateTime? maxRemoteUpdatedAt = cursor;
+        DateTime? earliestSkippedUpdatedAt;
 
         int offset = 0;
         const pageSize = 500;
+        bool tablePullCompleted = false;
 
         while (true) {
+          if (_isDisposed || _sessionGeneration != currentGeneration) break;
+
           final remoteRows = await gateway.pullRows(
             table: table.name,
             companyId: companyId,
+            activeUserId: activeUserId,
             cursor: cursor,
             pageSize: pageSize,
             offset: offset,
           );
 
-          if (remoteRows.isEmpty) break;
+          if (_isDisposed || _sessionGeneration != currentGeneration) break;
+
+          if (remoteRows.isEmpty) {
+            tablePullCompleted = true;
+            break;
+          }
 
           await db.transaction(() async {
+            if (_isDisposed || _sessionGeneration != currentGeneration) return;
+
             for (final remoteMap in remoteRows) {
+              if (_isDisposed || _sessionGeneration != currentGeneration) break;
+
               final remoteUpdatedStr =
                   remoteMap['updated_at'] ??
                   remoteMap['updatedAt'] ??
                   remoteMap['created_at'];
-              if (remoteUpdatedStr != null) {
-                final dt = decodeTime(remoteUpdatedStr);
-                if (maxRemoteUpdatedAt == null ||
-                    dt.isAfter(maxRemoteUpdatedAt!)) {
-                  maxRemoteUpdatedAt = dt;
-                }
-              }
+              final dt = remoteUpdatedStr != null
+                  ? decodeTime(remoteUpdatedStr)
+                  : null;
 
               final recordId = (remoteMap['id'] ?? remoteMap['record_id'])
                   ?.toString();
@@ -2352,8 +2683,22 @@ class SyncEngine {
                 recordId,
               );
               if (isPendingLocal) {
-                // Protect un-pushed local edits
+                // Conflict resolution: protect un-pushed local edits.
+                // Track earliest skipped row so cursor does not advance past it.
+                if (dt != null) {
+                  if (earliestSkippedUpdatedAt == null ||
+                      dt.isBefore(earliestSkippedUpdatedAt!)) {
+                    earliestSkippedUpdatedAt = dt;
+                  }
+                }
                 continue;
+              }
+
+              if (dt != null) {
+                if (maxRemoteUpdatedAt == null ||
+                    dt.isAfter(maxRemoteUpdatedAt!)) {
+                  maxRemoteUpdatedAt = dt;
+                }
               }
 
               final isDeleted =
@@ -2375,20 +2720,38 @@ class SyncEngine {
             }
           });
 
-          if (remoteRows.length < pageSize) break;
+          if (_isDisposed || _sessionGeneration != currentGeneration) break;
+
+          if (remoteRows.length < pageSize) {
+            tablePullCompleted = true;
+            break;
+          }
           offset += pageSize;
         }
 
-        if (maxRemoteUpdatedAt != null) {
-          await db
-              .into(db.syncState)
-              .insertOnConflictUpdate(
-                SyncStateCompanion(
-                  targetTable: Value(table.name),
-                  companyId: Value(companyId),
-                  lastPulledAt: Value(maxRemoteUpdatedAt),
-                ),
-              );
+        if (_isDisposed || _sessionGeneration != currentGeneration) break;
+
+        // Advance cursor only if pull completed without error or interruption
+        if (tablePullCompleted) {
+          DateTime? safeNewCursor = maxRemoteUpdatedAt;
+          if (earliestSkippedUpdatedAt != null) {
+            if (safeNewCursor == null ||
+                earliestSkippedUpdatedAt!.isBefore(safeNewCursor)) {
+              safeNewCursor = earliestSkippedUpdatedAt;
+            }
+          }
+
+          if (safeNewCursor != null) {
+            await db
+                .into(db.syncState)
+                .insertOnConflictUpdate(
+                  SyncStateCompanion(
+                    targetTable: Value(table.name),
+                    companyId: Value(companyId),
+                    lastPulledAt: Value(safeNewCursor),
+                  ),
+                );
+          }
         }
 
         if (table.name == 'journals' || table.name == 'journal_lines') {
@@ -2402,7 +2765,15 @@ class SyncEngine {
         tableErrors[table.name] = e.toString();
         // Do NOT advance cursor for failed table
       }
-      if (_isDisposed) break;
+      if (_isDisposed || _sessionGeneration != currentGeneration) break;
+    }
+
+    if (_isDisposed || _sessionGeneration != currentGeneration) {
+      return SyncResult(
+        status: SyncEngineStatus.idle,
+        tableErrors: {'aborted': 'Session invalidated during pull'},
+        pulledCount: totalPulled,
+      );
     }
 
     final SyncEngineStatus finalStatus;
@@ -2880,6 +3251,16 @@ class SyncEngine {
       final totalPushed = pushResult.pushedCount;
       final totalPulled = pullResult.pulledCount;
 
+      if (pushResult.status == SyncEngineStatus.idle ||
+          pullResult.status == SyncEngineStatus.idle) {
+        return SyncResult(
+          status: SyncEngineStatus.idle,
+          tableErrors: combinedErrors,
+          pushedCount: totalPushed,
+          pulledCount: totalPulled,
+        );
+      }
+
       final SyncEngineStatus finalStatus;
       if (combinedErrors.isNotEmpty) {
         finalStatus = SyncEngineStatus.partial;
@@ -2911,6 +3292,7 @@ class _NoOpGateway implements RemoteGateway {
   Future<List<Map<String, dynamic>>> pullRows({
     required String table,
     required String companyId,
+    String? activeUserId,
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,

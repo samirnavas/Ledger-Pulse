@@ -47,6 +47,7 @@ class FakeGateway implements RemoteGateway {
   Future<List<Map<String, dynamic>>> pullRows({
     required String table,
     required String companyId,
+    String? activeUserId,
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,
@@ -62,24 +63,33 @@ class FakeGateway implements RemoteGateway {
     final matchingRows = <Map<String, dynamic>>[];
 
     for (final row in tableMap.values) {
-      final rowCompanyId = (row['company_id'] ??
-              row['companyId'] ??
-              row['profile_id'] ??
-              row['profileId'])
-          ?.toString();
-      if (companyId != 'cmp_default' &&
-          rowCompanyId != null &&
-          rowCompanyId != companyId &&
-          table != 'companies' &&
-          table != 'user_profiles') {
-        continue;
+      if (companyId != 'cmp_default') {
+        if (table == 'companies') {
+          final id = (row['id'] ?? row['record_id'])?.toString();
+          if (id != null && id != companyId) continue;
+        } else if (table == 'user_profiles') {
+          final id = (row['id'] ?? row['record_id'])?.toString();
+          if (activeUserId != null && id != null && id != activeUserId) {
+            continue;
+          }
+        } else if (table == 'shared_memberships' || table.startsWith('exp_')) {
+          final profileId =
+              (row['profile_id'] ?? row['profileId'])?.toString();
+          if (profileId != null && profileId != companyId) continue;
+        } else {
+          final rowCompanyId =
+              (row['company_id'] ?? row['companyId'])?.toString();
+          if (rowCompanyId != null && rowCompanyId != companyId) continue;
+        }
       }
 
       if (cursor != null) {
-        final updatedAtStr = row['updated_at'] ?? row['updatedAt'] ?? row['created_at'];
+        final updatedAtStr =
+            row['updated_at'] ?? row['updatedAt'] ?? row['created_at'];
         if (updatedAtStr != null) {
           final rowDt = decodeTime(updatedAtStr);
-          if (!rowDt.isAfter(cursor)) {
+          // Safe overlap gte: skip only if strictly before cursor
+          if (rowDt.isBefore(cursor)) {
             continue;
           }
         }
@@ -91,11 +101,17 @@ class FakeGateway implements RemoteGateway {
     matchingRows.sort((a, b) {
       final aDt = decodeTime(a['updated_at'] ?? a['updatedAt'] ?? a['created_at']);
       final bDt = decodeTime(b['updated_at'] ?? b['updatedAt'] ?? b['created_at']);
-      return aDt.compareTo(bDt);
+      final cmp = aDt.compareTo(bDt);
+      if (cmp != 0) return cmp;
+      final aId = (a['id'] ?? a['record_id'] ?? '').toString();
+      final bId = (b['id'] ?? b['record_id'] ?? '').toString();
+      return aId.compareTo(bId);
     });
 
     if (offset >= matchingRows.length) return [];
-    final end = (offset + pageSize < matchingRows.length) ? offset + pageSize : matchingRows.length;
+    final end = (offset + pageSize < matchingRows.length)
+        ? offset + pageSize
+        : matchingRows.length;
     return matchingRows.sublist(offset, end);
   }
 }

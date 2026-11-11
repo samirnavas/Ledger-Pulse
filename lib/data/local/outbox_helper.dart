@@ -27,10 +27,30 @@ const realTableNames = <String>{
 
 const _uuid = Uuid();
 
+/// Exception thrown when enqueuing a mutation into [sync_outbox] fails.
+class OutboxEnqueueException implements Exception {
+  final String table;
+  final String recordId;
+  final Object cause;
+  final StackTrace? stackTrace;
+
+  const OutboxEnqueueException({
+    required this.table,
+    required this.recordId,
+    required this.cause,
+    this.stackTrace,
+  });
+
+  @override
+  String toString() =>
+      'OutboxEnqueueException(table: $table, recordId: $recordId, cause: $cause)';
+}
+
 /// Routes all local outbox write operations through a single method that enforces:
 /// 1. Valid targetTable (must be in [realTableNames])
 /// 2. Valid JSON payload serialization using [jsonEncode]
 /// 3. Unique outbox entry per (table_name, record_id) using ON CONFLICT DO UPDATE
+/// 4. Observable failure propagation (throws [ArgumentError] or [OutboxEnqueueException])
 Future<void> enqueueMutation({
   required AppDatabase db,
   required String table,
@@ -38,16 +58,12 @@ Future<void> enqueueMutation({
   required String type,
   required Map<String, dynamic> fullRowMap,
 }) async {
-  assert(
-    realTableNames.contains(table),
-    'Invalid outbox targetTable: "$table". Must be one of $realTableNames',
-  );
-
   if (!realTableNames.contains(table)) {
-    debugPrint(
-      'Outbox schema error: Table "$table" is not in real table list. Refusing outbox insertion.',
+    throw ArgumentError.value(
+      table,
+      'table',
+      'Invalid outbox targetTable: "$table". Must be one of $realTableNames',
     );
-    return;
   }
 
   final payloadJson = jsonEncode(fullRowMap);
@@ -72,7 +88,13 @@ Future<void> enqueueMutation({
       payloadJson,
       nowSeconds,
     ]);
-  } catch (e) {
+  } catch (e, stackTrace) {
     debugPrint('Failed to enqueue sync outbox mutation for table "$table" ($recordId): $e');
+    throw OutboxEnqueueException(
+      table: table,
+      recordId: recordId,
+      cause: e,
+      stackTrace: stackTrace,
+    );
   }
 }
