@@ -50,6 +50,20 @@ class SyncResult {
   int get itemsPulled => pulledCount;
 }
 
+/// Internal sentinel exception thrown when a session is invalidated while a transaction is in-flight.
+class _SessionInvalidatedException implements Exception {
+  const _SessionInvalidatedException();
+  @override
+  String toString() => 'Session was invalidated during database transaction';
+}
+
+/// Internal result of scanning and queueing local pending mutations into the sync outbox.
+class _EnqueueOutcome {
+  final Map<String, String> errors;
+  final Set<String> failedKeys;
+  const _EnqueueOutcome({required this.errors, required this.failedKeys});
+}
+
 /// Abstract remote backend gateway for pushing/pulling rows.
 abstract class RemoteGateway {
   Future<Map<String, dynamic>?> upsertRow({
@@ -256,10 +270,25 @@ class SyncEngine {
   Future<void> Function()? onBeforeMarkSynced;
 
   @visibleForTesting
+  Future<void> Function()? onInsideMarkSyncedTransaction;
+
+  @visibleForTesting
+  Future<void> Function()? onInsideMarkErrorTransaction;
+
+  @visibleForTesting
   Future<void> Function()? onBeforeApplyRemoteRows;
 
   @visibleForTesting
+  Future<void> Function(String table, String recordId, int rowIndex)? onInsidePullRow;
+
+  @visibleForTesting
   Future<void> Function()? onBeforePersistCursor;
+
+  @visibleForTesting
+  Future<void> Function()? onInsideCursorTransaction;
+
+  @visibleForTesting
+  Future<void> Function(String table, String recordId)? onEnqueueMutation;
 
   SyncEngineStatus get currentStatus => _currentStatus;
   Stream<SyncEngineStatus> get statusStream => _statusController.stream;
@@ -477,8 +506,9 @@ class SyncEngine {
   }
 
   /// Queues any domain records with syncStatus == pending into sync_outbox if missing
-  Future<Map<String, String>> _queueUnsyncedLocalRecords(String companyId) async {
+  Future<_EnqueueOutcome> _queueUnsyncedLocalRecords(String companyId) async {
     final enqueueErrors = <String, String>{};
+    final failedKeys = <String>{};
     final currentUserId = activeUserId;
     final bool isGuest =
         (currentUserId == null || currentUserId.isEmpty || currentUserId == 'usr_default');
@@ -492,6 +522,9 @@ class SyncEngine {
       required Map<String, dynamic> fullRowMap,
     }) async {
       try {
+        if (onEnqueueMutation != null) {
+          await onEnqueueMutation!(table, recordId);
+        }
         await enqueueMutation(
           db: db ?? this.db,
           table: table,
@@ -501,7 +534,9 @@ class SyncEngine {
         );
       } catch (e) {
         debugPrint('Failed to enqueue sync outbox mutation for $table:$recordId: $e');
-        enqueueErrors['$table:$recordId'] = e.toString();
+        final key = '$table:$recordId';
+        failedKeys.add(key);
+        enqueueErrors[key] = e.toString();
       }
     }
 
@@ -1139,7 +1174,7 @@ class SyncEngine {
       debugPrint('SyncEngine _queueUnsyncedLocalRecords error: $e');
       enqueueErrors['outbox_queue'] = e.toString();
     }
-    return enqueueErrors;
+    return _EnqueueOutcome(errors: enqueueErrors, failedKeys: failedKeys);
   }
 
   /// Pushes queued outbox mutations to remote backend.
@@ -1430,7 +1465,9 @@ class SyncEngine {
     setStatus(SyncEngineStatus.syncing);
     await _cleanupCorruptedOutbox();
     await _repairFailedSyncRecords(companyId: companyId);
-    final enqueueErrors = await _queueUnsyncedLocalRecords(companyId);
+    final enqueueOutcome = await _queueUnsyncedLocalRecords(companyId);
+    final enqueueErrors = enqueueOutcome.errors;
+    final failedEnqueueKeys = enqueueOutcome.failedKeys;
 
     if (_isDisposed || _sessionGeneration != currentGeneration) {
       return SyncResult(
@@ -1479,6 +1516,17 @@ class SyncEngine {
     for (final outboxRow in outboxRows) {
       if (_isDisposed || _sessionGeneration != currentGeneration) break;
 
+      final rowKey = '${outboxRow.targetTable}:${outboxRow.recordId}';
+
+      // If the latest local mutation for this record failed to enqueue during this push,
+      // DO NOT upload this stale outbox row. Preserve it for recovery, do not mark local synced,
+      // and do not delete the outbox row.
+      if (failedEnqueueKeys.contains(rowKey)) {
+        tableErrors[outboxRow.targetTable] = enqueueErrors[rowKey] ??
+            'Latest local mutation failed to enqueue for $rowKey; upload skipped';
+        continue;
+      }
+
       final payloadMap =
           jsonDecode(outboxRow.payload) as Map<String, dynamic>;
 
@@ -1508,8 +1556,6 @@ class SyncEngine {
           break;
         }
 
-        pushedCount++;
-
         final recordRevision = (payloadMap['revision'] as int?) ?? 0;
         final bool markedSynced = await _markRecordSyncedIfUnchanged(
           table: outboxRow.targetTable,
@@ -1517,14 +1563,13 @@ class SyncEngine {
           pushedRevision: recordRevision,
           expectedGeneration: currentGeneration,
           remoteResponse: response,
+          outboxId: outboxRow.id,
         );
 
         if (_isDisposed || _sessionGeneration != currentGeneration) break;
 
-        if (markedSynced && !_isSessionStale(currentGeneration)) {
-          await (db.delete(
-            db.syncOutbox,
-          )..where((t) => t.id.equals(outboxRow.id))).go();
+        if (markedSynced) {
+          pushedCount++;
         }
       } catch (e) {
         if (_isDisposed || _sessionGeneration != currentGeneration) break;
@@ -1542,18 +1587,12 @@ class SyncEngine {
               : 'Exceeded retry limit ($maxRetries attempts): $errStr';
 
           if (_isSessionStale(currentGeneration)) break;
-          await (db.update(db.syncOutbox)
-                ..where((t) => t.id.equals(outboxRow.id)))
-              .write(SyncOutboxCompanion(
-                attempts: Value(newAttempts),
-                lastError: Value(finalErr),
-                nextAttemptAt: const Value(null),
-              ));
-
-          if (_isSessionStale(currentGeneration)) break;
-          await _markRecordError(
+          await _recordPermanentFailure(
             table: outboxRow.targetTable,
             recordId: outboxRow.recordId,
+            outboxId: outboxRow.id,
+            newAttempts: newAttempts,
+            finalErr: finalErr,
             expectedGeneration: currentGeneration,
           );
         } else {
@@ -1564,14 +1603,12 @@ class SyncEngine {
           );
 
           if (_isSessionStale(currentGeneration)) break;
-          await (db.update(
-            db.syncOutbox,
-          )..where((t) => t.id.equals(outboxRow.id))).write(
-            SyncOutboxCompanion(
-              attempts: Value(newAttempts),
-              lastError: Value('Temporary failure (attempt $newAttempts): $errStr'),
-              nextAttemptAt: Value(nextAttempt),
-            ),
+          await _recordTemporaryFailure(
+            outboxId: outboxRow.id,
+            newAttempts: newAttempts,
+            tempErr: 'Temporary failure (attempt $newAttempts): $errStr',
+            nextAttempt: nextAttempt,
+            expectedGeneration: currentGeneration,
           );
         }
       }
@@ -1640,6 +1677,7 @@ class SyncEngine {
     required int pushedRevision,
     required int expectedGeneration,
     Map<String, dynamic>? remoteResponse,
+    String? outboxId,
   }) async {
     if (_isSessionStale(expectedGeneration)) return false;
 
@@ -1648,8 +1686,14 @@ class SyncEngine {
     }
     if (_isSessionStale(expectedGeneration)) return false;
 
-    final now = DateTime.now();
-    bool updated = false;
+    try {
+      return await db.transaction<bool>(() async {
+        if (_isSessionStale(expectedGeneration)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        final now = DateTime.now();
+        bool updated = false;
 
 
     if (table == 'vouchers') {
@@ -2017,10 +2061,150 @@ class SyncEngine {
         updated = true;
       }
     }
-    return updated;
+
+        if (_isSessionStale(expectedGeneration)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        if (onInsideMarkSyncedTransaction != null) {
+          await onInsideMarkSyncedTransaction!();
+        }
+
+        if (_isSessionStale(expectedGeneration)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        if (updated && outboxId != null) {
+          await (db.delete(
+            db.syncOutbox,
+          )..where((t) => t.id.equals(outboxId))).go();
+        }
+
+        if (_isSessionStale(expectedGeneration)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        return updated;
+      });
+    } on _SessionInvalidatedException {
+      return false;
+    } catch (e) {
+      debugPrint('Error marking record synced: $e');
+      return false;
+    }
   }
 
-  Future<void> _markRecordError({
+  Future<void> _recordPermanentFailure({
+    required String table,
+    required String recordId,
+    required String outboxId,
+    required int newAttempts,
+    required String finalErr,
+    required int expectedGeneration,
+  }) async {
+    if (_isSessionStale(expectedGeneration)) return;
+
+    try {
+      await db.transaction(() async {
+        if (_isSessionStale(expectedGeneration)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        await (db.update(db.syncOutbox)
+              ..where((t) => t.id.equals(outboxId)))
+            .write(SyncOutboxCompanion(
+              attempts: Value(newAttempts),
+              lastError: Value(finalErr),
+              nextAttemptAt: const Value(null),
+            ));
+
+        if (_isSessionStale(expectedGeneration)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        await _markRecordErrorInternal(
+          table: table,
+          recordId: recordId,
+          expectedGeneration: expectedGeneration,
+        );
+
+        if (onInsideMarkErrorTransaction != null) {
+          await onInsideMarkErrorTransaction!();
+        }
+
+        if (_isSessionStale(expectedGeneration)) {
+          throw const _SessionInvalidatedException();
+        }
+      });
+    } on _SessionInvalidatedException {
+      // Rolled back cleanly due to stale session
+    } catch (e) {
+      debugPrint('Error in _recordPermanentFailure: $e');
+    }
+  }
+
+  Future<void> _recordTemporaryFailure({
+    required String outboxId,
+    required int newAttempts,
+    required String tempErr,
+    required DateTime nextAttempt,
+    required int expectedGeneration,
+  }) async {
+    if (_isSessionStale(expectedGeneration)) return;
+
+    try {
+      await db.transaction(() async {
+        if (_isSessionStale(expectedGeneration)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        await (db.update(
+          db.syncOutbox,
+        )..where((t) => t.id.equals(outboxId))).write(
+          SyncOutboxCompanion(
+            attempts: Value(newAttempts),
+            lastError: Value(tempErr),
+            nextAttemptAt: Value(nextAttempt),
+          ),
+        );
+
+        if (_isSessionStale(expectedGeneration)) {
+          throw const _SessionInvalidatedException();
+        }
+      });
+    } on _SessionInvalidatedException {
+      // Rolled back cleanly due to stale session
+    } catch (e) {
+      debugPrint('Error in _recordTemporaryFailure: $e');
+    }
+  }
+
+  @visibleForTesting
+  Future<void> markRecordErrorForTesting({
+    required String table,
+    required String recordId,
+    required int expectedGeneration,
+  }) async {
+    if (_isSessionStale(expectedGeneration)) return;
+    try {
+      await db.transaction(() async {
+        if (_isSessionStale(expectedGeneration)) {
+          throw const _SessionInvalidatedException();
+        }
+        await _markRecordErrorInternal(
+          table: table,
+          recordId: recordId,
+          expectedGeneration: expectedGeneration,
+        );
+      });
+    } on _SessionInvalidatedException {
+      // Rolled back cleanly
+    } catch (e) {
+      debugPrint('Error in markRecordErrorForTesting: $e');
+    }
+  }
+
+  Future<void> _markRecordErrorInternal({
     required String table,
     required String recordId,
     required int expectedGeneration,
@@ -2886,65 +3070,89 @@ class SyncEngine {
 
           if (_isSessionStale(currentGeneration)) break;
 
-          await db.transaction(() async {
-            if (_isSessionStale(currentGeneration)) return;
-
-            for (final remoteMap in remoteRows) {
-              if (_isSessionStale(currentGeneration)) break;
-
-              final remoteUpdatedStr =
-                  remoteMap['updated_at'] ??
-                  remoteMap['updatedAt'] ??
-                  remoteMap['created_at'];
-              final dt = remoteUpdatedStr != null
-                  ? decodeTime(remoteUpdatedStr)
-                  : null;
-
-              final recordId = (remoteMap['id'] ?? remoteMap['record_id'])
-                  ?.toString();
-              if (recordId == null) continue;
-
-              final isPendingLocal = await _isRecordPendingLocal(
-                table.name,
-                recordId,
-              );
-              if (isPendingLocal) {
-                // Conflict resolution: protect un-pushed local edits.
-                // Track earliest skipped row so cursor does not advance past it.
-                if (dt != null) {
-                  if (earliestSkippedUpdatedAt == null ||
-                      dt.isBefore(earliestSkippedUpdatedAt!)) {
-                    earliestSkippedUpdatedAt = dt;
-                  }
-                }
-                continue;
+          int pagePulledCount = 0;
+          try {
+            await db.transaction(() async {
+              if (_isSessionStale(currentGeneration)) {
+                throw const _SessionInvalidatedException();
               }
 
-              if (dt != null) {
-                if (maxRemoteUpdatedAt == null ||
-                    dt.isAfter(maxRemoteUpdatedAt!)) {
-                  maxRemoteUpdatedAt = dt;
+              for (int i = 0; i < remoteRows.length; i++) {
+                final remoteMap = remoteRows[i];
+                if (_isSessionStale(currentGeneration)) {
+                  throw const _SessionInvalidatedException();
                 }
-              }
 
-              final isDeleted =
-                  remoteMap['is_deleted'] == true ||
-                  remoteMap['is_deleted'] == 1;
+                final remoteUpdatedStr =
+                    remoteMap['updated_at'] ??
+                    remoteMap['updatedAt'] ??
+                    remoteMap['created_at'];
+                final dt = remoteUpdatedStr != null
+                    ? decodeTime(remoteUpdatedStr)
+                    : null;
 
-              if (isDeleted) {
-                await _applySoftDeleteLocally(
+                final recordId = (remoteMap['id'] ?? remoteMap['record_id'])
+                    ?.toString();
+                if (recordId == null) continue;
+
+                final isPendingLocal = await _isRecordPendingLocal(
                   table.name,
                   recordId,
-                  maxRemoteUpdatedAt,
                 );
-              } else {
-                final companion = table.fromRemote(remoteMap);
-                await _applyRemoteUpsertLocally(table.name, companion);
+                if (isPendingLocal) {
+                  // Conflict resolution: protect un-pushed local edits.
+                  // Track earliest skipped row so cursor does not advance past it.
+                  if (dt != null) {
+                    if (earliestSkippedUpdatedAt == null ||
+                        dt.isBefore(earliestSkippedUpdatedAt!)) {
+                      earliestSkippedUpdatedAt = dt;
+                    }
+                  }
+                  continue;
+                }
+
+                if (dt != null) {
+                  if (maxRemoteUpdatedAt == null ||
+                      dt.isAfter(maxRemoteUpdatedAt!)) {
+                    maxRemoteUpdatedAt = dt;
+                  }
+                }
+
+                final isDeleted =
+                    remoteMap['is_deleted'] == true ||
+                    remoteMap['is_deleted'] == 1;
+
+                if (isDeleted) {
+                  await _applySoftDeleteLocally(
+                    table.name,
+                    recordId,
+                    maxRemoteUpdatedAt,
+                  );
+                } else {
+                  final companion = table.fromRemote(remoteMap);
+                  await _applyRemoteUpsertLocally(table.name, companion);
+                }
+
+                if (onInsidePullRow != null) {
+                  await onInsidePullRow!(table.name, recordId, i);
+                }
+
+                if (_isSessionStale(currentGeneration)) {
+                  throw const _SessionInvalidatedException();
+                }
+
+                pagePulledCount++;
               }
 
-              totalPulled++;
-            }
-          });
+              if (_isSessionStale(currentGeneration)) {
+                throw const _SessionInvalidatedException();
+              }
+            });
+            totalPulled += pagePulledCount;
+          } on _SessionInvalidatedException {
+            tablePullCompleted = false;
+            break;
+          }
 
           if (_isSessionStale(currentGeneration)) break;
 
@@ -2981,23 +3189,43 @@ class SyncEngine {
             }
             if (_isSessionStale(currentGeneration)) break;
 
-            await db
-                .into(db.syncState)
-                .insertOnConflictUpdate(
-                  SyncStateCompanion(
-                    targetTable: Value(table.name),
-                    companyId: Value(companyId),
-                    lastPulledAt: Value(safeNewCursor),
-                  ),
-                );
+            try {
+              await db.transaction(() async {
+                if (_isSessionStale(currentGeneration)) {
+                  throw const _SessionInvalidatedException();
+                }
+
+                await db
+                    .into(db.syncState)
+                    .insertOnConflictUpdate(
+                      SyncStateCompanion(
+                        targetTable: Value(table.name),
+                        companyId: Value(companyId),
+                        lastPulledAt: Value(safeNewCursor),
+                      ),
+                    );
+
+                if (onInsideCursorTransaction != null) {
+                  await onInsideCursorTransaction!();
+                }
+
+                if (_isSessionStale(currentGeneration)) {
+                  throw const _SessionInvalidatedException();
+                }
+              });
+            } on _SessionInvalidatedException {
+              break;
+            }
           }
         }
 
-        if (table.name == 'journals' || table.name == 'journal_lines') {
-          await _recalculateAccountBalances(companyId);
-        }
-        if (table.name == 'exp_transactions') {
-          await _recalculateWalletBalances(companyId);
+        if (!_isSessionStale(currentGeneration) && tablePullCompleted) {
+          if (table.name == 'journals' || table.name == 'journal_lines') {
+            await _recalculateAccountBalances(companyId);
+          }
+          if (table.name == 'exp_transactions') {
+            await _recalculateWalletBalances(companyId);
+          }
         }
       } catch (e) {
         debugPrint('Error pulling table ${table.name}: $e');

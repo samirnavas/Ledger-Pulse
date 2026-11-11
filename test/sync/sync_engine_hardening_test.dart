@@ -1894,6 +1894,493 @@ void main() {
       expect(guestResult.status, SyncEngineStatus.success);
       expect(gateway.tables['vouchers']?['v_guest_item'], isNotNull);
     });
+
+    // =========================================================================
+    // PROMPT 6.3 TESTS: STALE OUTBOX UPLOAD & IN-PROGRESS SESSION INVALIDATION
+    // =========================================================================
+
+    // 49. Stale outbox upload prevention: does not upload stale outbox row when latest mutation fails enqueue
+    test('49. Stale outbox upload prevention: does not upload stale outbox row when latest mutation fails enqueue', () async {
+      // 1. Existing outbox entry with old payload (revision 1, subtotal 1000)
+      await enqueueMutation(
+        db: db,
+        table: 'vouchers',
+        recordId: 'v_stale_prevent',
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': 'v_stale_prevent',
+          'company_id': testCompanyId,
+          'voucher_number': 'V-STALE-OLD',
+          'subtotalInCents': 1000,
+          'totalAmountInCents': 1000,
+          'revision': 1,
+        },
+      );
+
+      // 2. Local voucher is modified with latest mutation (revision 2, subtotal 2500) and syncStatus pending
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_stale_prevent'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-STALE-NEW'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(2500),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(2500),
+          revision: const drift.Value(2),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      // 3. Unrelated record that succeeds
+      await db.into(db.parties).insert(
+        PartiesCompanion(
+          id: const drift.Value('p_unrelated_ok'),
+          companyId: const drift.Value(testCompanyId),
+          name: const drift.Value('Unrelated Party'),
+          phoneNumber: const drift.Value('9876543210'),
+          type: const drift.Value(PartyType.supplier),
+          lastUpdated: drift.Value(DateTime.now()),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      // 4. Hook simulates enqueue failure specifically for v_stale_prevent
+      syncEngine.onEnqueueMutation = (table, recordId) async {
+        if (recordId == 'v_stale_prevent') {
+          throw Exception('Simulated outbox enqueue failure for v_stale_prevent');
+        }
+      };
+
+      final result = await syncEngine.pushQueue(companyId: testCompanyId);
+
+      // Partial status reported
+      expect(result.status, SyncEngineStatus.partial);
+      expect(result.tableErrors.containsKey('vouchers:v_stale_prevent'), isTrue);
+      expect(result.tableErrors['vouchers:v_stale_prevent'], contains('Simulated outbox enqueue failure'));
+
+      // Old outbox entry was NOT uploaded to gateway
+      expect(gateway.tables['vouchers']?['v_stale_prevent'], isNull);
+
+      // Local record was NOT marked synced
+      final localVoucher = await (db.select(db.vouchers)..where((t) => t.id.equals('v_stale_prevent'))).getSingle();
+      expect(localVoucher.syncStatus, SyncRecordStatus.pending);
+
+      // Existing outbox entry was NOT deleted and payload was preserved
+      final outboxVoucher = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_stale_prevent'))).getSingleOrNull();
+      expect(outboxVoucher, isNotNull);
+      final preservedPayload = jsonDecode(outboxVoucher!.payload) as Map<String, dynamic>;
+      expect(preservedPayload['subtotalInCents'], 1000);
+      expect(preservedPayload['revision'], 1);
+
+      // Unrelated record DID sync successfully
+      expect(gateway.tables['parties']?['p_unrelated_ok'], isNotNull);
+      final localParty = await (db.select(db.parties)..where((t) => t.id.equals('p_unrelated_ok'))).getSingle();
+      expect(localParty.syncStatus, SyncRecordStatus.synced);
+      expect(result.pushedCount, 1);
+    });
+
+    // 50. Retry after enqueue failure resolved pushes latest mutation with latest payload
+    test('50. Retry after enqueue failure resolved pushes latest mutation with latest payload', () async {
+      await enqueueMutation(
+        db: db,
+        table: 'vouchers',
+        recordId: 'v_stale_retry',
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': 'v_stale_retry',
+          'company_id': testCompanyId,
+          'voucher_number': 'V-STALE-OLD',
+          'subtotalInCents': 1000,
+          'totalAmountInCents': 1000,
+          'revision': 1,
+        },
+      );
+
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_stale_retry'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-STALE-LATEST'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(3000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(3000),
+          revision: const drift.Value(2),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      // First run: enqueue failure triggers
+      syncEngine.onEnqueueMutation = (table, recordId) async {
+        if (recordId == 'v_stale_retry') {
+          throw Exception('Disk I/O error');
+        }
+      };
+
+      final failResult = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(failResult.status, SyncEngineStatus.partial);
+      expect(gateway.tables['vouchers']?['v_stale_retry'], isNull);
+
+      // Second run: enqueue issue resolved
+      syncEngine.onEnqueueMutation = null;
+
+      final successResult = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(successResult.status, SyncEngineStatus.success);
+      expect(successResult.tableErrors, isEmpty);
+      expect(successResult.pushedCount, 1);
+
+      // Remote gateway has the LATEST payload (subtotal 3000, revision 2)
+      final remoteVoucher = gateway.tables['vouchers']?['v_stale_retry'];
+      expect(remoteVoucher, isNotNull);
+      expect(remoteVoucher!['subtotal_in_cents'], 3000);
+      expect(remoteVoucher['revision'], 2);
+
+      // Local record is marked synced
+      final local = await (db.select(db.vouchers)..where((t) => t.id.equals('v_stale_retry'))).getSingle();
+      expect(local.syncStatus, SyncRecordStatus.synced);
+
+      // Outbox row is deleted
+      final outbox = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_stale_retry'))).getSingleOrNull();
+      expect(outbox, isNull);
+    });
+
+    // 51. Enqueue failure on a new record without prior outbox entry reports partial and leaves record pending
+    test('51. Enqueue failure on a new record without prior outbox entry reports partial and leaves record pending', () async {
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_new_fail'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-NEW-FAIL'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(1500),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(1500),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      syncEngine.onEnqueueMutation = (table, recordId) async {
+        if (recordId == 'v_new_fail') {
+          throw Exception('Database constraint on sync_outbox');
+        }
+      };
+
+      final result = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.partial);
+      expect(result.tableErrors.containsKey('vouchers:v_new_fail'), isTrue);
+      expect(gateway.tables['vouchers']?['v_new_fail'], isNull);
+
+      final local = await (db.select(db.vouchers)..where((t) => t.id.equals('v_new_fail'))).getSingle();
+      expect(local.syncStatus, SyncRecordStatus.pending);
+
+      final outbox = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_new_fail'))).getSingleOrNull();
+      expect(outbox, isNull);
+    });
+
+    // 52. In-progress session invalidation inside mark-synced transaction rolls back local update and retains outbox row
+    test('52. In-progress session invalidation inside mark-synced transaction rolls back local update and retains outbox row', () async {
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_tx_rollback'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-TX-ROLLBACK'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(5000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(5000),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      syncEngine.onInsideMarkSyncedTransaction = () async {
+        syncEngine.invalidateSession();
+      };
+
+      final result = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.idle);
+
+      // Local record must NOT be synced — transaction rolled back to pending!
+      final local = await (db.select(db.vouchers)..where((t) => t.id.equals('v_tx_rollback'))).getSingle();
+      expect(local.syncStatus, SyncRecordStatus.pending);
+
+      // Outbox row must NOT be deleted — transaction rolled back and retained it!
+      final outbox = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_tx_rollback'))).getSingleOrNull();
+      expect(outbox, isNotNull);
+    });
+
+    // 53. In-progress session invalidation inside permanent failure transaction rolls back error updates
+    test('53. In-progress session invalidation inside permanent failure transaction rolls back error updates', () async {
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_err_rollback'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-ERR-ROLLBACK'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(5000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(5000),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      final customGateway = _CustomExceptionGateway(
+        gateway,
+        onUpsert: (table, row) {
+          if (row['id'] == 'v_err_rollback') {
+            throw const PostgrestException(
+              message: 'violates check constraint',
+              code: '23514',
+            );
+          }
+        },
+      );
+
+      final engine = SyncEngine(
+        db: db,
+        gateway: customGateway,
+      );
+
+      engine.onInsideMarkErrorTransaction = () async {
+        engine.invalidateSession();
+      };
+
+      final result = await engine.pushQueue(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.idle);
+
+      // Local record must NOT have syncStatus error — rolled back to pending!
+      final local = await (db.select(db.vouchers)..where((t) => t.id.equals('v_err_rollback'))).getSingle();
+      expect(local.syncStatus, SyncRecordStatus.pending);
+
+      // Outbox entry must NOT have lastError or nextAttemptAt null — rolled back!
+      final outbox = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_err_rollback'))).getSingleOrNull();
+      expect(outbox, isNotNull);
+      expect(outbox!.lastError, isNull);
+    });
+
+    // 54. In-progress session invalidation inside multi-row pull page rolls back all rows in the page
+    test('54. In-progress session invalidation inside multi-row pull page rolls back all rows in the page', () async {
+      final t = DateTime.utc(2026, 6, 1, 10, 0, 0);
+      for (int i = 1; i <= 3; i++) {
+        gateway.tables.putIfAbsent('vouchers', () => {})['v_batch_$i'] = {
+          'id': 'v_batch_$i',
+          'company_id': testCompanyId,
+          'voucher_number': 'V-BATCH-$i',
+          'date': encodeTime(t),
+          'created_at': encodeTime(t),
+          'updated_at': encodeTime(t.add(Duration(seconds: i))),
+          'is_deleted': false,
+        };
+      }
+
+      syncEngine.onInsidePullRow = (table, recordId, rowIndex) async {
+        if (table == 'vouchers' && rowIndex == 1) {
+          syncEngine.invalidateSession();
+        }
+      };
+
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.idle);
+
+      // NONE of the 3 vouchers should exist in local DB: transaction rolled back row 0 and 1!
+      for (int i = 1; i <= 3; i++) {
+        final local = await (db.select(db.vouchers)..where((t) => t.id.equals('v_batch_$i'))).getSingleOrNull();
+        expect(local, isNull, reason: 'v_batch_$i should have rolled back');
+      }
+
+      // Cursor must NOT have advanced
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('vouchers') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNull);
+    });
+
+    // 55. In-progress session invalidation during remote soft delete rolls back soft delete
+    test('55. In-progress session invalidation during remote soft delete rolls back soft delete', () async {
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_soft_del_rollback'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-SOFT-DEL'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('posted'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(1000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(1000),
+          isDeleted: const drift.Value(false),
+          syncStatus: const drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+
+      final t = DateTime.utc(2026, 6, 2, 10, 0, 0);
+      gateway.tables.putIfAbsent('vouchers', () => {})['v_soft_del_rollback'] = {
+        'id': 'v_soft_del_rollback',
+        'company_id': testCompanyId,
+        'voucher_number': 'V-SOFT-DEL',
+        'date': encodeTime(t),
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': true,
+      };
+
+      syncEngine.onInsidePullRow = (table, recordId, index) async {
+        if (recordId == 'v_soft_del_rollback') {
+          syncEngine.invalidateSession();
+        }
+      };
+
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.idle);
+
+      // Local record must NOT be soft deleted: transaction was rolled back!
+      final local = await (db.select(db.vouchers)..where((t) => t.id.equals('v_soft_del_rollback'))).getSingle();
+      expect(local.isDeleted, isFalse);
+    });
+
+    // 56. In-progress session invalidation inside cursor persistence transaction prevents cursor update
+    test('56. In-progress session invalidation inside cursor persistence transaction prevents cursor update', () async {
+      final t = DateTime.utc(2026, 6, 3, 10, 0, 0);
+      gateway.tables.putIfAbsent('vouchers', () => {})['v_cursor_tx'] = {
+        'id': 'v_cursor_tx',
+        'company_id': testCompanyId,
+        'voucher_number': 'V-CURSOR-TX',
+        'date': encodeTime(t),
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': false,
+      };
+
+      syncEngine.onInsideCursorTransaction = () async {
+        syncEngine.invalidateSession();
+      };
+
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.idle);
+
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('vouchers') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNull);
+    });
+
+    // 57. Interrupted pull safely retries in subsequent valid session and reconciles completely
+    test('57. Interrupted pull safely retries in subsequent valid session and reconciles completely', () async {
+      final t = DateTime.utc(2026, 6, 4, 10, 0, 0);
+      for (int i = 1; i <= 3; i++) {
+        gateway.tables.putIfAbsent('vouchers', () => {})['v_recon_$i'] = {
+          'id': 'v_recon_$i',
+          'company_id': testCompanyId,
+          'voucher_number': 'V-RECON-$i',
+          'date': encodeTime(t),
+          'created_at': encodeTime(t),
+          'updated_at': encodeTime(t.add(Duration(seconds: i))),
+          'is_deleted': false,
+        };
+      }
+
+      // First run: interrupted midway
+      syncEngine.onInsidePullRow = (table, recordId, index) async {
+        if (table == 'vouchers' && index == 1) {
+          syncEngine.invalidateSession();
+        }
+      };
+
+      final firstResult = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(firstResult.status, SyncEngineStatus.idle);
+
+      for (int i = 1; i <= 3; i++) {
+        final r = await (db.select(db.vouchers)..where((t) => t.id.equals('v_recon_$i'))).getSingleOrNull();
+        expect(r, isNull);
+      }
+
+      // Second run: fresh valid session
+      syncEngine.onInsidePullRow = null;
+      final secondResult = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(secondResult.status, SyncEngineStatus.success);
+      expect(secondResult.pulledCount, 3);
+
+      for (int i = 1; i <= 3; i++) {
+        final r = await (db.select(db.vouchers)..where((t) => t.id.equals('v_recon_$i'))).getSingle();
+        expect(r.syncStatus, SyncRecordStatus.synced);
+      }
+
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('vouchers') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNotNull);
+      expect(cursor!.lastPulledAt!.toUtc(), equals(t.add(const Duration(seconds: 3))));
+    });
+
+    // 58. Subsequent valid session safely retries push after interrupted acknowledgement
+    test('58. Subsequent valid session safely retries push after interrupted acknowledgement', () async {
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_push_recon'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-PUSH-RECON'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(7500),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(7500),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      // First run: interrupted inside markSynced transaction
+      syncEngine.onInsideMarkSyncedTransaction = () async {
+        syncEngine.invalidateSession();
+      };
+
+      final firstResult = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(firstResult.status, SyncEngineStatus.idle);
+
+      // Local record remains pending, outbox entry retained
+      final localBefore = await (db.select(db.vouchers)..where((t) => t.id.equals('v_push_recon'))).getSingle();
+      expect(localBefore.syncStatus, SyncRecordStatus.pending);
+      final outboxBefore = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_push_recon'))).getSingleOrNull();
+      expect(outboxBefore, isNotNull);
+
+      // Second run: valid session retries push
+      syncEngine.onInsideMarkSyncedTransaction = null;
+      final secondResult = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(secondResult.status, SyncEngineStatus.success);
+      expect(secondResult.pushedCount, 1);
+
+      // Local record is marked synced
+      final localAfter = await (db.select(db.vouchers)..where((t) => t.id.equals('v_push_recon'))).getSingle();
+      expect(localAfter.syncStatus, SyncRecordStatus.synced);
+
+      // Outbox entry deleted
+      final outboxAfter = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_push_recon'))).getSingleOrNull();
+      expect(outboxAfter, isNull);
+    });
   });
 }
 
