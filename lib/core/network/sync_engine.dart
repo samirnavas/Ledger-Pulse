@@ -288,6 +288,12 @@ class SyncEngine {
   Future<void> Function()? onInsideCursorTransaction;
 
   @visibleForTesting
+  Future<void> Function(String companyId, String accountId, int index)? onInsideAccountBalanceRecalculation;
+
+  @visibleForTesting
+  Future<void> Function(String profileId, String walletId, int index)? onInsideWalletBalanceRecalculation;
+
+  @visibleForTesting
   Future<void> Function(String table, String recordId)? onEnqueueMutation;
 
   SyncEngineStatus get currentStatus => _currentStatus;
@@ -3173,7 +3179,34 @@ class SyncEngine {
 
         if (_isSessionStale(currentGeneration)) break;
 
-        // Advance cursor only if pull completed without error or interruption
+        // Recalculate balances BEFORE cursor advancement if needed for this table
+        if (tablePullCompleted && !_isSessionStale(currentGeneration)) {
+          if (table.name == 'journals' || table.name == 'journal_lines') {
+            try {
+              await _recalculateAccountBalances(companyId, currentGeneration);
+            } on _SessionInvalidatedException {
+              tablePullCompleted = false;
+              break;
+            } catch (e) {
+              tablePullCompleted = false;
+              rethrow;
+            }
+          } else if (table.name == 'exp_transactions') {
+            try {
+              await _recalculateWalletBalances(companyId, currentGeneration);
+            } on _SessionInvalidatedException {
+              tablePullCompleted = false;
+              break;
+            } catch (e) {
+              tablePullCompleted = false;
+              rethrow;
+            }
+          }
+        }
+
+        if (_isSessionStale(currentGeneration)) break;
+
+        // Advance cursor only if pull and recalculation completed without error or interruption
         if (tablePullCompleted && !_isSessionStale(currentGeneration)) {
           DateTime? safeNewCursor = maxRemoteUpdatedAt;
           if (earliestSkippedUpdatedAt != null) {
@@ -3216,15 +3249,6 @@ class SyncEngine {
             } on _SessionInvalidatedException {
               break;
             }
-          }
-        }
-
-        if (!_isSessionStale(currentGeneration) && tablePullCompleted) {
-          if (table.name == 'journals' || table.name == 'journal_lines') {
-            await _recalculateAccountBalances(companyId);
-          }
-          if (table.name == 'exp_transactions') {
-            await _recalculateWalletBalances(companyId);
           }
         }
       } catch (e) {
@@ -3621,83 +3645,159 @@ class SyncEngine {
     }
   }
 
-  Future<void> _recalculateWalletBalances(String profileId) async {
-    final wallets = await (db.select(db.expenseWallets)
-          ..where((t) => t.profileId.equals(profileId)))
-        .get();
+  Future<void> _recalculateWalletBalances(
+    String profileId, [
+    int? expectedGeneration,
+  ]) async {
+    final gen = expectedGeneration ?? _sessionGeneration;
+    if (_isSessionStale(gen)) {
+      throw const _SessionInvalidatedException();
+    }
 
-    final txns = await (db.select(db.expenseTransactions)
-          ..where((t) =>
-              t.profileId.equals(profileId) & t.isDeleted.equals(false)))
-        .get();
+    await db.transaction(() async {
+      if (_isSessionStale(gen)) {
+        throw const _SessionInvalidatedException();
+      }
 
-    for (final wallet in wallets) {
-      int balance = wallet.startingBalanceInCents;
-      for (final tx in txns) {
-        final type = tx.transactionType.toLowerCase();
-        if (tx.walletId == wallet.id) {
-          if (type == 'expense' || type == 'transfer') {
-            balance -= tx.amountInCents;
-          } else if (type == 'income') {
+      final wallets = await (db.select(db.expenseWallets)
+            ..where((t) => t.profileId.equals(profileId)))
+          .get();
+
+      final txns = await (db.select(db.expenseTransactions)
+            ..where((t) =>
+                t.profileId.equals(profileId) & t.isDeleted.equals(false)))
+          .get();
+
+      for (int i = 0; i < wallets.length; i++) {
+        if (_isSessionStale(gen)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        final wallet = wallets[i];
+
+        if (onInsideWalletBalanceRecalculation != null) {
+          await onInsideWalletBalanceRecalculation!(profileId, wallet.id, i);
+        }
+
+        if (_isSessionStale(gen)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        int balance = wallet.startingBalanceInCents;
+        for (final tx in txns) {
+          final type = tx.transactionType.toLowerCase();
+          if (tx.walletId == wallet.id) {
+            if (type == 'expense' || type == 'transfer') {
+              balance -= tx.amountInCents;
+            } else if (type == 'income') {
+              balance += tx.amountInCents;
+            }
+          }
+          if (tx.toWalletId == wallet.id && type == 'transfer') {
             balance += tx.amountInCents;
           }
         }
-        if (tx.toWalletId == wallet.id && type == 'transfer') {
-          balance += tx.amountInCents;
+
+        if (wallet.currentBalanceInCents != balance) {
+          await (db.update(db.expenseWallets)..where((t) => t.id.equals(wallet.id)))
+              .write(
+            ExpenseWalletsCompanion(
+              currentBalanceInCents: Value(balance),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
+        }
+
+        if (_isSessionStale(gen)) {
+          throw const _SessionInvalidatedException();
         }
       }
 
-      if (wallet.currentBalanceInCents != balance) {
-        await (db.update(db.expenseWallets)..where((t) => t.id.equals(wallet.id)))
-            .write(
-          ExpenseWalletsCompanion(
-            currentBalanceInCents: Value(balance),
-            updatedAt: Value(DateTime.now()),
-          ),
-        );
+      if (_isSessionStale(gen)) {
+        throw const _SessionInvalidatedException();
       }
-    }
+    });
   }
 
-  Future<void> _recalculateAccountBalances(String companyId) async {
-    final companyAccounts = await (db.select(
-      db.accounts,
-    )..where((t) => t.companyId.equals(companyId))).get();
-    for (final acc in companyAccounts) {
-      final query =
-          db.select(db.journalLines).join([
-            innerJoin(
-              db.journals,
-              db.journals.id.equalsExp(db.journalLines.journalId),
-            ),
-          ])..where(
-            db.journalLines.accountId.equals(acc.id) &
-                db.journalLines.companyId.equals(companyId) &
-                db.journalLines.isDeleted.equals(false) &
-                db.journals.status.equals('posted'),
-          );
-      final lines = await query.get();
-      int debit = 0;
-      int credit = 0;
-      for (final r in lines) {
-        final line = r.readTable(db.journalLines);
-        debit += line.debitInCents;
-        credit += line.creditInCents;
-      }
-      final accountType = AccountType.values.firstWhere(
-        (e) => e.name.toLowerCase() == acc.type.toLowerCase(),
-        orElse: () => AccountType.asset,
-      );
-      final net = accountType.isDebitNormal
-          ? (debit - credit)
-          : (credit - debit);
-      await (db.update(db.accounts)..where((t) => t.id.equals(acc.id))).write(
-        AccountsCompanion(
-          currentBalanceInCents: Value(net),
-          updatedAt: Value(DateTime.now()),
-        ),
-      );
+  Future<void> _recalculateAccountBalances(
+    String companyId, [
+    int? expectedGeneration,
+  ]) async {
+    final gen = expectedGeneration ?? _sessionGeneration;
+    if (_isSessionStale(gen)) {
+      throw const _SessionInvalidatedException();
     }
+
+    await db.transaction(() async {
+      if (_isSessionStale(gen)) {
+        throw const _SessionInvalidatedException();
+      }
+
+      final companyAccounts = await (db.select(
+        db.accounts,
+      )..where((t) => t.companyId.equals(companyId))).get();
+
+      for (int i = 0; i < companyAccounts.length; i++) {
+        if (_isSessionStale(gen)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        final acc = companyAccounts[i];
+
+        if (onInsideAccountBalanceRecalculation != null) {
+          await onInsideAccountBalanceRecalculation!(companyId, acc.id, i);
+        }
+
+        if (_isSessionStale(gen)) {
+          throw const _SessionInvalidatedException();
+        }
+
+        final query =
+            db.select(db.journalLines).join([
+              innerJoin(
+                db.journals,
+                db.journals.id.equalsExp(db.journalLines.journalId),
+              ),
+            ])..where(
+              db.journalLines.accountId.equals(acc.id) &
+                  db.journalLines.companyId.equals(companyId) &
+                  db.journalLines.isDeleted.equals(false) &
+                  db.journals.status.equals('posted'),
+            );
+        final lines = await query.get();
+        int debit = 0;
+        int credit = 0;
+        for (final r in lines) {
+          final line = r.readTable(db.journalLines);
+          debit += line.debitInCents;
+          credit += line.creditInCents;
+        }
+        final accountType = AccountType.values.firstWhere(
+          (e) => e.name.toLowerCase() == acc.type.toLowerCase(),
+          orElse: () => AccountType.asset,
+        );
+        final net = accountType.isDebitNormal
+            ? (debit - credit)
+            : (credit - debit);
+
+        if (acc.currentBalanceInCents != net) {
+          await (db.update(db.accounts)..where((t) => t.id.equals(acc.id))).write(
+            AccountsCompanion(
+              currentBalanceInCents: Value(net),
+              updatedAt: Value(DateTime.now()),
+            ),
+          );
+        }
+
+        if (_isSessionStale(gen)) {
+          throw const _SessionInvalidatedException();
+        }
+      }
+
+      if (_isSessionStale(gen)) {
+        throw const _SessionInvalidatedException();
+      }
+    });
   }
 
   /// Triggers full sync (push followed by pull)

@@ -2381,6 +2381,256 @@ void main() {
       final outboxAfter = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_push_recon'))).getSingleOrNull();
       expect(outboxAfter, isNull);
     });
+
+    // 59. In-progress session invalidation during account balance recalculation rolls back account balance updates and prevents cursor advance
+    test('59. In-progress session invalidation during account balance recalculation rolls back account balance updates and prevents cursor advance', () async {
+      await db.into(db.accounts).insert(
+        const AccountsCompanion(
+          id: drift.Value('acc_recalc_1'),
+          companyId: drift.Value(testCompanyId),
+          code: drift.Value('ACC_R1'),
+          name: drift.Value('Recalc Asset Account'),
+          type: drift.Value('asset'),
+          kind: drift.Value('other'),
+          currentBalanceInCents: drift.Value(1000),
+          syncStatus: drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+
+      final t = DateTime.utc(2026, 6, 5, 10, 0, 0);
+      gateway.tables.putIfAbsent('journals', () => {})['j_recalc_1'] = {
+        'id': 'j_recalc_1',
+        'company_id': testCompanyId,
+        'journal_number': 'JN-RECALC-1',
+        'status': 'posted',
+        'date': encodeTime(t),
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': false,
+      };
+      gateway.tables.putIfAbsent('journal_lines', () => {})['jl_recalc_1'] = {
+        'id': 'jl_recalc_1',
+        'company_id': testCompanyId,
+        'journal_id': 'j_recalc_1',
+        'account_id': 'acc_recalc_1',
+        'debit_in_cents': 500,
+        'credit_in_cents': 0,
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': false,
+      };
+
+      syncEngine.onInsideAccountBalanceRecalculation = (companyId, accountId, index) async {
+        syncEngine.invalidateSession();
+      };
+
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.idle);
+
+      final acc = await (db.select(db.accounts)..where((t) => t.id.equals('acc_recalc_1'))).getSingle();
+      expect(acc.currentBalanceInCents, 1000);
+
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('journals') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNull);
+    });
+
+    // 60. In-progress session invalidation during wallet balance recalculation rolls back wallet balance updates and prevents cursor advance
+    test('60. In-progress session invalidation during wallet balance recalculation rolls back wallet balance updates and prevents cursor advance', () async {
+      await db.into(db.expenseWallets).insert(
+        const ExpenseWalletsCompanion(
+          id: drift.Value('w_recalc_1'),
+          profileId: drift.Value(testCompanyId),
+          name: drift.Value('Recalc Wallet'),
+          startingBalanceInCents: drift.Value(5000),
+          currentBalanceInCents: drift.Value(5000),
+          syncStatus: drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+
+      final t = DateTime.utc(2026, 6, 6, 10, 0, 0);
+      gateway.upsertDirect('exp_transactions', 'tx_recalc_1', {
+        'id': 'tx_recalc_1',
+        'profile_id': testCompanyId,
+        'transaction_type': 'income',
+        'amount_in_cents': 1500,
+        'wallet_id': 'w_recalc_1',
+        'transaction_date': encodeTime(t),
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': false,
+      });
+
+      syncEngine.onInsideWalletBalanceRecalculation = (profileId, walletId, index) async {
+        syncEngine.invalidateSession();
+      };
+
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.idle);
+
+      final wallet = await (db.select(db.expenseWallets)..where((t) => t.id.equals('w_recalc_1'))).getSingle();
+      expect(wallet.currentBalanceInCents, 5000);
+
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('exp_transactions') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNull);
+    });
+
+    // 61. Recalculation failure in account balance rolls back all account balances and prevents cursor advance; records error in tableErrors
+    test('61. Recalculation failure in account balance rolls back all account balances and prevents cursor advance; records error in tableErrors', () async {
+      await db.into(db.accounts).insert(
+        const AccountsCompanion(
+          id: drift.Value('acc_err_1'),
+          companyId: drift.Value(testCompanyId),
+          code: drift.Value('ACC_ERR1'),
+          name: drift.Value('Error Asset Account'),
+          type: drift.Value('asset'),
+          kind: drift.Value('other'),
+          currentBalanceInCents: drift.Value(2000),
+          syncStatus: drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+
+      final t = DateTime.utc(2026, 6, 7, 10, 0, 0);
+      gateway.tables.putIfAbsent('journals', () => {})['j_err_1'] = {
+        'id': 'j_err_1',
+        'company_id': testCompanyId,
+        'journal_number': 'JN-ERR-1',
+        'status': 'posted',
+        'date': encodeTime(t),
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': false,
+      };
+
+      syncEngine.onInsideAccountBalanceRecalculation = (companyId, accountId, index) async {
+        throw Exception('Simulated database corruption during account recalculation');
+      };
+
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.partial);
+      expect(result.tableErrors['journals'], contains('Simulated database corruption during account recalculation'));
+
+      final acc = await (db.select(db.accounts)..where((t) => t.id.equals('acc_err_1'))).getSingle();
+      expect(acc.currentBalanceInCents, 2000);
+
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('journals') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNull);
+    });
+
+    // 62. Recalculation failure in wallet balance rolls back all wallet balances and prevents cursor advance; records error in tableErrors
+    test('62. Recalculation failure in wallet balance rolls back all wallet balances and prevents cursor advance; records error in tableErrors', () async {
+      await db.into(db.expenseWallets).insert(
+        const ExpenseWalletsCompanion(
+          id: drift.Value('w_err_1'),
+          profileId: drift.Value(testCompanyId),
+          name: drift.Value('Error Wallet'),
+          startingBalanceInCents: drift.Value(3000),
+          currentBalanceInCents: drift.Value(3000),
+          syncStatus: drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+
+      final t = DateTime.utc(2026, 6, 8, 10, 0, 0);
+      gateway.upsertDirect('exp_transactions', 'tx_err_1', {
+        'id': 'tx_err_1',
+        'profile_id': testCompanyId,
+        'transaction_type': 'expense',
+        'amount_in_cents': 500,
+        'wallet_id': 'w_err_1',
+        'transaction_date': encodeTime(t),
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': false,
+      });
+
+      syncEngine.onInsideWalletBalanceRecalculation = (profileId, walletId, index) async {
+        throw Exception('Simulated wallet recalculation lock failure');
+      };
+
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.partial);
+      expect(result.tableErrors['exp_transactions'], contains('Simulated wallet recalculation lock failure'));
+
+      final wallet = await (db.select(db.expenseWallets)..where((t) => t.id.equals('w_err_1'))).getSingle();
+      expect(wallet.currentBalanceInCents, 3000);
+
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('exp_transactions') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNull);
+    });
+
+    // 63. Subsequent valid sync after recalculation failure / session invalidation re-pulls changes, successfully recalculates balances, and advances cursor
+    test('63. Subsequent valid sync after recalculation failure / session invalidation re-pulls changes, successfully recalculates balances, and advances cursor', () async {
+      await db.into(db.accounts).insert(
+        const AccountsCompanion(
+          id: drift.Value('acc_recon_1'),
+          companyId: drift.Value(testCompanyId),
+          code: drift.Value('ACC_RECON1'),
+          name: drift.Value('Reconciliation Account'),
+          type: drift.Value('asset'),
+          kind: drift.Value('other'),
+          currentBalanceInCents: drift.Value(1000),
+          syncStatus: drift.Value(SyncRecordStatus.synced),
+        ),
+      );
+
+      final t = DateTime.utc(2026, 6, 9, 10, 0, 0);
+      gateway.tables.putIfAbsent('journals', () => {})['j_recon_1'] = {
+        'id': 'j_recon_1',
+        'company_id': testCompanyId,
+        'journal_number': 'JN-RECON-1',
+        'status': 'posted',
+        'date': encodeTime(t),
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': false,
+      };
+      gateway.tables.putIfAbsent('journal_lines', () => {})['jl_recon_1'] = {
+        'id': 'jl_recon_1',
+        'company_id': testCompanyId,
+        'journal_id': 'j_recon_1',
+        'account_id': 'acc_recon_1',
+        'debit_in_cents': 750,
+        'credit_in_cents': 0,
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': false,
+      };
+
+      // First run: fails recalculation
+      syncEngine.onInsideAccountBalanceRecalculation = (companyId, accountId, index) async {
+        throw Exception('Temporary engine error');
+      };
+
+      final firstResult = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(firstResult.status, SyncEngineStatus.partial);
+
+      // Verify balance is unchanged and cursor is not set
+      final accBefore = await (db.select(db.accounts)..where((t) => t.id.equals('acc_recon_1'))).getSingle();
+      expect(accBefore.currentBalanceInCents, 1000);
+
+      // Second run: succeeds completely
+      syncEngine.onInsideAccountBalanceRecalculation = null;
+      final secondResult = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(secondResult.status, SyncEngineStatus.success);
+
+      // Verify balance is now updated (750 net for debit normal asset)
+      final accAfter = await (db.select(db.accounts)..where((t) => t.id.equals('acc_recon_1'))).getSingle();
+      expect(accAfter.currentBalanceInCents, 750);
+
+      // Cursor is now advanced
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('journals') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNotNull);
+      expect(cursor!.lastPulledAt!.toUtc(), equals(t));
+    });
   });
 }
 
