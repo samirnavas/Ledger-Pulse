@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/network/sync_codec.dart';
 import '../../core/network/sync_engine.dart';
@@ -15,8 +18,13 @@ import 'profile_session_state.dart';
 class DriftProfileRepository implements IProfileRepository {
   final AppDatabase db;
   final SyncEngine syncEngine;
+  final SupabaseClient? supabaseClient;
 
-  DriftProfileRepository({required this.db, required this.syncEngine});
+  DriftProfileRepository({
+    required this.db,
+    required this.syncEngine,
+    this.supabaseClient,
+  });
 
   @override
   Future<List<WorkspaceProfileHeader>> getAccessibleProfiles(
@@ -79,6 +87,201 @@ class DriftProfileRepository implements IProfileRepository {
     }
 
     return result;
+  }
+
+  @override
+  Future<List<WorkspaceProfileHeader>> syncAndLoadRemoteWorkspaces(
+      String accountId) async {
+    if (accountId.isEmpty) return [];
+
+    final client = supabaseClient ?? _getSafeSupabaseClient();
+    if (client == null) {
+      return getAccessibleProfiles(accountId);
+    }
+
+    // 1. Fetch remote user_profiles
+    Map<String, dynamic>? remoteProfile;
+    try {
+      final res = await client
+          .from('user_profiles')
+          .select()
+          .eq('id', accountId)
+          .maybeSingle();
+      if (res != null) {
+        remoteProfile = Map<String, dynamic>.from(res);
+      }
+    } catch (e) {
+      if (_isNetworkException(e)) rethrow;
+      debugPrint('DriftProfileRepository: Error fetching user_profiles: $e');
+    }
+
+    // 2. Fetch remote shared_memberships for this account
+    List<Map<String, dynamic>> remoteMemberships = [];
+    try {
+      final res = await client
+          .from('shared_memberships')
+          .select()
+          .eq('account_id', accountId);
+      remoteMemberships = List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      if (_isNetworkException(e)) rethrow;
+      debugPrint('DriftProfileRepository: Error fetching shared_memberships: $e');
+    }
+
+    // 3. Fetch remote companies (accessible via RLS)
+    List<Map<String, dynamic>> remoteCompanies = [];
+    try {
+      final res = await client
+          .from('companies')
+          .select()
+          .eq('is_deleted', false);
+      remoteCompanies = List<Map<String, dynamic>>.from(res);
+    } catch (e) {
+      if (_isNetworkException(e)) rethrow;
+      debugPrint('DriftProfileRepository: Error fetching companies: $e');
+    }
+
+    // 4. Batch upsert into local Drift database in a single transaction
+    await db.transaction(() async {
+      for (final comp in remoteCompanies) {
+        final compId = comp['id'] as String;
+        final compName = comp['name'] as String? ?? '';
+        final legalName = comp['legal_name'] as String? ??
+            comp['legalName'] as String? ??
+            compName;
+        final mode = comp['mode'] as String? ?? 'ledger';
+        final currencyCode = comp['currency_code'] as String? ??
+            comp['currencyCode'] as String? ??
+            'INR';
+        final gstin = comp['gstin'] as String?;
+        final ownerId = comp['owner_id'] as String? ??
+            comp['ownerId'] as String? ??
+            accountId;
+        final isActive = comp['is_active'] as bool? ??
+            comp['isActive'] as bool? ??
+            true;
+        final isDeleted = comp['is_deleted'] as bool? ??
+            comp['isDeleted'] as bool? ??
+            false;
+        final createdAtStr = comp['created_at'] ?? comp['createdAt'];
+        final updatedAtStr = comp['updated_at'] ?? comp['updatedAt'];
+        final createdAt =
+            createdAtStr != null ? decodeTime(createdAtStr) : DateTime.now();
+        final updatedAt =
+            updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
+
+        await db.into(db.companies).insertOnConflictUpdate(
+              CompaniesCompanion.insert(
+                id: compId,
+                name: compName,
+                legalName: legalName,
+                mode: Value(mode),
+                currencyCode: Value(currencyCode),
+                gstin: Value(gstin),
+                ownerId: Value(ownerId),
+                isActive: Value(isActive),
+                isDeleted: Value(isDeleted),
+                createdAt: Value(createdAt),
+                updatedAt: Value(updatedAt),
+                syncStatus: const Value(SyncRecordStatus.synced),
+              ),
+            );
+      }
+
+      for (final mem in remoteMemberships) {
+        final memId = mem['id'].toString();
+        final profId = mem['profile_id']?.toString() ??
+            mem['profileId']?.toString() ??
+            '';
+        final accId = mem['account_id']?.toString() ??
+            mem['accountId']?.toString() ??
+            accountId;
+        final role = mem['role'] as String? ?? 'owner';
+        final joinedAtStr = mem['joined_at'] ?? mem['joinedAt'];
+        final updatedAtStr = mem['updated_at'] ?? mem['updatedAt'];
+        final joinedAt =
+            joinedAtStr != null ? decodeTime(joinedAtStr) : DateTime.now();
+        final updatedAt =
+            updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
+
+        if (profId.isNotEmpty) {
+          await db.into(db.sharedMemberships).insertOnConflictUpdate(
+                SharedMembershipsCompanion.insert(
+                  id: memId,
+                  profileId: profId,
+                  accountId: accId,
+                  role: role,
+                  joinedAt: Value(joinedAt),
+                  updatedAt: Value(updatedAt),
+                ),
+              );
+        }
+      }
+
+      if (remoteProfile != null) {
+        final profId = remoteProfile['id'] as String;
+        final profName = remoteProfile['name'] as String? ?? '';
+        final phone = remoteProfile['phone_number'] as String? ??
+            remoteProfile['phoneNumber'] as String? ??
+            '';
+        final email = remoteProfile['email'] as String? ?? '';
+        final activeCompanyId = remoteProfile['active_company_id'] as String? ??
+            remoteProfile['activeCompanyId'] as String? ??
+            '';
+        final role = remoteProfile['role'] as String? ?? 'admin';
+        final createdAtStr =
+            remoteProfile['created_at'] ?? remoteProfile['createdAt'];
+        final updatedAtStr =
+            remoteProfile['updated_at'] ?? remoteProfile['updatedAt'];
+        final createdAt =
+            createdAtStr != null ? decodeTime(createdAtStr) : DateTime.now();
+        final updatedAt =
+            updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
+
+        await db.into(db.userProfiles).insertOnConflictUpdate(
+              UserProfilesCompanion.insert(
+                id: profId,
+                name: profName,
+                phoneNumber: phone,
+                email: email,
+                businessName: Value(remoteProfile['business_name'] as String? ??
+                    remoteProfile['businessName'] as String?),
+                address: Value(remoteProfile['address'] as String?),
+                gstin: Value(remoteProfile['gstin'] as String?),
+                activeCompanyId: Value(activeCompanyId),
+                role: Value(role),
+                createdAt: Value(createdAt),
+                updatedAt: Value(updatedAt),
+                syncStatus: const Value(SyncRecordStatus.synced),
+              ),
+            );
+      }
+    });
+
+    return getAccessibleProfiles(accountId);
+  }
+
+  static SupabaseClient? _getSafeSupabaseClient() {
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static bool _isNetworkException(Object e) {
+    if (e is TimeoutException) return true;
+    final s = e.toString().toLowerCase();
+    return s.contains('socketexception') ||
+        s.contains('clientexception') ||
+        s.contains('handshakeexception') ||
+        s.contains('connection refused') ||
+        s.contains('connection reset') ||
+        s.contains('failed host lookup') ||
+        s.contains('network error') ||
+        s.contains('network is unreachable') ||
+        s.contains('timed out') ||
+        s.contains('timeout');
   }
 
   @override
@@ -189,7 +392,6 @@ class DriftProfileRepository implements IProfileRepository {
 
       // 5. Seed defaults
       if (type == ProfileType.expense) {
-        // Cash wallet
         final walletId = '${profileId}_wal_cash';
         await db.into(db.expenseWallets).insertOnConflictUpdate(
               ExpenseWalletsCompanion.insert(
@@ -229,7 +431,6 @@ class DriftProfileRepository implements IProfileRepository {
           },
         );
 
-        // Core Categories
         final defaultCats = [
           ('Groceries & Food', 'expense', '#D32F2F', 'restaurant'),
           ('Salary & Income', 'income', '#388E3C', 'payments'),
@@ -238,7 +439,8 @@ class DriftProfileRepository implements IProfileRepository {
         ];
 
         for (final cat in defaultCats) {
-          final catId = '${profileId}_cat_${cat.$1.toLowerCase().replaceAll(RegExp(r'\W+'), '_')}';
+          final catId =
+              '${profileId}_cat_${cat.$1.toLowerCase().replaceAll(RegExp(r'\W+'), '_')}';
           await db.into(db.expenseCategories).insertOnConflictUpdate(
                 ExpenseCategoriesCompanion.insert(
                   id: catId,
@@ -319,76 +521,287 @@ class DriftProfileRepository implements IProfileRepository {
   }
 }
 
+final supabaseClientProvider = Provider<SupabaseClient?>((ref) {
+  try {
+    return Supabase.instance.client;
+  } catch (_) {
+    return null;
+  }
+});
+
 final profileRepositoryProvider = Provider<IProfileRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
   final syncEngine = ref.watch(syncEngineProvider);
-  return DriftProfileRepository(db: db, syncEngine: syncEngine);
+  final client = ref.watch(supabaseClientProvider);
+  return DriftProfileRepository(
+    db: db,
+    syncEngine: syncEngine,
+    supabaseClient: client,
+  );
 });
 
 class ProfileSessionController extends Notifier<ProfileSessionState> {
+  Completer<void>? _loadingCompleter;
+  String? _currentlyLoadingUserId;
+  String? _currentActiveUserId;
+  WorkspaceProfileHeader? _currentActiveProfile;
+  List<WorkspaceProfileHeader>? _currentAvailableProfiles;
+  bool _currentIsOffline = false;
+
   @override
   ProfileSessionState build() {
     final authState = ref.watch(authControllerProvider);
-    if (!authState.isAuthenticated || authState.userId == null || authState.userId!.isEmpty) {
-      return const UnauthenticatedSessionState();
+    if (!authState.isAuthenticated ||
+        authState.userId == null ||
+        authState.userId!.isEmpty) {
+      _currentActiveUserId = null;
+      _currentActiveProfile = null;
+      _currentAvailableProfiles = null;
+      _currentIsOffline = false;
+      return const GuestReadySessionState();
     }
 
     final userId = authState.userId!;
+
+    // Token refresh or non-identity auth change guard:
+    // If active profile is already established for this exact user, preserve it
+    if (_currentActiveUserId == userId && _currentActiveProfile != null) {
+      return _currentIsOffline
+          ? OfflineActiveProfileReadySessionState(
+              userId: userId,
+              activeProfile: _currentActiveProfile!,
+              availableProfiles:
+                  _currentAvailableProfiles ?? [_currentActiveProfile!],
+            )
+          : ActiveProfileReadySessionState(
+              userId: userId,
+              activeProfile: _currentActiveProfile!,
+              availableProfiles:
+                  _currentAvailableProfiles ?? [_currentActiveProfile!],
+              isOffline: false,
+            );
+    }
+
     Future.microtask(() => loadProfilesForUser(userId));
     return LoadingProfilesSessionState(userId);
   }
 
   Future<void> loadProfilesForUser(String userId, {bool isLogin = false}) async {
-    try {
-      final repo = ref.read(profileRepositoryProvider);
-      final profiles = await repo.getAccessibleProfiles(userId);
-      if (!ref.mounted) return;
-
-      if (profiles.isEmpty) {
-        state = OnboardingRequiredSessionState(userId);
-      } else if (profiles.length == 1) {
-        final single = profiles.first;
-        final prefs = ref.read(sharedPreferencesProvider);
-        await prefs?.setString('last_active_profile_$userId', single.id);
-
-        state = ActiveProfileReadySessionState(
-          userId: userId,
-          activeProfile: single,
-          availableProfiles: profiles,
-        );
-        _syncActiveCompany(single);
-      } else {
-        // Multiple profiles available
-        if (isLogin) {
-          // On fresh login with multiple profiles: strictly present profile selector
+    // 1. Guard against concurrent duplicate calls for the same user
+    if (_currentlyLoadingUserId == userId && _loadingCompleter != null) {
+      await _loadingCompleter!.future;
+      if (isLogin && state is ActiveProfileReadySessionState) {
+        final ready = state as ActiveProfileReadySessionState;
+        if (ready.availableProfiles.length > 1) {
+          _currentActiveProfile = null;
           state = ProfileSelectionRequiredSessionState(
             userId: userId,
-            profiles: profiles,
+            profiles: ready.availableProfiles,
           );
-        } else {
-          final prefs = ref.read(sharedPreferencesProvider);
-          final lastActiveId = prefs?.getString('last_active_profile_$userId');
-          final matched = profiles.where((p) => p.id == lastActiveId).firstOrNull;
+        }
+      }
+      return;
+    }
 
-          if (matched != null) {
-            state = ActiveProfileReadySessionState(
-              userId: userId,
-              activeProfile: matched,
-              availableProfiles: profiles,
-            );
-            _syncActiveCompany(matched);
-          } else {
-            state = ProfileSelectionRequiredSessionState(
-              userId: userId,
-              profiles: profiles,
-            );
+    _currentlyLoadingUserId = userId;
+    final completer = Completer<void>();
+    _loadingCompleter = completer;
+
+    try {
+      // 2. Validate activeUserIdProvider matches to guard against account-switch race conditions
+      final currentActiveId = ref.read(activeUserIdProvider);
+      if (currentActiveId != userId) {
+        return;
+      }
+
+      // 3. Inspect local Drift cache first
+      final repo = ref.read(profileRepositoryProvider);
+      List<WorkspaceProfileHeader> localProfiles = [];
+      try {
+        localProfiles = await repo.getAccessibleProfiles(userId);
+      } catch (e) {
+        debugPrint('ProfileSessionController: Error reading local cache: $e');
+      }
+
+      // 4. Attempt remote synchronization if online
+      bool remoteSuccess = false;
+      bool isNetworkError = false;
+      String? remoteError;
+      List<WorkspaceProfileHeader> freshProfiles = localProfiles;
+
+      try {
+        freshProfiles = await repo.syncAndLoadRemoteWorkspaces(userId);
+        remoteSuccess = true;
+      } catch (e) {
+        debugPrint('ProfileSessionController: Remote workspace load failed: $e');
+        isNetworkError = DriftProfileRepository._isNetworkException(e);
+        remoteError = e.toString();
+        if (e is AuthException) {
+          final msg = e.message.toLowerCase();
+          if (msg.contains('expired') ||
+              msg.contains('invalid jwt') ||
+              msg.contains('not found')) {
+            if (ref.mounted) {
+              state = AuthExpiredSessionState(e.message);
+            }
+            return;
           }
         }
       }
+
+      if (!ref.mounted) return;
+      // Guard against user changed during asynchronous network/disk operations
+      if (ref.read(activeUserIdProvider) != userId) {
+        return;
+      }
+
+      // 5. Offline fallback with cached workspace
+      if (!remoteSuccess && localProfiles.isNotEmpty) {
+        await _resolveActiveWorkspace(
+          userId: userId,
+          profiles: localProfiles,
+          isOffline: true,
+          isLogin: isLogin,
+        );
+        return;
+      }
+
+      // 6. Network failure with no local cache
+      if (!remoteSuccess && localProfiles.isEmpty) {
+        if (isNetworkError) {
+          state = const SessionErrorState(
+            'Network connection unavailable. Please check your internet connection to load your workspaces.',
+            isNetworkError: true,
+          );
+        } else {
+          state = SessionErrorState(
+            remoteError ?? 'Failed to load workspace profiles.',
+            isNetworkError: false,
+          );
+        }
+        return;
+      }
+
+      // 7. Successful load: resolve active workspace
+      await _resolveActiveWorkspace(
+        userId: userId,
+        profiles: freshProfiles,
+        isOffline: false,
+        isLogin: isLogin,
+      );
     } catch (e) {
       if (ref.mounted) {
         state = SessionErrorState(e.toString());
       }
+    } finally {
+      if (_currentlyLoadingUserId == userId) {
+        _currentlyLoadingUserId = null;
+        _loadingCompleter = null;
+      }
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
+    }
+  }
+
+  Future<void> _resolveActiveWorkspace({
+    required String userId,
+    required List<WorkspaceProfileHeader> profiles,
+    required bool isOffline,
+    required bool isLogin,
+  }) async {
+    if (profiles.isEmpty) {
+      state = NoAccessibleWorkspaceSessionState(userId);
+      return;
+    }
+
+    final prefs = ref.read(sharedPreferencesProvider);
+    final lastActiveId = prefs?.getString('last_active_profile_$userId');
+
+    if (profiles.length == 1) {
+      final single = profiles.first;
+      await prefs?.setString('last_active_profile_$userId', single.id);
+      await prefs?.setString('last_active_company_id_$userId', single.id);
+      await prefs?.setString('last_active_company_id', single.id);
+
+      _currentActiveUserId = userId;
+      _currentActiveProfile = single;
+      _currentAvailableProfiles = profiles;
+      _currentIsOffline = isOffline;
+
+      state = isOffline
+          ? OfflineActiveProfileReadySessionState(
+              userId: userId,
+              activeProfile: single,
+              availableProfiles: profiles,
+            )
+          : ActiveProfileReadySessionState(
+              userId: userId,
+              activeProfile: single,
+              availableProfiles: profiles,
+              isOffline: false,
+            );
+
+      _syncActiveCompany(single);
+      if (!isOffline) {
+        try {
+          ref
+              .read(syncEngineProvider)
+              .triggerBackgroundSync(companyId: single.id);
+        } catch (_) {}
+      }
+      return;
+    }
+
+    // Multiple profiles available
+    if (isLogin) {
+      _currentActiveUserId = userId;
+      _currentActiveProfile = null;
+      _currentAvailableProfiles = profiles;
+      // On fresh explicit login with multiple profiles: present profile selector
+      state = ProfileSelectionRequiredSessionState(
+        userId: userId,
+        profiles: profiles,
+      );
+      return;
+    }
+
+    // App restart / session restoration: attempt to restore previously selected workspace
+    final matched = profiles.where((p) => p.id == lastActiveId).firstOrNull;
+    if (matched != null) {
+      _currentActiveUserId = userId;
+      _currentActiveProfile = matched;
+      _currentAvailableProfiles = profiles;
+      _currentIsOffline = isOffline;
+
+      state = isOffline
+          ? OfflineActiveProfileReadySessionState(
+              userId: userId,
+              activeProfile: matched,
+              availableProfiles: profiles,
+            )
+          : ActiveProfileReadySessionState(
+              userId: userId,
+              activeProfile: matched,
+              availableProfiles: profiles,
+              isOffline: false,
+            );
+
+      _syncActiveCompany(matched);
+      if (!isOffline) {
+        try {
+          ref
+              .read(syncEngineProvider)
+              .triggerBackgroundSync(companyId: matched.id);
+        } catch (_) {}
+      }
+    } else {
+      // Previously selected workspace no longer accessible or not set:
+      // Fall back safely to profile selector
+      state = ProfileSelectionRequiredSessionState(
+        userId: userId,
+        profiles: profiles,
+      );
     }
   }
 
@@ -410,7 +823,8 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
             : null);
 
     if (userId == null || userId.isEmpty) {
-      state = const SessionErrorState('Cannot switch profile while unauthenticated.');
+      state = const SessionErrorState(
+          'Cannot switch profile while unauthenticated.');
       return;
     }
 
@@ -429,13 +843,39 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
       final targetProfile = freshProfiles.firstWhere((p) => p.id == profile.id);
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs?.setString('last_active_profile_$userId', targetProfile.id);
+      await prefs?.setString(
+          'last_active_company_id_$userId', targetProfile.id);
+      await prefs?.setString('last_active_company_id', targetProfile.id);
 
-      state = ActiveProfileReadySessionState(
-        userId: userId,
-        activeProfile: targetProfile,
-        availableProfiles: freshProfiles,
-      );
+      final isOffline = state is ActiveProfileReadySessionState &&
+          (state as ActiveProfileReadySessionState).isOffline;
+
+      _currentActiveUserId = userId;
+      _currentActiveProfile = targetProfile;
+      _currentAvailableProfiles = freshProfiles;
+      _currentIsOffline = isOffline;
+
+      state = isOffline
+          ? OfflineActiveProfileReadySessionState(
+              userId: userId,
+              activeProfile: targetProfile,
+              availableProfiles: freshProfiles,
+            )
+          : ActiveProfileReadySessionState(
+              userId: userId,
+              activeProfile: targetProfile,
+              availableProfiles: freshProfiles,
+              isOffline: false,
+            );
+
       _syncActiveCompany(targetProfile);
+      if (!isOffline) {
+        try {
+          ref
+              .read(syncEngineProvider)
+              .triggerBackgroundSync(companyId: targetProfile.id);
+        } catch (_) {}
+      }
     } catch (e) {
       if (ref.mounted) {
         state = SessionErrorState(e.toString());
@@ -455,7 +895,7 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
     final authState = ref.read(authControllerProvider);
     final userId = authState.userId;
     if (userId == null || userId.isEmpty) {
-      state = const UnauthenticatedSessionState();
+      state = const GuestReadySessionState();
       return;
     }
     state = LoadingProfilesSessionState(userId);
@@ -463,7 +903,11 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
   }
 
   void logout() {
-    state = const UnauthenticatedSessionState();
+    _currentActiveUserId = null;
+    _currentActiveProfile = null;
+    _currentAvailableProfiles = null;
+    _currentIsOffline = false;
+    state = const GuestReadySessionState();
   }
 }
 

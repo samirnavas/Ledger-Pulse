@@ -20,6 +20,9 @@ const realTableNames = <String>{
   'exp_budgets',
   'exp_recurring_rules',
   'shared_memberships',
+  'inventory_items',
+  'stock_ledger',
+  'audit_logs',
 };
 
 const _uuid = Uuid();

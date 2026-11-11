@@ -180,6 +180,7 @@ class SyncEngine {
   final AppDatabase db;
   final RemoteGateway gateway;
   final bool simulateSyncForTesting;
+  final String? activeUserId;
 
   final StreamController<SyncEngineStatus> _statusController =
       StreamController<SyncEngineStatus>.broadcast();
@@ -194,6 +195,7 @@ class SyncEngine {
     RemoteGateway? fakeRemoteStore,
     SupabaseClient? supabaseClient,
     this.simulateSyncForTesting = false,
+    this.activeUserId,
   }) : gateway =
            gateway ??
            fakeRemoteStore ??
@@ -236,16 +238,85 @@ class SyncEngine {
     return SupabaseConfig.isConfigured || simulateSyncForTesting;
   }
 
+  static int tableDependencyRank(String table) {
+    switch (table) {
+      case 'user_profiles':
+        return 0;
+      case 'companies':
+        return 1;
+      case 'shared_memberships':
+        return 2;
+      case 'accounts':
+        return 3;
+      case 'parties':
+        return 4;
+      case 'tax_rates':
+        return 5;
+      case 'budgets':
+        return 6;
+      case 'recurring_rules':
+        return 7;
+      case 'vouchers':
+        return 8;
+      case 'journals':
+        return 9;
+      case 'journal_lines':
+        return 10;
+      case 'exp_wallets':
+        return 11;
+      case 'exp_categories':
+        return 12;
+      case 'exp_budgets':
+        return 13;
+      case 'exp_recurring_rules':
+        return 14;
+      case 'exp_transactions':
+        return 15;
+      case 'inventory_items':
+        return 16;
+      case 'stock_ledger':
+        return 17;
+      case 'audit_logs':
+        return 18;
+      default:
+        return 99;
+    }
+  }
+
   Future<T> _synchronizedSync<T>(Future<T> Function() action) async {
     if (_isDisposed) {
-      return action();
+      if (T == SyncResult) {
+        return SyncResult(
+          status: SyncEngineStatus.idle,
+          tableErrors: {'sync': 'SyncEngine is disposed'},
+        ) as T;
+      }
+      throw StateError('SyncEngine is disposed');
     }
     while (_syncLock != null) {
       await _syncLock!.future;
+      if (_isDisposed) {
+        if (T == SyncResult) {
+          return SyncResult(
+            status: SyncEngineStatus.idle,
+            tableErrors: {'sync': 'SyncEngine is disposed'},
+          ) as T;
+        }
+        throw StateError('SyncEngine is disposed');
+      }
     }
     final completer = Completer<void>();
     _syncLock = completer;
     try {
+      if (_isDisposed) {
+        if (T == SyncResult) {
+          return SyncResult(
+            status: SyncEngineStatus.idle,
+            tableErrors: {'sync': 'SyncEngine is disposed'},
+          ) as T;
+        }
+        throw StateError('SyncEngine is disposed');
+      }
       return await action();
     } finally {
       _syncLock = null;
@@ -551,8 +622,8 @@ class SyncEngine {
             'updatedAt': encodeTime(a.updatedAt),
             'isDeleted': a.isDeleted,
             'revision': a.revision,
-            'ownerId': _getSafeSupabaseClient()?.auth.currentUser?.id,
-            'owner_id': _getSafeSupabaseClient()?.auth.currentUser?.id,
+            'ownerId': activeUserId ?? _getSafeSupabaseClient()?.auth.currentUser?.id,
+            'owner_id': activeUserId ?? _getSafeSupabaseClient()?.auth.currentUser?.id,
           },
         );
       }
@@ -680,6 +751,256 @@ class SyncEngine {
           },
         );
       }
+
+      // 11. ExpenseWallets
+      final pendingWallets = await (db.select(db.expenseWallets)
+            ..where((t) =>
+                t.profileId.equals(companyId) &
+                t.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .get();
+      for (final w in pendingWallets) {
+        await enqueueMutation(
+          db: db,
+          table: 'exp_wallets',
+          recordId: w.id,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': w.id,
+            'profile_id': w.profileId,
+            'name': w.name,
+            'wallet_type': w.walletType,
+            'currency_code': w.currencyCode,
+            'starting_balance_in_cents': w.startingBalanceInCents,
+            'current_balance_in_cents': w.currentBalanceInCents,
+            'color_hex': w.colorHex,
+            'icon_name': w.iconName,
+            'is_archived': w.isArchived,
+            'created_at': encodeTime(w.createdAt),
+            'updated_at': encodeTime(w.updatedAt),
+            'is_deleted': w.isDeleted,
+            'revision': w.revision,
+          },
+        );
+      }
+
+      // 12. ExpenseCategories
+      final pendingCategories = await (db.select(db.expenseCategories)
+            ..where((t) =>
+                t.profileId.equals(companyId) &
+                t.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .get();
+      for (final c in pendingCategories) {
+        await enqueueMutation(
+          db: db,
+          table: 'exp_categories',
+          recordId: c.id,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': c.id,
+            'profile_id': c.profileId,
+            'name': c.name,
+            'category_type': c.categoryType,
+            'parent_category_id': c.parentCategoryId,
+            'icon_name': c.iconName,
+            'color_hex': c.colorHex,
+            'is_system': c.isSystem,
+            'created_at': encodeTime(c.createdAt),
+            'updated_at': encodeTime(c.updatedAt),
+            'is_deleted': c.isDeleted,
+            'revision': c.revision,
+          },
+        );
+      }
+
+      // 13. ExpenseBudgets
+      final pendingExpBudgets = await (db.select(db.expenseBudgets)
+            ..where((t) =>
+                t.profileId.equals(companyId) &
+                t.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .get();
+      for (final b in pendingExpBudgets) {
+        await enqueueMutation(
+          db: db,
+          table: 'exp_budgets',
+          recordId: b.id,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': b.id,
+            'profile_id': b.profileId,
+            'category_id': b.categoryId,
+            'period_type': b.periodType,
+            'amount_in_cents': b.amountInCents,
+            'start_date': encodeTime(b.startDate),
+            'end_date': b.endDate != null ? encodeTime(b.endDate!) : null,
+            'alert_threshold_percent': b.alertThresholdPercent,
+            'created_at': encodeTime(b.createdAt),
+            'updated_at': encodeTime(b.updatedAt),
+            'is_deleted': b.isDeleted,
+            'revision': b.revision,
+          },
+        );
+      }
+
+      // 14. ExpenseRecurringRules
+      final pendingExpRecurring = await (db.select(db.expenseRecurringRules)
+            ..where((t) =>
+                t.profileId.equals(companyId) &
+                t.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .get();
+      for (final r in pendingExpRecurring) {
+        await enqueueMutation(
+          db: db,
+          table: 'exp_recurring_rules',
+          recordId: r.id,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': r.id,
+            'profile_id': r.profileId,
+            'template_json': r.templateJson,
+            'interval_type': r.intervalType,
+            'interval_count': r.intervalCount,
+            'next_run_date': encodeTime(r.nextRunDate),
+            'end_date': r.endDate != null ? encodeTime(r.endDate!) : null,
+            'is_active': r.isActive,
+            'created_at': encodeTime(r.createdAt),
+            'updated_at': encodeTime(r.updatedAt),
+            'is_deleted': r.isDeleted,
+            'revision': r.revision,
+          },
+        );
+      }
+
+      // 15. ExpenseTransactions
+      final pendingExpTxns = await (db.select(db.expenseTransactions)
+            ..where((t) =>
+                t.profileId.equals(companyId) &
+                t.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .get();
+      for (final tx in pendingExpTxns) {
+        await enqueueMutation(
+          db: db,
+          table: 'exp_transactions',
+          recordId: tx.id,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': tx.id,
+            'profile_id': tx.profileId,
+            'transaction_type': tx.transactionType,
+            'amount_in_cents': tx.amountInCents,
+            'wallet_id': tx.walletId,
+            'to_wallet_id': tx.toWalletId,
+            'category_id': tx.categoryId,
+            'transaction_date': encodeTime(tx.transactionDate),
+            'note': tx.note,
+            'payee_or_payer': tx.payeeOrPayer,
+            'reference_number': tx.referenceNumber,
+            'receipt_photo_url': tx.receiptPhotoUrl,
+            'is_cleared': tx.isCleared,
+            'created_at': encodeTime(tx.createdAt),
+            'updated_at': encodeTime(tx.updatedAt),
+            'is_deleted': tx.isDeleted,
+            'revision': tx.revision,
+          },
+        );
+      }
+
+      // 16. InventoryItems
+      final pendingItems = await (db.select(db.inventoryItems)
+            ..where((t) =>
+                t.companyId.equals(companyId) &
+                t.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .get();
+      for (final item in pendingItems) {
+        await enqueueMutation(
+          db: db,
+          table: 'inventory_items',
+          recordId: item.id,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': item.id,
+            'company_id': item.companyId,
+            'sku': item.sku,
+            'name': item.name,
+            'description': item.description,
+            'unit': item.unit,
+            'hsn_code': item.hsnCode,
+            'tax_rate_percent': item.taxRatePercent,
+            'purchase_price_in_cents': item.purchasePriceInCents,
+            'selling_price_in_cents': item.sellingPriceInCents,
+            'current_stock_quantity': item.currentStockQuantity,
+            'minimum_stock_alert': item.minimumStockAlert,
+            'is_active': item.isActive,
+            'created_at': encodeTime(item.createdAt),
+            'updated_at': encodeTime(item.updatedAt),
+            'is_deleted': item.isDeleted,
+            'revision': item.revision,
+          },
+        );
+      }
+
+      // 17. StockLedger
+      final pendingStock = await (db.select(db.stockLedger)
+            ..where((t) =>
+                t.companyId.equals(companyId) &
+                t.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .get();
+      for (final sl in pendingStock) {
+        await enqueueMutation(
+          db: db,
+          table: 'stock_ledger',
+          recordId: sl.id,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': sl.id,
+            'company_id': sl.companyId,
+            'item_id': sl.itemId,
+            'voucher_id': sl.voucherId,
+            'date': encodeTime(sl.date),
+            'quantity': sl.quantity,
+            'unit_cost_in_cents': sl.unitCostInCents,
+            'total_cost_in_cents': sl.totalCostInCents,
+            'running_stock_quantity': sl.runningStockQuantity,
+            'transaction_type': sl.transactionType,
+            'note': sl.note,
+            'created_at': encodeTime(sl.createdAt),
+            'updated_at': encodeTime(sl.updatedAt),
+            'is_deleted': sl.isDeleted,
+            'revision': sl.revision,
+          },
+        );
+      }
+
+      // 18. AuditLogs
+      final pendingAudit = await (db.select(db.auditLogs)
+            ..where((t) =>
+                t.companyId.equals(companyId) &
+                t.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .get();
+      for (final al in pendingAudit) {
+        await enqueueMutation(
+          db: db,
+          table: 'audit_logs',
+          recordId: al.id,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': al.id,
+            'company_id': al.companyId,
+            'user_id': al.userId,
+            'action': al.action,
+            'entity_type': al.entityType,
+            'entity_id': al.entityId,
+            'timestamp': encodeTime(al.timestamp),
+            'old_state_json': al.oldStateJson,
+            'new_state_json': al.newStateJson,
+            'diff_json': al.diffJson,
+            'checksum': al.checksum,
+            'previous_checksum': al.previousChecksum,
+            'updated_at': encodeTime(al.updatedAt),
+            'is_deleted': al.isDeleted,
+            'revision': al.revision,
+          },
+        );
+      }
     } catch (e) {
       debugPrint('SyncEngine _queueUnsyncedLocalRecords error: $e');
     }
@@ -729,6 +1050,74 @@ class SyncEngine {
           syncStatus: Value(SyncRecordStatus.pending),
         ),
       );
+      await (db.update(
+        db.journals,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const JournalsCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+      );
+      await (db.update(
+        db.journalLines,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const JournalLinesCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
+      await (db.update(
+        db.expenseWallets,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const ExpenseWalletsCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
+      await (db.update(
+        db.expenseCategories,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const ExpenseCategoriesCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
+      await (db.update(
+        db.expenseTransactions,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const ExpenseTransactionsCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
+      await (db.update(
+        db.expenseBudgets,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const ExpenseBudgetsCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
+      await (db.update(
+        db.expenseRecurringRules,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const ExpenseRecurringRulesCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
+      await (db.update(
+        db.inventoryItems,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const InventoryItemsCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
+      await (db.update(
+        db.stockLedger,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const StockLedgerCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
+      await (db.update(
+        db.auditLogs,
+      )..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error))).write(
+        const AuditLogsCompanion(
+          syncStatus: Value(SyncRecordStatus.pending),
+        ),
+      );
     } catch (e) {
       debugPrint('SyncEngine repair failed records notice: $e');
     }
@@ -755,10 +1144,20 @@ class SyncEngine {
       return SyncResult(status: SyncEngineStatus.success);
     }
 
+    outboxRows.sort((a, b) {
+      final rankA = tableDependencyRank(a.targetTable);
+      final rankB = tableDependencyRank(b.targetTable);
+      if (rankA != rankB) {
+        return rankA.compareTo(rankB);
+      }
+      return a.createdAt.compareTo(b.createdAt);
+    });
+
     final tableErrors = <String, String>{};
     int pushedCount = 0;
 
     for (final outboxRow in outboxRows) {
+      if (_isDisposed) break;
       try {
         final payloadMap =
             jsonDecode(outboxRow.payload) as Map<String, dynamic>;
@@ -819,9 +1218,12 @@ class SyncEngine {
       }
     }
 
-    final finalStatus = tableErrors.isNotEmpty
-        ? SyncEngineStatus.partial
-        : SyncEngineStatus.success;
+    final SyncEngineStatus finalStatus;
+    if (tableErrors.isNotEmpty) {
+      finalStatus = SyncEngineStatus.partial;
+    } else {
+      finalStatus = SyncEngineStatus.success;
+    }
     setStatus(finalStatus);
 
     return SyncResult(
@@ -995,6 +1397,118 @@ class SyncEngine {
           ),
         );
       }
+    } else if (table == 'exp_wallets') {
+      final local = await (db.select(
+        db.expenseWallets,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (local != null && local.revision == pushedRevision) {
+        await (db.update(
+          db.expenseWallets,
+        )..where((t) => t.id.equals(recordId))).write(
+          ExpenseWalletsCompanion(
+            syncStatus: const Value(SyncRecordStatus.synced),
+            remoteUpdatedAt: Value(now),
+          ),
+        );
+      }
+    } else if (table == 'exp_categories') {
+      final local = await (db.select(
+        db.expenseCategories,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (local != null && local.revision == pushedRevision) {
+        await (db.update(
+          db.expenseCategories,
+        )..where((t) => t.id.equals(recordId))).write(
+          ExpenseCategoriesCompanion(
+            syncStatus: const Value(SyncRecordStatus.synced),
+            remoteUpdatedAt: Value(now),
+          ),
+        );
+      }
+    } else if (table == 'exp_transactions') {
+      final local = await (db.select(
+        db.expenseTransactions,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (local != null && local.revision == pushedRevision) {
+        await (db.update(
+          db.expenseTransactions,
+        )..where((t) => t.id.equals(recordId))).write(
+          ExpenseTransactionsCompanion(
+            syncStatus: const Value(SyncRecordStatus.synced),
+            remoteUpdatedAt: Value(now),
+          ),
+        );
+      }
+    } else if (table == 'exp_budgets') {
+      final local = await (db.select(
+        db.expenseBudgets,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (local != null && local.revision == pushedRevision) {
+        await (db.update(
+          db.expenseBudgets,
+        )..where((t) => t.id.equals(recordId))).write(
+          ExpenseBudgetsCompanion(
+            syncStatus: const Value(SyncRecordStatus.synced),
+            remoteUpdatedAt: Value(now),
+          ),
+        );
+      }
+    } else if (table == 'exp_recurring_rules') {
+      final local = await (db.select(
+        db.expenseRecurringRules,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (local != null && local.revision == pushedRevision) {
+        await (db.update(
+          db.expenseRecurringRules,
+        )..where((t) => t.id.equals(recordId))).write(
+          ExpenseRecurringRulesCompanion(
+            syncStatus: const Value(SyncRecordStatus.synced),
+            remoteUpdatedAt: Value(now),
+          ),
+        );
+      }
+    } else if (table == 'inventory_items') {
+      final local = await (db.select(
+        db.inventoryItems,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (local != null && local.revision == pushedRevision) {
+        await (db.update(
+          db.inventoryItems,
+        )..where((t) => t.id.equals(recordId))).write(
+          InventoryItemsCompanion(
+            syncStatus: const Value(SyncRecordStatus.synced),
+            remoteUpdatedAt: Value(now),
+          ),
+        );
+      }
+    } else if (table == 'stock_ledger') {
+      final local = await (db.select(
+        db.stockLedger,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (local != null && local.revision == pushedRevision) {
+        await (db.update(
+          db.stockLedger,
+        )..where((t) => t.id.equals(recordId))).write(
+          StockLedgerCompanion(
+            syncStatus: const Value(SyncRecordStatus.synced),
+            remoteUpdatedAt: Value(now),
+          ),
+        );
+      }
+    } else if (table == 'audit_logs') {
+      final local = await (db.select(
+        db.auditLogs,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (local != null && local.revision == pushedRevision) {
+        await (db.update(
+          db.auditLogs,
+        )..where((t) => t.id.equals(recordId))).write(
+          AuditLogsCompanion(
+            syncStatus: const Value(SyncRecordStatus.synced),
+            remoteUpdatedAt: Value(now),
+          ),
+        );
+      }
     }
   }
 
@@ -1042,6 +1556,72 @@ class SyncEngine {
           syncStatus: Value(SyncRecordStatus.error),
         ),
       );
+    } else if (table == 'companies') {
+      await (db.update(
+        db.companies,
+      )..where((t) => t.id.equals(recordId))).write(
+        const CompaniesCompanion(syncStatus: Value(SyncRecordStatus.error)),
+      );
+    } else if (table == 'user_profiles') {
+      await (db.update(
+        db.userProfiles,
+      )..where((t) => t.id.equals(recordId))).write(
+        const UserProfilesCompanion(syncStatus: Value(SyncRecordStatus.error)),
+      );
+    } else if (table == 'exp_wallets') {
+      await (db.update(
+        db.expenseWallets,
+      )..where((t) => t.id.equals(recordId))).write(
+        const ExpenseWalletsCompanion(syncStatus: Value(SyncRecordStatus.error)),
+      );
+    } else if (table == 'exp_categories') {
+      await (db.update(
+        db.expenseCategories,
+      )..where((t) => t.id.equals(recordId))).write(
+        const ExpenseCategoriesCompanion(
+          syncStatus: Value(SyncRecordStatus.error),
+        ),
+      );
+    } else if (table == 'exp_transactions') {
+      await (db.update(
+        db.expenseTransactions,
+      )..where((t) => t.id.equals(recordId))).write(
+        const ExpenseTransactionsCompanion(
+          syncStatus: Value(SyncRecordStatus.error),
+        ),
+      );
+    } else if (table == 'exp_budgets') {
+      await (db.update(
+        db.expenseBudgets,
+      )..where((t) => t.id.equals(recordId))).write(
+        const ExpenseBudgetsCompanion(syncStatus: Value(SyncRecordStatus.error)),
+      );
+    } else if (table == 'exp_recurring_rules') {
+      await (db.update(
+        db.expenseRecurringRules,
+      )..where((t) => t.id.equals(recordId))).write(
+        const ExpenseRecurringRulesCompanion(
+          syncStatus: Value(SyncRecordStatus.error),
+        ),
+      );
+    } else if (table == 'inventory_items') {
+      await (db.update(
+        db.inventoryItems,
+      )..where((t) => t.id.equals(recordId))).write(
+        const InventoryItemsCompanion(syncStatus: Value(SyncRecordStatus.error)),
+      );
+    } else if (table == 'stock_ledger') {
+      await (db.update(
+        db.stockLedger,
+      )..where((t) => t.id.equals(recordId))).write(
+        const StockLedgerCompanion(syncStatus: Value(SyncRecordStatus.error)),
+      );
+    } else if (table == 'audit_logs') {
+      await (db.update(
+        db.auditLogs,
+      )..where((t) => t.id.equals(recordId))).write(
+        const AuditLogsCompanion(syncStatus: Value(SyncRecordStatus.error)),
+      );
     }
   }
 
@@ -1082,7 +1662,11 @@ class SyncEngine {
                 c['isActive'] == true ||
                 c['isActive'] == 1,
           ),
-          mode: Value(CompanyMode.fromName(c['mode']?.toString()).canonicalValue),
+          mode: Value(
+            (c['mode'] != null && c['mode'].toString().isNotEmpty)
+                ? CompanyMode.fromName(c['mode'].toString()).canonicalValue
+                : CompanyMode.ledger.canonicalValue,
+          ),
           enabledModulesJson: Value(c['enabledModulesJson'] as String?),
           ownerId: Value(c['ownerId'] as String?),
           createdAt: Value(decodeTime(c['createdAt'])),
@@ -1532,6 +2116,177 @@ class SyncEngine {
       },
       toRemote: (row) => mapToSnakeCase(row.toJson()),
     ),
+
+    // 14. ExpenseWallets
+    SyncTable<ExpenseWalletTableData, ExpenseWalletsCompanion>(
+      name: 'exp_wallets',
+      parentTables: ['companies'],
+      fromRemote: (map) {
+        final c = mapToCamelCase(map);
+        return ExpenseWalletsCompanion(
+          id: Value(c['id'] as String),
+          profileId: Value(
+            (c['profileId'] ?? c['companyId']) as String? ?? 'cmp_default',
+          ),
+          name: Value(c['name'] as String? ?? ''),
+          walletType: Value(c['walletType'] as String? ?? 'cash'),
+          currencyCode: Value(c['currencyCode'] as String? ?? 'INR'),
+          startingBalanceInCents: Value(
+            (c['startingBalanceInCents'] as int?) ?? 0,
+          ),
+          currentBalanceInCents: Value(
+            (c['currentBalanceInCents'] as int?) ?? 0,
+          ),
+          colorHex: Value(c['colorHex'] as String?),
+          iconName: Value(c['iconName'] as String?),
+          isArchived: Value(c['isArchived'] == true || c['isArchived'] == 1),
+          createdAt: Value(decodeTime(c['createdAt'])),
+          updatedAt: Value(decodeTime(c['updatedAt'])),
+          isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          revision: Value((c['revision'] as int?) ?? 0),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
+        );
+      },
+      toRemote: (row) => mapToSnakeCase(row.toJson()),
+    ),
+
+    // 15. ExpenseCategories
+    SyncTable<ExpenseCategoryTableData, ExpenseCategoriesCompanion>(
+      name: 'exp_categories',
+      parentTables: ['companies'],
+      fromRemote: (map) {
+        final c = mapToCamelCase(map);
+        return ExpenseCategoriesCompanion(
+          id: Value(c['id'] as String),
+          profileId: Value(
+            (c['profileId'] ?? c['companyId']) as String? ?? 'cmp_default',
+          ),
+          name: Value(c['name'] as String? ?? ''),
+          categoryType: Value(c['categoryType'] as String? ?? 'expense'),
+          parentCategoryId: Value(c['parentCategoryId'] as String?),
+          iconName: Value(c['iconName'] as String?),
+          colorHex: Value(c['colorHex'] as String?),
+          isSystem: Value(c['isSystem'] == true || c['isSystem'] == 1),
+          createdAt: Value(decodeTime(c['createdAt'])),
+          updatedAt: Value(decodeTime(c['updatedAt'])),
+          isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          revision: Value((c['revision'] as int?) ?? 0),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
+        );
+      },
+      toRemote: (row) => mapToSnakeCase(row.toJson()),
+    ),
+
+    // 16. ExpenseBudgets
+    SyncTable<ExpenseBudgetTableData, ExpenseBudgetsCompanion>(
+      name: 'exp_budgets',
+      parentTables: ['companies', 'exp_categories'],
+      fromRemote: (map) {
+        final c = mapToCamelCase(map);
+        return ExpenseBudgetsCompanion(
+          id: Value(c['id'] as String),
+          profileId: Value(
+            (c['profileId'] ?? c['companyId']) as String? ?? 'cmp_default',
+          ),
+          categoryId: Value(c['categoryId'] as String?),
+          periodType: Value(c['periodType'] as String? ?? 'monthly'),
+          amountInCents: Value((c['amountInCents'] as int?) ?? 0),
+          startDate: Value(decodeTime(c['startDate'])),
+          endDate: Value(c['endDate'] != null ? decodeTime(c['endDate']) : null),
+          alertThresholdPercent: Value(
+            (c['alertThresholdPercent'] as int?) ?? 80,
+          ),
+          createdAt: Value(decodeTime(c['createdAt'])),
+          updatedAt: Value(decodeTime(c['updatedAt'])),
+          isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          revision: Value((c['revision'] as int?) ?? 0),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
+        );
+      },
+      toRemote: (row) => mapToSnakeCase(row.toJson()),
+    ),
+
+    // 17. ExpenseRecurringRules
+    SyncTable<ExpenseRecurringRuleTableData, ExpenseRecurringRulesCompanion>(
+      name: 'exp_recurring_rules',
+      parentTables: ['companies'],
+      fromRemote: (map) {
+        final c = mapToCamelCase(map);
+        return ExpenseRecurringRulesCompanion(
+          id: Value(c['id'] as String),
+          profileId: Value(
+            (c['profileId'] ?? c['companyId']) as String? ?? 'cmp_default',
+          ),
+          templateJson: Value(c['templateJson'] as String? ?? '{}'),
+          intervalType: Value(c['intervalType'] as String? ?? 'monthly'),
+          intervalCount: Value((c['intervalCount'] as int?) ?? 1),
+          nextRunDate: Value(decodeTime(c['nextRunDate'])),
+          endDate: Value(c['endDate'] != null ? decodeTime(c['endDate']) : null),
+          isActive: Value(
+            c['isActive'] == null ||
+                c['isActive'] == true ||
+                c['isActive'] == 1,
+          ),
+          createdAt: Value(decodeTime(c['createdAt'])),
+          updatedAt: Value(decodeTime(c['updatedAt'])),
+          isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          revision: Value((c['revision'] as int?) ?? 0),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
+        );
+      },
+      toRemote: (row) => mapToSnakeCase(row.toJson()),
+    ),
+
+    // 18. ExpenseTransactions
+    SyncTable<ExpenseTransactionTableData, ExpenseTransactionsCompanion>(
+      name: 'exp_transactions',
+      parentTables: ['companies', 'exp_wallets', 'exp_categories'],
+      fromRemote: (map) {
+        final c = mapToCamelCase(map);
+        return ExpenseTransactionsCompanion(
+          id: Value(c['id'] as String),
+          profileId: Value(
+            (c['profileId'] ?? c['companyId']) as String? ?? 'cmp_default',
+          ),
+          transactionType: Value(c['transactionType'] as String? ?? 'expense'),
+          amountInCents: Value((c['amountInCents'] as int?) ?? 0),
+          walletId: Value(c['walletId'] as String? ?? ''),
+          toWalletId: Value(c['toWalletId'] as String?),
+          categoryId: Value(c['categoryId'] as String?),
+          transactionDate: Value(decodeTime(c['transactionDate'])),
+          note: Value(c['note'] as String?),
+          payeeOrPayer: Value(c['payeeOrPayer'] as String?),
+          referenceNumber: Value(c['referenceNumber'] as String?),
+          receiptPhotoUrl: Value(c['receiptPhotoUrl'] as String?),
+          isCleared: Value(
+            c['isCleared'] == null ||
+                c['isCleared'] == true ||
+                c['isCleared'] == 1,
+          ),
+          createdAt: Value(decodeTime(c['createdAt'])),
+          updatedAt: Value(decodeTime(c['updatedAt'])),
+          isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          revision: Value((c['revision'] as int?) ?? 0),
+          remoteUpdatedAt: Value(
+            decodeTime(c['updatedAt'] ?? c['remoteUpdatedAt']),
+          ),
+        );
+      },
+      toRemote: (row) => mapToSnakeCase(row.toJson()),
+    ),
   ];
 
   /// Pulls changes from remote backend for [companyId] in FK-safe topological order.
@@ -1639,16 +2394,23 @@ class SyncEngine {
         if (table.name == 'journals' || table.name == 'journal_lines') {
           await _recalculateAccountBalances(companyId);
         }
+        if (table.name == 'exp_transactions') {
+          await _recalculateWalletBalances(companyId);
+        }
       } catch (e) {
         debugPrint('Error pulling table ${table.name}: $e');
         tableErrors[table.name] = e.toString();
         // Do NOT advance cursor for failed table
       }
+      if (_isDisposed) break;
     }
 
-    final finalStatus = tableErrors.isNotEmpty
-        ? SyncEngineStatus.partial
-        : SyncEngineStatus.success;
+    final SyncEngineStatus finalStatus;
+    if (tableErrors.isNotEmpty) {
+      finalStatus = SyncEngineStatus.partial;
+    } else {
+      finalStatus = SyncEngineStatus.success;
+    }
     setStatus(finalStatus);
 
     return SyncResult(
@@ -1729,6 +2491,31 @@ class SyncEngine {
     } else if (table == 'audit_logs') {
       final r = await (db.select(
         db.auditLogs,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      return r != null && r.syncStatus != SyncRecordStatus.synced;
+    } else if (table == 'exp_wallets') {
+      final r = await (db.select(
+        db.expenseWallets,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      return r != null && r.syncStatus != SyncRecordStatus.synced;
+    } else if (table == 'exp_categories') {
+      final r = await (db.select(
+        db.expenseCategories,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      return r != null && r.syncStatus != SyncRecordStatus.synced;
+    } else if (table == 'exp_transactions') {
+      final r = await (db.select(
+        db.expenseTransactions,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      return r != null && r.syncStatus != SyncRecordStatus.synced;
+    } else if (table == 'exp_budgets') {
+      final r = await (db.select(
+        db.expenseBudgets,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      return r != null && r.syncStatus != SyncRecordStatus.synced;
+    } else if (table == 'exp_recurring_rules') {
+      final r = await (db.select(
+        db.expenseRecurringRules,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
     }
@@ -1812,6 +2599,104 @@ class SyncEngine {
           remoteUpdatedAt: Value(dt),
         ),
       );
+    } else if (table == 'companies') {
+      await (db.update(db.companies)..where((t) => t.id.equals(recordId))).write(
+        CompaniesCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
+    } else if (table == 'user_profiles') {
+      await (db.update(
+        db.userProfiles,
+      )..where((t) => t.id.equals(recordId))).write(
+        UserProfilesCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
+    } else if (table == 'exp_wallets') {
+      await (db.update(
+        db.expenseWallets,
+      )..where((t) => t.id.equals(recordId))).write(
+        ExpenseWalletsCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
+    } else if (table == 'exp_categories') {
+      await (db.update(
+        db.expenseCategories,
+      )..where((t) => t.id.equals(recordId))).write(
+        ExpenseCategoriesCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
+    } else if (table == 'exp_transactions') {
+      await (db.update(
+        db.expenseTransactions,
+      )..where((t) => t.id.equals(recordId))).write(
+        ExpenseTransactionsCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
+    } else if (table == 'exp_budgets') {
+      await (db.update(
+        db.expenseBudgets,
+      )..where((t) => t.id.equals(recordId))).write(
+        ExpenseBudgetsCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
+    } else if (table == 'exp_recurring_rules') {
+      await (db.update(
+        db.expenseRecurringRules,
+      )..where((t) => t.id.equals(recordId))).write(
+        ExpenseRecurringRulesCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
+    } else if (table == 'inventory_items') {
+      await (db.update(
+        db.inventoryItems,
+      )..where((t) => t.id.equals(recordId))).write(
+        InventoryItemsCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
+    } else if (table == 'stock_ledger') {
+      await (db.update(
+        db.stockLedger,
+      )..where((t) => t.id.equals(recordId))).write(
+        StockLedgerCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
+    } else if (table == 'audit_logs') {
+      await (db.update(
+        db.auditLogs,
+      )..where((t) => t.id.equals(recordId))).write(
+        AuditLogsCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
     }
   }
 
@@ -1875,6 +2760,64 @@ class SyncEngine {
       await db
           .into(db.auditLogs)
           .insertOnConflictUpdate(companion as AuditLogsCompanion);
+    } else if (table == 'exp_wallets') {
+      await db
+          .into(db.expenseWallets)
+          .insertOnConflictUpdate(companion as ExpenseWalletsCompanion);
+    } else if (table == 'exp_categories') {
+      await db
+          .into(db.expenseCategories)
+          .insertOnConflictUpdate(companion as ExpenseCategoriesCompanion);
+    } else if (table == 'exp_transactions') {
+      await db
+          .into(db.expenseTransactions)
+          .insertOnConflictUpdate(companion as ExpenseTransactionsCompanion);
+    } else if (table == 'exp_budgets') {
+      await db
+          .into(db.expenseBudgets)
+          .insertOnConflictUpdate(companion as ExpenseBudgetsCompanion);
+    } else if (table == 'exp_recurring_rules') {
+      await db
+          .into(db.expenseRecurringRules)
+          .insertOnConflictUpdate(companion as ExpenseRecurringRulesCompanion);
+    }
+  }
+
+  Future<void> _recalculateWalletBalances(String profileId) async {
+    final wallets = await (db.select(db.expenseWallets)
+          ..where((t) => t.profileId.equals(profileId)))
+        .get();
+
+    final txns = await (db.select(db.expenseTransactions)
+          ..where((t) =>
+              t.profileId.equals(profileId) & t.isDeleted.equals(false)))
+        .get();
+
+    for (final wallet in wallets) {
+      int balance = wallet.startingBalanceInCents;
+      for (final tx in txns) {
+        final type = tx.transactionType.toLowerCase();
+        if (tx.walletId == wallet.id) {
+          if (type == 'expense' || type == 'transfer') {
+            balance -= tx.amountInCents;
+          } else if (type == 'income') {
+            balance += tx.amountInCents;
+          }
+        }
+        if (tx.toWalletId == wallet.id && type == 'transfer') {
+          balance += tx.amountInCents;
+        }
+      }
+
+      if (wallet.currentBalanceInCents != balance) {
+        await (db.update(db.expenseWallets)..where((t) => t.id.equals(wallet.id)))
+            .write(
+          ExpenseWalletsCompanion(
+            currentBalanceInCents: Value(balance),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+      }
     }
   }
 

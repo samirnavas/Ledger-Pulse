@@ -1,14 +1,16 @@
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/local/database.dart';
+import '../../data/models/rbac_model.dart';
 import '../../data/models/user_profile_model.dart';
 import 'auth_providers.dart';
-import 'ledger_providers.dart';
+import 'database_providers.dart';
 
 class UserProfileNotifier extends Notifier<UserProfile> {
   @override
   UserProfile build() {
-    final authRepo = ref.watch(authRepositoryProvider);
-    final uid = authRepo.currentUserId ?? 'usr_default';
+    final uid = ref.watch(activeUserIdProvider);
     final authState = ref.watch(authControllerProvider);
     final phone = authState.phoneNumber ?? '';
     final prefs = ref.watch(sharedPreferencesProvider);
@@ -35,9 +37,12 @@ class UserProfileNotifier extends Notifier<UserProfile> {
   Future<void> _loadFromDatabase(String userId) async {
     try {
       if (!ref.mounted) return;
-      final repo = ref.read(driftLedgerRepositoryProvider);
-      final loaded = await repo.getUserProfile(userId);
-      if (loaded != null && ref.mounted) {
+      final db = ref.read(appDatabaseProvider);
+      final profileRow = await (db.select(db.userProfiles)
+            ..where((t) => t.id.equals(userId) & t.isDeleted.equals(false)))
+          .getSingleOrNull();
+
+      if (profileRow != null && ref.mounted) {
         final prefs = ref.read(sharedPreferencesProvider);
         final savedActiveId = prefs?.getString('last_active_company_id_$userId') ??
             prefs?.getString('last_active_company_id');
@@ -45,9 +50,25 @@ class UserProfileNotifier extends Notifier<UserProfile> {
             ? savedActiveId
             : (state.activeCompanyId.isNotEmpty
                 ? state.activeCompanyId
-                : loaded.activeCompanyId);
+                : profileRow.activeCompanyId);
 
-        state = loaded.copyWith(activeCompanyId: effectiveActiveId);
+        Role userRole = Role.admin;
+        try {
+          userRole = Role.values.byName(profileRow.role.toLowerCase());
+        } catch (_) {}
+
+        state = UserProfile(
+          id: profileRow.id,
+          name: profileRow.name,
+          phoneNumber: profileRow.phoneNumber,
+          email: profileRow.email,
+          businessName: profileRow.businessName,
+          address: profileRow.address,
+          gstin: profileRow.gstin,
+          role: userRole,
+          activeCompanyId: effectiveActiveId,
+          companies: state.companies,
+        );
 
         if (savedActiveId == null && effectiveActiveId.isNotEmpty) {
           prefs?.setString('last_active_company_id_$userId', effectiveActiveId);
@@ -70,8 +91,20 @@ class UserProfileNotifier extends Notifier<UserProfile> {
   Future<void> _saveToDatabase(UserProfile profile) async {
     try {
       if (!ref.mounted) return;
-      final repo = ref.read(driftLedgerRepositoryProvider);
-      await repo.saveUserProfile(profile);
+      final db = ref.read(appDatabaseProvider);
+      final profileCompanion = UserProfilesCompanion.insert(
+        id: profile.id,
+        name: profile.name,
+        phoneNumber: profile.phoneNumber,
+        email: profile.email,
+        businessName: Value(profile.businessName),
+        address: Value(profile.address),
+        gstin: Value(profile.gstin),
+        activeCompanyId: Value(profile.activeCompanyId.isNotEmpty ? profile.activeCompanyId : 'cmp_default'),
+        role: Value(profile.role.name),
+        updatedAt: Value(DateTime.now()),
+      );
+      await db.into(db.userProfiles).insertOnConflictUpdate(profileCompanion);
     } catch (e, st) {
       debugPrint('UserProfileNotifier: Error saving profile to database: $e\n$st');
     }

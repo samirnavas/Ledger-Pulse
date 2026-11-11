@@ -62,8 +62,16 @@ class FakeGateway implements RemoteGateway {
     final matchingRows = <Map<String, dynamic>>[];
 
     for (final row in tableMap.values) {
-      final rowCompanyId = (row['company_id'] ?? row['companyId'])?.toString();
-      if (companyId != 'cmp_default' && rowCompanyId != null && rowCompanyId != companyId && table != 'companies' && table != 'user_profiles') {
+      final rowCompanyId = (row['company_id'] ??
+              row['companyId'] ??
+              row['profile_id'] ??
+              row['profileId'])
+          ?.toString();
+      if (companyId != 'cmp_default' &&
+          rowCompanyId != null &&
+          rowCompanyId != companyId &&
+          table != 'companies' &&
+          table != 'user_profiles') {
         continue;
       }
 

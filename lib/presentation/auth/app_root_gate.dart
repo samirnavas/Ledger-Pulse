@@ -31,12 +31,13 @@ class AppRootGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionState = ref.watch(profileSessionProvider);
 
-    if (sessionState is UnauthenticatedSessionState) {
-      return const PhoneInputScreen();
+    if (sessionState is SessionInitializingState ||
+        sessionState is LoadingProfilesSessionState) {
+      return _buildLoadingScreen(context);
     }
 
-    if (sessionState is LoadingProfilesSessionState) {
-      return _buildLoadingScreen(context);
+    if (sessionState is UnauthenticatedSessionState) {
+      return const PhoneInputScreen();
     }
 
     if (sessionState is OnboardingRequiredSessionState) {

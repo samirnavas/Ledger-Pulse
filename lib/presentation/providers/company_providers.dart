@@ -17,8 +17,7 @@ final activeCompanyIdProvider = Provider<String>((ref) {
   if (profileActiveId.isNotEmpty) {
     return profileActiveId;
   }
-  final authRepo = ref.watch(authRepositoryProvider);
-  final uid = authRepo.currentUserId ?? 'usr_default';
+  final uid = ref.watch(activeUserIdProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
   final savedId = prefs?.getString('last_active_company_id_$uid') ??
       prefs?.getString('last_active_company_id');
@@ -89,7 +88,7 @@ class CompanyController extends Notifier<void> {
   }) async {
     final repo = ref.read(driftLedgerRepositoryProvider);
     final authRepo = ref.read(authRepositoryProvider);
-    final uid = authRepo.currentUserId ?? 'usr_default';
+    final uid = ref.read(activeUserIdProvider);
 
     final effectiveMode = mode ??
         (isCompanyAccount ? CompanyMode.ledger : CompanyMode.expenseTracker);
