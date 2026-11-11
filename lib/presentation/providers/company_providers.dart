@@ -1,18 +1,23 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/modules/module_catalog.dart';
 import '../../data/models/company_model.dart';
-import '../../data/models/rbac_model.dart';
-import '../../data/models/user_profile_model.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
+import '../../domain/models/workspace_profile_header.dart';
 import 'auth_providers.dart';
 import 'ledger_providers.dart';
 import 'profile_provider.dart';
+import 'profile_session_controller.dart';
+import 'profile_session_state.dart';
 import 'subscription_providers.dart';
 
 
 /// Provider for current user's active company ID, backing repository scoping without circular dependency.
+/// Authoritative state is derived from [profileSessionProvider] when active.
 final activeCompanyIdProvider = Provider<String>((ref) {
+  final sessionState = ref.watch(profileSessionProvider);
+  if (sessionState is ActiveProfileReadySessionState) {
+    return sessionState.activeProfile.id;
+  }
   final profileActiveId = ref.watch(userProfileProvider.select((p) => p.activeCompanyId));
   if (profileActiveId.isNotEmpty) {
     return profileActiveId;
@@ -20,6 +25,7 @@ final activeCompanyIdProvider = Provider<String>((ref) {
   final uid = ref.watch(activeUserIdProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
   final savedId = prefs?.getString('last_active_company_id_$uid') ??
+      prefs?.getString('last_active_profile_$uid') ??
       prefs?.getString('last_active_company_id');
   return (savedId != null && savedId.isNotEmpty) ? savedId : 'cmp_default';
 });
@@ -78,116 +84,6 @@ class CompanyController extends Notifier<void> {
   @override
   void build() {}
 
-  /// Bootstraps the initial company/profile for a newly signed-up user.
-  /// Automatically seeds accounts and connects to local Drift DB & Supabase outbox.
-  Future<Company> bootstrapInitialProfile({
-    required String name,
-    required String email,
-    required bool isCompanyAccount,
-    CompanyMode? mode,
-  }) async {
-    final repo = ref.read(driftLedgerRepositoryProvider);
-    final authRepo = ref.read(authRepositoryProvider);
-    final uid = ref.read(activeUserIdProvider);
-
-    final effectiveMode = mode ??
-        (isCompanyAccount ? CompanyMode.ledger : CompanyMode.expenseTracker);
-
-    final companyId = 'cmp_${DateTime.now().millisecondsSinceEpoch}';
-    final trimmedName = name.trim();
-    final displayName = trimmedName.isNotEmpty
-        ? trimmedName
-        : (effectiveMode == CompanyMode.ledger ? 'My Business' : 'Personal Expenses');
-
-    final newCompany = Company(
-      id: companyId,
-      name: displayName,
-      legalName: displayName,
-      currencyCode: 'INR',
-      mode: effectiveMode,
-      enabledModules: ModuleCatalog.defaultsFor(effectiveMode),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    );
-
-    // 1. Create company in DB (seeds accounts, records outbox for Supabase)
-    await repo.createCompany(newCompany);
-
-    // 2. Create user profile in DB (records outbox for Supabase)
-    final profile = UserProfile(
-      id: uid,
-      name: trimmedName.isNotEmpty ? trimmedName : 'User',
-      email: email.trim(),
-      phoneNumber: authRepo.currentPhoneNumber ?? '',
-      businessName: effectiveMode == CompanyMode.ledger ? displayName : null,
-      activeCompanyId: companyId,
-      companies: [newCompany],
-      role: Role.admin,
-    );
-    await repo.saveUserProfile(profile);
-
-    // 3. Persist active company selection in SharedPreferences
-    final prefs = ref.read(sharedPreferencesProvider);
-    await prefs?.setString('last_active_company_id_$uid', companyId);
-    await prefs?.setString('last_active_company_id', companyId);
-
-    // 4. Update Riverpod state immediately
-    ref.read(userProfileProvider.notifier).updateProfile(profile);
-    ref.invalidate(companiesProvider);
-
-    // 5. Trigger sync in background to connect to remote Supabase tables
-    try {
-      ref.read(syncEngineProvider).triggerBackgroundSync();
-    } catch (_) {}
-
-    return newCompany;
-  }
-
-  /// Ensures that the current authenticated user has at least one company in the database.
-  /// If none exists, attempts to pull from Supabase first. If still empty, bootstraps a default profile.
-  Future<void> ensureProfileAndCompanyExist({
-    String? name,
-    String? email,
-    String? phone,
-    bool isCompanyAccount = true,
-  }) async {
-    final repo = ref.read(driftLedgerRepositoryProvider);
-    var companies = await repo.getCompanies();
-
-    if (companies.isNotEmpty) {
-      final currentActiveId = ref.read(activeCompanyIdProvider);
-      if (!companies.any((c) => c.id == currentActiveId)) {
-        await selectCompany(companies.first.id);
-      }
-      return;
-    }
-
-    // Try pulling from Supabase first (in case data already exists remotely)
-    try {
-      final engine = ref.read(syncEngineProvider);
-      await engine.syncAll(companyId: 'cmp_default');
-      companies = await repo.getCompanies();
-      if (companies.isNotEmpty) {
-        await ref.read(userProfileProvider.notifier).reloadFromDatabase();
-        ref.invalidate(companiesProvider);
-        final profile = ref.read(userProfileProvider);
-        if (profile.activeCompanyId.isNotEmpty &&
-            companies.any((c) => c.id == profile.activeCompanyId)) {
-          await selectCompany(profile.activeCompanyId);
-        } else {
-          await selectCompany(companies.first.id);
-        }
-        return;
-      }
-    } catch (e) {
-      debugPrint('ensureProfileAndCompanyExist pull notice: $e');
-    }
-
-    // Still empty -> do not silently bootstrap a Ledger profile or any company.
-    // The user has 0 profiles and must be routed to profile onboarding.
-    return;
-  }
-
   Future<void> selectCompany(String companyId) async {
     final prefs = ref.read(sharedPreferencesProvider);
     await prefs?.setString('last_active_company_id', companyId);
@@ -210,16 +106,44 @@ class CompanyController extends Notifier<void> {
       throw CompanyLimitExceededException(currentTier);
     }
 
-    // 1. Write via the repository first
-    final repo = ref.read(driftLedgerRepositoryProvider);
-    await repo.createCompany(
-      newCompany,
-      initialWalletBalancesInCents: initialWalletBalancesInCents,
+    final uid = ref.read(activeUserIdProvider);
+    final uuidRegex = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
     );
+    final effectiveAccountId = uuidRegex.hasMatch(uid)
+        ? uid
+        : (newCompany.ownerId != null && uuidRegex.hasMatch(newCompany.ownerId!)
+            ? newCompany.ownerId!
+            : null);
+
+    // 1. If valid authenticated account exists, execute canonical profile creation
+    if (effectiveAccountId != null) {
+      final profileRepo = ref.read(profileRepositoryProvider);
+      await profileRepo.createProfile(
+        name: newCompany.name,
+        type: ProfileType.fromString(newCompany.mode.canonicalValue),
+        currencyCode: newCompany.currencyCode,
+        legalName: newCompany.legalName,
+        gstin: newCompany.gstin,
+        stateCode: newCompany.stateCode,
+        dealerType: newCompany.dealerType,
+        enabledModules: newCompany.enabledModules,
+        initialWalletBalancesInCents: initialWalletBalancesInCents,
+        customId: newCompany.id,
+        accountId: effectiveAccountId,
+      );
+    } else {
+      // Local fallback for unauthenticated / mock test environments without Supabase auth UUID
+      final repo = ref.read(driftLedgerRepositoryProvider);
+      await repo.createCompany(
+        newCompany,
+        initialWalletBalancesInCents: initialWalletBalancesInCents,
+      );
+    }
 
     ref.invalidate(companiesProvider);
 
-    // 2. On success, update state
+    // 2. On success, update in-memory state
     final profileNotifier = ref.read(userProfileProvider.notifier);
     final currentProfile = ref.read(userProfileProvider);
     profileNotifier.updateProfile(
@@ -228,6 +152,15 @@ class CompanyController extends Notifier<void> {
         activeCompanyId: newCompany.id,
       ),
     );
+
+    // 3. Keep profile session state synchronized
+    if (effectiveAccountId != null) {
+      try {
+        await ref
+            .read(profileSessionProvider.notifier)
+            .loadProfilesForUser(effectiveAccountId);
+      } catch (_) {}
+    }
   }
 
   Future<void> updateCompany(Company updatedCompany) async {
@@ -251,36 +184,6 @@ class CompanyController extends Notifier<void> {
         currentProfile.copyWith(companies: updatedList),
       );
     }
-  }
-
-  Future<Company> upgradeToLedger(
-    String companyId, {
-    String preset = ModulePresets.billingAndGst,
-    Set<AppModule>? modules,
-  }) async {
-    final repo = ref.read(driftLedgerRepositoryProvider);
-    final upgradedCompany = await repo.upgradeToLedger(
-      companyId,
-      preset: preset,
-      modules: modules,
-    );
-
-    ref.invalidate(companiesProvider);
-
-    final currentProfile = ref.read(userProfileProvider);
-    if (currentProfile.companies.isNotEmpty) {
-      final updatedList = currentProfile.companies.map((c) {
-        if (c.id == upgradedCompany.id) {
-          return upgradedCompany;
-        }
-        return c;
-      }).toList();
-      ref.read(userProfileProvider.notifier).updateProfile(
-        currentProfile.copyWith(companies: updatedList),
-      );
-    }
-
-    return upgradedCompany;
   }
 
   Future<bool> deleteCompany(String companyId) async {

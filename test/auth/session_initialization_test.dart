@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
@@ -11,14 +10,13 @@ import 'package:ledger_pulse/core/network/sync_engine.dart';
 import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/data/mock/mock_auth_repository.dart';
 import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
+import 'package:ledger_pulse/data/models/company_mode.dart';
 import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
 import 'package:ledger_pulse/domain/repositories/i_auth_repository.dart';
 import 'package:ledger_pulse/domain/repositories/i_profile_repository.dart';
 import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/database_providers.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
-import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
 import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
 import 'package:ledger_pulse/presentation/providers/profile_session_state.dart';
 
@@ -120,6 +118,10 @@ class StubProfileRepository implements IProfileRepository {
     String currencyCode = 'INR',
     String? legalName,
     String? gstin,
+    String? stateCode,
+    String? dealerType,
+    Set<AppModule>? enabledModules,
+    Map<String, int>? initialWalletBalancesInCents,
     String? customId,
     String? accountId,
   }) async {

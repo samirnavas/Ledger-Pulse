@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
-import '../../core/modules/module_catalog.dart';
 import '../../core/network/sync_codec.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/rbac_model.dart';
@@ -237,121 +236,29 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
     return company;
   }
 
-  /// Upgrades an expense tracker company to a business ledger in a single transaction.
-  Future<Company> upgradeToLedger(
-    String companyId, {
-    String preset = ModulePresets.billingAndGst,
-    Set<AppModule>? modules,
-  }) async {
-    await ensureInitialized();
-    AccessControlService.verifyPermission(currentRole, UserAction.createCompany);
-
-    final existing = await (db.select(db.companies)..where((t) => t.id.equals(companyId))).getSingleOrNull();
-    if (existing == null) {
-      throw Exception('Company not found: $companyId');
-    }
-
-    final targetModules = modules ?? ModuleCatalog.defaultsFor(CompanyMode.ledger, preset: preset);
-    final now = DateTime.now();
-
-    final oldMap = {
-      'id': existing.id,
-      'name': existing.name,
-      'legalName': existing.legalName,
-      'mode': existing.mode,
-      'enabledModules': existing.enabledModulesJson,
-    };
-
-    late Company updatedCompany;
-
-    await db.transaction(() async {
-      // 1. Update company record: set mode = ledger, apply preset modules
-      await (db.update(db.companies)..where((t) => t.id.equals(companyId))).write(
-        CompaniesCompanion(
-          mode: Value(CompanyMode.ledger.name),
-          enabledModulesJson: Value(jsonEncode(targetModules.map((m) => m.name).toList())),
-          updatedAt: Value(now),
-          syncStatus: const Value(SyncRecordStatus.pending),
-        ),
-      );
-
-      // 2. Seed only the missing ledger accounts (AR, AP, GST, etc.)
-      await postingEngine.seedMissingLedgerAccountsFor(companyId);
-
-      // Build updated company model
-      final row = await (db.select(db.companies)..where((t) => t.id.equals(companyId))).getSingle();
-      updatedCompany = Company(
-        id: row.id,
-        name: row.name,
-        legalName: row.legalName,
-        gstin: row.gstin,
-        stateCode: row.stateCode,
-        dealerType: row.dealerType,
-        currencyCode: row.currencyCode,
-        address: row.address,
-        email: row.email,
-        phoneNumber: row.phoneNumber,
-        logoUrl: row.logoUrl,
-        signatureUrl: row.signatureUrl,
-        signatoryName: row.signatoryName,
-        bankName: row.bankName,
-        bankAccountNumber: row.bankAccountNumber,
-        bankIfsc: row.bankIfsc,
-        upiId: row.upiId,
-        isCloudSyncEnabled: row.isCloudSyncEnabled,
-        isDropboxSyncEnabled: row.isDropboxSyncEnabled,
-        isActive: row.isActive,
-        mode: CompanyMode.fromName(row.mode),
-        enabledModules: AppModule.parseSet(row.enabledModulesJson),
-        createdAt: row.createdAt,
-        updatedAt: row.updatedAt,
-      );
-
-      // 3. Write sync outbox entry
-      await recordOutboxEntry(
-        targetTable: 'companies',
-        recordId: companyId,
-        mutationType: 'UPSERT',
-        payload: {
-          ...updatedCompany.toMap(),
-          'is_cloud_sync_enabled': updatedCompany.isCloudSyncEnabled,
-          'is_dropbox_sync_enabled': updatedCompany.isDropboxSyncEnabled,
-          'is_active': updatedCompany.isActive,
-          'companyId': companyId,
-          'ownerId': updatedCompany.ownerId,
-          'owner_id': updatedCompany.ownerId,
-          'action': 'upgrade_to_ledger',
-        },
-        companyId: companyId,
-      );
-
-      // 4. Record audit log
-      await recordAuditLog(
-        entityType: 'company',
-        entityId: companyId,
-        action: AuditAction.update,
-        oldState: oldMap,
-        newState: updatedCompany.toMap(),
-        companyId: companyId,
-      );
-    });
-
-    updateStreamController.add(null);
-    triggerBackgroundSync();
-    return updatedCompany;
-  }
-
   Future<Company> updateCompany(Company company) async {
     await ensureInitialized();
     AccessControlService.verifyPermission(currentRole, UserAction.createCompany);
 
     final existing = await (db.select(db.companies)..where((t) => t.id.equals(company.id))).getSingleOrNull();
-    final oldMap = existing != null ? {
+    if (existing == null) {
+      await createCompany(company);
+      return company;
+    }
+
+    // Strict boundary enforcement: Workspace types are immutable after creation.
+    if (existing.mode != company.mode.canonicalValue) {
+      throw UnsupportedError(
+        'Workspace type is immutable and cannot be changed after creation.',
+      );
+    }
+
+    final oldMap = {
       'id': existing.id,
       'name': existing.name,
       'legalName': existing.legalName,
       'gstin': existing.gstin,
-    } : null;
+    };
 
     final updated = company.copyWith(updatedAt: DateTime.now());
 
@@ -377,7 +284,7 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
           isCloudSyncEnabled: Value(updated.isCloudSyncEnabled),
           isDropboxSyncEnabled: Value(updated.isDropboxSyncEnabled),
           isActive: Value(updated.isActive),
-          mode: Value(existing?.mode ?? updated.mode.canonicalValue),
+          mode: Value(existing.mode),
           enabledModulesJson: Value(jsonEncode(updated.enabledModules.map((m) => m.name).toList())),
           updatedAt: Value(updated.updatedAt),
           syncStatus: const Value(SyncRecordStatus.pending),

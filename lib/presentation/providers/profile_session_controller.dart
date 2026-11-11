@@ -1,13 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/modules/module_catalog.dart';
 import '../../core/network/sync_codec.dart';
 import '../../core/network/sync_engine.dart';
+import '../../data/accounting/voucher_posting_engine.dart';
+import '../../data/local/audit_service.dart';
 import '../../data/local/database.dart';
 import '../../data/local/outbox_helper.dart';
+import '../../data/models/company_model.dart';
 import '../../domain/models/workspace_profile_header.dart';
 import '../../domain/repositories/i_profile_repository.dart';
 import 'auth_providers.dart';
@@ -19,11 +24,13 @@ class DriftProfileRepository implements IProfileRepository {
   final AppDatabase db;
   final SyncEngine syncEngine;
   final SupabaseClient? supabaseClient;
+  final VoucherPostingEngine? postingEngine;
 
   DriftProfileRepository({
     required this.db,
     required this.syncEngine,
     this.supabaseClient,
+    this.postingEngine,
   });
 
   @override
@@ -170,12 +177,16 @@ class DriftProfileRepository implements IProfileRepository {
         final updatedAt =
             updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
 
+        // Enforce workspace type immutability: preserve local mode if company exists locally
+        final existingComp = await (db.select(db.companies)..where((c) => c.id.equals(compId))).getSingleOrNull();
+        final effectiveMode = existingComp != null ? existingComp.mode : mode;
+
         await db.into(db.companies).insertOnConflictUpdate(
               CompaniesCompanion.insert(
                 id: compId,
                 name: compName,
                 legalName: legalName,
-                mode: Value(mode),
+                mode: Value(effectiveMode),
                 currencyCode: Value(currencyCode),
                 gstin: Value(gstin),
                 ownerId: Value(ownerId),
@@ -291,6 +302,10 @@ class DriftProfileRepository implements IProfileRepository {
     String currencyCode = 'INR',
     String? legalName,
     String? gstin,
+    String? stateCode,
+    String? dealerType,
+    Set<AppModule>? enabledModules,
+    Map<String, int>? initialWalletBalancesInCents,
     String? customId,
     String? accountId,
   }) async {
@@ -313,7 +328,38 @@ class DriftProfileRepository implements IProfileRepository {
       );
     }
     final effectiveAccountId = accountId;
-    final membershipId = const Uuid().v4();
+
+    // Check for existing membership to ensure idempotency on repeated calls
+    final existingMembership = await (db.select(db.sharedMemberships)
+          ..where((m) =>
+              m.profileId.equals(profileId) &
+              m.accountId.equals(effectiveAccountId)))
+        .getSingleOrNull();
+    final membershipId = existingMembership?.id ?? const Uuid().v4();
+
+    final effectiveModules = enabledModules ??
+        ModuleCatalog.defaultsFor(
+          type == ProfileType.expense
+              ? CompanyMode.expenseTracker
+              : CompanyMode.ledger,
+        );
+
+    final effectiveDealerType = dealerType ?? (type == ProfileType.expense ? '' : 'regular');
+
+    final companyModel = Company(
+      id: profileId,
+      name: name,
+      legalName: effectiveLegalName,
+      currencyCode: currencyCode,
+      mode: type == ProfileType.expense ? CompanyMode.expenseTracker : CompanyMode.ledger,
+      enabledModules: effectiveModules,
+      gstin: gstin,
+      stateCode: stateCode,
+      dealerType: effectiveDealerType,
+      ownerId: effectiveAccountId,
+      createdAt: now,
+      updatedAt: now,
+    );
 
     await db.transaction(() async {
       // 1. Insert company with pending syncStatus and verified ownerId
@@ -326,6 +372,11 @@ class DriftProfileRepository implements IProfileRepository {
               mode: Value(type.canonicalValue),
               currencyCode: Value(currencyCode),
               gstin: Value(gstin),
+              stateCode: Value(stateCode),
+              dealerType: Value(effectiveDealerType),
+              enabledModulesJson: Value(
+                jsonEncode(effectiveModules.map((m) => m.name).toList()),
+              ),
               createdAt: Value(now),
               updatedAt: Value(now),
               isDeleted: const Value(false),
@@ -362,6 +413,11 @@ class DriftProfileRepository implements IProfileRepository {
           'currency_code': currencyCode,
           'currencyCode': currencyCode,
           'gstin': gstin,
+          'state_code': stateCode,
+          'stateCode': stateCode,
+          'dealer_type': effectiveDealerType,
+          'dealerType': effectiveDealerType,
+          'enabled_modules_json': jsonEncode(effectiveModules.map((m) => m.name).toList()),
           'created_at': encodeTime(now),
           'createdAt': encodeTime(now),
           'updated_at': encodeTime(now),
@@ -390,7 +446,14 @@ class DriftProfileRepository implements IProfileRepository {
         },
       );
 
-      // 5. Seed defaults
+      // 5. Seed chart of accounts for company
+      final engine = postingEngine ?? VoucherPostingEngine(db, AuditService(db));
+      await engine.seedAccountsFor(
+        companyModel,
+        initialWalletBalancesInCents: initialWalletBalancesInCents,
+      );
+
+      // 6. Seed defaults for expense mode
       if (type == ProfileType.expense) {
         final walletId = '${profileId}_wal_cash';
         await db.into(db.expenseWallets).insertOnConflictUpdate(
@@ -537,6 +600,7 @@ final profileRepositoryProvider = Provider<IProfileRepository>((ref) {
     db: db,
     syncEngine: syncEngine,
     supabaseClient: client,
+    postingEngine: VoucherPostingEngine(db, AuditService(db)),
   );
 });
 
@@ -716,7 +780,8 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
     }
 
     final prefs = ref.read(sharedPreferencesProvider);
-    final lastActiveId = prefs?.getString('last_active_profile_$userId');
+    final lastActiveId = prefs?.getString('last_active_profile_$userId') ??
+        prefs?.getString('last_active_company_id_$userId');
 
     if (profiles.length == 1) {
       final single = profiles.first;

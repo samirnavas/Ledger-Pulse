@@ -477,32 +477,32 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                     },
                   ),
 
-                  // 8. Upgrade to Business Ledger
+                  // 8. Business Ledger Workspace
                   ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.amber.shade800.withValues(alpha: 0.15),
+                        color: Colors.blue.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                       ),
                       child: Icon(
                         isIos
-                            ? CupertinoIcons.arrow_up_circle_fill
-                            : Icons.upgrade_rounded,
-                        color: Colors.amber.shade800,
+                            ? CupertinoIcons.building_2_fill
+                            : Icons.business_outlined,
+                        color: AppColors.primaryBlue,
                         size: 20,
                       ),
                     ),
                     title: const Text(
-                      'Upgrade to Business Ledger',
+                      'Business Ledger Workspace',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        color: Colors.amber,
+                        color: AppColors.primaryBlue,
                       ),
                     ),
                     subtitle: Text(
-                      'Convert to full double-entry ledger with GST & invoicing',
+                      'Create a separate Business Ledger workspace for GST & invoicing',
                       style: TextStyle(
                         fontSize: 11,
                         color: isIos
@@ -522,7 +522,7 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                     onTap: () {
                       HapticFeedback.mediumImpact();
                       Navigator.pop(context);
-                      SettingsScreen.showUpgradeDialog(
+                      SettingsScreen.showCreateBusinessLedgerDialog(
                         context,
                         ref,
                         activeCompany,

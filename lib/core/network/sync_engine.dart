@@ -3599,9 +3599,16 @@ class SyncEngine {
           .into(db.recurringRules)
           .insertOnConflictUpdate(companion as RecurringRulesCompanion);
     } else if (table == 'companies') {
+      final comp = companion as CompaniesCompanion;
+      final existing = await (db.select(db.companies)
+            ..where((t) => t.id.equals(comp.id.value)))
+          .getSingleOrNull();
+      final effectiveCompanion = existing != null
+          ? comp.copyWith(mode: Value(existing.mode))
+          : comp;
       await db
           .into(db.companies)
-          .insertOnConflictUpdate(companion as CompaniesCompanion);
+          .insertOnConflictUpdate(effectiveCompanion);
     } else if (table == 'user_profiles') {
       await db
           .into(db.userProfiles)

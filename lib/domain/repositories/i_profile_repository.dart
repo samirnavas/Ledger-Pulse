@@ -1,3 +1,4 @@
+import '../../data/models/company_mode.dart';
 import '../models/workspace_profile_header.dart';
 
 abstract class IProfileRepository {
@@ -15,6 +16,10 @@ abstract class IProfileRepository {
     String currencyCode = 'INR',
     String? legalName,
     String? gstin,
+    String? stateCode,
+    String? dealerType,
+    Set<AppModule>? enabledModules,
+    Map<String, int>? initialWalletBalancesInCents,
     String? customId,
     String? accountId,
   });

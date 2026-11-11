@@ -262,6 +262,7 @@ The complete contract is divided into seven dedicated specifications:
 | Deliverable File | Focus Area | Key Contents |
 | :--- | :--- | :--- |
 | **`target-architecture.md`** (This file) | System Core | Domain definitions, canonical freeze contract, module boundaries, storage rules. |
+| **[`workspace-lifecycle.md`](file:///c:/Programming/app/Ledger%20Pulse/docs/architecture/workspace-lifecycle.md)** | Workspace Lifecycle | Canonical workspace lifecycle, creation, selection, switching, and type immutability. |
 | **[`cloud-erd.md`](file:///c:/Programming/app/Ledger%20Pulse/docs/architecture/cloud-erd.md)** | Cloud Schema | Complete PostgreSQL cloud schema, foreign keys, constraints, and indexes. |
 | **[`local-erd.md`](file:///c:/Programming/app/Ledger%20Pulse/docs/architecture/local-erd.md)** | Local Schema | Complete Drift local schema, SQLite indexes, table mapping, and foreign keys. |
 | **[`data-dictionary.md`](file:///c:/Programming/app/Ledger%20Pulse/docs/architecture/data-dictionary.md)** | Field Contracts | Comprehensive column-level specification, types, precision, nullability, defaults. |

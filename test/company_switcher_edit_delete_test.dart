@@ -234,6 +234,7 @@ void main() {
       await tester.enterText(nameField, 'Alpha Global Enterprises');
       await tester.tap(find.text('Save Changes'));
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 2));
 
       // Verify updated name in list
       expect(find.text('Alpha Global Enterprises'), findsOneWidget);

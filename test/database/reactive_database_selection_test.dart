@@ -4,13 +4,10 @@ import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/network/sync_engine.dart';
 import 'package:ledger_pulse/data/local/connection/connection.dart';
 import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/domain/repositories/i_auth_repository.dart';
 import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
-import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/database_providers.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
 import 'package:ledger_pulse/presentation/providers/profile_session_state.dart';
@@ -73,7 +70,6 @@ class ReactiveMockAuthRepository implements IAuthRepository {
     return true;
   }
 
-  @override
   Future<bool> signInWithPhone(String phone, String password) async => true;
 
   @override
@@ -94,7 +90,6 @@ class ReactiveMockAuthRepository implements IAuthRepository {
     emitLogout();
   }
 
-  @override
   void dispose() {
     _controller.close();
   }

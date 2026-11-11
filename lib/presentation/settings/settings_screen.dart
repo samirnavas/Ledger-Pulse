@@ -12,9 +12,11 @@ import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/sync_model.dart';
+import '../auth/profile_onboarding_screen.dart';
 import '../home/company_switcher_sheet.dart';
 import '../home/sync_settings_sheet.dart';
 import '../profile/profile_screen.dart';
+import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
 import '../providers/profile_provider.dart';
@@ -24,7 +26,6 @@ import '../providers/sync_providers.dart';
 import '../providers/theme_provider.dart';
 import '../reports/audit_log_screen.dart';
 import '../reports/reporting_hub_screen.dart';
-import '../../core/modules/module_catalog.dart';
 import 'modules_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -222,27 +223,27 @@ class SettingsScreen extends ConsumerWidget {
                         leading: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.amber.withValues(alpha: 0.15),
+                            color: Colors.blue.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
                             isIos
-                                ? CupertinoIcons.arrow_up_circle_fill
-                                : Icons.upgrade_rounded,
-                            color: Colors.amber.shade800,
+                                ? CupertinoIcons.building_2_fill
+                                : Icons.business_outlined,
+                            color: AppColors.primaryBlue,
                             size: 22,
                           ),
                         ),
                         title: const Text(
-                          'Upgrade to Business Ledger',
+                          'Business Ledger Workspace',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
-                            color: Colors.amber,
+                            color: AppColors.primaryBlue,
                           ),
                         ),
                         subtitle: Text(
-                          'Switch to full double-entry accounting, GST, invoicing & reports',
+                          'Workspace types are immutable. Create a separate Business Ledger workspace for double-entry bookkeeping & GST.',
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(context)
@@ -257,7 +258,7 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                         onTap: () {
                           HapticFeedback.mediumImpact();
-                          showUpgradeDialog(
+                          showCreateBusinessLedgerDialog(
                             context,
                             ref,
                             activeCompany,
@@ -710,147 +711,89 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  static Future<void> showUpgradeDialog(
+  static Future<void> showCreateBusinessLedgerDialog(
     BuildContext context,
     WidgetRef ref,
     Company company,
   ) async {
     final isIos = AdaptiveThemeHelper.isIos(context);
-    String selectedPreset = ModulePresets.billingAndGst;
-    final presets = [
-      ModulePresets.billingAndGst,
-      ModulePresets.simpleKhata,
-      ModulePresets.fullErp,
-    ];
 
-    final result = await showAdaptiveDialog<({bool confirmed, String preset})>(
+    final result = await showAdaptiveDialog<bool>(
       context: context,
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            final content = Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Upgrading to Business Ledger will convert this company into a full double-entry accounting workspace.\n\n'
-                  '• This action cannot be undone. A ledger to expense downgrade is not offered anywhere.\n'
-                  '• Existing wallets, categories, vouchers, and journals will be kept intact.\n'
-                  '• Standard ledger accounts (AR, AP, GST Input/Output, Sales, Purchases, Inventory, etc.) will be seeded.\n'
-                  '• Expense-only features (budgets, recurring) will become unavailable, but their data is preserved.',
-                  style: TextStyle(fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Workflow Preset:',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  children: presets.map((preset) {
-                    final isSelected = selectedPreset == preset;
-                    return ChoiceChip(
-                      label: Text(preset, style: const TextStyle(fontSize: 12)),
-                      selected: isSelected,
-                      onSelected: (val) {
-                        if (val) {
-                          setDialogState(() => selectedPreset = preset);
-                        }
-                      },
-                    );
-                  }).toList(),
-                ),
-              ],
-            );
+        const content = Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'LedgerPulse enforces immutable workspace types:\n\n'
+              '• A Personal Expense workspace cannot be converted into a Business Ledger.\n'
+              '• Your existing expense wallets, categories, and transactions remain completely intact and untouched in this workspace.\n'
+              '• To use double-entry bookkeeping, GST invoicing, parties, and inventory, create a separate Business Ledger workspace for your account.',
+              style: TextStyle(fontSize: 13),
+            ),
+          ],
+        );
 
-            if (isIos) {
-              return CupertinoAlertDialog(
-                title: const Text('Upgrade to Business Ledger'),
-                content: Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
-                  child: content,
-                ),
-                actions: [
-                  CupertinoDialogAction(
-                    key: const Key('cancel_upgrade_button'),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Cancel'),
-                  ),
-                  CupertinoDialogAction(
-                    key: const Key('confirm_upgrade_button'),
-                    isDestructiveAction: false,
-                    isDefaultAction: true,
-                    onPressed: () => Navigator.pop(
-                      ctx,
-                      (confirmed: true, preset: selectedPreset),
-                    ),
-                    child: const Text('Upgrade'),
-                  ),
-                ],
-              );
-            }
-
-            return AlertDialog(
-              title: const Row(
-                children: [
-                  Icon(Icons.upgrade_rounded, color: Colors.amber),
-                  SizedBox(width: 8),
-                  Text('Upgrade to Business Ledger'),
-                ],
+        if (isIos) {
+          return CupertinoAlertDialog(
+            title: const Text('Business Ledger Workspace'),
+            content: const Padding(
+              padding: EdgeInsets.only(top: 8.0),
+              child: content,
+            ),
+            actions: [
+              CupertinoDialogAction(
+                key: const Key('cancel_upgrade_button'),
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
               ),
-              content: content,
-              actions: [
-                TextButton(
-                  key: const Key('cancel_upgrade_button'),
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  key: const Key('confirm_upgrade_button'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.amber.shade800,
-                  ),
-                  onPressed: () => Navigator.pop(
-                    ctx,
-                    (confirmed: true, preset: selectedPreset),
-                  ),
-                  child: const Text('Upgrade to Business Ledger'),
-                ),
-              ],
-            );
-          },
+              CupertinoDialogAction(
+                key: const Key('confirm_upgrade_button'),
+                isDefaultAction: true,
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Create Ledger Workspace'),
+              ),
+            ],
+          );
+        }
+
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.business_rounded, color: AppColors.primaryBlue),
+              SizedBox(width: 8),
+              Text('Business Ledger Workspace'),
+            ],
+          ),
+          content: content,
+          actions: [
+            TextButton(
+              key: const Key('cancel_upgrade_button'),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const Key('confirm_upgrade_button'),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Create Ledger Workspace'),
+            ),
+          ],
         );
       },
     );
 
-    if (result != null && result.confirmed) {
-      try {
-        await ref.read(companyControllerProvider.notifier).upgradeToLedger(
-              company.id,
-              preset: result.preset,
-            );
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Successfully upgraded to Business Ledger'),
-              backgroundColor: AppColors.receivableGreen,
-            ),
-          );
-          if (Navigator.canPop(context)) {
-            Navigator.of(context).pop();
-          }
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to upgrade: $e'),
-              backgroundColor: AppColors.payableRed,
-            ),
-          );
-        }
+    if (result == true && context.mounted) {
+      final authState = ref.read(authControllerProvider);
+      final userId = authState.userId ?? ref.read(authRepositoryProvider).currentUserId;
+      if (userId != null && userId.isNotEmpty) {
+        Navigator.of(context).push(
+          createAdaptivePageRoute(
+            builder: (_) => ProfileOnboardingScreen(userId: userId),
+          ),
+        );
+      } else {
+        CompanySwitcherSheet.showAddCompanyDialog(context, ref);
       }
     }
   }

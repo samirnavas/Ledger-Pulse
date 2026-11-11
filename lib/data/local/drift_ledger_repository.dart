@@ -119,17 +119,20 @@ class DriftLedgerRepository extends DriftLedgerRepositoryBase
   }
 
   Future<void> _seedIfEmpty() async {
-    // Ensure the company row exists so FK constraints are satisfied.
-    await _db.into(_db.companies).insert(
-      CompaniesCompanion.insert(
-        id: _currentCompanyId,
-        name: _currentCompanyId == 'cmp_default' ? 'Default Company' : _currentCompanyId,
-        legalName: _currentCompanyId == 'cmp_default' ? 'Default Company Ltd' : '$_currentCompanyId Ltd',
-        createdAt: Value(DateTime.now()),
-        updatedAt: Value(DateTime.now()),
-      ),
-      mode: InsertMode.insertOrIgnore,
-    );
+    // Only seed the guest/default company row if currently in cmp_default context
+    // to avoid implicitly fabricating duplicate workspaces for real company IDs.
+    if (_currentCompanyId == 'cmp_default') {
+      await _db.into(_db.companies).insert(
+        CompaniesCompanion.insert(
+          id: 'cmp_default',
+          name: 'Default Company',
+          legalName: 'Default Company Ltd',
+          createdAt: Value(DateTime.now()),
+          updatedAt: Value(DateTime.now()),
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
   }
 
   /// Shared helper to record outbox entries across all mixins.
