@@ -51,6 +51,8 @@ class FakeGateway implements RemoteGateway {
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,
+    DateTime? afterUpdatedAt,
+    String? afterId,
   }) async {
     if (simulateNetworkError) {
       throw SocketException('Simulated network error');
@@ -108,10 +110,36 @@ class FakeGateway implements RemoteGateway {
       return aId.compareTo(bId);
     });
 
-    if (offset >= matchingRows.length) return [];
-    final end = (offset + pageSize < matchingRows.length)
-        ? offset + pageSize
-        : matchingRows.length;
-    return matchingRows.sublist(offset, end);
+    Iterable<Map<String, dynamic>> filteredRows = matchingRows;
+
+    if (afterUpdatedAt != null && afterId != null) {
+      filteredRows = filteredRows.where((row) {
+        final rowDt = decodeTime(
+          row['updated_at'] ?? row['updatedAt'] ?? row['created_at'],
+        );
+        final rowId = (row['id'] ?? row['record_id'] ?? '').toString();
+        if (rowDt.isAfter(afterUpdatedAt)) return true;
+        if (rowDt.isAtSameMomentAs(afterUpdatedAt)) {
+          return rowId.compareTo(afterId) > 0;
+        }
+        return false;
+      });
+    } else if (afterUpdatedAt != null) {
+      filteredRows = filteredRows.where((row) {
+        final rowDt = decodeTime(
+          row['updated_at'] ?? row['updatedAt'] ?? row['created_at'],
+        );
+        return rowDt.isAfter(afterUpdatedAt);
+      });
+    } else if (afterId != null) {
+      filteredRows = filteredRows.where((row) {
+        final rowId = (row['id'] ?? row['record_id'] ?? '').toString();
+        return rowId.compareTo(afterId) > 0;
+      });
+    } else if (offset > 0) {
+      filteredRows = filteredRows.skip(offset);
+    }
+
+    return filteredRows.take(pageSize).toList();
   }
 }

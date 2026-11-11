@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
@@ -1259,7 +1260,725 @@ void main() {
       expect(walletsUrl, contains('profile_id=eq.cmp_expense_workspace'));
     });
   });
+
+  group('SyncEngine Reliability & Isolation Suite (Prompt 6.2)', () {
+    // 33. Outbox enqueue failure is visible in the returned sync result
+    test('33. Enqueue failure is visible in returned sync result', () async {
+      await db.customStatement('''
+        CREATE TRIGGER fail_voucher_enqueue BEFORE INSERT ON sync_outbox
+        FOR EACH ROW WHEN NEW.record_id = 'v_enqueue_fail'
+        BEGIN
+          SELECT RAISE(FAIL, 'Simulated SQLite outbox failure for v_enqueue_fail');
+        END;
+      ''');
+
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_enqueue_fail'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-FAIL'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(5000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(5000),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      final result = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.partial);
+      expect(result.tableErrors.containsKey('vouchers:v_enqueue_fail'), isTrue);
+      expect(result.tableErrors['vouchers:v_enqueue_fail'], contains('v_enqueue_fail'));
+
+      await db.customStatement('DROP TRIGGER fail_voucher_enqueue;');
+    });
+
+    // 34. The affected record whose enqueue failed is not uploaded
+    test('34. The affected record whose enqueue failed is not uploaded', () async {
+      await db.customStatement('''
+        CREATE TRIGGER fail_voucher_enqueue BEFORE INSERT ON sync_outbox
+        FOR EACH ROW WHEN NEW.record_id = 'v_fail_no_upload'
+        BEGIN
+          SELECT RAISE(FAIL, 'Simulated outbox failure');
+        END;
+      ''');
+
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_fail_no_upload'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-NO-UPLOAD'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(5000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(5000),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      await syncEngine.pushQueue(companyId: testCompanyId);
+
+      // Verify remote has not received it
+      expect(gateway.tables['vouchers']?['v_fail_no_upload'], isNull);
+
+      // Verify local record is NOT marked synced
+      final localRow = await (db.select(db.vouchers)..where((t) => t.id.equals('v_fail_no_upload'))).getSingle();
+      expect(localRow.syncStatus, SyncRecordStatus.pending);
+
+      await db.customStatement('DROP TRIGGER fail_voucher_enqueue;');
+    });
+
+    // 35. Other successfully enqueued records can still sync
+    test('35. Other successfully enqueued records can still sync', () async {
+      await db.customStatement('''
+        CREATE TRIGGER fail_voucher_enqueue BEFORE INSERT ON sync_outbox
+        FOR EACH ROW WHEN NEW.record_id = 'v_fail_isolate'
+        BEGIN
+          SELECT RAISE(FAIL, 'Simulated failure for v_fail_isolate');
+        END;
+      ''');
+
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_fail_isolate'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-FAIL-ISO'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(5000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(5000),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_ok_isolate'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-OK-ISO'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(5000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(5000),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      final result = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.partial);
+
+      // v_ok_isolate succeeded
+      expect(gateway.tables['vouchers']?['v_ok_isolate'], isNotNull);
+      final localOk = await (db.select(db.vouchers)..where((t) => t.id.equals('v_ok_isolate'))).getSingle();
+      expect(localOk.syncStatus, SyncRecordStatus.synced);
+
+      // v_fail_isolate was not uploaded
+      expect(gateway.tables['vouchers']?['v_fail_isolate'], isNull);
+      final localFail = await (db.select(db.vouchers)..where((t) => t.id.equals('v_fail_isolate'))).getSingle();
+      expect(localFail.syncStatus, SyncRecordStatus.pending);
+
+      await db.customStatement('DROP TRIGGER fail_voucher_enqueue;');
+    });
+
+    // 36. A later retry succeeds after the local database error is resolved
+    test('36. A later retry succeeds after local database error is resolved', () async {
+      await db.customStatement('''
+        CREATE TRIGGER fail_voucher_enqueue BEFORE INSERT ON sync_outbox
+        FOR EACH ROW WHEN NEW.record_id = 'v_retry_test'
+        BEGIN
+          SELECT RAISE(FAIL, 'Simulated failure for v_retry_test');
+        END;
+      ''');
+
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_retry_test'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-RETRY'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(5000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(5000),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      final result1 = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(result1.status, SyncEngineStatus.partial);
+      expect(gateway.tables['vouchers']?['v_retry_test'], isNull);
+
+      // Resolve error condition
+      await db.customStatement('DROP TRIGGER fail_voucher_enqueue;');
+
+      // Retry push
+      final result2 = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(result2.status, SyncEngineStatus.success);
+      expect(gateway.tables['vouchers']?['v_retry_test'], isNotNull);
+
+      final localRetry = await (db.select(db.vouchers)..where((t) => t.id.equals('v_retry_test'))).getSingle();
+      expect(localRetry.syncStatus, SyncRecordStatus.synced);
+    });
+
+    // 37. Keyset pagination: More than 500 records
+    test('37. Keyset pagination: More than 500 records', () async {
+      final baseTime = DateTime.utc(2026, 5, 1, 10, 0, 0);
+      for (int i = 1; i <= 550; i++) {
+        final id = 'v_${i.toString().padLeft(4, '0')}';
+        final t = baseTime.add(Duration(seconds: i));
+        gateway.tables.putIfAbsent('vouchers', () => {})[id] = {
+          'id': id,
+          'company_id': testCompanyId,
+          'voucher_number': 'V-$i',
+          'date': encodeTime(t),
+          'created_at': encodeTime(t),
+          'updated_at': encodeTime(t),
+          'is_deleted': false,
+        };
+      }
+
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.success);
+
+      final localVouchers = await db.select(db.vouchers).get();
+      expect(localVouchers.length, 550);
+    });
+
+    // 38. Keyset pagination: Identical timestamps across page boundaries
+    test('38. Keyset pagination: Identical timestamps across page boundaries', () async {
+      final boundaryGateway = _PageSizeForcingGateway(gateway, forcedPageSize: 10);
+      final customEngine = SyncEngine(db: db, gateway: boundaryGateway, pageSize: 10);
+
+      final tShared = DateTime.utc(2026, 5, 1, 12, 0, 0);
+      for (int i = 1; i <= 25; i++) {
+        final id = 'v_dup_${i.toString().padLeft(3, '0')}';
+        final t = (i >= 8 && i <= 15) ? tShared : DateTime.utc(2026, 5, 1, 10, i, 0);
+        gateway.tables.putIfAbsent('vouchers', () => {})[id] = {
+          'id': id,
+          'company_id': testCompanyId,
+          'voucher_number': 'V-DUP-$i',
+          'date': encodeTime(t),
+          'created_at': encodeTime(t),
+          'updated_at': encodeTime(t),
+          'is_deleted': false,
+        };
+      }
+
+      final result = await customEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.success);
+
+      final localRows = await db.select(db.vouchers).get();
+      expect(localRows.length, 25);
+      final localIds = localRows.map((r) => r.id).toSet();
+      expect(localIds.length, 25);
+    });
+
+    // 39. Keyset pagination: New records inserted while pagination is underway
+    test('39. Keyset pagination: New records inserted while pagination is underway', () async {
+      bool newRecordInserted = false;
+      final interleavingGateway = _InterleavingGateway(
+        gateway,
+        forcedPageSize: 10,
+        onPagePulled: (table, pageNumber) {
+          if (table == 'vouchers' && pageNumber == 1 && !newRecordInserted) {
+            newRecordInserted = true;
+            final tNew = DateTime.utc(2026, 5, 1, 14, 0, 0);
+            gateway.tables.putIfAbsent('vouchers', () => {})['v_interleaved_new'] = {
+              'id': 'v_interleaved_new',
+              'company_id': testCompanyId,
+              'voucher_number': 'V-INTERLEAVED',
+              'date': encodeTime(tNew),
+              'created_at': encodeTime(tNew),
+              'updated_at': encodeTime(tNew),
+              'is_deleted': false,
+            };
+          }
+        },
+      );
+      final customEngine = SyncEngine(db: db, gateway: interleavingGateway, pageSize: 10);
+
+      for (int i = 1; i <= 20; i++) {
+        final id = 'v_pg_${i.toString().padLeft(3, '0')}';
+        final t = DateTime.utc(2026, 5, 1, 10, i, 0);
+        gateway.tables.putIfAbsent('vouchers', () => {})[id] = {
+          'id': id,
+          'company_id': testCompanyId,
+          'voucher_number': 'V-$i',
+          'date': encodeTime(t),
+          'created_at': encodeTime(t),
+          'updated_at': encodeTime(t),
+          'is_deleted': false,
+        };
+      }
+
+      final result = await customEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.success);
+
+      final localRows = await db.select(db.vouchers).get();
+      expect(localRows.length, 21);
+      expect(localRows.any((r) => r.id == 'v_interleaved_new'), isTrue);
+    });
+
+    // 40. Keyset pagination: Records updated while pagination is underway
+    test('40. Keyset pagination: Records updated while pagination is underway', () async {
+      final interleavingGateway = _InterleavingGateway(
+        gateway,
+        forcedPageSize: 10,
+        onPagePulled: (table, pageNumber) {
+          if (table == 'vouchers' && pageNumber == 1) {
+            final tUpdated = DateTime.utc(2026, 5, 1, 15, 0, 0);
+            gateway.tables.putIfAbsent('vouchers', () => {})['v_upd_015'] = {
+              'id': 'v_upd_015',
+              'company_id': testCompanyId,
+              'voucher_number': 'V-UPDATED-NOTE',
+              'date': encodeTime(tUpdated),
+              'created_at': encodeTime(tUpdated),
+              'updated_at': encodeTime(tUpdated),
+              'is_deleted': false,
+            };
+          }
+        },
+      );
+      final customEngine = SyncEngine(db: db, gateway: interleavingGateway, pageSize: 10);
+
+      for (int i = 1; i <= 20; i++) {
+        final id = 'v_upd_${i.toString().padLeft(3, '0')}';
+        final t = DateTime.utc(2026, 5, 1, 10, i, 0);
+        gateway.tables.putIfAbsent('vouchers', () => {})[id] = {
+          'id': id,
+          'company_id': testCompanyId,
+          'voucher_number': 'V-$i',
+          'date': encodeTime(t),
+          'created_at': encodeTime(t),
+          'updated_at': encodeTime(t),
+          'is_deleted': false,
+        };
+      }
+
+      final result = await customEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.success);
+
+      final localRows = await db.select(db.vouchers).get();
+      expect(localRows.length, 20);
+      final updatedRow = localRows.firstWhere((r) => r.id == 'v_upd_015');
+      expect(updatedRow.voucherNumber, 'V-UPDATED-NOTE');
+    });
+
+    // 41. Keyset pagination: Retry after later page fails preserves cursor
+    test('41. Keyset pagination: Retry after a later page fails preserves cursor and succeeds on retry', () async {
+      bool failPage2 = true;
+      final failingGateway = _InterleavingGateway(
+        gateway,
+        forcedPageSize: 10,
+        onPagePulled: (table, pageNum) {
+          if (table == 'vouchers' && failPage2 && pageNum == 2) {
+            throw SocketException('Simulated network failure on page 2');
+          }
+        },
+      );
+      final customEngine = SyncEngine(db: db, gateway: failingGateway, pageSize: 10);
+
+      for (int i = 1; i <= 25; i++) {
+        final id = 'v_fl_${i.toString().padLeft(3, '0')}';
+        final t = DateTime.utc(2026, 5, 1, 10, i, 0);
+        gateway.tables.putIfAbsent('vouchers', () => {})[id] = {
+          'id': id,
+          'company_id': testCompanyId,
+          'voucher_number': 'V-$i',
+          'date': encodeTime(t),
+          'created_at': encodeTime(t),
+          'updated_at': encodeTime(t),
+          'is_deleted': false,
+        };
+      }
+
+      // First pull fails on page 2
+      final result1 = await customEngine.pullChanges(companyId: testCompanyId);
+      expect(result1.tableErrors.containsKey('vouchers'), isTrue);
+
+      // Verify sync_state cursor was NOT saved/advanced for vouchers
+      final cursorState = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('vouchers') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursorState, isNull);
+
+      // Fix failure condition and retry
+      failPage2 = false;
+      final result2 = await customEngine.pullChanges(companyId: testCompanyId);
+      expect(result2.status, SyncEngineStatus.success);
+
+      final localRows = await db.select(db.vouchers).get();
+      expect(localRows.length, 25);
+
+      final savedCursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('vouchers') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(savedCursor, isNotNull);
+    });
+
+    // 42. Keyset pagination: Workspace isolation across every page
+    test('42. Keyset pagination: Workspace isolation across every page', () async {
+      final boundaryGateway = _PageSizeForcingGateway(gateway, forcedPageSize: 5);
+      final customEngine = SyncEngine(db: db, gateway: boundaryGateway, pageSize: 5);
+
+      const wsA = 'cmp_keyset_ws_a';
+      const wsB = 'cmp_keyset_ws_b';
+
+      for (int i = 1; i <= 15; i++) {
+        final idA = 'v_ws_a_$i';
+        final idB = 'v_ws_b_$i';
+        final tA = DateTime.utc(2026, 5, 1, 10, i, 0);
+        final tB = DateTime.utc(2026, 5, 1, 10, i, 30);
+        gateway.tables.putIfAbsent('vouchers', () => {})[idA] = {
+          'id': idA,
+          'company_id': wsA,
+          'voucher_number': 'V-A-$i',
+          'date': encodeTime(tA),
+          'created_at': encodeTime(tA),
+          'updated_at': encodeTime(tA),
+          'is_deleted': false,
+        };
+        gateway.tables.putIfAbsent('vouchers', () => {})[idB] = {
+          'id': idB,
+          'company_id': wsB,
+          'voucher_number': 'V-B-$i',
+          'date': encodeTime(tB),
+          'created_at': encodeTime(tB),
+          'updated_at': encodeTime(tB),
+          'is_deleted': false,
+        };
+      }
+
+      final result = await customEngine.pullChanges(companyId: wsA);
+      expect(result.status, SyncEngineStatus.success);
+
+      final localRows = await db.select(db.vouchers).get();
+      expect(localRows.length, 15);
+      expect(localRows.every((r) => r.companyId == wsA), isTrue);
+      expect(localRows.any((r) => r.companyId == wsB), isFalse);
+    });
+
+    // 43. Production SupabaseGateway keyset query construction verification
+    test('43. Production SupabaseGateway keyset query construction verification', () async {
+      final recordingClient = _RecordingHttpClient();
+      final supabaseClient = SupabaseClient(
+        'https://mock.supabase.co',
+        'mock-anon-key',
+        httpClient: recordingClient,
+      );
+      final prodGateway = SupabaseGateway(supabaseClient);
+
+      final afterTime = DateTime.utc(2026, 5, 1, 12, 0, 0);
+      await prodGateway.pullRows(
+        table: 'vouchers',
+        companyId: 'cmp_scope_test',
+        pageSize: 50,
+        afterUpdatedAt: afterTime,
+        afterId: 'v_boundary_100',
+      );
+
+      expect(recordingClient.lastRequest, isNotNull);
+      final url = recordingClient.lastRequest!.url.toString();
+      expect(url, contains('/rest/v1/vouchers'));
+      expect(url, contains('company_id=eq.cmp_scope_test'));
+      expect(url, contains('or=%28updated_at.gt.2026-05-01T12%3A00%3A00'));
+      expect(url, contains('id.gt.v_boundary_100'));
+      expect(url, contains('order=updated_at.asc'));
+      expect(url, contains('id.asc'));
+      expect(url, contains('limit=50'));
+      expect(url, isNot(contains('offset=')));
+    });
+
+    // 44. Session invalidation during remote upsert preserves pending outbox entry
+    test('44. Session invalidation during remote upsert preserves pending outbox entry', () async {
+      final holdCompleter = Completer<Map<String, dynamic>?>();
+      final delayGateway = _DelayHoldingGateway(gateway, holdCompleter: holdCompleter);
+      final delayEngine = SyncEngine(db: db, gateway: delayGateway);
+
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_async_upsert'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-ASYNC-UP'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(5000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(5000),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      final pushFuture = delayEngine.pushQueue(companyId: testCompanyId);
+      await delayGateway.requestStarted.future;
+
+      delayEngine.invalidateSession();
+
+      holdCompleter.complete({
+        'id': 'v_async_upsert',
+        'company_id': testCompanyId,
+        'voucher_number': 'V-ASYNC-UP',
+        'updated_at': encodeTime(DateTime.now()),
+      });
+
+      final result = await pushFuture;
+      expect(result.status, SyncEngineStatus.idle);
+
+      final local = await (db.select(db.vouchers)..where((t) => t.id.equals('v_async_upsert'))).getSingle();
+      expect(local.syncStatus, SyncRecordStatus.pending);
+
+      final outbox = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_async_upsert'))).getSingleOrNull();
+      expect(outbox, isNotNull);
+    });
+
+    // 45. Session invalidation during local acknowledgement read/write sequence
+    test('45. Session invalidation during local acknowledgement read/write sequence', () async {
+      await db.into(db.vouchers).insert(
+        VouchersCompanion(
+          id: const drift.Value('v_ack_stale'),
+          companyId: const drift.Value(testCompanyId),
+          voucherNumber: const drift.Value('V-ACK-STALE'),
+          type: const drift.Value('expense'),
+          date: drift.Value(DateTime.now()),
+          status: const drift.Value('draft'),
+          paymentMode: const drift.Value('cash'),
+          subtotalInCents: const drift.Value(5000),
+          taxInCents: const drift.Value(0),
+          discountInCents: const drift.Value(0),
+          totalAmountInCents: const drift.Value(5000),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      syncEngine.onBeforeMarkSynced = () async {
+        syncEngine.invalidateSession();
+      };
+
+      final result = await syncEngine.pushQueue(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.idle);
+
+      final local = await (db.select(db.vouchers)..where((t) => t.id.equals('v_ack_stale'))).getSingle();
+      expect(local.syncStatus, SyncRecordStatus.pending);
+
+      final outbox = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_ack_stale'))).getSingleOrNull();
+      expect(outbox, isNotNull);
+    });
+
+    // 46. Session invalidation during remote pull application
+    test('46. Session invalidation during remote pull application prevents applying remote rows', () async {
+      final t = DateTime.utc(2026, 5, 1, 10, 0, 0);
+      gateway.tables.putIfAbsent('vouchers', () => {})['v_pull_stale'] = {
+        'id': 'v_pull_stale',
+        'company_id': testCompanyId,
+        'voucher_number': 'V-PULL-STALE',
+        'date': encodeTime(t),
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': false,
+      };
+
+      syncEngine.onBeforeApplyRemoteRows = () async {
+        syncEngine.invalidateSession();
+      };
+
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.idle);
+
+      final local = await (db.select(db.vouchers)..where((t) => t.id.equals('v_pull_stale'))).getSingleOrNull();
+      expect(local, isNull);
+
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('vouchers') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNull);
+    });
+
+    // 47. Session invalidation immediately before cursor persistence
+    test('47. Session invalidation immediately before cursor persistence prevents cursor update', () async {
+      final t = DateTime.utc(2026, 5, 1, 10, 0, 0);
+      gateway.tables.putIfAbsent('vouchers', () => {})['v_cursor_stale'] = {
+        'id': 'v_cursor_stale',
+        'company_id': testCompanyId,
+        'voucher_number': 'V-CURSOR-STALE',
+        'date': encodeTime(t),
+        'created_at': encodeTime(t),
+        'updated_at': encodeTime(t),
+        'is_deleted': false,
+      };
+
+      syncEngine.onBeforePersistCursor = () async {
+        syncEngine.invalidateSession();
+      };
+
+      final result = await syncEngine.pullChanges(companyId: testCompanyId);
+      expect(result.status, SyncEngineStatus.idle);
+
+      final cursor = await (db.select(db.syncState)
+            ..where((t) => t.targetTable.equals('vouchers') & t.companyId.equals(testCompanyId)))
+          .getSingleOrNull();
+      expect(cursor, isNull);
+    });
+
+    // 48. Authenticated session cannot bypass workspace isolation with cmp_default
+    test('48. Authenticated session cannot bypass workspace isolation with cmp_default', () async {
+      const otherWorkspace = 'cmp_other_secret_workspace';
+
+      final authEngine = SyncEngine(
+        db: db,
+        gateway: gateway,
+        activeUserId: 'usr_authenticated_bob',
+      );
+
+      await enqueueMutation(
+        db: db,
+        table: 'vouchers',
+        recordId: 'v_secret_other',
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': 'v_secret_other',
+          'company_id': otherWorkspace,
+          'voucher_number': 'V-SECRET',
+        },
+      );
+
+      final resultDefault = await authEngine.pushQueue(companyId: 'cmp_default');
+      expect(resultDefault.status, SyncEngineStatus.success);
+
+      // Verify v_secret_other was NOT pushed
+      expect(gateway.tables['vouchers']?['v_secret_other'], isNull);
+
+      final outboxRow = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('v_secret_other'))).getSingleOrNull();
+      expect(outboxRow, isNotNull);
+
+      // Guest session CAN sync cmp_default
+      final guestEngine = SyncEngine(
+        db: db,
+        gateway: gateway,
+        activeUserId: null,
+      );
+
+      await enqueueMutation(
+        db: db,
+        table: 'vouchers',
+        recordId: 'v_guest_item',
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': 'v_guest_item',
+          'company_id': 'cmp_default',
+          'voucher_number': 'V-GUEST',
+        },
+      );
+
+      final guestResult = await guestEngine.pushQueue(companyId: 'cmp_default');
+      expect(guestResult.status, SyncEngineStatus.success);
+      expect(gateway.tables['vouchers']?['v_guest_item'], isNotNull);
+    });
+  });
 }
+
+class _PageSizeForcingGateway implements RemoteGateway {
+  final RemoteGateway delegate;
+  final int forcedPageSize;
+
+  _PageSizeForcingGateway(this.delegate, {required this.forcedPageSize});
+
+  @override
+  Future<Map<String, dynamic>?> upsertRow({
+    required String table,
+    required Map<String, dynamic> row,
+  }) => delegate.upsertRow(table: table, row: row);
+
+  @override
+  Future<List<Map<String, dynamic>>> pullRows({
+    required String table,
+    required String companyId,
+    String? activeUserId,
+    DateTime? cursor,
+    int pageSize = 500,
+    int offset = 0,
+    DateTime? afterUpdatedAt,
+    String? afterId,
+  }) {
+    return delegate.pullRows(
+      table: table,
+      companyId: companyId,
+      activeUserId: activeUserId,
+      cursor: cursor,
+      pageSize: forcedPageSize,
+      offset: offset,
+      afterUpdatedAt: afterUpdatedAt,
+      afterId: afterId,
+    );
+  }
+}
+
+class _InterleavingGateway implements RemoteGateway {
+  final RemoteGateway delegate;
+  final int forcedPageSize;
+  final void Function(String table, int pageNumber) onPagePulled;
+  final Map<String, int> _tablePageCounts = {};
+
+  _InterleavingGateway(
+    this.delegate, {
+    required this.forcedPageSize,
+    required this.onPagePulled,
+  });
+
+  @override
+  Future<Map<String, dynamic>?> upsertRow({
+    required String table,
+    required Map<String, dynamic> row,
+  }) => delegate.upsertRow(table: table, row: row);
+
+  @override
+  Future<List<Map<String, dynamic>>> pullRows({
+    required String table,
+    required String companyId,
+    String? activeUserId,
+    DateTime? cursor,
+    int pageSize = 500,
+    int offset = 0,
+    DateTime? afterUpdatedAt,
+    String? afterId,
+  }) async {
+    final pageNum = (_tablePageCounts[table] ?? 0) + 1;
+    _tablePageCounts[table] = pageNum;
+    final rows = await delegate.pullRows(
+      table: table,
+      companyId: companyId,
+      activeUserId: activeUserId,
+      cursor: cursor,
+      pageSize: forcedPageSize,
+      offset: offset,
+      afterUpdatedAt: afterUpdatedAt,
+      afterId: afterId,
+    );
+    onPagePulled(table, pageNum);
+    return rows;
+  }
+}
+
 
 class _DelayHoldingGateway implements RemoteGateway {
   final RemoteGateway delegate;
@@ -1287,6 +2006,8 @@ class _DelayHoldingGateway implements RemoteGateway {
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,
+    DateTime? afterUpdatedAt,
+    String? afterId,
   }) {
     return delegate.pullRows(
       table: table,
@@ -1295,6 +2016,8 @@ class _DelayHoldingGateway implements RemoteGateway {
       cursor: cursor,
       pageSize: pageSize,
       offset: offset,
+      afterUpdatedAt: afterUpdatedAt,
+      afterId: afterId,
     );
   }
 }
@@ -1342,6 +2065,8 @@ class _OrderTrackingGateway implements RemoteGateway {
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,
+    DateTime? afterUpdatedAt,
+    String? afterId,
   }) {
     return delegate.pullRows(
       table: table,
@@ -1350,6 +2075,8 @@ class _OrderTrackingGateway implements RemoteGateway {
       cursor: cursor,
       pageSize: pageSize,
       offset: offset,
+      afterUpdatedAt: afterUpdatedAt,
+      afterId: afterId,
     );
   }
 }
@@ -1377,6 +2104,8 @@ class _CustomExceptionGateway implements RemoteGateway {
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,
+    DateTime? afterUpdatedAt,
+    String? afterId,
   }) {
     return delegate.pullRows(
       table: table,
@@ -1385,6 +2114,8 @@ class _CustomExceptionGateway implements RemoteGateway {
       cursor: cursor,
       pageSize: pageSize,
       offset: offset,
+      afterUpdatedAt: afterUpdatedAt,
+      afterId: afterId,
     );
   }
 }

@@ -64,6 +64,8 @@ abstract class RemoteGateway {
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,
+    DateTime? afterUpdatedAt,
+    String? afterId,
   });
 }
 
@@ -94,6 +96,8 @@ class SupabaseGateway implements RemoteGateway {
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,
+    DateTime? afterUpdatedAt,
+    String? afterId,
   }) async {
     var query = client.from(table).select();
 
@@ -109,14 +113,24 @@ class SupabaseGateway implements RemoteGateway {
       query = query.eq('company_id', companyId);
     }
 
-    if (cursor != null) {
+    if (afterUpdatedAt != null && afterId != null) {
+      query = query.or(
+        'updated_at.gt.${encodeTime(afterUpdatedAt)},and(updated_at.eq.${encodeTime(afterUpdatedAt)},id.gt.$afterId)',
+      );
+    } else if (afterUpdatedAt != null) {
+      query = query.gt('updated_at', encodeTime(afterUpdatedAt));
+    } else if (afterId != null) {
+      query = query.gt('id', afterId);
+    } else if (cursor != null) {
       query = query.gte('updated_at', encodeTime(cursor));
     }
 
-    final List<dynamic> responseList = await query
+    final transform = query
         .order('updated_at', ascending: true)
         .order('id', ascending: true)
-        .range(offset, offset + pageSize - 1);
+        .limit(pageSize);
+
+    final List<dynamic> responseList = await transform;
 
     return responseList.cast<Map<String, dynamic>>();
   }
@@ -188,6 +202,7 @@ class SyncEngine {
   final RemoteGateway gateway;
   final bool simulateSyncForTesting;
   final String? activeUserId;
+  final int pageSize;
 
   final StreamController<SyncEngineStatus> _statusController =
       StreamController<SyncEngineStatus>.broadcast();
@@ -203,6 +218,7 @@ class SyncEngine {
     SupabaseClient? supabaseClient,
     this.simulateSyncForTesting = false,
     this.activeUserId,
+    this.pageSize = 500,
   }) : gateway =
            gateway ??
            fakeRemoteStore ??
@@ -232,6 +248,18 @@ class SyncEngine {
   void invalidateSession() {
     _sessionGeneration++;
   }
+
+  bool _isSessionStale(int expectedGeneration) =>
+      _isDisposed || _sessionGeneration != expectedGeneration;
+
+  @visibleForTesting
+  Future<void> Function()? onBeforeMarkSynced;
+
+  @visibleForTesting
+  Future<void> Function()? onBeforeApplyRemoteRows;
+
+  @visibleForTesting
+  Future<void> Function()? onBeforePersistCursor;
 
   SyncEngineStatus get currentStatus => _currentStatus;
   Stream<SyncEngineStatus> get statusStream => _statusController.stream;
@@ -403,7 +431,9 @@ class SyncEngine {
     required String companyId,
     String? activeUserId,
   }) {
-    if (companyId == 'cmp_default') {
+    final bool isGuest =
+        (activeUserId == null || activeUserId.isEmpty || activeUserId == 'usr_default');
+    if (isGuest && companyId == 'cmp_default') {
       return true;
     }
     switch (targetTable) {
@@ -447,20 +477,47 @@ class SyncEngine {
   }
 
   /// Queues any domain records with syncStatus == pending into sync_outbox if missing
-  Future<void> _queueUnsyncedLocalRecords(String companyId) async {
+  Future<Map<String, String>> _queueUnsyncedLocalRecords(String companyId) async {
+    final enqueueErrors = <String, String>{};
+    final currentUserId = activeUserId;
+    final bool isGuest =
+        (currentUserId == null || currentUserId.isEmpty || currentUserId == 'usr_default');
+    final bool allowAllCompanies = isGuest && companyId == 'cmp_default';
+
+    Future<void> safeEnqueue({
+      AppDatabase? db,
+      required String table,
+      required String recordId,
+      required String type,
+      required Map<String, dynamic> fullRowMap,
+    }) async {
+      try {
+        await enqueueMutation(
+          db: db ?? this.db,
+          table: table,
+          recordId: recordId,
+          type: type,
+          fullRowMap: fullRowMap,
+        );
+      } catch (e) {
+        debugPrint('Failed to enqueue sync outbox mutation for $table:$recordId: $e');
+        enqueueErrors['$table:$recordId'] = e.toString();
+      }
+    }
+
     try {
-      // 1. Companies (scoped to the requested companyId if not cmp_default)
+      // 1. Companies (scoped to the requested companyId if not allowAllCompanies)
       final pendingCompaniesQuery = db.select(db.companies)
         ..where(
           (t) =>
-              (companyId != 'cmp_default'
+              (!allowAllCompanies
                   ? t.id.equals(companyId)
                   : const Constant(true)) &
               t.syncStatus.equalsValue(SyncRecordStatus.pending),
         );
       final pendingCompanies = await pendingCompaniesQuery.get();
       for (final c in pendingCompanies) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'companies',
           recordId: c.id,
@@ -502,7 +559,7 @@ class SyncEngine {
               ..where((t) => t.profileId.equals(c.id)))
             .get();
         for (final m in memberships) {
-          await enqueueMutation(
+          await safeEnqueue(
             db: db,
             table: 'shared_memberships',
             recordId: m.id,
@@ -532,7 +589,7 @@ class SyncEngine {
         );
       final pendingProfiles = await pendingProfilesQuery.get();
       for (final p in pendingProfiles) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'user_profiles',
           recordId: p.id,
@@ -572,7 +629,7 @@ class SyncEngine {
               ))
               .get();
       for (final p in pendingParties) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'parties',
           recordId: p.id,
@@ -601,7 +658,7 @@ class SyncEngine {
               ))
               .get();
       for (final e in pendingEntries) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'ledger_entries',
           recordId: e.id,
@@ -633,7 +690,7 @@ class SyncEngine {
               ))
               .get();
       for (final v in pendingVouchers) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'vouchers',
           recordId: v.id,
@@ -678,7 +735,7 @@ class SyncEngine {
               ))
               .get();
       for (final a in pendingAccounts) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'accounts',
           recordId: a.id,
@@ -714,7 +771,7 @@ class SyncEngine {
               ))
               .get();
       for (final j in pendingJournals) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'journals',
           recordId: j.id,
@@ -745,7 +802,7 @@ class SyncEngine {
               ))
               .get();
       for (final l in pendingLines) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'journal_lines',
           recordId: l.id,
@@ -776,7 +833,7 @@ class SyncEngine {
               ))
               .get();
       for (final b in pendingBudgets) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'budgets',
           recordId: b.id,
@@ -807,7 +864,7 @@ class SyncEngine {
               ))
               .get();
       for (final r in pendingRules) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'recurring_rules',
           recordId: r.id,
@@ -836,7 +893,7 @@ class SyncEngine {
                 t.syncStatus.equalsValue(SyncRecordStatus.pending)))
           .get();
       for (final w in pendingWallets) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'exp_wallets',
           recordId: w.id,
@@ -867,7 +924,7 @@ class SyncEngine {
                 t.syncStatus.equalsValue(SyncRecordStatus.pending)))
           .get();
       for (final c in pendingCategories) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'exp_categories',
           recordId: c.id,
@@ -896,7 +953,7 @@ class SyncEngine {
                 t.syncStatus.equalsValue(SyncRecordStatus.pending)))
           .get();
       for (final b in pendingExpBudgets) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'exp_budgets',
           recordId: b.id,
@@ -925,7 +982,7 @@ class SyncEngine {
                 t.syncStatus.equalsValue(SyncRecordStatus.pending)))
           .get();
       for (final r in pendingExpRecurring) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'exp_recurring_rules',
           recordId: r.id,
@@ -954,7 +1011,7 @@ class SyncEngine {
                 t.syncStatus.equalsValue(SyncRecordStatus.pending)))
           .get();
       for (final tx in pendingExpTxns) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'exp_transactions',
           recordId: tx.id,
@@ -988,7 +1045,7 @@ class SyncEngine {
                 t.syncStatus.equalsValue(SyncRecordStatus.pending)))
           .get();
       for (final item in pendingItems) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'inventory_items',
           recordId: item.id,
@@ -1022,7 +1079,7 @@ class SyncEngine {
                 t.syncStatus.equalsValue(SyncRecordStatus.pending)))
           .get();
       for (final sl in pendingStock) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'stock_ledger',
           recordId: sl.id,
@@ -1054,7 +1111,7 @@ class SyncEngine {
                 t.syncStatus.equalsValue(SyncRecordStatus.pending)))
           .get();
       for (final al in pendingAudit) {
-        await enqueueMutation(
+        await safeEnqueue(
           db: db,
           table: 'audit_logs',
           recordId: al.id,
@@ -1080,7 +1137,9 @@ class SyncEngine {
       }
     } catch (e) {
       debugPrint('SyncEngine _queueUnsyncedLocalRecords error: $e');
+      enqueueErrors['outbox_queue'] = e.toString();
     }
+    return enqueueErrors;
   }
 
   /// Pushes queued outbox mutations to remote backend.
@@ -1371,7 +1430,7 @@ class SyncEngine {
     setStatus(SyncEngineStatus.syncing);
     await _cleanupCorruptedOutbox();
     await _repairFailedSyncRecords(companyId: companyId);
-    await _queueUnsyncedLocalRecords(companyId);
+    final enqueueErrors = await _queueUnsyncedLocalRecords(companyId);
 
     if (_isDisposed || _sessionGeneration != currentGeneration) {
       return SyncResult(
@@ -1379,6 +1438,9 @@ class SyncEngine {
         tableErrors: {'aborted': 'Engine was disposed or session invalidated'},
       );
     }
+
+    final tableErrors = <String, String>{};
+    tableErrors.addAll(enqueueErrors);
 
     final now = DateTime.now();
     // Exclude permanent failures (lastError is not null AND nextAttemptAt is null)
@@ -1393,8 +1455,14 @@ class SyncEngine {
 
     final outboxRows = await query.get();
     if (outboxRows.isEmpty) {
-      setStatus(SyncEngineStatus.success);
-      return SyncResult(status: SyncEngineStatus.success);
+      final status =
+          tableErrors.isEmpty ? SyncEngineStatus.success : SyncEngineStatus.partial;
+      setStatus(status);
+      return SyncResult(
+        status: status,
+        tableErrors: tableErrors,
+        pushedCount: 0,
+      );
     }
 
     outboxRows.sort((a, b) {
@@ -1406,7 +1474,6 @@ class SyncEngine {
       return a.createdAt.compareTo(b.createdAt);
     });
 
-    final tableErrors = <String, String>{};
     int pushedCount = 0;
 
     for (final outboxRow in outboxRows) {
@@ -1444,18 +1511,21 @@ class SyncEngine {
         pushedCount++;
 
         final recordRevision = (payloadMap['revision'] as int?) ?? 0;
-        await _markRecordSyncedIfUnchanged(
+        final bool markedSynced = await _markRecordSyncedIfUnchanged(
           table: outboxRow.targetTable,
           recordId: outboxRow.recordId,
           pushedRevision: recordRevision,
+          expectedGeneration: currentGeneration,
           remoteResponse: response,
         );
 
         if (_isDisposed || _sessionGeneration != currentGeneration) break;
 
-        await (db.delete(
-          db.syncOutbox,
-        )..where((t) => t.id.equals(outboxRow.id))).go();
+        if (markedSynced && !_isSessionStale(currentGeneration)) {
+          await (db.delete(
+            db.syncOutbox,
+          )..where((t) => t.id.equals(outboxRow.id))).go();
+        }
       } catch (e) {
         if (_isDisposed || _sessionGeneration != currentGeneration) break;
 
@@ -1471,6 +1541,7 @@ class SyncEngine {
               ? 'Permanent failure: $errStr'
               : 'Exceeded retry limit ($maxRetries attempts): $errStr';
 
+          if (_isSessionStale(currentGeneration)) break;
           await (db.update(db.syncOutbox)
                 ..where((t) => t.id.equals(outboxRow.id)))
               .write(SyncOutboxCompanion(
@@ -1479,9 +1550,11 @@ class SyncEngine {
                 nextAttemptAt: const Value(null),
               ));
 
+          if (_isSessionStale(currentGeneration)) break;
           await _markRecordError(
             table: outboxRow.targetTable,
             recordId: outboxRow.recordId,
+            expectedGeneration: currentGeneration,
           );
         } else {
           final delaySeconds =
@@ -1490,6 +1563,7 @@ class SyncEngine {
             Duration(seconds: delaySeconds),
           );
 
+          if (_isSessionStale(currentGeneration)) break;
           await (db.update(
             db.syncOutbox,
           )..where((t) => t.id.equals(outboxRow.id))).write(
@@ -1560,19 +1634,32 @@ class SyncEngine {
         msg.contains('schema error');
   }
 
-  Future<void> _markRecordSyncedIfUnchanged({
+  Future<bool> _markRecordSyncedIfUnchanged({
     required String table,
     required String recordId,
     required int pushedRevision,
+    required int expectedGeneration,
     Map<String, dynamic>? remoteResponse,
   }) async {
+    if (_isSessionStale(expectedGeneration)) return false;
+
+    if (onBeforeMarkSynced != null) {
+      await onBeforeMarkSynced!();
+    }
+    if (_isSessionStale(expectedGeneration)) return false;
+
     final now = DateTime.now();
+    bool updated = false;
+
 
     if (table == 'vouchers') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.vouchers,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.vouchers,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1581,12 +1668,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'accounts') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.accounts,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.accounts,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1595,12 +1688,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'parties') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.parties,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.parties,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1609,12 +1708,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'ledger_entries') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.ledgerEntries,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.ledgerEntries,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1623,12 +1728,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'journals') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.journals,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.journals,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1637,12 +1748,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'journal_lines') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.journalLines,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.journalLines,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1651,12 +1768,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'budgets') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.budgets,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.budgets,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1665,12 +1788,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'recurring_rules') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.recurringRules,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.recurringRules,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1679,12 +1808,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'companies') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.companies,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.companies,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1693,12 +1828,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'user_profiles') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.userProfiles,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.userProfiles,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1707,12 +1848,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'exp_wallets') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.expenseWallets,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.expenseWallets,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1721,12 +1868,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'exp_categories') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.expenseCategories,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.expenseCategories,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1735,12 +1888,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'exp_transactions') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.expenseTransactions,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.expenseTransactions,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1749,12 +1908,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'exp_budgets') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.expenseBudgets,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.expenseBudgets,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1763,12 +1928,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'exp_recurring_rules') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.expenseRecurringRules,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.expenseRecurringRules,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1777,12 +1948,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'inventory_items') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.inventoryItems,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.inventoryItems,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1791,12 +1968,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'stock_ledger') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.stockLedger,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.stockLedger,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1805,12 +1988,18 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
       }
     } else if (table == 'audit_logs') {
+      if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
         db.auditLogs,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
       if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
         await (db.update(
           db.auditLogs,
         )..where((t) => t.id.equals(recordId))).write(
@@ -1819,47 +2008,66 @@ class SyncEngine {
             remoteUpdatedAt: Value(now),
           ),
         );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      }
+    } else if (table == 'shared_memberships') {
+      if (!_isSessionStale(expectedGeneration)) {
+        updated = true;
       }
     }
+    return updated;
   }
 
   Future<void> _markRecordError({
     required String table,
     required String recordId,
+    required int expectedGeneration,
   }) async {
+    if (_isSessionStale(expectedGeneration)) return;
+
     if (table == 'vouchers') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(db.vouchers)..where((t) => t.id.equals(recordId))).write(
         const VouchersCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'accounts') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(db.accounts)..where((t) => t.id.equals(recordId))).write(
         const AccountsCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'parties') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(db.parties)..where((t) => t.id.equals(recordId))).write(
         const PartiesCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'ledger_entries') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.ledgerEntries,
       )..where((t) => t.id.equals(recordId))).write(
         const LedgerEntriesCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'journals') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(db.journals)..where((t) => t.id.equals(recordId))).write(
         const JournalsCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'journal_lines') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.journalLines,
       )..where((t) => t.id.equals(recordId))).write(
         const JournalLinesCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'budgets') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(db.budgets)..where((t) => t.id.equals(recordId))).write(
         const BudgetsCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'recurring_rules') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.recurringRules,
       )..where((t) => t.id.equals(recordId))).write(
@@ -1868,24 +2076,28 @@ class SyncEngine {
         ),
       );
     } else if (table == 'companies') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.companies,
       )..where((t) => t.id.equals(recordId))).write(
         const CompaniesCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'user_profiles') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.userProfiles,
       )..where((t) => t.id.equals(recordId))).write(
         const UserProfilesCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'exp_wallets') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.expenseWallets,
       )..where((t) => t.id.equals(recordId))).write(
         const ExpenseWalletsCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'exp_categories') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.expenseCategories,
       )..where((t) => t.id.equals(recordId))).write(
@@ -1894,6 +2106,7 @@ class SyncEngine {
         ),
       );
     } else if (table == 'exp_transactions') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.expenseTransactions,
       )..where((t) => t.id.equals(recordId))).write(
@@ -1902,12 +2115,14 @@ class SyncEngine {
         ),
       );
     } else if (table == 'exp_budgets') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.expenseBudgets,
       )..where((t) => t.id.equals(recordId))).write(
         const ExpenseBudgetsCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'exp_recurring_rules') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.expenseRecurringRules,
       )..where((t) => t.id.equals(recordId))).write(
@@ -1916,18 +2131,21 @@ class SyncEngine {
         ),
       );
     } else if (table == 'inventory_items') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.inventoryItems,
       )..where((t) => t.id.equals(recordId))).write(
         const InventoryItemsCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'stock_ledger') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.stockLedger,
       )..where((t) => t.id.equals(recordId))).write(
         const StockLedgerCompanion(syncStatus: Value(SyncRecordStatus.error)),
       );
     } else if (table == 'audit_logs') {
+      if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
         db.auditLogs,
       )..where((t) => t.id.equals(recordId))).write(
@@ -2637,34 +2855,42 @@ class SyncEngine {
         DateTime? maxRemoteUpdatedAt = cursor;
         DateTime? earliestSkippedUpdatedAt;
 
-        int offset = 0;
-        const pageSize = 500;
+        DateTime? afterUpdatedAt;
+        String? afterId;
+        final pullPageSize = pageSize;
         bool tablePullCompleted = false;
 
         while (true) {
-          if (_isDisposed || _sessionGeneration != currentGeneration) break;
+          if (_isSessionStale(currentGeneration)) break;
 
           final remoteRows = await gateway.pullRows(
             table: table.name,
             companyId: companyId,
             activeUserId: activeUserId,
             cursor: cursor,
-            pageSize: pageSize,
-            offset: offset,
+            pageSize: pullPageSize,
+            afterUpdatedAt: afterUpdatedAt,
+            afterId: afterId,
           );
 
-          if (_isDisposed || _sessionGeneration != currentGeneration) break;
+          if (_isSessionStale(currentGeneration)) break;
 
           if (remoteRows.isEmpty) {
             tablePullCompleted = true;
             break;
           }
 
+          if (onBeforeApplyRemoteRows != null) {
+            await onBeforeApplyRemoteRows!();
+          }
+
+          if (_isSessionStale(currentGeneration)) break;
+
           await db.transaction(() async {
-            if (_isDisposed || _sessionGeneration != currentGeneration) return;
+            if (_isSessionStale(currentGeneration)) return;
 
             for (final remoteMap in remoteRows) {
-              if (_isDisposed || _sessionGeneration != currentGeneration) break;
+              if (_isSessionStale(currentGeneration)) break;
 
               final remoteUpdatedStr =
                   remoteMap['updated_at'] ??
@@ -2720,19 +2946,27 @@ class SyncEngine {
             }
           });
 
-          if (_isDisposed || _sessionGeneration != currentGeneration) break;
+          if (_isSessionStale(currentGeneration)) break;
 
-          if (remoteRows.length < pageSize) {
+          if (remoteRows.length < pullPageSize) {
             tablePullCompleted = true;
             break;
           }
-          offset += pageSize;
+
+          final lastRow = remoteRows.last;
+          final lastUpdatedStr =
+              lastRow['updated_at'] ??
+              lastRow['updatedAt'] ??
+              lastRow['created_at'];
+          afterUpdatedAt =
+              lastUpdatedStr != null ? decodeTime(lastUpdatedStr) : null;
+          afterId = (lastRow['id'] ?? lastRow['record_id'])?.toString();
         }
 
-        if (_isDisposed || _sessionGeneration != currentGeneration) break;
+        if (_isSessionStale(currentGeneration)) break;
 
         // Advance cursor only if pull completed without error or interruption
-        if (tablePullCompleted) {
+        if (tablePullCompleted && !_isSessionStale(currentGeneration)) {
           DateTime? safeNewCursor = maxRemoteUpdatedAt;
           if (earliestSkippedUpdatedAt != null) {
             if (safeNewCursor == null ||
@@ -2742,6 +2976,11 @@ class SyncEngine {
           }
 
           if (safeNewCursor != null) {
+            if (onBeforePersistCursor != null) {
+              await onBeforePersistCursor!();
+            }
+            if (_isSessionStale(currentGeneration)) break;
+
             await db
                 .into(db.syncState)
                 .insertOnConflictUpdate(
@@ -3296,6 +3535,8 @@ class _NoOpGateway implements RemoteGateway {
     DateTime? cursor,
     int pageSize = 500,
     int offset = 0,
+    DateTime? afterUpdatedAt,
+    String? afterId,
   }) async {
     return [];
   }
