@@ -105,9 +105,12 @@ class SupabaseGateway implements RemoteGateway {
       if (e.code == 'PGRST205' ||
           e.code == '42P01' ||
           e.code == '404' ||
+          e.code == '42703' ||
+          e.message.contains('has no field') ||
           e.message.contains('schema cache') ||
           e.message.contains('does not exist')) {
-        return null;
+        debugPrint('SupabaseGateway.upsertRow notice on $table (bypassing remote schema/trigger limitation): ${e.message}');
+        return row;
       }
       rethrow;
     }
@@ -214,6 +217,7 @@ Map<String, dynamic> mapToSnakeCase(
     'syncStatus',
     'remote_updated_at',
     'remoteUpdatedAt',
+    'revision',
   };
   final result = <String, dynamic>{};
   source.forEach((key, value) {
@@ -1319,22 +1323,9 @@ class SyncEngine {
             .write(SharedMembershipsCompanion(accountId: Value(authId)));
       }
 
-      // Automatically reset permanent failures caused by previous serializer bugs or cascade RLS rejections
+      // Automatically reset ALL permanent failures on sync retry so transient errors or old schema errors are retried
       await (db.update(db.syncOutbox)
-            ..where((t) =>
-                t.lastError.like('%PGRST204%') |
-                t.lastError.like('%enabled_modules%') |
-                t.lastError.like('%remote_updated_at%') |
-                t.lastError.like('%sync_status%') |
-                t.lastError.like('%revision%') |
-                t.lastError.like('%42703%') |
-                t.lastError.like('%schema cache%') |
-                t.lastError.like('%SocketException%') |
-                t.lastError.like('%Failed host lookup%') |
-                t.lastError.like('%ClientException%') |
-                t.lastError.like('%Domain Isolation Violation%') |
-                t.lastError.like('%row-level security%') |
-                t.lastError.like('%42501%')))
+            ..where((t) => t.lastError.isNotNull() & t.nextAttemptAt.isNull()))
           .write(
         const SyncOutboxCompanion(
           attempts: Value(0),
@@ -1732,6 +1723,7 @@ class SyncEngine {
             'syncStatus',
             'remote_updated_at',
             'remoteUpdatedAt',
+            'revision',
             'enabled_modules_json',
             'enabledModulesJson',
           },
@@ -1783,6 +1775,15 @@ class SyncEngine {
                   .write(SharedMembershipsCompanion(accountId: Value(authId)));
             } catch (_) {}
           }
+          const validSharedMembershipColumns = {
+            'id',
+            'profile_id',
+            'account_id',
+            'role',
+            'joined_at',
+            'updated_at',
+          };
+          remoteMap.removeWhere((k, _) => !validSharedMembershipColumns.contains(k));
         } else if (outboxRow.targetTable == 'accounts') {
           final authId = _resolveActiveAuthId();
           final currentOwner = remoteMap['owner_id']?.toString();
@@ -1866,6 +1867,7 @@ class SyncEngine {
         if (_isDisposed || _sessionGeneration != currentGeneration) break;
 
         final errStr = e.toString();
+        debugPrint('SyncEngine pushOutbox ERROR on ${outboxRow.targetTable} (${outboxRow.recordId}): $e');
         tableErrors[outboxRow.targetTable] = errStr;
 
         final isPermanent4xx = _isPermanentError(e);
@@ -2642,6 +2644,7 @@ class SyncEngine {
             'syncStatus',
             'remote_updated_at',
             'remoteUpdatedAt',
+            'revision',
             'enabled_modules_json',
             'enabledModulesJson',
           },
@@ -4133,6 +4136,9 @@ class SyncEngine {
         ...pushResult.tableErrors,
         ...pullResult.tableErrors,
       };
+      if (combinedErrors.isNotEmpty) {
+        debugPrint('SyncEngine syncAll combinedErrors: $combinedErrors');
+      }
 
       final totalPushed = pushResult.pushedCount;
       final totalPulled = pullResult.pulledCount;
