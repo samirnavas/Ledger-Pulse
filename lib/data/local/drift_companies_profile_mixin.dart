@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/network/sync_codec.dart';
 import '../../data/models/company_model.dart';
@@ -136,7 +137,15 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
       final isValidUuid = currentUserId.isNotEmpty &&
           RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
               .hasMatch(currentUserId);
-      final effectiveOwnerId = company.ownerId ?? (isValidUuid ? currentUserId : null);
+      String? sbUserId;
+      try {
+        sbUserId = Supabase.instance.client.auth.currentUser?.id;
+      } catch (_) {}
+      final isSbUuid = sbUserId != null &&
+          RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+              .hasMatch(sbUserId);
+      final effectiveOwnerId =
+          company.ownerId ?? (isValidUuid ? currentUserId : (isSbUuid ? sbUserId : null));
 
       await db.into(db.companies).insertOnConflictUpdate(
             CompaniesCompanion.insert(
@@ -192,15 +201,15 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
         companyId: company.id,
       );
 
-      if (currentUserId.isNotEmpty &&
-          RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
-              .hasMatch(currentUserId)) {
+      final effectiveMemberId =
+          isValidUuid ? currentUserId : (isSbUuid ? sbUserId : null);
+      if (effectiveMemberId != null && effectiveMemberId.isNotEmpty) {
         final membershipId = const Uuid().v4();
         await db.into(db.sharedMemberships).insertOnConflictUpdate(
               SharedMembershipsCompanion.insert(
                 id: membershipId,
                 profileId: company.id,
-                accountId: currentUserId,
+                accountId: effectiveMemberId,
                 role: 'owner',
                 joinedAt: Value(company.createdAt),
                 updatedAt: Value(company.updatedAt),
@@ -213,7 +222,7 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
           payload: {
             'id': membershipId,
             'profile_id': company.id,
-            'account_id': currentUserId,
+            'account_id': effectiveMemberId,
             'role': 'owner',
             'joined_at': encodeTime(company.createdAt),
             'updated_at': encodeTime(company.updatedAt),

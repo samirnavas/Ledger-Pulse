@@ -94,12 +94,22 @@ class SupabaseGateway implements RemoteGateway {
     required String table,
     required Map<String, dynamic> row,
   }) async {
-    final response = await client
-        .from(table)
-        .upsert(row)
-        .select()
-        .maybeSingle();
-    return response;
+    try {
+      final response = await client
+          .from(table)
+          .upsert(row)
+          .select()
+          .maybeSingle();
+      return response;
+    } on PostgrestException catch (e) {
+      if (e.code == 'PGRST205' ||
+          e.code == '42P01' ||
+          e.message.contains('schema cache') ||
+          e.message.contains('does not exist')) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -113,40 +123,50 @@ class SupabaseGateway implements RemoteGateway {
     DateTime? afterUpdatedAt,
     String? afterId,
   }) async {
-    var query = client.from(table).select();
+    try {
+      var query = client.from(table).select();
 
-    if (table == 'companies') {
-      query = query.eq('id', companyId);
-    } else if (table == 'user_profiles') {
-      if (activeUserId != null && activeUserId.isNotEmpty) {
-        query = query.eq('id', activeUserId);
+      if (table == 'companies') {
+        query = query.eq('id', companyId);
+      } else if (table == 'user_profiles') {
+        if (activeUserId != null && activeUserId.isNotEmpty) {
+          query = query.eq('id', activeUserId);
+        }
+      } else if (table == 'shared_memberships' || table.startsWith('exp_')) {
+        query = query.eq('profile_id', companyId);
+      } else {
+        query = query.eq('company_id', companyId);
       }
-    } else if (table == 'shared_memberships' || table.startsWith('exp_')) {
-      query = query.eq('profile_id', companyId);
-    } else {
-      query = query.eq('company_id', companyId);
+
+      if (afterUpdatedAt != null && afterId != null) {
+        query = query.or(
+          'updated_at.gt.${encodeTime(afterUpdatedAt)},and(updated_at.eq.${encodeTime(afterUpdatedAt)},id.gt.$afterId)',
+        );
+      } else if (afterUpdatedAt != null) {
+        query = query.gt('updated_at', encodeTime(afterUpdatedAt));
+      } else if (afterId != null) {
+        query = query.gt('id', afterId);
+      } else if (cursor != null) {
+        query = query.gte('updated_at', encodeTime(cursor));
+      }
+
+      final transform = query
+          .order('updated_at', ascending: true)
+          .order('id', ascending: true)
+          .limit(pageSize);
+
+      final List<dynamic> responseList = await transform;
+
+      return responseList.cast<Map<String, dynamic>>();
+    } on PostgrestException catch (e) {
+      if (e.code == 'PGRST205' ||
+          e.code == '42P01' ||
+          e.message.contains('schema cache') ||
+          e.message.contains('does not exist')) {
+        return [];
+      }
+      rethrow;
     }
-
-    if (afterUpdatedAt != null && afterId != null) {
-      query = query.or(
-        'updated_at.gt.${encodeTime(afterUpdatedAt)},and(updated_at.eq.${encodeTime(afterUpdatedAt)},id.gt.$afterId)',
-      );
-    } else if (afterUpdatedAt != null) {
-      query = query.gt('updated_at', encodeTime(afterUpdatedAt));
-    } else if (afterId != null) {
-      query = query.gt('id', afterId);
-    } else if (cursor != null) {
-      query = query.gte('updated_at', encodeTime(cursor));
-    }
-
-    final transform = query
-        .order('updated_at', ascending: true)
-        .order('id', ascending: true)
-        .limit(pageSize);
-
-    final List<dynamic> responseList = await transform;
-
-    return responseList.cast<Map<String, dynamic>>();
   }
 }
 
@@ -169,10 +189,17 @@ Map<String, dynamic> mapToSnakeCase(
   Map<String, dynamic> source, {
   Set<String> ignoreKeys = const {},
 }) {
+  const defaultIgnore = {
+    'sync_status',
+    'syncStatus',
+    'remote_updated_at',
+    'remoteUpdatedAt',
+  };
   final result = <String, dynamic>{};
   source.forEach((key, value) {
-    if (ignoreKeys.contains(key)) return;
+    if (defaultIgnore.contains(key) || ignoreKeys.contains(key)) return;
     final snakeKey = _toSnakeCase(key);
+    if (defaultIgnore.contains(snakeKey) || ignoreKeys.contains(snakeKey)) return;
     result[snakeKey] = value;
   });
   return result;
@@ -250,6 +277,30 @@ class SyncEngine {
     } catch (_) {
       return null;
     }
+  }
+
+  static final RegExp _uuidRegex = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  );
+
+  static bool _isValidUuid(String? str) {
+    if (str == null || str.isEmpty) return false;
+    return _uuidRegex.hasMatch(str);
+  }
+
+  String? _resolveActiveAuthId() {
+    if (activeUserId != null &&
+        activeUserId!.isNotEmpty &&
+        activeUserId != 'usr_default') {
+      return activeUserId;
+    }
+    try {
+      final sbUid = _getSafeSupabaseClient()?.auth.currentUser?.id;
+      if (sbUid != null && sbUid.isNotEmpty) {
+        return sbUid;
+      }
+    } catch (_) {}
+    return null;
   }
 
   int _sessionGeneration = 0;
@@ -585,13 +636,15 @@ class SyncEngine {
             'isDropboxSyncEnabled': c.isDropboxSyncEnabled,
             'isActive': c.isActive,
             'mode': c.mode,
-            'enabledModulesJson': c.enabledModulesJson,
+            'enabled_modules': c.enabledModulesJson != null && c.enabledModulesJson!.isNotEmpty
+                ? jsonDecode(c.enabledModulesJson!)
+                : null,
             'createdAt': encodeTime(c.createdAt),
             'updatedAt': encodeTime(c.updatedAt),
             'isDeleted': c.isDeleted,
             'revision': c.revision,
-            'ownerId': c.ownerId,
-            'owner_id': c.ownerId,
+            'ownerId': c.ownerId ?? _resolveActiveAuthId(),
+            'owner_id': c.ownerId ?? _resolveActiveAuthId(),
           },
         );
 
@@ -608,7 +661,7 @@ class SyncEngine {
             fullRowMap: {
               'id': m.id,
               'profile_id': m.profileId,
-              'account_id': m.accountId,
+              'account_id': (_isValidUuid(m.accountId) ? m.accountId : _resolveActiveAuthId()) ?? m.accountId,
               'role': m.role,
               'joined_at': encodeTime(m.joinedAt),
               'updated_at': encodeTime(m.updatedAt),
@@ -1193,11 +1246,76 @@ class SyncEngine {
 
   Future<void> _repairFailedSyncRecords({required String companyId}) async {
     try {
+      final authId = _resolveActiveAuthId();
+      if (authId != null) {
+        // Backfill ownerId on any unowned companies
+        await (db.update(db.companies)
+              ..where((t) =>
+                  t.ownerId.isNull() |
+                  t.ownerId.equals('usr_default') |
+                  t.ownerId.equals('')))
+            .write(CompaniesCompanion(ownerId: Value(authId)));
+
+        // Backfill accountId on any unowned shared_memberships
+        await (db.update(db.sharedMemberships)
+              ..where((t) =>
+                  t.accountId.isNull() |
+                  t.accountId.equals('usr_default') |
+                  t.accountId.equals('')))
+            .write(SharedMembershipsCompanion(accountId: Value(authId)));
+      }
+
+      // Automatically reset permanent failures caused by previous serializer bugs or cascade RLS rejections
+      await (db.update(db.syncOutbox)
+            ..where((t) =>
+                t.lastError.like('%PGRST204%') |
+                t.lastError.like('%enabled_modules%') |
+                t.lastError.like('%remote_updated_at%') |
+                t.lastError.like('%Domain Isolation Violation%') |
+                t.lastError.like('%row-level security%') |
+                t.lastError.like('%400%') |
+                t.lastError.like('%403%')))
+          .write(
+        const SyncOutboxCompanion(
+          attempts: Value(0),
+          lastError: Value(null),
+          nextAttemptAt: Value(null),
+        ),
+      );
+
       final permanentOutbox = await (db.select(db.syncOutbox)
             ..where((t) => t.lastError.isNotNull() & t.nextAttemptAt.isNull()))
           .get();
       final permanentKeys =
           permanentOutbox.map((r) => '${r.targetTable}:${r.recordId}').toSet();
+
+      // Companies
+      final errCompanies = await (db.select(db.companies)
+            ..where((t) =>
+                (companyId != 'cmp_default'
+                    ? t.id.equals(companyId)
+                    : const Constant(true)) &
+                t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final comp in errCompanies) {
+        if (!permanentKeys.contains('companies:${comp.id}')) {
+          await (db.update(db.companies)..where((t) => t.id.equals(comp.id))).write(
+            const CompaniesCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
+
+      // UserProfiles
+      final errUserProfiles = await (db.select(db.userProfiles)
+            ..where((t) => t.syncStatus.equalsValue(SyncRecordStatus.error)))
+          .get();
+      for (final up in errUserProfiles) {
+        if (!permanentKeys.contains('user_profiles:${up.id}')) {
+          await (db.update(db.userProfiles)..where((t) => t.id.equals(up.id))).write(
+            const UserProfilesCompanion(syncStatus: Value(SyncRecordStatus.pending)),
+          );
+        }
+      }
 
       // Vouchers
       final errVouchers = await (db.select(db.vouchers)
@@ -1549,8 +1667,87 @@ class SyncEngine {
       try {
         final remoteMap = mapToSnakeCase(
           payloadMap,
-          ignoreKeys: {'sync_status', 'syncStatus'},
+          ignoreKeys: {
+            'sync_status',
+            'syncStatus',
+            'remote_updated_at',
+            'remoteUpdatedAt',
+            'enabled_modules_json',
+            'enabledModulesJson',
+          },
         );
+
+        if (outboxRow.targetTable == 'companies') {
+          remoteMap.remove('enabled_modules_json');
+          remoteMap.remove('enabledModulesJson');
+
+          final dynamic rawModules = remoteMap['enabled_modules'] ??
+              payloadMap['enabled_modules'] ??
+              payloadMap['enabledModules'] ??
+              payloadMap['enabled_modules_json'] ??
+              payloadMap['enabledModulesJson'];
+          if (rawModules is String) {
+            try {
+              remoteMap['enabled_modules'] = jsonDecode(rawModules);
+            } catch (_) {
+              remoteMap['enabled_modules'] = null;
+            }
+          } else if (rawModules is List) {
+            remoteMap['enabled_modules'] = rawModules;
+          }
+
+          final authId = _resolveActiveAuthId();
+          final currentOwner = remoteMap['owner_id']?.toString();
+          if (authId != null &&
+              (currentOwner == null ||
+                  currentOwner.isEmpty ||
+                  currentOwner == 'usr_default')) {
+            remoteMap['owner_id'] = authId;
+            try {
+              await (db.update(db.companies)
+                    ..where((t) => t.id.equals(outboxRow.recordId)))
+                  .write(CompaniesCompanion(ownerId: Value(authId)));
+            } catch (_) {}
+          }
+        } else if (outboxRow.targetTable == 'shared_memberships') {
+          final authId = _resolveActiveAuthId();
+          final currentAccount = remoteMap['account_id']?.toString();
+          if (authId != null &&
+              (currentAccount == null ||
+                  currentAccount.isEmpty ||
+                  currentAccount == 'usr_default')) {
+            remoteMap['account_id'] = authId;
+            try {
+              await (db.update(db.sharedMemberships)
+                    ..where((t) => t.id.equals(outboxRow.recordId)))
+                  .write(SharedMembershipsCompanion(accountId: Value(authId)));
+            } catch (_) {}
+          }
+        } else if (outboxRow.targetTable == 'accounts') {
+          final authId = _resolveActiveAuthId();
+          final currentOwner = remoteMap['owner_id']?.toString();
+          if (authId != null &&
+              (currentOwner == null ||
+                  currentOwner.isEmpty ||
+                  currentOwner == 'usr_default')) {
+            remoteMap['owner_id'] = authId;
+          }
+        } else if (outboxRow.targetTable == 'user_profiles') {
+          if (remoteMap['companies_json'] is String) {
+            try {
+              remoteMap['companies_json'] =
+                  jsonDecode(remoteMap['companies_json'] as String);
+            } catch (_) {}
+          }
+          final authId = _resolveActiveAuthId();
+          final currentOwner = remoteMap['owner_id']?.toString();
+          if (authId != null &&
+              (currentOwner == null ||
+                  currentOwner.isEmpty ||
+                  currentOwner == 'usr_default')) {
+            remoteMap['owner_id'] = authId;
+          }
+        }
 
         final response = await gateway.upsertRow(
           table: outboxRow.targetTable,
@@ -2349,9 +2546,35 @@ class SyncEngine {
     // 1. Companies (Top level)
     SyncTable<CompanyTableData, CompaniesCompanion>(
       name: 'companies',
-      toRemote: (row) => mapToSnakeCase(row.toJson()),
+      toRemote: (row) {
+        final map = mapToSnakeCase(
+          row.toJson(),
+          ignoreKeys: {
+            'sync_status',
+            'syncStatus',
+            'remote_updated_at',
+            'remoteUpdatedAt',
+            'enabled_modules_json',
+            'enabledModulesJson',
+          },
+        );
+        if (row.enabledModulesJson != null && row.enabledModulesJson!.isNotEmpty) {
+          try {
+            map['enabled_modules'] = jsonDecode(row.enabledModulesJson!);
+          } catch (_) {
+            map['enabled_modules'] = null;
+          }
+        } else {
+          map['enabled_modules'] = null;
+        }
+        return map;
+      },
       fromRemote: (map) {
         final c = mapToCamelCase(map);
+        final dynamic rawModules = map['enabled_modules'] ?? c['enabledModules'] ?? c['enabledModulesJson'];
+        final String? modulesJson = rawModules is String
+            ? rawModules
+            : (rawModules != null ? jsonEncode(rawModules) : null);
         return CompaniesCompanion(
           id: Value(c['id'] as String),
           name: Value(c['name'] as String? ?? ''),
@@ -2386,7 +2609,7 @@ class SyncEngine {
                 ? CompanyMode.fromName(c['mode'].toString()).canonicalValue
                 : CompanyMode.ledger.canonicalValue,
           ),
-          enabledModulesJson: Value(c['enabledModulesJson'] as String?),
+          enabledModulesJson: Value(modulesJson),
           ownerId: Value(c['ownerId'] as String?),
           createdAt: Value(decodeTime(c['createdAt'])),
           updatedAt: Value(decodeTime(c['updatedAt'])),

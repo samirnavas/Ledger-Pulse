@@ -50,11 +50,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Switch to Email & Password auth mode
-      final emailModeTab = find.text('Email & Password');
-      expect(emailModeTab, findsOneWidget);
-      await tester.tap(emailModeTab);
-      await tester.pumpAndSettle();
+      // Verify Sign Up / Login switcher exists and Phone OTP is removed
+      expect(find.text('Sign Up'), findsWidgets);
+      expect(find.text('Login'), findsWidgets);
+      expect(find.text('Phone OTP'), findsNothing);
+      expect(find.text('+91'), findsNothing);
 
       // Ensure we are in Sign Up mode (Create Account)
       expect(find.text('Create Account'), findsWidgets);
@@ -134,9 +134,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Switch to Email mode
-      await tester.tap(find.text('Email & Password'));
-      await tester.pumpAndSettle();
+      // Screen starts in Sign Up mode by default
+      expect(find.text('Create Account'), findsWidgets);
 
       // Fill in Name, Email, Password
       await tester.enterText(find.byKey(const Key('signup_name_field')), 'John Smith');
@@ -151,17 +150,57 @@ void main() {
       // Verify email confirmation pending UI is displayed
       expect(find.text('Verify Your Email'), findsOneWidget);
       expect(find.text('john@example.com'), findsOneWidget);
-      expect(find.text('Proceed to Sign In'), findsOneWidget);
+      expect(find.text('Proceed to Login'), findsOneWidget);
 
       // Verify user is NOT authenticated
       expect(mockAuth.isAuthenticated, isFalse);
       expect(mockAuth.currentSessionToken, isNull);
 
-      // Tapping "Proceed to Sign In" returns to Sign In mode
-      await tester.tap(find.text('Proceed to Sign In'), warnIfMissed: false);
+      // Tapping "Proceed to Login" returns to Login mode
+      await tester.tap(find.text('Proceed to Login'), warnIfMissed: false);
       await tester.pumpAndSettle();
 
-      expect(find.text('Sign In'), findsWidgets);
+      expect(find.text('Login'), findsWidgets);
+    });
+
+    testWidgets('3b. Sign Up / Login switcher toggles between Create Account and Login views',
+        (tester) async {
+      final mockAuth = MockAuthRepository(isAuthenticated: false, userId: null);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(mockAuth),
+          ],
+          child: const MaterialApp(
+            home: PhoneInputScreen(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Initially in Sign Up mode
+      expect(find.text('Create Account'), findsWidgets);
+      expect(find.byKey(const Key('signup_name_field')), findsOneWidget);
+
+      // Switch to Login tab via segmented control
+      await tester.tap(find.text('Login'));
+      await tester.pumpAndSettle();
+
+      // In Login mode: no Full Name field, Login button present
+      expect(find.byKey(const Key('signup_name_field')), findsNothing);
+      expect(find.byKey(const Key('auth_email_field')), findsOneWidget);
+      expect(find.byKey(const Key('auth_password_field')), findsOneWidget);
+      expect(find.widgetWithText(AdaptiveButton, 'Login'), findsOneWidget);
+
+      // Switch back to Sign Up using the text link
+      await tester.tap(find.text('Need an account? Sign Up'));
+      await tester.pumpAndSettle();
+
+      // Back in Sign Up mode
+      expect(find.text('Create Account'), findsWidgets);
+      expect(find.byKey(const Key('signup_name_field')), findsOneWidget);
+      expect(find.widgetWithText(AdaptiveButton, 'Create Account'), findsOneWidget);
     });
 
     test('4. No fake JWT or synthetic authenticated state allowed', () async {

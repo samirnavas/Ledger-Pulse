@@ -417,7 +417,7 @@ class DriftProfileRepository implements IProfileRepository {
           'stateCode': stateCode,
           'dealer_type': effectiveDealerType,
           'dealerType': effectiveDealerType,
-          'enabled_modules_json': jsonEncode(effectiveModules.map((m) => m.name).toList()),
+          'enabled_modules': effectiveModules.map((m) => m.name).toList(),
           'created_at': encodeTime(now),
           'createdAt': encodeTime(now),
           'updated_at': encodeTime(now),

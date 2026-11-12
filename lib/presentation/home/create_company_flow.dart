@@ -14,6 +14,7 @@ import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
 import '../providers/company_providers.dart';
+import '../providers/database_providers.dart';
 
 /// Multi-step company creation flow (adaptive Cupertino / Material 3).
 /// Used during first-run onboarding (when no companies exist) and from CompanySwitcherSheet.
@@ -196,6 +197,11 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
     try {
       final companyId = 'cmp_${DateTime.now().millisecondsSinceEpoch}';
       final hasGst = _selectedMode == CompanyMode.ledger && _selectedModules.contains(AppModule.gst);
+      final currentUid = ref.read(activeUserIdProvider);
+      final uuidRegex = RegExp(
+        r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+      );
+      final resolvedOwnerId = uuidRegex.hasMatch(currentUid) ? currentUid : null;
 
       final newCompany = Company(
         id: companyId,
@@ -213,6 +219,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
             ? _stateCodeCtrl.text.trim()
             : null,
         dealerType: _selectedMode == CompanyMode.ledger ? 'regular' : '',
+        ownerId: resolvedOwnerId,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
       );
