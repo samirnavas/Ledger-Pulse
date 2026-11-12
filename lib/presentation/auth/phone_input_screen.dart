@@ -92,7 +92,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
           if (userId != null && mounted) {
             await ref
                 .read(profileSessionProvider.notifier)
-                .loadProfilesForUser(userId);
+                .loadProfilesForUser(userId, isLogin: true);
 
             if (mounted) {
               Navigator.of(context).pushAndRemoveUntil(

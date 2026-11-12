@@ -106,47 +106,55 @@ class DriftProfileRepository implements IProfileRepository {
       return getAccessibleProfiles(accountId);
     }
 
-    // 1. Fetch remote user_profiles
+    // Parallel fetch with timeout for maximum responsiveness
     Map<String, dynamic>? remoteProfile;
-    try {
-      final res = await client
-          .from('user_profiles')
-          .select()
-          .eq('id', accountId)
-          .maybeSingle();
-      if (res != null) {
-        remoteProfile = Map<String, dynamic>.from(res);
-      }
-    } catch (e) {
-      if (_isNetworkException(e)) rethrow;
-      debugPrint('DriftProfileRepository: Error fetching user_profiles: $e');
-    }
-
-    // 2. Fetch remote shared_memberships for this account
     List<Map<String, dynamic>> remoteMemberships = [];
-    try {
-      final res = await client
-          .from('shared_memberships')
-          .select()
-          .eq('account_id', accountId);
-      remoteMemberships = List<Map<String, dynamic>>.from(res);
-    } catch (e) {
-      if (_isNetworkException(e)) rethrow;
-      debugPrint('DriftProfileRepository: Error fetching shared_memberships: $e');
-    }
-
-    // 3. Fetch remote companies (accessible via RLS)
     List<Map<String, dynamic>> remoteCompanies = [];
-    try {
-      final res = await client
-          .from('companies')
-          .select()
-          .eq('is_deleted', false);
-      remoteCompanies = List<Map<String, dynamic>>.from(res);
-    } catch (e) {
-      if (_isNetworkException(e)) rethrow;
-      debugPrint('DriftProfileRepository: Error fetching companies: $e');
-    }
+
+    await Future.wait([
+      (() async {
+        try {
+          final res = await client
+              .from('user_profiles')
+              .select()
+              .eq('id', accountId)
+              .maybeSingle()
+              .timeout(const Duration(seconds: 8));
+          if (res != null) {
+            remoteProfile = Map<String, dynamic>.from(res);
+          }
+        } catch (e) {
+          if (_isNetworkException(e)) rethrow;
+          debugPrint('DriftProfileRepository: Error fetching user_profiles: $e');
+        }
+      })(),
+      (() async {
+        try {
+          final res = await client
+              .from('shared_memberships')
+              .select()
+              .eq('account_id', accountId)
+              .timeout(const Duration(seconds: 8));
+          remoteMemberships = List<Map<String, dynamic>>.from(res);
+        } catch (e) {
+          if (_isNetworkException(e)) rethrow;
+          debugPrint('DriftProfileRepository: Error fetching shared_memberships: $e');
+        }
+      })(),
+      (() async {
+        try {
+          final res = await client
+              .from('companies')
+              .select()
+              .eq('is_deleted', false)
+              .timeout(const Duration(seconds: 8));
+          remoteCompanies = List<Map<String, dynamic>>.from(res);
+        } catch (e) {
+          if (_isNetworkException(e)) rethrow;
+          debugPrint('DriftProfileRepository: Error fetching companies: $e');
+        }
+      })(),
+    ]);
 
     // 4. Batch upsert into local Drift database in a single transaction
     await db.transaction(() async {
@@ -233,23 +241,24 @@ class DriftProfileRepository implements IProfileRepository {
         }
       }
 
-      if (remoteProfile != null) {
-        final profId = remoteProfile['id'] as String;
+      final profData = remoteProfile;
+      if (profData != null) {
+        final profId = profData['id'] as String;
         final existingProf = await (db.select(db.userProfiles)..where((u) => u.id.equals(profId))).getSingleOrNull();
         if (existingProf == null || existingProf.syncStatus == SyncRecordStatus.synced) {
-          final profName = remoteProfile['name'] as String? ?? '';
-          final phone = remoteProfile['phone_number'] as String? ??
-              remoteProfile['phoneNumber'] as String? ??
+          final profName = profData['name'] as String? ?? '';
+          final phone = profData['phone_number'] as String? ??
+              profData['phoneNumber'] as String? ??
               '';
-          final email = remoteProfile['email'] as String? ?? '';
-          final activeCompanyId = remoteProfile['active_company_id'] as String? ??
-              remoteProfile['activeCompanyId'] as String? ??
+          final email = profData['email'] as String? ?? '';
+          final activeCompanyId = profData['active_company_id'] as String? ??
+              profData['activeCompanyId'] as String? ??
               '';
-          final role = remoteProfile['role'] as String? ?? 'admin';
+          final role = profData['role'] as String? ?? 'admin';
           final createdAtStr =
-              remoteProfile['created_at'] ?? remoteProfile['createdAt'];
+              profData['created_at'] ?? profData['createdAt'];
           final updatedAtStr =
-              remoteProfile['updated_at'] ?? remoteProfile['updatedAt'];
+              profData['updated_at'] ?? profData['updatedAt'];
           final createdAt =
               createdAtStr != null ? decodeTime(createdAtStr) : DateTime.now();
           final updatedAt =
@@ -261,20 +270,20 @@ class DriftProfileRepository implements IProfileRepository {
                   name: profName,
                   phoneNumber: phone,
                   email: email,
-                  businessName: Value(remoteProfile['business_name'] as String? ??
-                      remoteProfile['businessName'] as String?),
-                  address: Value(remoteProfile['address'] as String?),
-                  gstin: Value(remoteProfile['gstin'] as String?),
-                  businessType: Value(remoteProfile['business_type'] as String? ??
-                      remoteProfile['businessType'] as String?),
-                  bankName: Value(remoteProfile['bank_name'] as String? ??
-                      remoteProfile['bankName'] as String?),
-                  bankAccountNumber: Value(remoteProfile['bank_account_number'] as String? ??
-                      remoteProfile['bankAccountNumber'] as String?),
-                  bankIfsc: Value(remoteProfile['bank_ifsc'] as String? ??
-                      remoteProfile['bankIfsc'] as String?),
-                  upiId: Value(remoteProfile['upi_id'] as String? ??
-                      remoteProfile['upiId'] as String?),
+                  businessName: Value(profData['business_name'] as String? ??
+                      profData['businessName'] as String?),
+                  address: Value(profData['address'] as String?),
+                  gstin: Value(profData['gstin'] as String?),
+                  businessType: Value(profData['business_type'] as String? ??
+                      profData['businessType'] as String?),
+                  bankName: Value(profData['bank_name'] as String? ??
+                      profData['bankName'] as String?),
+                  bankAccountNumber: Value(profData['bank_account_number'] as String? ??
+                      profData['bankAccountNumber'] as String?),
+                  bankIfsc: Value(profData['bank_ifsc'] as String? ??
+                      profData['bankIfsc'] as String?),
+                  upiId: Value(profData['upi_id'] as String? ??
+                      profData['upiId'] as String?),
                   activeCompanyId: Value(activeCompanyId),
                   role: Value(role),
                   createdAt: Value(createdAt),
@@ -702,6 +711,64 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
         localProfiles = await repo.getAccessibleProfiles(userId);
       } catch (e) {
         debugPrint('ProfileSessionController: Error reading local cache: $e');
+      }
+
+      // FAST PATH: On app reopen / restart (!isLogin), if local workspaces already exist,
+      // activate the workspace immediately from SQLite cache.
+      // This eliminates the 10-15s "Loading your workspaces..." screen and opens HomeShell instantly.
+      if (!isLogin && localProfiles.isNotEmpty) {
+        await _resolveActiveWorkspace(
+          userId: userId,
+          profiles: localProfiles,
+          isOffline: false,
+          isLogin: false,
+        );
+
+        // Perform background remote synchronization
+        try {
+          final freshProfiles = await repo.syncAndLoadRemoteWorkspaces(userId);
+          if (ref.mounted && ref.read(activeUserIdProvider) == userId) {
+            _currentAvailableProfiles = freshProfiles;
+            if (state is ActiveProfileReadySessionState) {
+              final ready = state as ActiveProfileReadySessionState;
+              final stillExists =
+                  freshProfiles.any((p) => p.id == ready.activeProfile.id);
+              if (stillExists) {
+                final updated = freshProfiles
+                    .firstWhere((p) => p.id == ready.activeProfile.id);
+                _currentActiveProfile = updated;
+                state = ActiveProfileReadySessionState(
+                  userId: userId,
+                  activeProfile: updated,
+                  availableProfiles: freshProfiles,
+                  isOffline: false,
+                );
+              } else if (freshProfiles.isNotEmpty) {
+                if (freshProfiles.length == 1) {
+                  await switchProfile(freshProfiles.first);
+                } else {
+                  state = ProfileSelectionRequiredSessionState(
+                    userId: userId,
+                    profiles: freshProfiles,
+                  );
+                }
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('ProfileSessionController: Background workspace sync note: $e');
+          if (DriftProfileRepository._isNetworkException(e)) {
+            if (ref.mounted && state is ActiveProfileReadySessionState) {
+              final ready = state as ActiveProfileReadySessionState;
+              state = OfflineActiveProfileReadySessionState(
+                userId: userId,
+                activeProfile: ready.activeProfile,
+                availableProfiles: ready.availableProfiles,
+              );
+            }
+          }
+        }
+        return;
       }
 
       // 4. Attempt remote synchronization if online

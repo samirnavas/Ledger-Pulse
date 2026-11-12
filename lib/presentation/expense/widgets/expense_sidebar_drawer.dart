@@ -10,17 +10,12 @@ import '../../../core/theme/adaptive_theme.dart';
 import '../../../core/utils/adaptive_page_route.dart';
 import '../../../data/models/company_model.dart';
 import '../../home/company_switcher_sheet.dart';
-import '../../home/sync_settings_sheet.dart';
 import '../../providers/company_providers.dart';
-import '../../reports/reporting_hub_screen.dart';
-import '../../settings/modules_screen.dart';
 import '../../settings/settings_screen.dart';
 import '../recurring_screen.dart';
 
 /// Platform-adaptive drawer for Expense Tracker mode.
-/// Hides all ledger-only items (ERP modules, BI hub, GST, payroll).
-/// Exposes company header, Settings, Modules, Sync & Backup, Subscription,
-/// Recurring rules (if module on), Export, and 'Upgrade to Business Ledger'.
+/// Exposes company header, Company Switcher, Settings, and Recurring Rules (if module enabled).
 class ExpenseSidebarDrawer extends ConsumerWidget {
   const ExpenseSidebarDrawer({super.key});
 
@@ -250,119 +245,7 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                     },
                   ),
 
-                  // 3. Modules
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: (isIos
-                                ? CupertinoColors.activeBlue
-                                : colorScheme.primary)
-                            .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(isIos ? 10 : 14),
-                      ),
-                      child: Icon(
-                        isIos
-                            ? CupertinoIcons.square_grid_2x2_fill
-                            : Icons.grid_view_rounded,
-                        color: isIos
-                            ? CupertinoColors.activeBlue
-                            : colorScheme.primary,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      'Modules',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Budgets, recurring rules & active features',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isIos
-                            ? CupertinoColors.secondaryLabel
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: Icon(
-                      isIos
-                          ? CupertinoIcons.chevron_forward
-                          : Icons.chevron_right_rounded,
-                      size: isIos ? 14 : 20,
-                      color: isIos
-                          ? CupertinoColors.tertiaryLabel
-                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.pop(context);
-                      Navigator.of(context).push(
-                        createAdaptivePageRoute(
-                          builder: (context) => const ModulesScreen(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  // 4. Sync & Backup
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: (isIos
-                                ? CupertinoColors.systemTeal
-                                : colorScheme.secondary)
-                            .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(isIos ? 10 : 14),
-                      ),
-                      child: Icon(
-                        isIos
-                            ? CupertinoIcons.cloud_upload_fill
-                            : Icons.cloud_sync_rounded,
-                        color: isIos
-                            ? CupertinoColors.systemTeal
-                            : colorScheme.secondary,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      'Sync & Backup',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Cloud synchronization status & settings',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isIos
-                            ? CupertinoColors.secondaryLabel
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: Icon(
-                      isIos
-                          ? CupertinoIcons.chevron_forward
-                          : Icons.chevron_right_rounded,
-                      size: isIos ? 14 : 20,
-                      color: isIos
-                          ? CupertinoColors.tertiaryLabel
-                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.pop(context);
-                      SyncSettingsSheet.show(context);
-                    },
-                  ),
-
-
-
-                  // 6. Recurring Rules (only if module enabled)
+                  // 3. Recurring Rules (only if module enabled)
                   if (isRecurringEnabled)
                     ListTile(
                       leading: Container(
@@ -419,116 +302,6 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                         );
                       },
                     ),
-
-                  // 7. Export
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: (isIos
-                                ? CupertinoColors.systemGreen
-                                : colorScheme.secondary)
-                            .withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(isIos ? 10 : 14),
-                      ),
-                      child: Icon(
-                        isIos
-                            ? CupertinoIcons.square_arrow_up
-                            : Icons.file_upload_outlined,
-                        color: isIos
-                            ? CupertinoColors.systemGreen
-                            : colorScheme.secondary,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      'Export',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Export expense records, CSV & statements',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isIos
-                            ? CupertinoColors.secondaryLabel
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: Icon(
-                      isIos
-                          ? CupertinoIcons.chevron_forward
-                          : Icons.chevron_right_rounded,
-                      size: isIos ? 14 : 20,
-                      color: isIos
-                          ? CupertinoColors.tertiaryLabel
-                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                    onTap: () {
-                      HapticFeedback.lightImpact();
-                      Navigator.pop(context);
-                      Navigator.of(context).push(
-                        createAdaptivePageRoute(
-                          builder: (context) => const ReportingHubScreen(),
-                        ),
-                      );
-                    },
-                  ),
-
-                  // 8. Business Ledger Workspace
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(isIos ? 10 : 14),
-                      ),
-                      child: Icon(
-                        isIos
-                            ? CupertinoIcons.building_2_fill
-                            : Icons.business_outlined,
-                        color: AppColors.primaryBlue,
-                        size: 20,
-                      ),
-                    ),
-                    title: const Text(
-                      'Business Ledger Workspace',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: AppColors.primaryBlue,
-                      ),
-                    ),
-                    subtitle: Text(
-                      'Create a separate Business Ledger workspace for GST & invoicing',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isIos
-                            ? CupertinoColors.secondaryLabel
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    trailing: Icon(
-                      isIos
-                          ? CupertinoIcons.chevron_forward
-                          : Icons.chevron_right_rounded,
-                      size: isIos ? 14 : 20,
-                      color: isIos
-                          ? CupertinoColors.tertiaryLabel
-                          : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                    ),
-                    onTap: () {
-                      HapticFeedback.mediumImpact();
-                      Navigator.pop(context);
-                      SettingsScreen.showCreateBusinessLedgerDialog(
-                        context,
-                        ref,
-                        activeCompany,
-                      );
-                    },
-                  ),
                 ],
               ),
             ),
