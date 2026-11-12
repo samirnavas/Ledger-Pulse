@@ -169,9 +169,10 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final minDate = DateTime(2020);
     final maxDate = DateTime.now().add(const Duration(days: 365));
+    final localDate = _selectedDate.toLocal();
 
     if (isIos) {
-      DateTime tempPicked = _selectedDate;
+      DateTime tempPicked = localDate;
       await showCupertinoModalPopup<void>(
         context: context,
         builder: (ctx) => Container(
@@ -203,10 +204,10 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
               Expanded(
                 child: CupertinoDatePicker(
                   mode: CupertinoDatePickerMode.dateAndTime,
-                  initialDateTime: _selectedDate,
+                  initialDateTime: localDate,
                   minimumDate: minDate,
                   maximumDate: maxDate,
-                  onDateTimeChanged: (d) => tempPicked = d,
+                  onDateTimeChanged: (d) => tempPicked = d.toLocal(),
                 ),
               ),
             ],
@@ -216,21 +217,14 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     } else {
       final picked = await showDatePicker(
         context: context,
-        initialDate: _selectedDate,
+        initialDate: localDate,
         firstDate: minDate,
         lastDate: maxDate,
       );
       if (picked != null) {
-        final now = DateTime.now();
-        final defaultHour = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
-            ? _selectedDate.hour
-            : now.hour;
-        final defaultMinute = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
-            ? _selectedDate.minute
-            : now.minute;
-        final defaultSecond = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
-            ? _selectedDate.second
-            : now.second;
+        final defaultHour = localDate.hour;
+        final defaultMinute = localDate.minute;
+        final defaultSecond = localDate.second;
 
         TimeOfDay? pickedTime;
         if (mounted) {

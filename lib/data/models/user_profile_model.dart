@@ -160,6 +160,13 @@ class UserProfile {
       'phoneNumber': phoneNumber,
       'email': email,
       'businessType': businessType,
+      'businessName': businessName,
+      'address': address,
+      'gstin': gstin,
+      'bankName': bankName,
+      'bankAccountNumber': bankAccountNumber,
+      'bankIfsc': bankIfsc,
+      'upiId': upiId,
       'companies': companies.map((c) => c.toMap()).toList(),
       'activeCompanyId': activeCompanyId,
       'role': role.name,
@@ -178,15 +185,31 @@ class UserProfile {
             .toList() ??
         [];
 
-    final activeCompId = map['activeCompanyId'] as String? ??
+    final activeCompId = (map['activeCompanyId'] ?? map['active_company_id']) as String? ??
         (companiesList.isNotEmpty ? companiesList.first.id : '');
+
+    final bName = (map['businessName'] ?? map['business_name']) as String?;
+    final addr = (map['address']) as String?;
+    final gst = (map['gstin']) as String?;
+    final bType = (map['businessType'] ?? map['business_type']) as String?;
+    final bBankName = (map['bankName'] ?? map['bank_name']) as String?;
+    final bAccount = (map['bankAccountNumber'] ?? map['bank_account_number']) as String?;
+    final bIfsc = (map['bankIfsc'] ?? map['bank_ifsc']) as String?;
+    final bUpi = (map['upiId'] ?? map['upi_id']) as String?;
 
     return UserProfile(
       id: (map['id'] as String?) ?? 'usr_default',
       name: (map['name'] as String?) ?? 'User',
-      phoneNumber: (map['phoneNumber'] as String?) ?? '',
+      phoneNumber: (map['phoneNumber'] ?? map['phone_number'] as String?) ?? '',
       email: (map['email'] as String?) ?? '',
-      businessType: map['businessType'] as String?,
+      businessType: bType,
+      businessName: bName,
+      address: addr,
+      gstin: gst,
+      bankName: bBankName,
+      bankAccountNumber: bAccount,
+      bankIfsc: bIfsc,
+      upiId: bUpi,
       companies: companiesList,
       activeCompanyId: activeCompId,
       role: map['role'] != null

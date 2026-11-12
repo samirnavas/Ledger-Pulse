@@ -204,9 +204,10 @@ class _QuickAddTransactionSheetState
     HapticFeedback.lightImpact();
     final isIos = AdaptiveThemeHelper.isIos(context);
     final now = DateTime.now();
+    final localDate = _selectedDate.toLocal();
 
     if (isIos) {
-      DateTime tempDate = _selectedDate;
+      DateTime tempDate = localDate;
       await showCupertinoModalPopup<void>(
         context: context,
         builder: (ctx) => Container(
@@ -238,10 +239,10 @@ class _QuickAddTransactionSheetState
               Expanded(
                 child: CupertinoDatePicker(
                   mode: CupertinoDatePickerMode.dateAndTime,
-                  initialDateTime: _selectedDate,
+                  initialDateTime: localDate,
                   maximumDate: now.add(const Duration(days: 365)),
                   minimumYear: 2020,
-                  onDateTimeChanged: (val) => tempDate = val,
+                  onDateTimeChanged: (val) => tempDate = val.toLocal(),
                 ),
               ),
             ],
@@ -251,20 +252,14 @@ class _QuickAddTransactionSheetState
     } else {
       final picked = await showDatePicker(
         context: context,
-        initialDate: _selectedDate,
+        initialDate: localDate,
         firstDate: DateTime(2020),
         lastDate: now.add(const Duration(days: 365)),
       );
       if (picked != null) {
-        final defaultHour = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
-            ? _selectedDate.hour
-            : now.hour;
-        final defaultMinute = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
-            ? _selectedDate.minute
-            : now.minute;
-        final defaultSecond = (_selectedDate.hour != 0 || _selectedDate.minute != 0)
-            ? _selectedDate.second
-            : now.second;
+        final defaultHour = localDate.hour;
+        final defaultMinute = localDate.minute;
+        final defaultSecond = localDate.second;
 
         TimeOfDay? pickedTime;
         if (mounted) {

@@ -179,6 +179,10 @@ class DriftProfileRepository implements IProfileRepository {
 
         // Enforce workspace type immutability: preserve local mode if company exists locally
         final existingComp = await (db.select(db.companies)..where((c) => c.id.equals(compId))).getSingleOrNull();
+        if (existingComp != null && existingComp.syncStatus != SyncRecordStatus.synced) {
+          // Never overwrite newer local pending company changes with stale remote data
+          continue;
+        }
         final effectiveMode = existingComp != null ? existingComp.mode : mode;
 
         await db.into(db.companies).insertOnConflictUpdate(
@@ -231,41 +235,54 @@ class DriftProfileRepository implements IProfileRepository {
 
       if (remoteProfile != null) {
         final profId = remoteProfile['id'] as String;
-        final profName = remoteProfile['name'] as String? ?? '';
-        final phone = remoteProfile['phone_number'] as String? ??
-            remoteProfile['phoneNumber'] as String? ??
-            '';
-        final email = remoteProfile['email'] as String? ?? '';
-        final activeCompanyId = remoteProfile['active_company_id'] as String? ??
-            remoteProfile['activeCompanyId'] as String? ??
-            '';
-        final role = remoteProfile['role'] as String? ?? 'admin';
-        final createdAtStr =
-            remoteProfile['created_at'] ?? remoteProfile['createdAt'];
-        final updatedAtStr =
-            remoteProfile['updated_at'] ?? remoteProfile['updatedAt'];
-        final createdAt =
-            createdAtStr != null ? decodeTime(createdAtStr) : DateTime.now();
-        final updatedAt =
-            updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
+        final existingProf = await (db.select(db.userProfiles)..where((u) => u.id.equals(profId))).getSingleOrNull();
+        if (existingProf == null || existingProf.syncStatus == SyncRecordStatus.synced) {
+          final profName = remoteProfile['name'] as String? ?? '';
+          final phone = remoteProfile['phone_number'] as String? ??
+              remoteProfile['phoneNumber'] as String? ??
+              '';
+          final email = remoteProfile['email'] as String? ?? '';
+          final activeCompanyId = remoteProfile['active_company_id'] as String? ??
+              remoteProfile['activeCompanyId'] as String? ??
+              '';
+          final role = remoteProfile['role'] as String? ?? 'admin';
+          final createdAtStr =
+              remoteProfile['created_at'] ?? remoteProfile['createdAt'];
+          final updatedAtStr =
+              remoteProfile['updated_at'] ?? remoteProfile['updatedAt'];
+          final createdAt =
+              createdAtStr != null ? decodeTime(createdAtStr) : DateTime.now();
+          final updatedAt =
+              updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
 
-        await db.into(db.userProfiles).insertOnConflictUpdate(
-              UserProfilesCompanion.insert(
-                id: profId,
-                name: profName,
-                phoneNumber: phone,
-                email: email,
-                businessName: Value(remoteProfile['business_name'] as String? ??
-                    remoteProfile['businessName'] as String?),
-                address: Value(remoteProfile['address'] as String?),
-                gstin: Value(remoteProfile['gstin'] as String?),
-                activeCompanyId: Value(activeCompanyId),
-                role: Value(role),
-                createdAt: Value(createdAt),
-                updatedAt: Value(updatedAt),
-                syncStatus: const Value(SyncRecordStatus.synced),
-              ),
-            );
+          await db.into(db.userProfiles).insertOnConflictUpdate(
+                UserProfilesCompanion.insert(
+                  id: profId,
+                  name: profName,
+                  phoneNumber: phone,
+                  email: email,
+                  businessName: Value(remoteProfile['business_name'] as String? ??
+                      remoteProfile['businessName'] as String?),
+                  address: Value(remoteProfile['address'] as String?),
+                  gstin: Value(remoteProfile['gstin'] as String?),
+                  businessType: Value(remoteProfile['business_type'] as String? ??
+                      remoteProfile['businessType'] as String?),
+                  bankName: Value(remoteProfile['bank_name'] as String? ??
+                      remoteProfile['bankName'] as String?),
+                  bankAccountNumber: Value(remoteProfile['bank_account_number'] as String? ??
+                      remoteProfile['bankAccountNumber'] as String?),
+                  bankIfsc: Value(remoteProfile['bank_ifsc'] as String? ??
+                      remoteProfile['bankIfsc'] as String?),
+                  upiId: Value(remoteProfile['upi_id'] as String? ??
+                      remoteProfile['upiId'] as String?),
+                  activeCompanyId: Value(activeCompanyId),
+                  role: Value(role),
+                  createdAt: Value(createdAt),
+                  updatedAt: Value(updatedAt),
+                  syncStatus: const Value(SyncRecordStatus.synced),
+                ),
+              );
+        }
       }
     });
 
@@ -780,8 +797,22 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
     }
 
     final prefs = ref.read(sharedPreferencesProvider);
-    final lastActiveId = prefs?.getString('last_active_profile_$userId') ??
+    var lastActiveId = prefs?.getString('last_active_profile_$userId') ??
         prefs?.getString('last_active_company_id_$userId');
+
+    if (lastActiveId == null || lastActiveId.isEmpty) {
+      try {
+        final db = ref.read(appDatabaseProvider);
+        final profRow = await (db.select(db.userProfiles)
+              ..where((t) => t.id.equals(userId) & t.isDeleted.equals(false)))
+            .getSingleOrNull();
+        if (profRow != null &&
+            profRow.activeCompanyId.isNotEmpty &&
+            profRow.activeCompanyId != 'cmp_default') {
+          lastActiveId = profRow.activeCompanyId;
+        }
+      } catch (_) {}
+    }
 
     if (profiles.length == 1) {
       final single = profiles.first;
@@ -911,6 +942,32 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
       await prefs?.setString(
           'last_active_company_id_$userId', targetProfile.id);
       await prefs?.setString('last_active_company_id', targetProfile.id);
+
+      // Persist activeCompanyId to local db.userProfiles with pending status and enqueue outbox
+      try {
+        final db = ref.read(appDatabaseProvider);
+        final now = DateTime.now();
+        await (db.update(db.userProfiles)..where((t) => t.id.equals(userId))).write(
+          UserProfilesCompanion(
+            activeCompanyId: Value(targetProfile.id),
+            updatedAt: Value(now),
+            syncStatus: const Value(SyncRecordStatus.pending),
+          ),
+        );
+        await enqueueMutation(
+          db: db,
+          table: 'user_profiles',
+          recordId: userId,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': userId,
+            'activeCompanyId': targetProfile.id,
+            'updatedAt': now,
+          },
+        );
+      } catch (e) {
+        debugPrint('ProfileSessionController: Error updating active profile: $e');
+      }
 
       final isOffline = state is ActiveProfileReadySessionState &&
           (state as ActiveProfileReadySessionState).isOffline;

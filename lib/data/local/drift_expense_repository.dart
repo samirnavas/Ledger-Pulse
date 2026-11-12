@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/network/sync_codec.dart';
 import '../../core/network/sync_engine.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import '../accounting/voucher_posting_engine.dart';
@@ -527,8 +528,8 @@ class DriftExpenseRepository {
           'companyId': r.companyId,
           'voucherNumber': r.voucherNumber,
           'type': r.type,
-          'date': r.date.toIso8601String(),
-          'dueDate': r.dueDate?.toIso8601String(),
+          'date': encodeTime(r.date),
+          'dueDate': r.dueDate != null ? encodeTime(r.dueDate!) : null,
           'partyId': r.partyId,
           'partyName': r.partyName,
           'status': r.status,
@@ -545,8 +546,8 @@ class DriftExpenseRepository {
           'categoryAccountId': r.categoryAccountId,
           'walletAccountId': r.walletAccountId,
           'toWalletAccountId': r.toWalletAccountId,
-          'createdAt': r.createdAt.toIso8601String(),
-          'updatedAt': r.updatedAt.toIso8601String(),
+          'createdAt': encodeTime(r.createdAt),
+          'updatedAt': encodeTime(r.updatedAt),
         })).toList();
 
     if (textQuery != null && textQuery.trim().isNotEmpty) {
@@ -613,8 +614,8 @@ class DriftExpenseRepository {
             'companyId': r.companyId,
             'voucherNumber': r.voucherNumber,
             'type': r.type,
-            'date': r.date.toIso8601String(),
-            'dueDate': r.dueDate?.toIso8601String(),
+            'date': encodeTime(r.date),
+            'dueDate': r.dueDate != null ? encodeTime(r.dueDate!) : null,
             'partyId': r.partyId,
             'partyName': r.partyName,
             'status': r.status,
@@ -631,8 +632,8 @@ class DriftExpenseRepository {
             'categoryAccountId': r.categoryAccountId,
             'walletAccountId': r.walletAccountId,
             'toWalletAccountId': r.toWalletAccountId,
-            'createdAt': r.createdAt.toIso8601String(),
-            'updatedAt': r.updatedAt.toIso8601String(),
+            'createdAt': encodeTime(r.createdAt),
+            'updatedAt': encodeTime(r.updatedAt),
           })).toList();
 
       if (textQuery != null && textQuery.trim().isNotEmpty) {

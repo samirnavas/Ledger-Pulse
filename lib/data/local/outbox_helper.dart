@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/network/sync_codec.dart';
 import 'database.dart';
 
 const realTableNames = <String>{
@@ -66,7 +67,15 @@ Future<void> enqueueMutation({
     );
   }
 
-  final payloadJson = jsonEncode(fullRowMap);
+  final payloadJson = jsonEncode(
+    fullRowMap,
+    toEncodable: (nonEncodable) {
+      if (nonEncodable is DateTime) {
+        return encodeTime(nonEncodable);
+      }
+      return nonEncodable.toString();
+    },
+  );
   final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
   try {

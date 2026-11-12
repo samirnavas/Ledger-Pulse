@@ -95,7 +95,7 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
               note: Value(effectiveEntry.note),
               receiptPhotoUrl: Value(effectiveEntry.receiptPhotoUrl),
               isVoided: const Value(false),
-              createdAt: Value(effectiveEntry.date),
+              createdAt: Value(DateTime.now()),
               updatedAt: Value(DateTime.now()),
               isDeleted: const Value(false),
               syncStatus: const Value(SyncRecordStatus.pending),
@@ -333,7 +333,7 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
             'partyId': existing.partyId,
             'amountInCents': existing.amountInCents,
             'type': offsettingType.name,
-            'date': timestamp.toIso8601String(),
+            'date': encodeTime(timestamp),
             'note': offsetNote,
           },
         );

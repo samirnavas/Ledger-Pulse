@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/database.dart';
+import '../../data/local/outbox_helper.dart';
 import '../../data/models/rbac_model.dart';
 import '../../data/models/user_profile_model.dart';
 import 'auth_providers.dart';
@@ -65,6 +66,11 @@ class UserProfileNotifier extends Notifier<UserProfile> {
           businessName: profileRow.businessName,
           address: profileRow.address,
           gstin: profileRow.gstin,
+          businessType: profileRow.businessType,
+          bankName: profileRow.bankName,
+          bankAccountNumber: profileRow.bankAccountNumber,
+          bankIfsc: profileRow.bankIfsc,
+          upiId: profileRow.upiId,
           role: userRole,
           activeCompanyId: effectiveActiveId,
           companies: state.companies,
@@ -92,6 +98,8 @@ class UserProfileNotifier extends Notifier<UserProfile> {
     try {
       if (!ref.mounted) return;
       final db = ref.read(appDatabaseProvider);
+      final now = DateTime.now();
+
       final profileCompanion = UserProfilesCompanion.insert(
         id: profile.id,
         name: profile.name,
@@ -100,11 +108,96 @@ class UserProfileNotifier extends Notifier<UserProfile> {
         businessName: Value(profile.businessName),
         address: Value(profile.address),
         gstin: Value(profile.gstin),
+        businessType: Value(profile.businessType),
+        bankName: Value(profile.bankName),
+        bankAccountNumber: Value(profile.bankAccountNumber),
+        bankIfsc: Value(profile.bankIfsc),
+        upiId: Value(profile.upiId),
         activeCompanyId: Value(profile.activeCompanyId.isNotEmpty ? profile.activeCompanyId : 'cmp_default'),
         role: Value(profile.role.name),
-        updatedAt: Value(DateTime.now()),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
       );
       await db.into(db.userProfiles).insertOnConflictUpdate(profileCompanion);
+
+      // Enqueue sync outbox mutation for user_profiles
+      await enqueueMutation(
+        db: db,
+        table: 'user_profiles',
+        recordId: profile.id,
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': profile.id,
+          'name': profile.name,
+          'phoneNumber': profile.phoneNumber,
+          'email': profile.email,
+          'businessName': profile.businessName,
+          'address': profile.address,
+          'gstin': profile.gstin,
+          'businessType': profile.businessType,
+          'bankName': profile.bankName,
+          'bankAccountNumber': profile.bankAccountNumber,
+          'bankIfsc': profile.bankIfsc,
+          'upiId': profile.upiId,
+          'activeCompanyId': profile.activeCompanyId.isNotEmpty ? profile.activeCompanyId : 'cmp_default',
+          'role': profile.role.name,
+          'isDeleted': false,
+          'updatedAt': now,
+        },
+      );
+
+      // Update associated company in db.companies if present
+      if (profile.activeCompanyId.isNotEmpty) {
+        final existingComp = await (db.select(db.companies)
+              ..where((c) => c.id.equals(profile.activeCompanyId)))
+            .getSingleOrNull();
+        if (existingComp != null) {
+          final compName = profile.businessName.isNotEmpty ? profile.businessName : existingComp.name;
+          await (db.update(db.companies)..where((c) => c.id.equals(profile.activeCompanyId))).write(
+            CompaniesCompanion(
+              name: Value(compName),
+              legalName: Value(compName),
+              gstin: Value(profile.gstin.isNotEmpty ? profile.gstin : existingComp.gstin),
+              address: Value(profile.address.isNotEmpty ? profile.address : existingComp.address),
+              bankName: Value(profile.bankName ?? existingComp.bankName),
+              bankAccountNumber: Value(profile.bankAccountNumber ?? existingComp.bankAccountNumber),
+              bankIfsc: Value(profile.bankIfsc ?? existingComp.bankIfsc),
+              upiId: Value(profile.upiId ?? existingComp.upiId),
+              updatedAt: Value(now),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
+
+          await enqueueMutation(
+            db: db,
+            table: 'companies',
+            recordId: existingComp.id,
+            type: 'UPSERT',
+            fullRowMap: {
+              'id': existingComp.id,
+              'name': compName,
+              'legalName': compName,
+              'gstin': profile.gstin.isNotEmpty ? profile.gstin : existingComp.gstin,
+              'address': profile.address.isNotEmpty ? profile.address : existingComp.address,
+              'bankName': profile.bankName ?? existingComp.bankName,
+              'bankAccountNumber': profile.bankAccountNumber ?? existingComp.bankAccountNumber,
+              'bankIfsc': profile.bankIfsc ?? existingComp.bankIfsc,
+              'upiId': profile.upiId ?? existingComp.upiId,
+              'ownerId': existingComp.ownerId,
+              'mode': existingComp.mode,
+              'currencyCode': existingComp.currencyCode,
+              'isActive': existingComp.isActive,
+              'isDeleted': existingComp.isDeleted,
+              'updatedAt': now,
+            },
+          );
+        }
+      }
+
+      // Trigger background sync
+      try {
+        ref.read(syncEngineProvider).triggerBackgroundSync();
+      } catch (_) {}
     } catch (e, st) {
       debugPrint('UserProfileNotifier: Error saving profile to database: $e\n$st');
     }

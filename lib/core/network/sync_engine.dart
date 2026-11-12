@@ -104,6 +104,7 @@ class SupabaseGateway implements RemoteGateway {
     } on PostgrestException catch (e) {
       if (e.code == 'PGRST205' ||
           e.code == '42P01' ||
+          e.code == '404' ||
           e.message.contains('schema cache') ||
           e.message.contains('does not exist')) {
         return null;
@@ -161,6 +162,7 @@ class SupabaseGateway implements RemoteGateway {
     } on PostgrestException catch (e) {
       if (e.code == 'PGRST205' ||
           e.code == '42P01' ||
+          e.code == '404' ||
           e.message.contains('schema cache') ||
           e.message.contains('does not exist')) {
         return [];
@@ -185,6 +187,24 @@ String _toCamelCase(String input) {
   );
 }
 
+dynamic _sanitizeSyncValue(dynamic value) {
+  if (value is DateTime) {
+    return encodeTime(value);
+  }
+  if (value is String) {
+    final s = value.trim();
+    if (RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$').hasMatch(s)) {
+      try {
+        final parsed = DateTime.parse(s);
+        return encodeTime(parsed);
+      } catch (_) {
+        return value;
+      }
+    }
+  }
+  return value;
+}
+
 Map<String, dynamic> mapToSnakeCase(
   Map<String, dynamic> source, {
   Set<String> ignoreKeys = const {},
@@ -200,7 +220,7 @@ Map<String, dynamic> mapToSnakeCase(
     if (defaultIgnore.contains(key) || ignoreKeys.contains(key)) return;
     final snakeKey = _toSnakeCase(key);
     if (defaultIgnore.contains(snakeKey) || ignoreKeys.contains(snakeKey)) return;
-    result[snakeKey] = value;
+    result[snakeKey] = _sanitizeSyncValue(value);
   });
   return result;
 }
@@ -474,11 +494,47 @@ class SyncEngine {
 
   Future<int> getPendingCount({String? companyId}) async {
     final rows = await (db.select(db.syncOutbox)).get();
-    return rows.length;
+    final effCompanyId = companyId ?? 'cmp_default';
+    int count = 0;
+    for (final row in rows) {
+      try {
+        final payloadMap = jsonDecode(row.payload) as Map<String, dynamic>;
+        if (_recordBelongsToWorkspace(
+          targetTable: row.targetTable,
+          payloadMap: payloadMap,
+          companyId: effCompanyId,
+          activeUserId: activeUserId,
+        )) {
+          count++;
+        }
+      } catch (_) {
+        count++;
+      }
+    }
+    return count;
   }
 
-  Stream<int> watchPendingCount() {
-    return db.select(db.syncOutbox).watch().map((rows) => rows.length);
+  Stream<int> watchPendingCount({String? companyId}) {
+    return db.select(db.syncOutbox).watch().map((rows) {
+      final effCompanyId = companyId ?? 'cmp_default';
+      int count = 0;
+      for (final row in rows) {
+        try {
+          final payloadMap = jsonDecode(row.payload) as Map<String, dynamic>;
+          if (_recordBelongsToWorkspace(
+            targetTable: row.targetTable,
+            payloadMap: payloadMap,
+            companyId: effCompanyId,
+            activeUserId: activeUserId,
+          )) {
+            count++;
+          }
+        } catch (_) {
+          count++;
+        }
+      }
+      return count;
+    });
   }
 
   Stream<int> watchFailed() {
@@ -530,7 +586,7 @@ class SyncEngine {
       case 'user_profiles':
         if (activeUserId == null || activeUserId.isEmpty) return false;
         final id = payloadMap['id']?.toString();
-        return id == activeUserId;
+        return id == activeUserId || id == 'usr_default';
 
       case 'shared_memberships':
       case 'exp_wallets':
@@ -636,15 +692,13 @@ class SyncEngine {
             'isDropboxSyncEnabled': c.isDropboxSyncEnabled,
             'isActive': c.isActive,
             'mode': c.mode,
-            'enabled_modules': c.enabledModulesJson != null && c.enabledModulesJson!.isNotEmpty
-                ? jsonDecode(c.enabledModulesJson!)
-                : null,
+            'enabledModulesJson': c.enabledModulesJson,
             'createdAt': encodeTime(c.createdAt),
             'updatedAt': encodeTime(c.updatedAt),
             'isDeleted': c.isDeleted,
             'revision': c.revision,
-            'ownerId': c.ownerId ?? _resolveActiveAuthId(),
-            'owner_id': c.ownerId ?? _resolveActiveAuthId(),
+            'ownerId': c.ownerId,
+            'owner_id': c.ownerId,
           },
         );
 
@@ -661,7 +715,7 @@ class SyncEngine {
             fullRowMap: {
               'id': m.id,
               'profile_id': m.profileId,
-              'account_id': (_isValidUuid(m.accountId) ? m.accountId : _resolveActiveAuthId()) ?? m.accountId,
+              'account_id': m.accountId,
               'role': m.role,
               'joined_at': encodeTime(m.joinedAt),
               'updated_at': encodeTime(m.updatedAt),
@@ -1271,10 +1325,16 @@ class SyncEngine {
                 t.lastError.like('%PGRST204%') |
                 t.lastError.like('%enabled_modules%') |
                 t.lastError.like('%remote_updated_at%') |
+                t.lastError.like('%sync_status%') |
+                t.lastError.like('%revision%') |
+                t.lastError.like('%42703%') |
+                t.lastError.like('%schema cache%') |
+                t.lastError.like('%SocketException%') |
+                t.lastError.like('%Failed host lookup%') |
+                t.lastError.like('%ClientException%') |
                 t.lastError.like('%Domain Isolation Violation%') |
                 t.lastError.like('%row-level security%') |
-                t.lastError.like('%400%') |
-                t.lastError.like('%403%')))
+                t.lastError.like('%42501%')))
           .write(
         const SyncOutboxCompanion(
           attempts: Value(0),
@@ -1741,12 +1801,40 @@ class SyncEngine {
           }
           final authId = _resolveActiveAuthId();
           final currentOwner = remoteMap['owner_id']?.toString();
-          if (authId != null &&
-              (currentOwner == null ||
-                  currentOwner.isEmpty ||
-                  currentOwner == 'usr_default')) {
-            remoteMap['owner_id'] = authId;
+          if (authId != null && _isValidUuid(authId)) {
+            if (currentOwner == null || !_isValidUuid(currentOwner)) {
+              remoteMap['owner_id'] = authId;
+            }
+            if (remoteMap['id'] == 'usr_default' || remoteMap['id'] == null) {
+              remoteMap['id'] = authId;
+            }
+          } else if (currentOwner != null && !_isValidUuid(currentOwner)) {
+            remoteMap.remove('owner_id');
           }
+
+          // Strip any extraneous columns that do not exist on Supabase public.user_profiles
+          const validUserProfileColumns = {
+            'id',
+            'name',
+            'phone_number',
+            'email',
+            'business_name',
+            'address',
+            'gstin',
+            'business_type',
+            'bank_name',
+            'bank_account_number',
+            'bank_ifsc',
+            'upi_id',
+            'active_company_id',
+            'role',
+            'companies_json',
+            'is_deleted',
+            'created_at',
+            'updated_at',
+            'owner_id',
+          };
+          remoteMap.removeWhere((k, _) => !validUserProfileColumns.contains(k));
         }
 
         final response = await gateway.upsertRow(

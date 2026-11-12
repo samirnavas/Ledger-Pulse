@@ -1,6 +1,7 @@
 import '../../data/models/expense/expense_category_model.dart';
 import '../../data/models/expense/expense_transaction_model.dart';
 import '../../data/models/expense/expense_wallet_model.dart';
+import 'sync_codec.dart';
 import 'sync_contract.dart';
 
 class ExpenseSyncSerializer {
@@ -16,8 +17,8 @@ class ExpenseSyncSerializer {
       'color_hex': wallet.colorHex,
       'icon_name': wallet.iconName,
       'is_archived': wallet.isArchived,
-      'created_at': wallet.createdAt.toIso8601String(),
-      'updated_at': wallet.updatedAt.toIso8601String(),
+      'created_at': encodeTime(wallet.createdAt),
+      'updated_at': encodeTime(wallet.updatedAt),
       'is_deleted': wallet.isDeleted,
     };
   }
@@ -32,8 +33,8 @@ class ExpenseSyncSerializer {
       'icon_name': category.iconName,
       'color_hex': category.colorHex,
       'is_system': category.isSystem,
-      'created_at': category.createdAt.toIso8601String(),
-      'updated_at': category.updatedAt.toIso8601String(),
+      'created_at': encodeTime(category.createdAt),
+      'updated_at': encodeTime(category.updatedAt),
       'is_deleted': category.isDeleted,
     };
   }
@@ -48,14 +49,14 @@ class ExpenseSyncSerializer {
       'wallet_id': transaction.walletId,
       'to_wallet_id': transaction.toWalletId,
       'category_id': transaction.categoryId,
-      'transaction_date': transaction.transactionDate.toIso8601String(),
+      'transaction_date': encodeTime(transaction.transactionDate),
       'note': transaction.note,
       'payee_or_payer': transaction.payeeOrPayer,
       'reference_number': transaction.referenceNumber,
       'receipt_photo_url': transaction.receiptPhotoUrl,
       'is_cleared': transaction.isCleared,
-      'created_at': transaction.createdAt.toIso8601String(),
-      'updated_at': transaction.updatedAt.toIso8601String(),
+      'created_at': encodeTime(transaction.createdAt),
+      'updated_at': encodeTime(transaction.updatedAt),
       'is_deleted': transaction.isDeleted,
     };
   }

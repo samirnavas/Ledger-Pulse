@@ -206,7 +206,12 @@ class AuthController extends Notifier<AuthState> {
       }
     } on AuthException catch (e) {
       String msg = e.message;
-      if (msg.toLowerCase().contains('already registered') ||
+      if (e is AuthRetryableFetchException ||
+          msg.contains('SocketException') ||
+          msg.contains('Failed host lookup') ||
+          msg.contains('ClientException')) {
+        msg = 'Network error: Unable to connect to Supabase. Please check your internet connection.';
+      } else if (msg.toLowerCase().contains('already registered') ||
           msg.toLowerCase().contains('user already exists')) {
         msg = 'An account with this email already exists. Please sign in.';
       }
@@ -254,7 +259,12 @@ class AuthController extends Notifier<AuthState> {
       }
     } on AuthException catch (e) {
       String msg = e.message;
-      if (msg.toLowerCase().contains('email not confirmed')) {
+      if (e is AuthRetryableFetchException ||
+          msg.contains('SocketException') ||
+          msg.contains('Failed host lookup') ||
+          msg.contains('ClientException')) {
+        msg = 'Network error: Unable to connect to Supabase. Please check your internet connection.';
+      } else if (msg.toLowerCase().contains('email not confirmed')) {
         msg = 'Please verify your email before signing in. Check your inbox for the confirmation link.';
         state = state.copyWith(
           isLoading: false,

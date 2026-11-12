@@ -35,9 +35,10 @@ class AdaptiveDateField extends StatelessWidget {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final minDate = firstDate ?? DateTime(2020);
     final maxDate = lastDate ?? DateTime(2035);
+    final localSelected = selectedDate.toLocal();
 
     if (isIos) {
-      DateTime tempPicked = selectedDate;
+      DateTime tempPicked = localSelected;
       await showCupertinoModalPopup(
         context: context,
         builder: (ctx) => Container(
@@ -71,10 +72,10 @@ class AdaptiveDateField extends StatelessWidget {
                   mode: enableTime
                       ? CupertinoDatePickerMode.dateAndTime
                       : CupertinoDatePickerMode.date,
-                  initialDateTime: selectedDate,
+                  initialDateTime: localSelected,
                   minimumDate: minDate,
                   maximumDate: maxDate,
-                  onDateTimeChanged: (d) => tempPicked = d,
+                  onDateTimeChanged: (d) => tempPicked = d.toLocal(),
                 ),
               ),
             ],
@@ -84,7 +85,7 @@ class AdaptiveDateField extends StatelessWidget {
     } else {
       final picked = await showDatePicker(
         context: context,
-        initialDate: selectedDate,
+        initialDate: localSelected,
         firstDate: minDate,
         lastDate: maxDate,
         builder: (context, child) => Theme(
@@ -100,16 +101,9 @@ class AdaptiveDateField extends StatelessWidget {
       );
       if (picked != null) {
         DateTime finalDateTime;
-        final now = DateTime.now();
-        final defaultHour = (selectedDate.hour != 0 || selectedDate.minute != 0)
-            ? selectedDate.hour
-            : now.hour;
-        final defaultMinute = (selectedDate.hour != 0 || selectedDate.minute != 0)
-            ? selectedDate.minute
-            : now.minute;
-        final defaultSecond = (selectedDate.hour != 0 || selectedDate.minute != 0)
-            ? selectedDate.second
-            : now.second;
+        final defaultHour = localSelected.hour;
+        final defaultMinute = localSelected.minute;
+        final defaultSecond = localSelected.second;
 
         if (enableTime && context.mounted) {
           final pickedTime = await showTimePicker(
@@ -123,9 +117,10 @@ class AdaptiveDateField extends StatelessWidget {
               picked.day,
               pickedTime.hour,
               pickedTime.minute,
+              0,
             );
           } else {
-            // Time not selected explicitly: default to current time
+            // Time not selected explicitly: keep existing time
             finalDateTime = DateTime(
               picked.year,
               picked.month,
@@ -136,7 +131,7 @@ class AdaptiveDateField extends StatelessWidget {
             );
           }
         } else {
-          // Time not enabled/selected: default time to current time
+          // Time not enabled: preserve existing time component
           finalDateTime = DateTime(
             picked.year,
             picked.month,

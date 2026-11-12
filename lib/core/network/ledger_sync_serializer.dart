@@ -1,5 +1,6 @@
 import '../../data/models/party_model.dart';
 import '../../data/models/voucher_model.dart';
+import 'sync_codec.dart';
 import 'sync_contract.dart';
 
 class LedgerSyncSerializer {
@@ -11,7 +12,7 @@ class LedgerSyncSerializer {
       'phone_number': party.phoneNumber,
       'type': party.type.name,
       'net_balance_in_cents': party.netBalanceInCents,
-      'last_updated': party.lastUpdated.toIso8601String(),
+      'last_updated': encodeTime(party.lastUpdated),
     };
   }
 
@@ -27,7 +28,7 @@ class LedgerSyncSerializer {
       'type': voucher.type.name,
       'party_id': voucher.partyId,
       'party_name': voucher.partyName,
-      'date': voucher.date.toIso8601String(),
+      'date': encodeTime(voucher.date),
       'status': voucher.status.name,
       'payment_mode': voucher.paymentMode.name,
       'subtotal_in_cents': voucher.subtotalInCents,
@@ -41,8 +42,8 @@ class LedgerSyncSerializer {
       'category_account_id': voucher.categoryAccountId,
       'wallet_account_id': voucher.walletAccountId,
       'to_wallet_account_id': voucher.toWalletAccountId,
-      'created_at': voucher.createdAt.toIso8601String(),
-      'updated_at': voucher.updatedAt.toIso8601String(),
+      'created_at': encodeTime(voucher.createdAt),
+      'updated_at': encodeTime(voucher.updatedAt),
       'is_deleted': isDeleted,
       'revision': revision,
     };

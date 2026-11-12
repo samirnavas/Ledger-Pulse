@@ -1655,7 +1655,7 @@ class VoucherPostingEngine {
             note: Value(note),
             receiptPhotoUrl: Value(voucher.receiptPhotoUrl),
             isVoided: const Value(false),
-            createdAt: Value(voucher.date),
+            createdAt: Value(voucher.createdAt),
           ),
         );
 
