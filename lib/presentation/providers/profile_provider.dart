@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/database.dart';
 import '../../data/local/outbox_helper.dart';
+import '../../data/models/company_model.dart';
 import '../../data/models/rbac_model.dart';
 import '../../data/models/user_profile_model.dart';
 import 'auth_providers.dart';
@@ -14,15 +15,17 @@ class UserProfileNotifier extends Notifier<UserProfile> {
     final uid = ref.watch(activeUserIdProvider);
     final authState = ref.watch(authControllerProvider);
     final phone = authState.phoneNumber ?? '';
+    final name = authState.userName ?? '';
+    final email = authState.email ?? '';
     final prefs = ref.watch(sharedPreferencesProvider);
     final savedActiveCompanyId = prefs?.getString('last_active_company_id_$uid') ??
         prefs?.getString('last_active_company_id');
 
     final initial = UserProfile(
       id: uid,
-      name: '',
+      name: name,
       phoneNumber: phone,
-      email: '',
+      email: email,
       companies: const [],
       activeCompanyId: (savedActiveCompanyId != null && savedActiveCompanyId.isNotEmpty)
           ? savedActiveCompanyId
@@ -39,41 +42,100 @@ class UserProfileNotifier extends Notifier<UserProfile> {
     try {
       if (!ref.mounted) return;
       final db = ref.read(appDatabaseProvider);
+      final authState = ref.read(authControllerProvider);
+
       final profileRow = await (db.select(db.userProfiles)
             ..where((t) => t.id.equals(userId) & t.isDeleted.equals(false)))
           .getSingleOrNull();
 
-      if (profileRow != null && ref.mounted) {
-        final prefs = ref.read(sharedPreferencesProvider);
-        final savedActiveId = prefs?.getString('last_active_company_id_$userId') ??
-            prefs?.getString('last_active_company_id');
-        final effectiveActiveId = (savedActiveId != null && savedActiveId.isNotEmpty)
-            ? savedActiveId
-            : (state.activeCompanyId.isNotEmpty
-                ? state.activeCompanyId
-                : profileRow.activeCompanyId);
+      final companyRows = await (db.select(db.companies)
+            ..where((c) => c.isDeleted.equals(false)))
+          .get();
 
-        Role userRole = Role.admin;
+      final loadedCompanies = companyRows.map((c) => Company(
+        id: c.id,
+        name: c.name,
+        legalName: c.legalName,
+        gstin: c.gstin,
+        address: c.address,
+        dealerType: c.dealerType,
+        currencyCode: c.currencyCode,
+        mode: CompanyMode.tryParse(c.mode) ?? CompanyMode.ledger,
+        phoneNumber: c.phoneNumber,
+        email: c.email,
+        bankName: c.bankName,
+        bankAccountNumber: c.bankAccountNumber,
+        bankIfsc: c.bankIfsc,
+        upiId: c.upiId,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+      )).toList();
+
+      if (!ref.mounted) return;
+      final prefs = ref.read(sharedPreferencesProvider);
+      final savedActiveId = prefs?.getString('last_active_company_id_$userId') ??
+          prefs?.getString('last_active_company_id');
+
+      final effectiveActiveId = (savedActiveId != null && savedActiveId.isNotEmpty)
+          ? savedActiveId
+          : (state.activeCompanyId.isNotEmpty
+              ? state.activeCompanyId
+              : (profileRow?.activeCompanyId ??
+                  (loadedCompanies.isNotEmpty ? loadedCompanies.first.id : '')));
+
+      final activeComp = loadedCompanies.where((c) => c.id == effectiveActiveId).firstOrNull ??
+          (loadedCompanies.isNotEmpty ? loadedCompanies.first : null);
+
+      final effectiveName = (profileRow != null && profileRow.name.isNotEmpty)
+          ? profileRow.name
+          : (authState.userName?.isNotEmpty == true ? authState.userName! : state.name);
+
+      final effectivePhone = (profileRow != null && profileRow.phoneNumber.isNotEmpty)
+          ? profileRow.phoneNumber
+          : (authState.phoneNumber?.isNotEmpty == true ? authState.phoneNumber! : state.phoneNumber);
+
+      final effectiveEmail = (profileRow != null && profileRow.email.isNotEmpty)
+          ? profileRow.email
+          : (authState.email?.isNotEmpty == true ? authState.email! : state.email);
+
+      final effectiveBusinessName = (profileRow != null && profileRow.businessName?.isNotEmpty == true)
+          ? profileRow.businessName!
+          : (activeComp?.name.isNotEmpty == true ? activeComp!.name : state.businessName);
+
+      final effectiveGstin = (profileRow != null && profileRow.gstin?.isNotEmpty == true)
+          ? profileRow.gstin!
+          : (activeComp?.gstin ?? state.gstin);
+
+      final effectiveAddress = (profileRow != null && profileRow.address?.isNotEmpty == true)
+          ? profileRow.address!
+          : (activeComp?.address ?? state.address);
+
+      Role userRole = Role.admin;
+      if (profileRow != null) {
         try {
           userRole = Role.values.byName(profileRow.role.toLowerCase());
         } catch (_) {}
+      }
 
+      if (ref.mounted) {
         state = UserProfile(
-          id: profileRow.id,
-          name: profileRow.name,
-          phoneNumber: profileRow.phoneNumber,
-          email: profileRow.email,
-          businessName: profileRow.businessName,
-          address: profileRow.address,
-          gstin: profileRow.gstin,
-          businessType: profileRow.businessType,
-          bankName: profileRow.bankName,
-          bankAccountNumber: profileRow.bankAccountNumber,
-          bankIfsc: profileRow.bankIfsc,
-          upiId: profileRow.upiId,
+          id: profileRow?.id ?? userId,
+          name: effectiveName,
+          phoneNumber: effectivePhone,
+          email: effectiveEmail,
+          businessName: effectiveBusinessName,
+          address: effectiveAddress,
+          gstin: effectiveGstin,
+          businessType: profileRow?.businessType ?? state.businessType,
+          bankName: profileRow?.bankName ?? activeComp?.bankName ?? state.bankName,
+          bankAccountNumber: profileRow?.bankAccountNumber ??
+              activeComp?.bankAccountNumber ??
+              state.bankAccountNumber,
+          bankIfsc: profileRow?.bankIfsc ?? activeComp?.bankIfsc ?? state.bankIfsc,
+          upiId: profileRow?.upiId ?? activeComp?.upiId ?? state.upiId,
           role: userRole,
           activeCompanyId: effectiveActiveId,
-          companies: state.companies,
+          companies: loadedCompanies.isNotEmpty ? loadedCompanies : state.companies,
         );
 
         if (savedActiveId == null && effectiveActiveId.isNotEmpty) {

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' as drift;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,9 +11,14 @@ import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_controls.dart';
 import '../../core/widgets/adaptive_picker.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
-import '../../core/widgets/liquid_glass_card.dart';
+import '../../core/widgets/adaptive_section_header.dart';
+import '../../core/widgets/adaptive_segmented_control.dart';
+import '../../data/local/database.dart';
+import '../../data/local/outbox_helper.dart';
 import '../../domain/models/workspace_profile_header.dart';
 import '../providers/auth_providers.dart';
+import '../providers/database_providers.dart';
+import '../providers/profile_provider.dart';
 import '../providers/profile_session_controller.dart';
 import 'app_root_gate.dart';
 
@@ -114,10 +120,69 @@ class _ProfileOnboardingScreenState
       await prefs?.setString('last_active_company_id_${widget.userId}', created.id);
       await prefs?.setString('last_active_company_id', created.id);
 
-      // Reload profile session so state machine transitions to active profile
+      // Populate user_profiles in local database with details given during signup & onboarding
+      final authState = ref.read(authControllerProvider);
+      final accountName = (widget.initialName != null && widget.initialName!.trim().isNotEmpty)
+          ? widget.initialName!.trim()
+          : (authState.userName?.isNotEmpty == true ? authState.userName! : name);
+      final accountEmail = authState.email ?? '';
+      final accountPhone = authState.phoneNumber ?? '';
+
+      final db = ref.read(appDatabaseProvider);
+      final now = DateTime.now();
+
+      await db.into(db.userProfiles).insertOnConflictUpdate(
+        UserProfilesCompanion.insert(
+          id: widget.userId,
+          name: accountName,
+          phoneNumber: accountPhone,
+          email: accountEmail,
+          businessName: drift.Value(name),
+          address: const drift.Value(''),
+          gstin: drift.Value(_selectedType == ProfileType.ledger && _gstinController.text.trim().isNotEmpty
+              ? _gstinController.text.trim().toUpperCase()
+              : null),
+          activeCompanyId: drift.Value(created.id),
+          role: const drift.Value('admin'),
+          updatedAt: drift.Value(now),
+          syncStatus: const drift.Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      try {
+        await enqueueMutation(
+          db: db,
+          table: 'user_profiles',
+          recordId: widget.userId,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': widget.userId,
+            'name': accountName,
+            'phone_number': accountPhone,
+            'phoneNumber': accountPhone,
+            'email': accountEmail,
+            'business_name': name,
+            'businessName': name,
+            'address': '',
+            'gstin': _selectedType == ProfileType.ledger && _gstinController.text.trim().isNotEmpty
+                ? _gstinController.text.trim().toUpperCase()
+                : null,
+            'active_company_id': created.id,
+            'activeCompanyId': created.id,
+            'role': 'admin',
+            'is_deleted': false,
+            'isDeleted': false,
+            'updated_at': now.toIso8601String(),
+            'updatedAt': now,
+          },
+        );
+      } catch (_) {}
+
+      // Reload profile session and user profile so state machine transitions to active profile
       await ref
           .read(profileSessionProvider.notifier)
           .loadProfilesForUser(widget.userId);
+      await ref.read(userProfileProvider.notifier).reloadFromDatabase();
 
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
@@ -141,110 +206,131 @@ class _ProfileOnboardingScreenState
   @override
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark ||
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
+    final colorScheme = theme.colorScheme;
 
     final primaryText =
         isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
     final secondaryText =
         isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
 
+    final canPop = ModalRoute.of(context)?.canPop ?? false;
+
     return AdaptiveScaffold(
       title: 'Setup Your Workspace',
       actions: [
-        if (isIos)
-          CupertinoButton(
-            padding: EdgeInsets.zero,
-            onPressed: _handleLogout,
-            child: Icon(
-              CupertinoIcons.square_arrow_right,
-              size: 22,
-              color: isDark
-                  ? AppColors.textSecondaryDark
-                  : AppColors.textSecondaryLight,
+        if (!canPop)
+          if (isIos)
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              onPressed: _handleLogout,
+              child: Icon(
+                CupertinoIcons.square_arrow_right,
+                size: 22,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.logout_rounded),
+              tooltip: 'Sign Out',
+              onPressed: _handleLogout,
             ),
-          )
-        else
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Sign Out',
-            onPressed: _handleLogout,
-          ),
       ],
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              // Minimal Header
               Text(
                 'Select Workspace Type',
-                style: AppTypography.titleMedium.copyWith(
+                style: AppTypography.titleLarge.copyWith(
                   fontWeight: FontWeight.bold,
                   color: primaryText,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
-                'Choose how you want to manage your records. Workspace type is permanent and immutable.',
-                style: AppTypography.bodySmall.copyWith(color: secondaryText),
+                'Choose how you want to manage your records and enter profile details.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: secondaryText,
+                ),
               ),
               const SizedBox(height: 20),
 
-              // Mode Selection Cards (Side-by-side or stacked on narrow)
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTypeCard(
-                      type: ProfileType.expense,
-                      title: 'Personal & Expense',
-                      subtitle:
-                          'Track cash wallets, personal income, categories & budgets.',
-                      icon: isIos
-                          ? CupertinoIcons.money_dollar_circle
-                          : Icons.account_balance_wallet_outlined,
-                      isSelected: _selectedType == ProfileType.expense,
-                      accentColor: AppColors.primaryGreen,
-                      isDark: isDark,
-                      isIos: isIos,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: _buildTypeCard(
-                      type: ProfileType.ledger,
-                      title: 'Business Ledger',
-                      subtitle:
-                          'Full double-entry bookkeeping, GST invoicing, parties & inventory.',
-                      icon: isIos
-                          ? CupertinoIcons.building_2_fill
-                          : Icons.business_outlined,
-                      isSelected: _selectedType == ProfileType.ledger,
-                      accentColor: AppColors.primaryBlue,
-                      isDark: isDark,
-                      isIos: isIos,
-                    ),
-                  ),
-                ],
+              // Section Header
+              const AdaptiveSectionHeader(
+                title: 'WORKSPACE TYPE',
+                padding: EdgeInsets.only(bottom: 10),
               ),
-              const SizedBox(height: 28),
 
-              // Immutability Notice Banner
-              _buildImmutabilityBanner(isDark, isIos),
-              const SizedBox(height: 28),
+              // Material 3 / Cupertino Adaptive Segmented Control
+              AdaptiveSegmentedControl<ProfileType>(
+                groupValue: _selectedType,
+                children: const {
+                  ProfileType.expense: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      'Personal & Expense',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  ProfileType.ledger: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      'Business Ledger',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                },
+                onValueChanged: (val) {
+                  HapticFeedback.lightImpact();
+                  setState(() {
+                    _selectedType = val;
+                    _errorMessage = null;
+                  });
+                },
+              ),
+              const SizedBox(height: 12),
 
-              // Form Section Title
+              // Selected Mode Minimal Description
               Text(
                 _selectedType == ProfileType.expense
-                    ? 'Expense Profile Setup'
-                    : 'Business Details & Compliance',
-                style: AppTypography.titleMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: primaryText,
+                    ? 'Track cash wallets, personal income, categories, and budgets.'
+                    : 'Full double-entry bookkeeping, GST invoicing, parties, and inventory.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: secondaryText,
+                  height: 1.35,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.only(left: 1),
+                child: Text(
+                  'Workspace type cannot be changed after creation.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: isDark
+                        ? AppColors.textMutedDark
+                        : AppColors.textMutedLight,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Form Section Header
+              AdaptiveSectionHeader(
+                title: _selectedType == ProfileType.expense
+                    ? 'Expense Profile Setup'
+                    : 'Business Details & Compliance',
+                padding: const EdgeInsets.only(bottom: 12),
+              ),
 
               // Fields
               if (_selectedType == ProfileType.expense) ...[
@@ -253,21 +339,36 @@ class _ProfileOnboardingScreenState
                   label: 'Profile Name',
                   hint: 'e.g. Samir Personal, Household Budget',
                   icon: isIos
-                      ? CupertinoIcons.person_crop_circle
-                      : Icons.person_outline,
+                      ? CupertinoIcons.person
+                      : Icons.person_outline_rounded,
                   isDark: isDark,
                   isIos: isIos,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _handleCreate(),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 AdaptiveDropdownField<String>(
                   label: 'Currency',
                   value: _selectedCurrency,
+                  prefixIcon: Icon(
+                    isIos
+                        ? CupertinoIcons.money_dollar
+                        : Icons.currency_exchange_rounded,
+                    size: 20,
+                    color: isDark
+                        ? colorScheme.onSurfaceVariant
+                        : AppColors.textSecondaryLight,
+                  ),
                   items: const [
                     AdaptivePickerItem(label: 'INR - Indian Rupee (₹)', value: 'INR'),
                     AdaptivePickerItem(label: 'USD - US Dollar (\$)', value: 'USD'),
                     AdaptivePickerItem(label: 'EUR - Euro (€)', value: 'EUR'),
                     AdaptivePickerItem(label: 'GBP - British Pound (£)', value: 'GBP'),
                     AdaptivePickerItem(label: 'AED - UAE Dirham (د.إ)', value: 'AED'),
+                    AdaptivePickerItem(label: 'SGD - Singapore Dollar (S\$)', value: 'SGD'),
+                    AdaptivePickerItem(label: 'CAD - Canadian Dollar (C\$)', value: 'CAD'),
+                    AdaptivePickerItem(label: 'AUD - Australian Dollar (A\$)', value: 'AUD'),
                   ],
                   onChanged: (val) {
                     if (val != null) setState(() => _selectedCurrency = val);
@@ -283,39 +384,58 @@ class _ProfileOnboardingScreenState
                       : Icons.business_outlined,
                   isDark: isDark,
                   isIos: isIos,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 _buildAdaptiveInputField(
                   controller: _legalNameController,
                   label: 'Legal Registered Name (Optional)',
                   hint: 'e.g. Apex Traders Private Limited',
                   icon: isIos
-                      ? CupertinoIcons.doc_plaintext
+                      ? CupertinoIcons.doc_text
                       : Icons.description_outlined,
                   isDark: isDark,
                   isIos: isIos,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.next,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 _buildAdaptiveInputField(
                   controller: _gstinController,
                   label: 'GSTIN (Optional)',
                   hint: '15-digit GST identification number',
                   icon: isIos
-                      ? CupertinoIcons.number_circle
-                      : Icons.confirmation_number_outlined,
+                      ? CupertinoIcons.number
+                      : Icons.pin_outlined,
                   isDark: isDark,
                   isIos: isIos,
+                  textCapitalization: TextCapitalization.characters,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _handleCreate(),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 AdaptiveDropdownField<String>(
                   label: 'Primary Currency',
                   value: _selectedCurrency,
+                  prefixIcon: Icon(
+                    isIos
+                        ? CupertinoIcons.money_dollar
+                        : Icons.currency_exchange_rounded,
+                    size: 20,
+                    color: isDark
+                        ? colorScheme.onSurfaceVariant
+                        : AppColors.textSecondaryLight,
+                  ),
                   items: const [
                     AdaptivePickerItem(label: 'INR - Indian Rupee (₹)', value: 'INR'),
                     AdaptivePickerItem(label: 'USD - US Dollar (\$)', value: 'USD'),
                     AdaptivePickerItem(label: 'EUR - Euro (€)', value: 'EUR'),
                     AdaptivePickerItem(label: 'GBP - British Pound (£)', value: 'GBP'),
                     AdaptivePickerItem(label: 'AED - UAE Dirham (د.إ)', value: 'AED'),
+                    AdaptivePickerItem(label: 'SGD - Singapore Dollar (S\$)', value: 'SGD'),
+                    AdaptivePickerItem(label: 'CAD - Canadian Dollar (C\$)', value: 'CAD'),
+                    AdaptivePickerItem(label: 'AUD - Australian Dollar (A\$)', value: 'AUD'),
                   ],
                   onChanged: (val) {
                     if (val != null) setState(() => _selectedCurrency = val);
@@ -325,174 +445,44 @@ class _ProfileOnboardingScreenState
 
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(color: Colors.red, fontSize: 13),
+                Row(
+                  children: [
+                    Icon(
+                      isIos
+                          ? CupertinoIcons.exclamationmark_circle
+                          : Icons.error_outline_rounded,
+                      color: isIos
+                          ? CupertinoColors.destructiveRed
+                          : colorScheme.error,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: TextStyle(
+                          color: isIos
+                              ? CupertinoColors.destructiveRed
+                              : colorScheme.error,
+                          fontSize: 13,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ],
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 28),
 
               AdaptiveButton(
                 onPressed: _isCreating ? null : _handleCreate,
                 isFullWidth: true,
                 isLoading: _isCreating,
-                child: Text(
-                  _isCreating
-                      ? 'Creating Workspace...'
-                      : 'Complete & Open Workspace',
-                ),
+                child: const Text('Complete & Open Workspace'),
               ),
+              const SizedBox(height: 16),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildImmutabilityBanner(bool isDark, bool isIos) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.primaryBlue.withValues(alpha: isDark ? 0.12 : 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppColors.primaryBlue.withValues(alpha: 0.25),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            isIos ? CupertinoIcons.info_circle : Icons.info_outline,
-            color: AppColors.primaryBlue,
-            size: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Domain Rule: A workspace type cannot be altered after creation. Personal Expense and Business Ledger maintain separate database records and synchronization guarantees.',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.white70 : Colors.black87,
-                height: 1.4,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTypeCard({
-    required ProfileType type,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool isSelected,
-    required Color accentColor,
-    required bool isDark,
-    required bool isIos,
-  }) {
-    final borderCol = isSelected
-        ? accentColor
-        : (isDark
-            ? Colors.white.withValues(alpha: 0.12)
-            : Colors.black.withValues(alpha: 0.1));
-
-    final cardContent = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: isSelected
-                ? accentColor.withValues(alpha: 0.15)
-                : (isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            icon,
-            size: 24,
-            color: isSelected ? accentColor : (isDark ? Colors.white70 : Colors.black54),
-          ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          title,
-          style: AppTypography.titleSmall.copyWith(
-            fontWeight: FontWeight.bold,
-            color: isSelected ? accentColor : (isDark ? Colors.white : Colors.black87),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          subtitle,
-          style: AppTypography.bodySmall.copyWith(
-            fontSize: 11,
-            color: isDark ? Colors.white54 : Colors.black54,
-            height: 1.35,
-          ),
-        ),
-      ],
-    );
-
-    if (isIos) {
-      return GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          setState(() => _selectedType = type);
-        },
-        child: LiquidGlassCard(
-          borderRadius: 18,
-          borderColor: borderCol,
-          padding: const EdgeInsets.all(16),
-          child: cardContent,
-        ),
-      );
-    }
-
-    return Card(
-      elevation: isSelected ? 2 : 0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: borderCol,
-          width: isSelected ? 2.0 : 1.0,
-        ),
-      ),
-      color: isSelected
-          ? accentColor.withValues(alpha: 0.08)
-          : (isDark
-              ? Theme.of(context).colorScheme.surfaceContainerLow
-              : AppColors.surfaceWhite),
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          setState(() => _selectedType = type);
-        },
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: cardContent,
         ),
       ),
     );
@@ -505,6 +495,9 @@ class _ProfileOnboardingScreenState
     required IconData icon,
     required bool isDark,
     required bool isIos,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    TextInputAction textInputAction = TextInputAction.next,
+    ValueChanged<String>? onSubmitted,
   }) {
     if (isIos) {
       return Column(
@@ -517,7 +510,9 @@ class _ProfileOnboardingScreenState
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white70 : Colors.black87,
+                color: isDark
+                    ? AppColors.textSecondaryDark
+                    : AppColors.textSecondaryLight,
               ),
             ),
           ),
@@ -525,21 +520,41 @@ class _ProfileOnboardingScreenState
             controller: controller,
             placeholder: hint,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            textCapitalization: textCapitalization,
+            textInputAction: textInputAction,
+            onSubmitted: onSubmitted,
+            style: TextStyle(
+              fontSize: 15,
+              color: isDark
+                  ? AppColors.textPrimaryDark
+                  : AppColors.textPrimaryLight,
+            ),
+            placeholderStyle: TextStyle(
+              fontSize: 15,
+              color: isDark
+                  ? AppColors.textMutedDark
+                  : AppColors.textMutedLight,
+            ),
             prefix: Padding(
               padding: const EdgeInsets.only(left: 12.0),
               child: Icon(
                 icon,
                 size: 20,
-                color: isDark ? CupertinoColors.systemGrey : CupertinoColors.systemGrey2,
+                color: isDark
+                    ? CupertinoColors.systemGrey
+                    : CupertinoColors.systemGrey2,
               ),
             ),
             decoration: BoxDecoration(
-              color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceLight,
+              color: isDark
+                  ? AppColors.surfaceCardDark
+                  : AppColors.surfaceWhite,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: isDark
-                    ? Colors.white.withValues(alpha: 0.15)
-                    : Colors.black.withValues(alpha: 0.12),
+                    ? const Color(0xFF27272A)
+                    : AppColors.borderLight,
+                width: 1,
               ),
             ),
           ),
@@ -549,15 +564,13 @@ class _ProfileOnboardingScreenState
 
     return TextField(
       controller: controller,
+      textCapitalization: textCapitalization,
+      textInputAction: textInputAction,
+      onSubmitted: onSubmitted,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        filled: true,
-        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
       ),
     );
   }

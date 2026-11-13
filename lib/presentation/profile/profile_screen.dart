@@ -9,12 +9,12 @@ import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../core/widgets/splitting_fab.dart';
+import '../../data/models/company_model.dart';
 import '../../data/models/user_profile_model.dart';
 import '../auth/app_root_gate.dart';
 import '../auth/profile_selector_screen.dart';
 import '../home/company_switcher_sheet.dart';
 import '../home/sync_settings_sheet.dart';
-import '../../data/models/company_mode.dart';
 import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
@@ -314,6 +314,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       }
     });
 
+    ref.listen<UserProfile>(userProfileProvider, (previous, next) {
+      if (!_isEditing && !_hasChanges && mounted) {
+        _nameController.text = next.name;
+        _businessNameController.text = next.businessName;
+        _phoneController.text = next.phoneNumber;
+        _emailController.text = next.email;
+        _addressController.text = next.address;
+        _gstinController.text = next.gstin;
+        _businessTypeController.text = next.businessType ?? '';
+        _bankNameController.text = next.bankName ?? '';
+        _bankAccountController.text = next.bankAccountNumber ?? '';
+        _bankIfscController.text = next.bankIfsc ?? '';
+        _upiIdController.text = next.upiId ?? '';
+      }
+    });
+
+    ref.listen<Company>(activeCompanyProvider, (previous, next) {
+      if (!_isEditing && !_hasChanges && mounted) {
+        if (_businessNameController.text.isEmpty && next.name.isNotEmpty) {
+          _businessNameController.text = next.name;
+        }
+        if (_gstinController.text.isEmpty && next.gstin != null && next.gstin!.isNotEmpty) {
+          _gstinController.text = next.gstin!;
+        }
+        if (_addressController.text.isEmpty && next.address != null && next.address!.isNotEmpty) {
+          _addressController.text = next.address!;
+        }
+      }
+    });
+
     final route = ModalRoute.of(context);
     final isStandalone = widget.isStandalone ?? (route != null && !route.isFirst);
 
@@ -343,7 +373,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _buildActionTile(
                 context,
                 title: 'Active Company',
-                subtitle: profile.activeCompany.name,
+                subtitle: profile.activeCompany.name.isNotEmpty
+                    ? profile.activeCompany.name
+                    : (activeCompany.name.isNotEmpty
+                        ? activeCompany.name
+                        : (profile.businessName.isNotEmpty ? profile.businessName : 'My Workspace')),
                 icon: isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded,
                 isIos: isIos,
                 trailing: Chip(
@@ -493,11 +527,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 sizeCurve: Curves.easeInOutCubic,
                 crossFadeState: _isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
                 firstChild: _buildReadOnlyCard(context, isIos, [
-                  _buildReadOnlyRow(context, 'Full Name', profile.name, isIos ? CupertinoIcons.person : Icons.person_outline),
+                  _buildReadOnlyRow(
+                    context,
+                    'Full Name',
+                    profile.name.isNotEmpty
+                        ? profile.name
+                        : (ref.watch(authControllerProvider).userName ?? ''),
+                    isIos ? CupertinoIcons.person : Icons.person_outline,
+                  ),
                   const SizedBox(height: 16),
-                  _buildReadOnlyRow(context, 'Phone Number', profile.phoneNumber, isIos ? CupertinoIcons.phone : Icons.phone_outlined),
+                  _buildReadOnlyRow(
+                    context,
+                    'Phone Number',
+                    profile.phoneNumber.isNotEmpty
+                        ? profile.phoneNumber
+                        : (ref.watch(authControllerProvider).phoneNumber ?? ''),
+                    isIos ? CupertinoIcons.phone : Icons.phone_outlined,
+                  ),
                   const SizedBox(height: 16),
-                  _buildReadOnlyRow(context, 'Email Address', profile.email, isIos ? CupertinoIcons.mail : Icons.email_outlined),
+                  _buildReadOnlyRow(
+                    context,
+                    'Email Address',
+                    profile.email.isNotEmpty
+                        ? profile.email
+                        : (ref.watch(authControllerProvider).email ?? ''),
+                    isIos ? CupertinoIcons.mail : Icons.email_outlined,
+                  ),
                 ]),
                 secondChild: Padding(
                   padding: const EdgeInsets.only(top: 8, bottom: 4),
@@ -758,6 +813,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     bool isIos,
     bool isDark,
   ) {
+    final activeCompany = ref.watch(activeCompanyProvider);
+    final isExpense = activeCompany.mode == CompanyMode.expenseTracker;
     final cardContent = Padding(
       padding: const EdgeInsets.all(20.0),
       child: Row(
@@ -801,14 +858,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  profile.name,
+                  profile.name.isNotEmpty
+                      ? profile.name
+                      : (ref.watch(authControllerProvider).userName ?? 'My Profile'),
                   style: AppTypography.titleMedium.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  profile.businessName,
+                  profile.businessName.isNotEmpty
+                      ? profile.businessName
+                      : (activeCompany.name.isNotEmpty
+                          ? activeCompany.name
+                          : (isExpense ? 'Personal Workspace' : 'Business Workspace')),
                   style: AppTypography.bodySmall.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -821,7 +884,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    profile.phoneNumber,
+                    profile.phoneNumber.isNotEmpty
+                        ? profile.phoneNumber
+                        : (ref.watch(authControllerProvider).phoneNumber ?? 'No Phone'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,

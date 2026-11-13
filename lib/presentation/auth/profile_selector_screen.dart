@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/constants/colors.dart';
 import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
@@ -29,13 +28,14 @@ class ProfileSelectorScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark ||
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark =
+        theme.brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
-    final primaryText =
-        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
-    final secondaryText =
-        isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
+    final primaryText = colorScheme.onSurface;
+    final secondaryText = colorScheme.onSurfaceVariant;
 
     final sessionState = ref.watch(profileSessionProvider);
     final activeId = sessionState is ActiveProfileReadySessionState
@@ -48,12 +48,18 @@ class ProfileSelectorScreen extends ConsumerWidget {
         if (isIos)
           CupertinoButton(
             padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: const Text('Sign Out', style: TextStyle(color: Colors.red)),
+            child: Text(
+              'Sign Out',
+              style: TextStyle(
+                color: CupertinoColors.destructiveRed,
+                fontSize: 15,
+              ),
+            ),
             onPressed: () => _handleLogout(context, ref),
           )
         else
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: Colors.red),
+            icon: Icon(Icons.logout_rounded, color: colorScheme.error),
             tooltip: 'Sign Out',
             onPressed: () => _handleLogout(context, ref),
           ),
@@ -80,7 +86,7 @@ class ProfileSelectorScreen extends ConsumerWidget {
 
               Expanded(
                 child: profiles.isEmpty
-                    ? _buildEmptyState(context, isDark, isIos)
+                    ? _buildEmptyState(context, colorScheme, isDark, isIos)
                     : ListView.separated(
                         itemCount: profiles.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 12),
@@ -89,6 +95,7 @@ class ProfileSelectorScreen extends ConsumerWidget {
                           final isActive = p.id == activeId;
                           return _buildProfileItem(
                             context: context,
+                            colorScheme: colorScheme,
                             profile: p,
                             isActive: isActive,
                             isDark: isDark,
@@ -102,7 +109,8 @@ class ProfileSelectorScreen extends ConsumerWidget {
                               Navigator.of(context).pushAndRemoveUntil(
                                 createAdaptivePageRoute(
                                   builder: (_) => const AppRootGate(),
-                                  transitionType: SharedAxisTransitionType.scaled,
+                                  transitionType:
+                                      SharedAxisTransitionType.scaled,
                                 ),
                                 (route) => false,
                               );
@@ -149,7 +157,12 @@ class ProfileSelectorScreen extends ConsumerWidget {
     }
   }
 
-  Widget _buildEmptyState(BuildContext context, bool isDark, bool isIos) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    ColorScheme colorScheme,
+    bool isDark,
+    bool isIos,
+  ) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -158,13 +171,13 @@ class ProfileSelectorScreen extends ConsumerWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: AppColors.primaryBlueLight,
+              color: colorScheme.primaryContainer.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(18),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.workspaces_outline,
               size: 32,
-              color: AppColors.primaryBlue,
+              color: colorScheme.primary,
             ),
           ),
           const SizedBox(height: 16),
@@ -172,14 +185,14 @@ class ProfileSelectorScreen extends ConsumerWidget {
             'No workspaces found',
             style: AppTypography.titleSmall.copyWith(
               fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
+              color: colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             'Set up your first Personal Expense or Business Ledger workspace.',
             style: AppTypography.bodySmall.copyWith(
-              color: isDark ? Colors.white60 : Colors.black54,
+              color: colorScheme.onSurfaceVariant,
             ),
             textAlign: TextAlign.center,
           ),
@@ -190,6 +203,7 @@ class ProfileSelectorScreen extends ConsumerWidget {
 
   Widget _buildProfileItem({
     required BuildContext context,
+    required ColorScheme colorScheme,
     required WorkspaceProfileHeader profile,
     required bool isActive,
     required bool isDark,
@@ -197,8 +211,9 @@ class ProfileSelectorScreen extends ConsumerWidget {
     required VoidCallback onTap,
   }) {
     final isExpense = profile.isExpense;
-    final accentColor =
-        isExpense ? AppColors.primaryGreen : AppColors.primaryBlue;
+    final accentColor = isExpense
+        ? colorScheme.primary
+        : colorScheme.secondary;
 
     final itemContent = Row(
       children: [
@@ -212,11 +227,11 @@ class ProfileSelectorScreen extends ConsumerWidget {
           child: Icon(
             isExpense
                 ? (isIos
-                    ? CupertinoIcons.money_dollar_circle
-                    : Icons.account_balance_wallet_outlined)
+                      ? CupertinoIcons.money_dollar_circle
+                      : Icons.account_balance_wallet_outlined)
                 : (isIos
-                    ? CupertinoIcons.building_2_fill
-                    : Icons.business_outlined),
+                      ? CupertinoIcons.building_2_fill
+                      : Icons.business_outlined),
             color: accentColor,
             size: 24,
           ),
@@ -233,7 +248,7 @@ class ProfileSelectorScreen extends ConsumerWidget {
                       profile.name,
                       style: AppTypography.titleSmall.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : Colors.black87,
+                        color: colorScheme.onSurface,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -247,15 +262,15 @@ class ProfileSelectorScreen extends ConsumerWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryGreen.withValues(alpha: 0.15),
+                        color: colorScheme.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
+                      child: Text(
                         'ACTIVE',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.primaryGreen,
+                          color: colorScheme.primary,
                         ),
                       ),
                     ),
@@ -265,8 +280,10 @@ class ProfileSelectorScreen extends ConsumerWidget {
               Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: accentColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(6),
@@ -286,7 +303,7 @@ class ProfileSelectorScreen extends ConsumerWidget {
                     'Role: ${profile.role.displayName}',
                     style: TextStyle(
                       fontSize: 11,
-                      color: isDark ? Colors.white54 : Colors.black54,
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   if (profile.currencyCode.isNotEmpty) ...[
@@ -295,7 +312,7 @@ class ProfileSelectorScreen extends ConsumerWidget {
                       '• ${profile.currencyCode}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: isDark ? Colors.white38 : Colors.black38,
+                        color: colorScheme.outline,
                       ),
                     ),
                   ],
@@ -306,9 +323,11 @@ class ProfileSelectorScreen extends ConsumerWidget {
         ),
         const SizedBox(width: 8),
         Icon(
-          isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
+          isIos
+              ? CupertinoIcons.chevron_forward
+              : Icons.arrow_forward_ios_rounded,
           size: 16,
-          color: isDark ? Colors.white38 : Colors.black38,
+          color: colorScheme.outline,
         ),
       ],
     );
@@ -319,10 +338,10 @@ class ProfileSelectorScreen extends ConsumerWidget {
         child: LiquidGlassCard(
           borderRadius: 18,
           borderColor: isActive
-              ? AppColors.primaryGreen
+              ? colorScheme.primary
               : (isDark
-                  ? Colors.white.withValues(alpha: 0.12)
-                  : Colors.black.withValues(alpha: 0.08)),
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.black.withValues(alpha: 0.08)),
           padding: const EdgeInsets.all(14),
           child: itemContent,
         ),
@@ -336,21 +355,18 @@ class ProfileSelectorScreen extends ConsumerWidget {
         borderRadius: BorderRadius.circular(18),
         side: BorderSide(
           color: isActive
-              ? AppColors.primaryGreen
+              ? colorScheme.primary
               : (isDark
-                  ? Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.3)
-                  : Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4)),
+                    ? colorScheme.outlineVariant.withValues(alpha: 0.3)
+                    : colorScheme.outlineVariant.withValues(alpha: 0.4)),
           width: isActive ? 1.8 : 1.0,
         ),
       ),
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      color: colorScheme.surfaceContainerLow,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.all(14.0),
-          child: itemContent,
-        ),
+        child: Padding(padding: const EdgeInsets.all(14.0), child: itemContent),
       ),
     );
   }

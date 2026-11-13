@@ -11,6 +11,13 @@ class UserProfile {
   final String activeCompanyId;
   final Role role;
   final List<UserCompanyRole> companyRoles;
+  final String? _businessNameDirect;
+  final String? _addressDirect;
+  final String? _gstinDirect;
+  final String? _bankNameDirect;
+  final String? _bankAccountNumberDirect;
+  final String? _bankIfscDirect;
+  final String? _upiIdDirect;
 
   UserProfile({
     this.id = 'usr_default',
@@ -29,15 +36,25 @@ class UserProfile {
     String? activeCompanyId,
     this.role = Role.admin,
     this.companyRoles = const [],
-  })  : activeCompanyId = activeCompanyId ??
+  })  : _businessNameDirect = businessName,
+        _addressDirect = address,
+        _gstinDirect = gstin,
+        _bankNameDirect = bankName,
+        _bankAccountNumberDirect = bankAccountNumber,
+        _bankIfscDirect = bankIfsc,
+        _upiIdDirect = upiId,
+        activeCompanyId = activeCompanyId ??
             (companies != null && companies.isNotEmpty
                 ? companies.first.id
                 : ''),
-        companies = companies ??
-            ((businessName != null && businessName.isNotEmpty)
+        companies = (companies != null && companies.isNotEmpty)
+            ? companies
+            : ((businessName != null && businessName.isNotEmpty)
                 ? [
                     Company(
-                      id: activeCompanyId ?? 'cmp_${DateTime.now().millisecondsSinceEpoch}',
+                      id: (activeCompanyId != null && activeCompanyId.isNotEmpty)
+                          ? activeCompanyId
+                          : 'cmp_${DateTime.now().millisecondsSinceEpoch}',
                       name: businessName,
                       legalName: businessName,
                       gstin: gstin,
@@ -59,8 +76,16 @@ class UserProfile {
     if (companies.isEmpty) {
       return Company(
         id: activeCompanyId,
-        name: '',
-        legalName: '',
+        name: _businessNameDirect ?? '',
+        legalName: _businessNameDirect ?? '',
+        gstin: _gstinDirect,
+        address: _addressDirect,
+        phoneNumber: phoneNumber,
+        email: email,
+        bankName: _bankNameDirect,
+        bankAccountNumber: _bankAccountNumberDirect,
+        bankIfsc: _bankIfscDirect,
+        upiId: _upiIdDirect,
         createdAt: DateTime.fromMillisecondsSinceEpoch(0),
         updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
       );
@@ -71,13 +96,19 @@ class UserProfile {
     );
   }
 
-  String get businessName => activeCompany.name;
-  String get address => activeCompany.address ?? '';
-  String get gstin => activeCompany.gstin ?? '';
-  String? get bankName => activeCompany.bankName;
-  String? get bankAccountNumber => activeCompany.bankAccountNumber;
-  String? get bankIfsc => activeCompany.bankIfsc;
-  String? get upiId => activeCompany.upiId;
+  String get businessName => activeCompany.name.isNotEmpty
+      ? activeCompany.name
+      : (_businessNameDirect ?? '');
+  String get address => activeCompany.address?.isNotEmpty == true
+      ? activeCompany.address!
+      : (_addressDirect ?? '');
+  String get gstin => activeCompany.gstin?.isNotEmpty == true
+      ? activeCompany.gstin!
+      : (_gstinDirect ?? '');
+  String? get bankName => activeCompany.bankName ?? _bankNameDirect;
+  String? get bankAccountNumber => activeCompany.bankAccountNumber ?? _bankAccountNumberDirect;
+  String? get bankIfsc => activeCompany.bankIfsc ?? _bankIfscDirect;
+  String? get upiId => activeCompany.upiId ?? _upiIdDirect;
 
   Role roleForCompany(String companyId) {
     for (final cr in companyRoles) {
@@ -138,6 +169,13 @@ class UserProfile {
       name: name ?? this.name,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       email: email ?? this.email,
+      businessName: businessName ?? this.businessName,
+      address: address ?? this.address,
+      gstin: gstin ?? this.gstin,
+      bankName: bankName ?? this.bankName,
+      bankAccountNumber: bankAccountNumber ?? this.bankAccountNumber,
+      bankIfsc: bankIfsc ?? this.bankIfsc,
+      upiId: upiId ?? this.upiId,
       businessType: businessType ?? this.businessType,
       companies: updatedCompanies,
       activeCompanyId: activeCompanyId ?? this.activeCompanyId,

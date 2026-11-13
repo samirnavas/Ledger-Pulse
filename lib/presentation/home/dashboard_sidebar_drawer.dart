@@ -676,7 +676,7 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                       child: Icon(
                         isIos
                             ? CupertinoIcons.gear_alt_fill
-                            : Icons.settings_suggest_rounded,
+                            : Icons.settings_rounded,
                         color: isIos
                             ? CupertinoColors.activeBlue
                             : colorScheme.primary,

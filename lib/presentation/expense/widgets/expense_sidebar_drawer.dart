@@ -22,18 +22,21 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark ||
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
 
     final activeCompany = ref.watch(activeCompanyProvider);
     final modeStrings = ModeStrings.of(activeCompany.mode);
-    final isRecurringEnabled = activeCompany.isModuleEnabled(AppModule.recurring);
+    final isRecurringEnabled = activeCompany.isModuleEnabled(
+      AppModule.recurring,
+    );
 
     final drawerBg = isIos
         ? (isDark
-            ? AppColors.surfaceDark.withValues(alpha: 0.93)
-            : AppColors.surfaceLight.withValues(alpha: 0.93))
+              ? AppColors.surfaceDark.withValues(alpha: 0.93)
+              : AppColors.surfaceLight.withValues(alpha: 0.93))
         : colorScheme.surfaceContainerLow;
 
     return Drawer(
@@ -48,15 +51,15 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: isIos
                     ? (isDark
-                        ? AppColors.surfaceCardDark.withValues(alpha: 0.55)
-                        : Colors.white.withValues(alpha: 0.8))
+                          ? AppColors.surfaceCardDark.withValues(alpha: 0.55)
+                          : Colors.white.withValues(alpha: 0.8))
                     : colorScheme.surfaceContainer,
                 border: Border(
                   bottom: BorderSide(
                     color: isIos
                         ? (isDark
-                            ? Colors.white.withValues(alpha: 0.12)
-                            : Colors.black.withValues(alpha: 0.08))
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : Colors.black.withValues(alpha: 0.08))
                         : colorScheme.outlineVariant.withValues(alpha: 0.5),
                     width: 1,
                   ),
@@ -67,10 +70,11 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: (isIos
-                              ? CupertinoColors.activeBlue
-                              : colorScheme.primary)
-                          .withValues(alpha: 0.12),
+                      color:
+                          (isIos
+                                  ? CupertinoColors.activeBlue
+                                  : colorScheme.primary)
+                              .withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
@@ -138,10 +142,11 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (isIos
-                                ? CupertinoColors.activeBlue
-                                : colorScheme.primary)
-                            .withValues(alpha: 0.12),
+                        color:
+                            (isIos
+                                    ? CupertinoColors.activeBlue
+                                    : colorScheme.primary)
+                                .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                       ),
                       child: Icon(
@@ -188,21 +193,81 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                     },
                   ),
 
-                  // 2. Settings
+                  // 2. Recurring Rules (only if module enabled)
+                  if (isRecurringEnabled)
+                    ListTile(
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color:
+                              (isIos
+                                      ? CupertinoColors.systemOrange
+                                      : Colors.orange)
+                                  .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(isIos ? 10 : 14),
+                        ),
+                        child: Icon(
+                          isIos ? CupertinoIcons.repeat : Icons.update_rounded,
+                          color: isIos
+                              ? CupertinoColors.systemOrange
+                              : Colors.orange.shade800,
+                          size: 20,
+                        ),
+                      ),
+                      title: const Text(
+                        'Recurring Rules',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Automated repeating transactions',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isIos
+                              ? CupertinoColors.secondaryLabel
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      trailing: Icon(
+                        isIos
+                            ? CupertinoIcons.chevron_forward
+                            : Icons.chevron_right_rounded,
+                        size: isIos ? 14 : 20,
+                        color: isIos
+                            ? CupertinoColors.tertiaryLabel
+                            : colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.6,
+                              ),
+                      ),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.pop(context);
+                        Navigator.of(context).push(
+                          createAdaptivePageRoute(
+                            builder: (context) => const RecurringScreen(),
+                          ),
+                        );
+                      },
+                    ),
+
+                  // 3. Settings
                   ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (isIos
-                                ? CupertinoColors.systemPurple
-                                : colorScheme.tertiary)
-                            .withValues(alpha: 0.12),
+                        color:
+                            (isIos
+                                    ? CupertinoColors.systemPurple
+                                    : colorScheme.tertiary)
+                                .withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                       ),
                       child: Icon(
                         isIos
                             ? CupertinoIcons.gear_alt_fill
-                            : Icons.settings_suggest_rounded,
+                            : Icons.settings_rounded,
                         color: isIos
                             ? CupertinoColors.activeBlue
                             : colorScheme.primary,
@@ -244,64 +309,6 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                       );
                     },
                   ),
-
-                  // 3. Recurring Rules (only if module enabled)
-                  if (isRecurringEnabled)
-                    ListTile(
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: (isIos
-                                  ? CupertinoColors.systemOrange
-                                  : Colors.orange)
-                              .withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(isIos ? 10 : 14),
-                        ),
-                        child: Icon(
-                          isIos
-                              ? CupertinoIcons.repeat
-                              : Icons.update_rounded,
-                          color: isIos
-                              ? CupertinoColors.systemOrange
-                              : Colors.orange.shade800,
-                          size: 20,
-                        ),
-                      ),
-                      title: const Text(
-                        'Recurring Rules',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Automated repeating transactions',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: isIos
-                               ? CupertinoColors.secondaryLabel
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      trailing: Icon(
-                        isIos
-                            ? CupertinoIcons.chevron_forward
-                            : Icons.chevron_right_rounded,
-                        size: isIos ? 14 : 20,
-                        color: isIos
-                            ? CupertinoColors.tertiaryLabel
-                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                      ),
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.pop(context);
-                        Navigator.of(context).push(
-                          createAdaptivePageRoute(
-                            builder: (context) => const RecurringScreen(),
-                          ),
-                        );
-                      },
-                    ),
                 ],
               ),
             ),
