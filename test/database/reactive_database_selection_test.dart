@@ -207,9 +207,18 @@ void main() {
       final memoryDbB = AppDatabase(NativeDatabase.memory(), userB);
 
       // Seed a private company in User A's database
+      await memoryDbA.into(memoryDbA.profiles).insert(
+        ProfilesCompanion.insert(
+          id: 'cmp_user_a_private',
+          name: 'User A Secret Business',
+          profileType: const Value('ledger'),
+          ownerId: const Value(userA),
+        ),
+      );
       await memoryDbA.into(memoryDbA.companies).insert(
         CompaniesCompanion.insert(
           id: 'cmp_user_a_private',
+          profileId: const Value('cmp_user_a_private'),
           name: 'User A Secret Business',
           legalName: 'User A Secret Business',
           ownerId: const Value(userA),
@@ -256,9 +265,18 @@ void main() {
       expect(profilesB.isEmpty, isTrue);
 
       // 3. User B creates their own company
+      await memoryDbB.into(memoryDbB.profiles).insert(
+        ProfilesCompanion.insert(
+          id: 'cmp_user_b_workspace',
+          name: 'User B Public Shop',
+          profileType: const Value('ledger'),
+          ownerId: const Value(userB),
+        ),
+      );
       await memoryDbB.into(memoryDbB.companies).insert(
         CompaniesCompanion.insert(
           id: 'cmp_user_b_workspace',
+          profileId: const Value('cmp_user_b_workspace'),
           name: 'User B Public Shop',
           legalName: 'User B Public Shop',
           ownerId: const Value(userB),
@@ -387,11 +405,11 @@ void main() {
       expect(finalDb.userId, equals(userA));
     });
 
-    test('9. Existing database schema and migration version 11 are preserved', () {
+    test('9. Existing database schema and migration version 12 are preserved', () {
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, equals(11));
+      expect(db.schemaVersion, equals(12));
     });
   });
 }

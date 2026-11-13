@@ -15,9 +15,31 @@ enum SyncRecordStatus {
   error;
 }
 
+@DataClassName('ProfileTableData')
+class Profiles extends Table {
+  TextColumn get id => text()();
+  TextColumn get ownerId => text().named('owner_id').nullable()();
+  TextColumn get name => text()();
+  TextColumn get profileType => text().named('profile_type').withDefault(const Constant('expense'))(); // expense, ledger
+  TextColumn get currencyCode => text().named('currency_code').withDefault(const Constant('INR'))();
+  TextColumn get settingsJson => text().named('settings_json').nullable()();
+  BoolColumn get isActive => boolean().named('is_active').withDefault(const Constant(true))();
+  DateTimeColumn get createdAt => dateTime().named('created_at').withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().named('updated_at').withDefault(currentDateAndTime)();
+  BoolColumn get isDeleted => boolean().named('is_deleted').withDefault(const Constant(false))();
+  TextColumn get syncStatus => textEnum<SyncRecordStatus>().named('sync_status').withDefault(const Constant('pending'))();
+  IntColumn get revision => integer().withDefault(const Constant(0))();
+  DateTimeColumn get remoteUpdatedAt => dateTime().named('remote_updated_at').nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DataClassName('CompanyTableData')
+@TableIndex(name: 'companies_profile_id_idx', columns: {#profileId}, unique: true)
 class Companies extends Table {
   TextColumn get id => text()();
+  TextColumn get profileId => text().named('profile_id').nullable().references(Profiles, #id)();
   TextColumn get name => text()();
   TextColumn get legalName => text()();
   TextColumn get gstin => text().nullable()();
@@ -404,7 +426,7 @@ class RecurringRules extends Table {
 @TableIndex(name: 'shared_memberships_profile_account_idx', columns: {#profileId, #accountId}, unique: true)
 class SharedMemberships extends Table {
   TextColumn get id => text()();
-  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get profileId => text().references(Profiles, #id)();
   TextColumn get accountId => text()();
   TextColumn get role => text()(); // owner, admin, accountant, manager, data_entry, viewer
   DateTimeColumn get joinedAt => dateTime().withDefault(currentDateAndTime)();
@@ -447,7 +469,7 @@ class UserPreferences extends Table {
 @TableIndex(name: 'exp_wallets_profile_idx', columns: {#profileId})
 class ExpenseWallets extends Table {
   TextColumn get id => text()();
-  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get profileId => text().references(Profiles, #id)();
   TextColumn get name => text()();
   TextColumn get walletType => text().withDefault(const Constant('cash'))(); // cash, bank, credit_card, digital_wallet, savings
   TextColumn get currencyCode => text().withDefault(const Constant('INR'))();
@@ -471,7 +493,7 @@ class ExpenseWallets extends Table {
 @TableIndex(name: 'exp_categories_profile_type_idx', columns: {#profileId, #categoryType})
 class ExpenseCategories extends Table {
   TextColumn get id => text()();
-  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get profileId => text().references(Profiles, #id)();
   TextColumn get name => text()();
   TextColumn get categoryType => text().withDefault(const Constant('expense'))(); // expense, income
   TextColumn get parentCategoryId => text().nullable()();
@@ -495,7 +517,7 @@ class ExpenseCategories extends Table {
 @TableIndex(name: 'exp_txns_category_idx', columns: {#categoryId})
 class ExpenseTransactions extends Table {
   TextColumn get id => text()();
-  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get profileId => text().references(Profiles, #id)();
   TextColumn get transactionType => text()(); // expense, income, transfer
   IntColumn get amountInCents => integer()();
   @ReferenceName('outgoingTransactions')
@@ -524,7 +546,7 @@ class ExpenseTransactions extends Table {
 @TableIndex(name: 'exp_budgets_profile_category_idx', columns: {#profileId, #categoryId})
 class ExpenseBudgets extends Table {
   TextColumn get id => text()();
-  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get profileId => text().references(Profiles, #id)();
   TextColumn get categoryId => text().references(ExpenseCategories, #id).nullable()();
   TextColumn get periodType => text().withDefault(const Constant('monthly'))(); // monthly, weekly, yearly
   IntColumn get amountInCents => integer()();
@@ -546,7 +568,7 @@ class ExpenseBudgets extends Table {
 @TableIndex(name: 'exp_recurring_profile_next_idx', columns: {#profileId, #nextRunDate})
 class ExpenseRecurringRules extends Table {
   TextColumn get id => text()();
-  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get profileId => text().references(Profiles, #id)();
   TextColumn get templateJson => text()();
   TextColumn get intervalType => text()(); // daily, weekly, monthly, yearly
   IntColumn get intervalCount => integer().withDefault(const Constant(1))();
@@ -568,7 +590,7 @@ class ExpenseRecurringRules extends Table {
 @TableIndex(name: 'exp_attachments_profile_txn_idx', columns: {#profileId, #transactionId})
 class ExpenseAttachments extends Table {
   TextColumn get id => text()();
-  TextColumn get profileId => text().references(Companies, #id)();
+  TextColumn get profileId => text().references(Profiles, #id)();
   TextColumn get transactionId => text().references(ExpenseTransactions, #id)();
   TextColumn get filePath => text()();
   TextColumn get fileType => text().nullable()(); // image/jpeg, application/pdf
@@ -583,6 +605,7 @@ class ExpenseAttachments extends Table {
 }
 
 @DriftDatabase(tables: [
+  Profiles,
   Companies,
   UserProfiles,
   SharedMemberships,
@@ -616,7 +639,7 @@ class AppDatabase extends _$AppDatabase {
         super(e ?? _openConnection(userId ?? 'usr_default'));
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -957,6 +980,107 @@ class AppDatabase extends _$AppDatabase {
             ''');
 
             // 8. Backfill Recurring Rules
+            await customStatement('''
+              INSERT OR IGNORE INTO expense_recurring_rules (
+                id, profile_id, template_json, interval_type, interval_count,
+                next_run_date, end_date, is_active, created_at, updated_at, is_deleted, sync_status, revision
+              )
+              SELECT r.id, r.company_id, r.template_json, r.interval_type, r.interval_count,
+                     r.next_run_date, r.end_date, r.is_active, r.created_at, r.updated_at, r.is_deleted, r.sync_status, r.revision
+              FROM recurring_rules r
+              JOIN companies c ON c.id = r.company_id
+              WHERE c.mode IN ('expense', 'expenseTracker') AND r.is_deleted = 0;
+            ''');
+          },
+          from11To12: (m, schema) async {
+            // 1. Create canonical profiles table
+            await m.createTable(schema.profiles);
+
+            // 2. Add profile_id to companies
+            await m.addColumn(schema.companies, schema.companies.profileId);
+
+            // 3. Backfill profiles from companies
+            await customStatement('''
+              INSERT OR IGNORE INTO profiles (
+                id, owner_id, name, profile_type, currency_code, settings_json, is_active,
+                created_at, updated_at, is_deleted, sync_status, revision, remote_updated_at
+              )
+              SELECT id, owner_id, name,
+                     CASE WHEN mode IN ('expense', 'expenseTracker') THEN 'expense' ELSE 'ledger' END,
+                     currency_code, NULL, is_active,
+                     created_at, updated_at, is_deleted, sync_status, revision, remote_updated_at
+              FROM companies;
+            ''');
+
+            // 4. Set companies.profile_id = companies.id and create unique index
+            await customStatement('''
+              UPDATE companies SET profile_id = id WHERE profile_id IS NULL;
+            ''');
+            await customStatement('''
+              CREATE UNIQUE INDEX IF NOT EXISTS companies_profile_id_idx ON companies (profile_id);
+            ''');
+
+            // 5. Ensure any unmigrated expense wallets/categories/txns/budgets from vouchers/accounts/budgets are backfilled
+            await customStatement('''
+              INSERT OR IGNORE INTO expense_wallets (
+                id, profile_id, name, wallet_type, starting_balance_in_cents, current_balance_in_cents,
+                created_at, updated_at, is_deleted, sync_status, revision
+              )
+              SELECT a.id, a.company_id, a.name, 'cash', 0, a.current_balance_in_cents,
+                     a.created_at, a.updated_at, a.is_deleted, a.sync_status, a.revision
+              FROM accounts a
+              JOIN companies c ON c.id = a.company_id
+              WHERE c.mode IN ('expense', 'expenseTracker') 
+                AND a.kind = 'wallet'
+                AND a.is_deleted = 0;
+            ''');
+
+            await customStatement('''
+              INSERT OR IGNORE INTO expense_categories (
+                id, profile_id, name, category_type, is_system,
+                created_at, updated_at, is_deleted, sync_status, revision
+              )
+              SELECT a.id, a.company_id, a.name,
+                     CASE WHEN a.type = 'income' THEN 'income' ELSE 'expense' END,
+                     a.is_system, a.created_at, a.updated_at, a.is_deleted, a.sync_status, a.revision
+              FROM accounts a
+              JOIN companies c ON c.id = a.company_id
+              WHERE c.mode IN ('expense', 'expenseTracker')
+                AND (a.kind = 'category' OR a.type IN ('income', 'expense'))
+                AND a.is_deleted = 0;
+            ''');
+
+            await customStatement('''
+              INSERT OR IGNORE INTO expense_transactions (
+                id, profile_id, transaction_type, amount_in_cents,
+                wallet_id, to_wallet_id, category_id, transaction_date,
+                note, reference_number, receipt_photo_url,
+                created_at, updated_at, is_deleted, sync_status, revision
+              )
+              SELECT v.id, v.company_id, v.type, v.total_amount_in_cents,
+                     COALESCE(v.wallet_account_id, (SELECT id FROM expense_wallets WHERE profile_id = v.company_id LIMIT 1), 'wal_default'),
+                     v.to_wallet_account_id, v.category_account_id, v.date,
+                     v.narration, v.reference_number, v.receipt_photo_url,
+                     v.created_at, v.updated_at, v.is_deleted, v.sync_status, v.revision
+              FROM vouchers v
+              JOIN companies c ON c.id = v.company_id
+              WHERE c.mode IN ('expense', 'expenseTracker')
+                AND v.type IN ('expense', 'income', 'transfer')
+                AND v.is_deleted = 0;
+            ''');
+
+            await customStatement('''
+              INSERT OR IGNORE INTO expense_budgets (
+                id, profile_id, category_id, period_type, amount_in_cents,
+                start_date, created_at, updated_at, is_deleted, sync_status, revision
+              )
+              SELECT b.id, b.company_id, b.category_account_id, b.period_type, b.amount_in_cents,
+                     b.start_date, b.created_at, b.updated_at, b.is_deleted, b.sync_status, b.revision
+              FROM budgets b
+              JOIN companies c ON c.id = b.company_id
+              WHERE c.mode IN ('expense', 'expenseTracker') AND b.is_deleted = 0;
+            ''');
+
             await customStatement('''
               INSERT OR IGNORE INTO expense_recurring_rules (
                 id, profile_id, template_json, interval_type, interval_count,

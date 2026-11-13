@@ -257,7 +257,7 @@ void main() {
       final controller = container.read(profileSessionProvider.notifier);
 
       // (a) ZERO PROFILES: Account has no profiles -> transitions to OnboardingRequiredSessionState
-      await controller.loadProfilesForUser(testUserUuid);
+      await controller.loadProfilesForUser(testUserUuid, isLogin: true);
       final stateZero = container.read<ProfileSessionState>(profileSessionProvider);
 
       expect(stateZero, isA<OnboardingRequiredSessionState>());
@@ -276,7 +276,7 @@ void main() {
       expect(p1.id, isNotEmpty);
       expect(p1.type, equals(ProfileType.expense));
 
-      await controller.loadProfilesForUser(testUserUuid);
+      await controller.loadProfilesForUser(testUserUuid, isLogin: true);
       final stateOne = container.read<ProfileSessionState>(profileSessionProvider);
 
       expect(stateOne, isA<ActiveProfileReadySessionState>());
@@ -293,7 +293,7 @@ void main() {
       expect(p2.id, isNotEmpty);
       expect(p2.type, equals(ProfileType.ledger));
 
-      await controller.loadProfilesForUser(testUserUuid);
+      await controller.loadProfilesForUser(testUserUuid, isLogin: true);
       final stateMulti = container.read<ProfileSessionState>(profileSessionProvider);
 
       // Since last_active_profile wasn't cached, shows ProfileSelectionRequiredSessionState

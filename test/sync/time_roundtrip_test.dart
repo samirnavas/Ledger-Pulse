@@ -153,12 +153,14 @@ void main() {
           reason: 'Ledger entry instant 1 (10:00 IST) should match original epoch seconds',
         );
 
-        final pulledVouchers = await (freshDb.select(freshDb.vouchers)
+        final pulledVouchers = await (freshDb.select(freshDb.expenseTransactions)
           ..where((t) => t.id.equals(voucher.id))).get();
-        expect(pulledVouchers.isNotEmpty, isTrue, reason: 'Expense voucher 1 should be pulled');
-        final pulledVoucher = pulledVouchers.first;
+        final pulledLegacyVouchers = await (freshDb.select(freshDb.vouchers)
+          ..where((t) => t.id.equals(voucher.id))).get();
+        expect(pulledVouchers.isNotEmpty || pulledLegacyVouchers.isNotEmpty, isTrue, reason: 'Expense transaction 1 should be pulled');
+        final txnDate1 = pulledVouchers.isNotEmpty ? pulledVouchers.first.transactionDate : pulledLegacyVouchers.first.date;
         expect(
-          pulledVoucher.date.millisecondsSinceEpoch ~/ 1000,
+          txnDate1.millisecondsSinceEpoch ~/ 1000,
           equals(intended1.millisecondsSinceEpoch ~/ 1000),
           reason: 'Expense voucher instant 1 (10:00 IST) should match original epoch seconds',
         );
@@ -298,12 +300,14 @@ void main() {
           reason: 'Ledger entry instant 2 (23:30 IST) should match original epoch seconds',
         );
 
-        final pulledVouchers = await (freshDb.select(freshDb.vouchers)
+        final pulledVouchers = await (freshDb.select(freshDb.expenseTransactions)
           ..where((t) => t.id.equals(voucher.id))).get();
-        expect(pulledVouchers.isNotEmpty, isTrue, reason: 'Expense voucher 2 should be pulled');
-        final pulledVoucher = pulledVouchers.first;
+        final pulledLegacyVouchers = await (freshDb.select(freshDb.vouchers)
+          ..where((t) => t.id.equals(voucher.id))).get();
+        expect(pulledVouchers.isNotEmpty || pulledLegacyVouchers.isNotEmpty, isTrue, reason: 'Expense transaction 2 should be pulled');
+        final txnDate2 = pulledVouchers.isNotEmpty ? pulledVouchers.first.transactionDate : pulledLegacyVouchers.first.date;
         expect(
-          pulledVoucher.date.millisecondsSinceEpoch ~/ 1000,
+          txnDate2.millisecondsSinceEpoch ~/ 1000,
           equals(intended2.millisecondsSinceEpoch ~/ 1000),
           reason: 'Expense voucher instant 2 (23:30 IST) should match original epoch seconds',
         );

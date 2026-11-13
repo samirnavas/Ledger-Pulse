@@ -35,10 +35,22 @@ void main() {
       activeUserId: testUserId,
     );
 
-    // Seed test company
+    // Seed test profile & company
+    await db.into(db.profiles).insert(
+      ProfilesCompanion(
+        id: const drift.Value(testCompanyId),
+        ownerId: const drift.Value(testUserId),
+        name: const drift.Value('Sync Hardening Co'),
+        profileType: const drift.Value('ledger'),
+        currencyCode: const drift.Value('INR'),
+        syncStatus: const drift.Value(SyncRecordStatus.synced),
+      ),
+    );
+
     await db.into(db.companies).insert(
       CompaniesCompanion(
         id: const drift.Value(testCompanyId),
+        profileId: const drift.Value(testCompanyId),
         name: const drift.Value('Sync Hardening Co'),
         legalName: const drift.Value('Sync Hardening Co Ltd'),
         currencyCode: const drift.Value('INR'),

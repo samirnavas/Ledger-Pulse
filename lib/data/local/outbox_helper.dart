@@ -5,6 +5,7 @@ import '../../core/network/sync_codec.dart';
 import 'database.dart';
 
 const realTableNames = <String>{
+  'profiles',
   'companies',
   'user_profiles',
   'accounts',

@@ -80,27 +80,29 @@ void main() {
       final pushResult = await syncEngine.pushQueue(companyId: companyId);
       expect(pushResult.success, isTrue);
 
-      // Query accounts table from FakeRemoteSyncBackend
+      // Query exp_wallets and exp_categories from FakeRemoteSyncBackend
+      final remoteWallets = fakeRemote.getTableRows('exp_wallets', companyId: companyId);
+      final remoteCategories = fakeRemote.getTableRows('exp_categories', companyId: companyId);
       final remoteAccounts = fakeRemote.getTableRows('accounts', companyId: companyId);
 
-      final walletRow = remoteAccounts.firstWhere(
+      final walletRow = (remoteWallets.isNotEmpty ? remoteWallets : remoteAccounts).firstWhere(
         (r) => r['id'] == wallet.id,
         orElse: () => <String, dynamic>{},
       );
       expect(
         walletRow,
         isNotEmpty,
-        reason: 'FakeRemoteSyncBackend should contain created wallet in "accounts" table. Outbox actual rows after creation: [$outboxSummary]',
+        reason: 'FakeRemoteSyncBackend should contain created wallet in "exp_wallets" table. Outbox actual rows after creation: [$outboxSummary]',
       );
 
-      final categoryRow = remoteAccounts.firstWhere(
+      final categoryRow = (remoteCategories.isNotEmpty ? remoteCategories : remoteAccounts).firstWhere(
         (r) => r['id'] == category.id,
         orElse: () => <String, dynamic>{},
       );
       expect(
         categoryRow,
         isNotEmpty,
-        reason: 'FakeRemoteSyncBackend should contain created category in "accounts" table. Outbox actual rows after creation: [$outboxSummary]',
+        reason: 'FakeRemoteSyncBackend should contain created category in "exp_categories" table. Outbox actual rows after creation: [$outboxSummary]',
       );
 
       await db.close();

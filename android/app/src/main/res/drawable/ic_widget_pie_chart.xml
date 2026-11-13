@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Top-left quarter -->
+    <path
+        android:fillColor="@color/widget_expense_text"
+        android:pathData="M11,2 A9,9 0 0,0 2,11 L11,11 Z" />
+    <!-- Bottom-left quarter -->
+    <path
+        android:fillColor="@color/widget_expense_text"
+        android:pathData="M2,13 A9,9 0 0,0 11,22 L11,13 Z" />
+    <!-- Top-right quarter -->
+    <path
+        android:fillColor="@color/widget_expense_text"
+        android:pathData="M13,2 L13,11 L22,11 A9,9 0 0,0 13,2 Z" />
+    <!-- Bottom-right quarter -->
+    <path
+        android:fillColor="@color/widget_expense_text"
+        android:pathData="M13,13 L13,22 A9,9 0 0,0 22,13 Z" />
+</vector>

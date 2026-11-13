@@ -54,6 +54,10 @@ void main() {
       currentUserId: userId,
     );
 
+    // Ensure company accounts initialized
+    await postingEngine.ensureCompanyAccounts(company1);
+    await postingEngine.ensureCompanyAccounts(company2);
+
     // Add customer & supplier for company 1
     await ledgerRepo1.addParty(Party(
       id: 'party_c1',
@@ -72,10 +76,6 @@ void main() {
       netBalanceInCents: 0,
       lastUpdated: DateTime.now(),
     ));
-
-    // Ensure company accounts initialized
-    await postingEngine.ensureCompanyAccounts(company1);
-    await postingEngine.ensureCompanyAccounts(company2);
   });
 
   tearDown(() async {

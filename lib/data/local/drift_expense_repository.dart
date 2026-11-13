@@ -5,14 +5,13 @@ import 'package:uuid/uuid.dart';
 import '../../core/network/sync_codec.dart';
 import '../../core/network/sync_engine.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
-import '../accounting/voucher_posting_engine.dart';
 import '../local/audit_service.dart';
 import '../local/database.dart';
-import '../local/drift_voucher_repository.dart';
 import '../local/outbox_helper.dart';
 import '../models/account_model.dart';
 import '../models/audit_log_model.dart';
 import '../models/company_model.dart';
+import '../models/expense/expense_category_model.dart';
 import '../models/rbac_model.dart';
 import '../models/voucher_model.dart';
 import '../security/access_control_service.dart';
@@ -117,12 +116,11 @@ class TransactionFilters {
 }
 
 /// Dedicated repository for Expense Tracker mode operations.
-/// Operates on top of Drift database, VoucherPostingEngine, DriftVoucherRepository,
+/// Operates exclusively on dedicated single-entry Expense tables:
+/// `exp_transactions`, `exp_wallets`, and `exp_categories`,
 /// with full RBAC, audit logging, outbox synchronization, and reactive update stream.
 class DriftExpenseRepository {
   final AppDatabase _db;
-  final VoucherPostingEngine _postingEngine;
-  final DriftVoucherRepository _voucherRepo;
   final AuditService _auditService;
   final SyncEngine? _syncEngine;
   final _uuid = const Uuid();
@@ -139,8 +137,8 @@ class DriftExpenseRepository {
 
   DriftExpenseRepository({
     required AppDatabase db,
-    VoucherPostingEngine? postingEngine,
-    DriftVoucherRepository? voucherRepo,
+    Object? postingEngine,
+    Object? voucherRepo,
     AuditService? auditService,
     SyncEngine? syncEngine,
     String currentCompanyId = 'cmp_default',
@@ -149,18 +147,6 @@ class DriftExpenseRepository {
     Company? company,
   })  : _db = db,
         _auditService = auditService ?? AuditService(db),
-        _postingEngine = postingEngine ??
-            VoucherPostingEngine(db, auditService ?? AuditService(db)),
-        _voucherRepo = voucherRepo ??
-            DriftVoucherRepository(
-              db: db,
-              auditService: auditService ?? AuditService(db),
-              postingEngine: postingEngine ??
-                  VoucherPostingEngine(db, auditService ?? AuditService(db)),
-              currentCompanyId: currentCompanyId,
-              currentUserId: currentUserId,
-              currentRole: currentRole,
-            ),
         _syncEngine = syncEngine,
         _currentCompanyId = currentCompanyId,
         _currentUserId = currentUserId,
@@ -169,8 +155,6 @@ class DriftExpenseRepository {
         _companyCacheTime = company != null ? DateTime.now() : null;
 
   AppDatabase get db => _db;
-  VoucherPostingEngine get postingEngine => _postingEngine;
-  DriftVoucherRepository get voucherRepo => _voucherRepo;
   AuditService get auditService => _auditService;
   SyncEngine? get syncEngine => _syncEngine;
   String get currentCompanyId => _currentCompanyId;
@@ -188,19 +172,14 @@ class DriftExpenseRepository {
     if (companyId != null && companyId != _currentCompanyId) {
       _cachedCompany = null;
       _companyCacheTime = null;
+      _currentCompanyId = companyId;
     }
-    if (companyId != null) _currentCompanyId = companyId;
     if (userId != null) _currentUserId = userId;
     if (role != null) _currentRole = role;
     if (company != null) {
       _cachedCompany = company;
       _companyCacheTime = DateTime.now();
     }
-    _voucherRepo.setContext(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      role: _currentRole,
-    );
   }
 
   void invalidateCompanyCache() {
@@ -248,14 +227,37 @@ class DriftExpenseRepository {
       _companyCacheTime = DateTime.now();
       return _cachedCompany!;
     }
-    throw Exception('Active company not found: $_currentCompanyId');
+
+    // Check profiles table for canonical profile
+    final prof = await (_db.select(_db.profiles)
+          ..where((t) => t.id.equals(_currentCompanyId)))
+        .getSingleOrNull();
+    if (prof != null) {
+      final comp = Company(
+        id: prof.id,
+        name: prof.name,
+        legalName: prof.name,
+        currencyCode: prof.currencyCode,
+        mode: prof.profileType == 'expense'
+            ? CompanyMode.expenseTracker
+            : CompanyMode.ledger,
+        isActive: prof.isActive,
+        createdAt: prof.createdAt,
+        updatedAt: prof.updatedAt,
+      );
+      _cachedCompany = comp;
+      _companyCacheTime = DateTime.now();
+      return comp;
+    }
+
+    throw Exception('Active profile/company not found: $_currentCompanyId');
   }
 
   Future<void> _ensureExpenseTrackerMode() async {
     final company = await _getActiveCompany();
     if (company.mode != CompanyMode.expenseTracker) {
       throw ExpenseModeRequiredException(
-        'Operation refused: Active company "${company.name}" is in ${company.mode.name} mode. Expense repository requires expenseTracker mode.',
+        'Operation refused: Active profile "${company.name}" is in ${company.mode.name} mode. Expense repository requires expenseTracker mode.',
       );
     }
   }
@@ -263,7 +265,13 @@ class DriftExpenseRepository {
   void _notifyUpdates() {
     if (!_isDisposed && !_updateStreamController.isClosed) {
       _updateStreamController.add(null);
+      _syncEngine?.triggerBackgroundSync(companyId: _currentCompanyId);
     }
+  }
+
+  void dispose() {
+    _isDisposed = true;
+    _updateStreamController.close();
   }
 
   // ==========================================
@@ -283,44 +291,94 @@ class DriftExpenseRepository {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.createExpense);
 
+    if (amountInCents <= 0) {
+      throw ArgumentError('Transaction amount must be greater than zero.');
+    }
+
     final now = DateTime.now();
     final txnDate = date ?? now;
-    final voucherNumber =
-        await _voucherRepo.generateNextVoucherNumber(VoucherType.expense);
+    final txnId = customId ?? 'tx_${_uuid.v4().replaceAll('-', '').substring(0, 16)}';
 
-    final voucher = VoucherModel(
-      id: customId ?? 'exp_${_uuid.v4().substring(0, 12)}',
-      companyId: _currentCompanyId,
-      voucherNumber: voucherNumber,
-      type: VoucherType.expense,
-      date: txnDate,
-      status: VoucherStatus.posted,
-      totalAmountInCents: amountInCents,
-      categoryAccountId: categoryAccountId,
-      walletAccountId: walletAccountId,
-      narration: narration,
-      referenceNumber: referenceNumber,
-      receiptPhotoUrl: receiptPhotoUrl,
-      createdAt: now,
-      updatedAt: now,
-    );
+    return await _db.transaction(() async {
+      await _db.into(_db.expenseTransactions).insertOnConflictUpdate(
+            ExpenseTransactionsCompanion.insert(
+              id: txnId,
+              profileId: _currentCompanyId,
+              transactionType: 'expense',
+              amountInCents: amountInCents,
+              walletId: walletAccountId,
+              toWalletId: const Value(null),
+              categoryId: Value(categoryAccountId),
+              transactionDate: txnDate,
+              note: Value(narration),
+              payeeOrPayer: const Value(null),
+              referenceNumber: Value(referenceNumber),
+              receiptPhotoUrl: Value(receiptPhotoUrl),
+              isCleared: const Value(true),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              isDeleted: const Value(false),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
 
-    final posted = await _postingEngine.postVoucher(
-      voucher: voucher,
-      userId: _currentUserId,
-    );
+      // Adjust wallet balance (decrease for asset, increase for liability)
+      await _adjustWalletBalance(walletAccountId, -amountInCents);
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'expense',
-      entityId: posted.id,
-      action: AuditAction.insert,
-      newState: posted.toMap(),
-    );
+      final model = VoucherModel(
+        id: txnId,
+        companyId: _currentCompanyId,
+        voucherNumber: referenceNumber ?? txnId,
+        type: VoucherType.expense,
+        date: txnDate,
+        status: VoucherStatus.posted,
+        totalAmountInCents: amountInCents,
+        categoryAccountId: categoryAccountId,
+        walletAccountId: walletAccountId,
+        narration: narration,
+        referenceNumber: referenceNumber,
+        receiptPhotoUrl: receiptPhotoUrl,
+        createdAt: now,
+        updatedAt: now,
+      );
 
-    _notifyUpdates();
-    return posted;
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'expense_transaction',
+        entityId: txnId,
+        action: AuditAction.insert,
+        newState: model.toMap(),
+      );
+
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_transactions',
+        recordId: txnId,
+        type: 'INSERT',
+        fullRowMap: {
+          'id': txnId,
+          'profile_id': _currentCompanyId,
+          'transaction_type': 'expense',
+          'amount_in_cents': amountInCents,
+          'wallet_id': walletAccountId,
+          'to_wallet_id': null,
+          'category_id': categoryAccountId,
+          'transaction_date': encodeTime(txnDate),
+          'note': narration,
+          'payee_or_payer': null,
+          'reference_number': referenceNumber,
+          'receipt_photo_url': receiptPhotoUrl,
+          'is_cleared': true,
+          'created_at': encodeTime(now),
+          'updated_at': encodeTime(now),
+          'is_deleted': false,
+        },
+      );
+
+      _notifyUpdates();
+      return model;
+    });
   }
 
   Future<VoucherModel> addIncome({
@@ -336,44 +394,94 @@ class DriftExpenseRepository {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.createExpense);
 
+    if (amountInCents <= 0) {
+      throw ArgumentError('Transaction amount must be greater than zero.');
+    }
+
     final now = DateTime.now();
     final txnDate = date ?? now;
-    final voucherNumber =
-        await _voucherRepo.generateNextVoucherNumber(VoucherType.income);
+    final txnId = customId ?? 'tx_${_uuid.v4().replaceAll('-', '').substring(0, 16)}';
 
-    final voucher = VoucherModel(
-      id: customId ?? 'inc_${_uuid.v4().substring(0, 12)}',
-      companyId: _currentCompanyId,
-      voucherNumber: voucherNumber,
-      type: VoucherType.income,
-      date: txnDate,
-      status: VoucherStatus.posted,
-      totalAmountInCents: amountInCents,
-      categoryAccountId: categoryAccountId,
-      walletAccountId: walletAccountId,
-      narration: narration,
-      referenceNumber: referenceNumber,
-      receiptPhotoUrl: receiptPhotoUrl,
-      createdAt: now,
-      updatedAt: now,
-    );
+    return await _db.transaction(() async {
+      await _db.into(_db.expenseTransactions).insertOnConflictUpdate(
+            ExpenseTransactionsCompanion.insert(
+              id: txnId,
+              profileId: _currentCompanyId,
+              transactionType: 'income',
+              amountInCents: amountInCents,
+              walletId: walletAccountId,
+              toWalletId: const Value(null),
+              categoryId: Value(categoryAccountId),
+              transactionDate: txnDate,
+              note: Value(narration),
+              payeeOrPayer: const Value(null),
+              referenceNumber: Value(referenceNumber),
+              receiptPhotoUrl: Value(receiptPhotoUrl),
+              isCleared: const Value(true),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              isDeleted: const Value(false),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
 
-    final posted = await _postingEngine.postVoucher(
-      voucher: voucher,
-      userId: _currentUserId,
-    );
+      // Adjust wallet balance (increase for asset, decrease for liability)
+      await _adjustWalletBalance(walletAccountId, amountInCents);
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'income',
-      entityId: posted.id,
-      action: AuditAction.insert,
-      newState: posted.toMap(),
-    );
+      final model = VoucherModel(
+        id: txnId,
+        companyId: _currentCompanyId,
+        voucherNumber: referenceNumber ?? txnId,
+        type: VoucherType.income,
+        date: txnDate,
+        status: VoucherStatus.posted,
+        totalAmountInCents: amountInCents,
+        categoryAccountId: categoryAccountId,
+        walletAccountId: walletAccountId,
+        narration: narration,
+        referenceNumber: referenceNumber,
+        receiptPhotoUrl: receiptPhotoUrl,
+        createdAt: now,
+        updatedAt: now,
+      );
 
-    _notifyUpdates();
-    return posted;
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'expense_transaction',
+        entityId: txnId,
+        action: AuditAction.insert,
+        newState: model.toMap(),
+      );
+
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_transactions',
+        recordId: txnId,
+        type: 'INSERT',
+        fullRowMap: {
+          'id': txnId,
+          'profile_id': _currentCompanyId,
+          'transaction_type': 'income',
+          'amount_in_cents': amountInCents,
+          'wallet_id': walletAccountId,
+          'to_wallet_id': null,
+          'category_id': categoryAccountId,
+          'transaction_date': encodeTime(txnDate),
+          'note': narration,
+          'payee_or_payer': null,
+          'reference_number': referenceNumber,
+          'receipt_photo_url': receiptPhotoUrl,
+          'is_cleared': true,
+          'created_at': encodeTime(now),
+          'updated_at': encodeTime(now),
+          'is_deleted': false,
+        },
+      );
+
+      _notifyUpdates();
+      return model;
+    });
   }
 
   Future<VoucherModel> addTransfer({
@@ -383,96 +491,277 @@ class DriftExpenseRepository {
     DateTime? date,
     String? narration,
     String? referenceNumber,
+    String? receiptPhotoUrl,
     String? customId,
   }) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.createExpense);
 
+    if (amountInCents <= 0) {
+      throw ArgumentError('Transaction amount must be greater than zero.');
+    }
+    if (walletAccountId == toWalletAccountId) {
+      throw ArgumentError('Source and destination wallets must be different.');
+    }
+
     final now = DateTime.now();
     final txnDate = date ?? now;
-    final voucherNumber =
-        await _voucherRepo.generateNextVoucherNumber(VoucherType.transfer);
+    final txnId = customId ?? 'tx_${_uuid.v4().replaceAll('-', '').substring(0, 16)}';
 
-    final voucher = VoucherModel(
-      id: customId ?? 'trf_${_uuid.v4().substring(0, 12)}',
-      companyId: _currentCompanyId,
-      voucherNumber: voucherNumber,
-      type: VoucherType.transfer,
-      date: txnDate,
-      status: VoucherStatus.posted,
-      totalAmountInCents: amountInCents,
-      walletAccountId: walletAccountId,
-      toWalletAccountId: toWalletAccountId,
-      narration: narration,
-      referenceNumber: referenceNumber,
-      createdAt: now,
-      updatedAt: now,
-    );
+    return await _db.transaction(() async {
+      await _db.into(_db.expenseTransactions).insertOnConflictUpdate(
+            ExpenseTransactionsCompanion.insert(
+              id: txnId,
+              profileId: _currentCompanyId,
+              transactionType: 'transfer',
+              amountInCents: amountInCents,
+              walletId: walletAccountId,
+              toWalletId: Value(toWalletAccountId),
+              categoryId: const Value(null),
+              transactionDate: txnDate,
+              note: Value(narration),
+              payeeOrPayer: const Value(null),
+              referenceNumber: Value(referenceNumber),
+              receiptPhotoUrl: Value(receiptPhotoUrl),
+              isCleared: const Value(true),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              isDeleted: const Value(false),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
 
-    final posted = await _postingEngine.postVoucher(
-      voucher: voucher,
-      userId: _currentUserId,
-    );
+      // Decrement source wallet, increment destination wallet
+      await _adjustWalletBalance(walletAccountId, -amountInCents);
+      await _adjustWalletBalance(toWalletAccountId, amountInCents);
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'transfer',
-      entityId: posted.id,
-      action: AuditAction.insert,
-      newState: posted.toMap(),
-    );
+      final model = VoucherModel(
+        id: txnId,
+        companyId: _currentCompanyId,
+        voucherNumber: referenceNumber ?? txnId,
+        type: VoucherType.transfer,
+        date: txnDate,
+        status: VoucherStatus.posted,
+        totalAmountInCents: amountInCents,
+        walletAccountId: walletAccountId,
+        toWalletAccountId: toWalletAccountId,
+        narration: narration,
+        referenceNumber: referenceNumber,
+        receiptPhotoUrl: receiptPhotoUrl,
+        createdAt: now,
+        updatedAt: now,
+      );
 
-    _notifyUpdates();
-    return posted;
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'expense_transaction',
+        entityId: txnId,
+        action: AuditAction.insert,
+        newState: model.toMap(),
+      );
+
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_transactions',
+        recordId: txnId,
+        type: 'INSERT',
+        fullRowMap: {
+          'id': txnId,
+          'profile_id': _currentCompanyId,
+          'transaction_type': 'transfer',
+          'amount_in_cents': amountInCents,
+          'wallet_id': walletAccountId,
+          'to_wallet_id': toWalletAccountId,
+          'category_id': null,
+          'transaction_date': encodeTime(txnDate),
+          'note': narration,
+          'payee_or_payer': null,
+          'reference_number': referenceNumber,
+          'receipt_photo_url': receiptPhotoUrl,
+          'is_cleared': true,
+          'created_at': encodeTime(now),
+          'updated_at': encodeTime(now),
+          'is_deleted': false,
+        },
+      );
+
+      _notifyUpdates();
+      return model;
+    });
   }
 
   Future<VoucherModel> updateTransaction(VoucherModel voucher) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.editExpense);
 
-    final updated = await _postingEngine.editVoucher(
-      voucher: voucher.copyWith(companyId: _currentCompanyId),
-      userId: _currentUserId,
-    );
+    return await _db.transaction(() async {
+      final existing = await (_db.select(_db.expenseTransactions)
+            ..where((t) => t.id.equals(voucher.id) & t.profileId.equals(_currentCompanyId)))
+          .getSingleOrNull();
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'transaction',
-      entityId: updated.id,
-      action: AuditAction.update,
-      newState: updated.toMap(),
-    );
+      if (existing != null) {
+        // Revert old effect
+        await _applyTransactionBalanceEffects(
+          type: existing.transactionType,
+          amountInCents: existing.amountInCents,
+          walletId: existing.walletId,
+          toWalletId: existing.toWalletId,
+          isReversal: true,
+        );
+      }
 
-    _notifyUpdates();
-    return updated;
+      final now = DateTime.now();
+      final typeStr = voucher.type.name;
+
+      await (_db.update(_db.expenseTransactions)..where((t) => t.id.equals(voucher.id)))
+          .write(
+        ExpenseTransactionsCompanion(
+          transactionType: Value(typeStr),
+          amountInCents: Value(voucher.totalAmountInCents),
+          walletId: Value(voucher.walletAccountId ?? (existing?.walletId ?? '')),
+          toWalletId: Value(voucher.toWalletAccountId),
+          categoryId: Value(voucher.categoryAccountId),
+          transactionDate: Value(voucher.date),
+          note: Value(voucher.narration),
+          referenceNumber: Value(voucher.referenceNumber),
+          receiptPhotoUrl: Value(voucher.receiptPhotoUrl),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      // Apply new effect
+      final effectiveWalletId = voucher.walletAccountId ?? (existing?.walletId ?? '');
+      await _applyTransactionBalanceEffects(
+        type: typeStr,
+        amountInCents: voucher.totalAmountInCents,
+        walletId: effectiveWalletId,
+        toWalletId: voucher.toWalletAccountId,
+        isReversal: false,
+      );
+
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_transactions',
+        recordId: voucher.id,
+        type: 'UPDATE',
+        fullRowMap: {
+          'id': voucher.id,
+          'profile_id': _currentCompanyId,
+          'transaction_type': typeStr,
+          'amount_in_cents': voucher.totalAmountInCents,
+          'wallet_id': effectiveWalletId,
+          'to_wallet_id': voucher.toWalletAccountId,
+          'category_id': voucher.categoryAccountId,
+          'transaction_date': encodeTime(voucher.date),
+          'note': voucher.narration,
+          'reference_number': voucher.referenceNumber,
+          'receipt_photo_url': voucher.receiptPhotoUrl,
+          'updated_at': encodeTime(now),
+          'is_deleted': false,
+        },
+      );
+
+      _notifyUpdates();
+      return voucher.copyWith(updatedAt: now);
+    });
   }
 
   Future<void> voidTransaction(String voucherId) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.voidExpense);
 
-    await _postingEngine.voidVoucher(
-      voucherId: voucherId,
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-    );
+    await _db.transaction(() async {
+      final existing = await (_db.select(_db.expenseTransactions)
+            ..where((t) => t.id.equals(voucherId) & t.profileId.equals(_currentCompanyId)))
+          .getSingleOrNull();
 
-    _notifyUpdates();
+      if (existing == null) return;
+
+      // Revert balance effect
+      await _applyTransactionBalanceEffects(
+        type: existing.transactionType,
+        amountInCents: existing.amountInCents,
+        walletId: existing.walletId,
+        toWalletId: existing.toWalletId,
+        isReversal: true,
+      );
+
+      final now = DateTime.now();
+      await (_db.update(_db.expenseTransactions)..where((t) => t.id.equals(voucherId)))
+          .write(
+        ExpenseTransactionsCompanion(
+          isDeleted: const Value(true),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_transactions',
+        recordId: voucherId,
+        type: 'DELETE',
+        fullRowMap: {
+          'id': voucherId,
+          'profile_id': _currentCompanyId,
+          'is_deleted': true,
+          'updated_at': encodeTime(now),
+        },
+      );
+
+      _notifyUpdates();
+    });
   }
+
+  Future<void> deleteTransaction(String id) => voidTransaction(id);
 
   Future<void> restoreTransaction(String voucherId) async {
     await _ensureExpenseTrackerMode();
-    AccessControlService.verifyPermission(_currentRole, UserAction.voidExpense);
+    AccessControlService.verifyPermission(_currentRole, UserAction.createExpense);
 
-    await _postingEngine.restoreVoucher(
-      voucherId: voucherId,
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-    );
+    await _db.transaction(() async {
+      final existing = await (_db.select(_db.expenseTransactions)
+            ..where((t) => t.id.equals(voucherId) & t.profileId.equals(_currentCompanyId)))
+          .getSingleOrNull();
 
-    _notifyUpdates();
+      if (existing == null) return;
+
+      // Re-apply balance effect
+      await _applyTransactionBalanceEffects(
+        type: existing.transactionType,
+        amountInCents: existing.amountInCents,
+        walletId: existing.walletId,
+        toWalletId: existing.toWalletId,
+        isReversal: false,
+      );
+
+      final now = DateTime.now();
+      await (_db.update(_db.expenseTransactions)..where((t) => t.id.equals(voucherId)))
+          .write(
+        ExpenseTransactionsCompanion(
+          isDeleted: const Value(false),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_transactions',
+        recordId: voucherId,
+        type: 'UPDATE',
+        fullRowMap: {
+          'id': voucherId,
+          'profile_id': _currentCompanyId,
+          'is_deleted': false,
+          'updated_at': encodeTime(now),
+        },
+      );
+
+      _notifyUpdates();
+    });
   }
 
   Future<List<VoucherModel>> getTransactions({
@@ -487,68 +776,37 @@ class DriftExpenseRepository {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
 
-    final query = _db.select(_db.vouchers)
-      ..where((t) => t.companyId.equals(_currentCompanyId) & t.isDeleted.equals(false))
-      ..orderBy([(t) => OrderingTerm.desc(t.date), (t) => OrderingTerm.desc(t.createdAt)]);
+    final query = _db.select(_db.expenseTransactions)
+      ..where((t) => t.profileId.equals(_currentCompanyId))
+      ..orderBy([(t) => OrderingTerm.desc(t.transactionDate), (t) => OrderingTerm.desc(t.createdAt)]);
 
     if (!includeVoided) {
-      query.where((t) => t.status.equals(VoucherStatus.posted.name));
+      query.where((t) => t.isDeleted.equals(false));
     }
 
     if (type != null) {
-      query.where((t) => t.type.equals(type.name));
-    } else {
-      // By default in expense tracker mode, show expense, income, and transfer vouchers
-      query.where((t) =>
-          t.type.equals(VoucherType.expense.name) |
-          t.type.equals(VoucherType.income.name) |
-          t.type.equals(VoucherType.transfer.name));
+      query.where((t) => t.transactionType.equals(type.name));
     }
 
     if (startDate != null) {
-      query.where((t) => t.date.isBiggerOrEqualValue(startDate));
+      query.where((t) => t.transactionDate.isBiggerOrEqualValue(startDate));
     }
     if (endDate != null) {
-      query.where((t) => t.date.isSmallerOrEqualValue(endDate));
+      query.where((t) => t.transactionDate.isSmallerOrEqualValue(endDate));
     }
 
     if (categoryIds != null && categoryIds.isNotEmpty) {
-      query.where((t) => t.categoryAccountId.isIn(categoryIds));
+      query.where((t) => t.categoryId.isIn(categoryIds));
     }
 
     if (walletIds != null && walletIds.isNotEmpty) {
       query.where((t) =>
-          t.walletAccountId.isIn(walletIds) |
-          t.toWalletAccountId.isIn(walletIds));
+          t.walletId.isIn(walletIds) |
+          t.toWalletId.isIn(walletIds));
     }
 
     final rows = await query.get();
-    var result = rows.map((r) => VoucherModel.fromMap({
-          'id': r.id,
-          'companyId': r.companyId,
-          'voucherNumber': r.voucherNumber,
-          'type': r.type,
-          'date': encodeTime(r.date),
-          'dueDate': r.dueDate != null ? encodeTime(r.dueDate!) : null,
-          'partyId': r.partyId,
-          'partyName': r.partyName,
-          'status': r.status,
-          'paymentMode': r.paymentMode,
-          'subtotalInCents': r.subtotalInCents,
-          'taxInCents': r.taxInCents,
-          'discountInCents': r.discountInCents,
-          'totalAmountInCents': r.totalAmountInCents,
-          'narration': r.narration,
-          'referenceNumber': r.referenceNumber,
-          'sourceVoucherId': r.sourceVoucherId,
-          'receiptPhotoUrl': r.receiptPhotoUrl,
-          'itemsJson': r.itemsJson,
-          'categoryAccountId': r.categoryAccountId,
-          'walletAccountId': r.walletAccountId,
-          'toWalletAccountId': r.toWalletAccountId,
-          'createdAt': encodeTime(r.createdAt),
-          'updatedAt': encodeTime(r.updatedAt),
-        })).toList();
+    var result = rows.map(_rowToVoucher).toList();
 
     if (textQuery != null && textQuery.trim().isNotEmpty) {
       final q = textQuery.trim().toLowerCase();
@@ -574,68 +832,37 @@ class DriftExpenseRepository {
   }) {
     AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
 
-    final query = _db.select(_db.vouchers)
-      ..where((t) => t.companyId.equals(_currentCompanyId) & t.isDeleted.equals(false))
-      ..orderBy([(t) => OrderingTerm.desc(t.date), (t) => OrderingTerm.desc(t.createdAt)]);
+    final query = _db.select(_db.expenseTransactions)
+      ..where((t) => t.profileId.equals(_currentCompanyId))
+      ..orderBy([(t) => OrderingTerm.desc(t.transactionDate), (t) => OrderingTerm.desc(t.createdAt)]);
 
     if (!includeVoided) {
-      query.where((t) => t.status.equals(VoucherStatus.posted.name));
+      query.where((t) => t.isDeleted.equals(false));
     }
 
     if (type != null) {
-      query.where((t) => t.type.equals(type.name));
-    } else {
-      query.where((t) =>
-          t.type.equals(VoucherType.expense.name) |
-          t.type.equals(VoucherType.income.name) |
-          t.type.equals(VoucherType.transfer.name));
+      query.where((t) => t.transactionType.equals(type.name));
     }
 
     if (startDate != null) {
-      query.where((t) => t.date.isBiggerOrEqualValue(startDate));
+      query.where((t) => t.transactionDate.isBiggerOrEqualValue(startDate));
     }
     if (endDate != null) {
-      query.where((t) => t.date.isSmallerOrEqualValue(endDate));
+      query.where((t) => t.transactionDate.isSmallerOrEqualValue(endDate));
     }
 
     if (categoryIds != null && categoryIds.isNotEmpty) {
-      query.where((t) => t.categoryAccountId.isIn(categoryIds));
+      query.where((t) => t.categoryId.isIn(categoryIds));
     }
 
     if (walletIds != null && walletIds.isNotEmpty) {
       query.where((t) =>
-          t.walletAccountId.isIn(walletIds) |
-          t.toWalletAccountId.isIn(walletIds));
+          t.walletId.isIn(walletIds) |
+          t.toWalletId.isIn(walletIds));
     }
 
     return query.watch().map((rows) {
-      var result = rows.map((r) => VoucherModel.fromMap({
-            'id': r.id,
-            'companyId': r.companyId,
-            'voucherNumber': r.voucherNumber,
-            'type': r.type,
-            'date': encodeTime(r.date),
-            'dueDate': r.dueDate != null ? encodeTime(r.dueDate!) : null,
-            'partyId': r.partyId,
-            'partyName': r.partyName,
-            'status': r.status,
-            'paymentMode': r.paymentMode,
-            'subtotalInCents': r.subtotalInCents,
-            'taxInCents': r.taxInCents,
-            'discountInCents': r.discountInCents,
-            'totalAmountInCents': r.totalAmountInCents,
-            'narration': r.narration,
-            'referenceNumber': r.referenceNumber,
-            'sourceVoucherId': r.sourceVoucherId,
-            'receiptPhotoUrl': r.receiptPhotoUrl,
-            'itemsJson': r.itemsJson,
-            'categoryAccountId': r.categoryAccountId,
-            'walletAccountId': r.walletAccountId,
-            'toWalletAccountId': r.toWalletAccountId,
-            'createdAt': encodeTime(r.createdAt),
-            'updatedAt': encodeTime(r.updatedAt),
-          })).toList();
-
+      var result = rows.map(_rowToVoucher).toList();
       if (textQuery != null && textQuery.trim().isNotEmpty) {
         final q = textQuery.trim().toLowerCase();
         result = result.where((v) {
@@ -645,9 +872,77 @@ class DriftExpenseRepository {
           return narr.contains(q) || vNum.contains(q) || refNum.contains(q);
         }).toList();
       }
-
       return result;
     });
+  }
+
+  // --- Balance Calculation Helpers ---
+
+  Future<void> _applyTransactionBalanceEffects({
+    required String type,
+    required int amountInCents,
+    required String walletId,
+    String? toWalletId,
+    required bool isReversal,
+  }) async {
+    final factor = isReversal ? -1 : 1;
+
+    switch (type) {
+      case 'expense':
+        await _adjustWalletBalance(walletId, -1 * amountInCents * factor);
+        break;
+      case 'income':
+        await _adjustWalletBalance(walletId, amountInCents * factor);
+        break;
+      case 'transfer':
+        await _adjustWalletBalance(walletId, -1 * amountInCents * factor);
+        if (toWalletId != null && toWalletId.isNotEmpty) {
+          await _adjustWalletBalance(toWalletId, amountInCents * factor);
+        }
+        break;
+    }
+  }
+
+  Future<void> _adjustWalletBalance(String walletId, int deltaInCents) async {
+    final wallet = await (_db.select(_db.expenseWallets)
+          ..where((t) => t.id.equals(walletId) & t.profileId.equals(_currentCompanyId)))
+        .getSingleOrNull();
+
+    if (wallet == null) return;
+
+    final isLiability = wallet.walletType == 'credit_card';
+    final effectiveDelta = isLiability ? -deltaInCents : deltaInCents;
+    final newBalance = wallet.currentBalanceInCents + effectiveDelta;
+
+    await (_db.update(_db.expenseWallets)..where((t) => t.id.equals(walletId)))
+        .write(
+      ExpenseWalletsCompanion(
+        currentBalanceInCents: Value(newBalance),
+        updatedAt: Value(DateTime.now()),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      ),
+    );
+
+    await enqueueMutation(
+      db: _db,
+      table: 'exp_wallets',
+      recordId: walletId,
+      type: 'UPDATE',
+      fullRowMap: {
+        'id': walletId,
+        'profile_id': _currentCompanyId,
+        'name': wallet.name,
+        'wallet_type': wallet.walletType,
+        'currency_code': wallet.currencyCode,
+        'starting_balance_in_cents': wallet.startingBalanceInCents,
+        'current_balance_in_cents': newBalance,
+        'color_hex': wallet.colorHex,
+        'icon_name': wallet.iconName,
+        'is_archived': wallet.isArchived,
+        'updated_at': encodeTime(DateTime.now()),
+        'is_deleted': wallet.isDeleted,
+      },
+    );
   }
 
   // ==========================================
@@ -658,67 +953,37 @@ class DriftExpenseRepository {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
 
-    final query = _db.select(_db.accounts)
-      ..where((t) =>
-          t.companyId.equals(_currentCompanyId) &
-          t.isDeleted.equals(false) &
-          (t.type.equals(AccountType.asset.name) |
-              t.type.equals(AccountType.liability.name)));
+    final query = _db.select(_db.expenseWallets)
+      ..where((t) => t.profileId.equals(_currentCompanyId) & t.isDeleted.equals(false))
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.walletType.equals('cash'), mode: OrderingMode.desc),
+        (t) => OrderingTerm.asc(t.createdAt),
+        (t) => OrderingTerm.asc(t.name),
+      ]);
 
     if (!includeArchived) {
-      query.where((t) => t.isActive.equals(true));
+      query.where((t) => t.isArchived.equals(false));
     }
 
     final rows = await query.get();
-    return rows.map(_accountFromRow).toList();
+    return rows.map(_walletToAccount).toList();
   }
 
   Future<AccountModel> getWalletById(String id) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
 
-    final row = await (_db.select(_db.accounts)
+    final row = await (_db.select(_db.expenseWallets)
           ..where((t) =>
               t.id.equals(id) &
-              t.companyId.equals(_currentCompanyId) &
+              t.profileId.equals(_currentCompanyId) &
               t.isDeleted.equals(false)))
         .getSingleOrNull();
 
     if (row == null) {
       throw AccountNotFoundException(id, 'Wallet account not found: $id');
     }
-    return _accountFromRow(row);
-  }
-
-  Future<String> _generateUniqueCode({
-    required AccountType type,
-    required String kind,
-  }) async {
-    int startCode;
-    int endCode;
-
-    if (kind == 'wallet') {
-      startCode = (type == AccountType.asset) ? 1100 : 2100;
-      endCode = startCode + 99;
-    } else {
-      startCode = (type == AccountType.expense) ? 5100 : 4100;
-      endCode = startCode + 799;
-    }
-
-    final existingCodesRows = await (_db.select(_db.accounts)
-          ..where((t) => t.companyId.equals(_currentCompanyId) & t.isDeleted.equals(false)))
-        .get();
-
-    final existingCodes = existingCodesRows.map((r) => r.code).toSet();
-
-    for (int candidate = startCode; candidate <= endCode; candidate++) {
-      final codeStr = candidate.toString();
-      if (!existingCodes.contains(codeStr)) {
-        return codeStr;
-      }
-    }
-
-    return '${startCode}_${DateTime.now().millisecondsSinceEpoch}';
+    return _walletToAccount(row);
   }
 
   Future<AccountModel> createWallet({
@@ -727,6 +992,9 @@ class DriftExpenseRepository {
     int openingBalanceInCents = 0,
     String? description,
     String? code,
+    String? walletType,
+    String? colorHex,
+    String? iconName,
   }) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(
@@ -737,33 +1005,27 @@ class DriftExpenseRepository {
     }
 
     final now = DateTime.now();
-    final walletId =
-        '${_currentCompanyId}_acc_wallet_${_uuid.v4().substring(0, 8)}';
-    final walletCode = code ?? await _generateUniqueCode(type: type, kind: 'wallet');
+    final walletId = '${_currentCompanyId}_wal_${_uuid.v4().substring(0, 8)}';
+    final resolvedWalletType = walletType ?? (type == AccountType.liability ? 'credit_card' : 'cash');
 
-    final companion = AccountsCompanion.insert(
+    final companion = ExpenseWalletsCompanion.insert(
       id: walletId,
-      companyId: Value(_currentCompanyId),
-      code: walletCode,
+      profileId: _currentCompanyId,
       name: name,
-      type: type.name,
-      kind: const Value('wallet'),
-      parentAccountId: const Value(null),
-      isSystem: const Value(false),
-      isActive: const Value(true),
-      description: Value(description ?? 'Wallet: $name'),
-      currentBalanceInCents: const Value(0),
+      walletType: Value(resolvedWalletType),
+      currencyCode: const Value('INR'),
+      startingBalanceInCents: Value(openingBalanceInCents),
+      currentBalanceInCents: Value(openingBalanceInCents),
+      colorHex: Value(colorHex),
+      iconName: Value(iconName),
+      isArchived: const Value(false),
       createdAt: Value(now),
       updatedAt: Value(now),
       isDeleted: const Value(false),
       syncStatus: const Value(SyncRecordStatus.pending),
     );
 
-    await _db.into(_db.accounts).insert(companion);
-
-    if (openingBalanceInCents != 0) {
-      await setOpeningBalance(walletId, openingBalanceInCents);
-    }
+    await _db.into(_db.expenseWallets).insert(companion);
 
     final created = await getWalletById(walletId);
 
@@ -778,10 +1040,24 @@ class DriftExpenseRepository {
 
     await enqueueMutation(
       db: _db,
-      table: 'accounts',
+      table: 'exp_wallets',
       recordId: walletId,
       type: 'INSERT',
-      fullRowMap: created.toMap(),
+      fullRowMap: {
+        'id': walletId,
+        'profile_id': _currentCompanyId,
+        'name': name,
+        'wallet_type': resolvedWalletType,
+        'currency_code': 'INR',
+        'starting_balance_in_cents': openingBalanceInCents,
+        'current_balance_in_cents': openingBalanceInCents,
+        'color_hex': colorHex,
+        'icon_name': iconName,
+        'is_archived': false,
+        'created_at': encodeTime(now),
+        'updated_at': encodeTime(now),
+        'is_deleted': false,
+      },
     );
 
     _notifyUpdates();
@@ -793,25 +1069,26 @@ class DriftExpenseRepository {
     String? name,
     String? description,
     bool? isActive,
+    String? colorHex,
+    String? iconName,
   }) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(
         _currentRole, UserAction.manageWalletsAndCategories);
 
     final existing = await getWalletById(id);
+    final now = DateTime.now();
 
-    final companion = AccountsCompanion(
-      name: name != null ? Value(name) : const Value.absent(),
-      description:
-          description != null ? Value(description) : const Value.absent(),
-      isActive: isActive != null ? Value(isActive) : const Value.absent(),
-      updatedAt: Value(DateTime.now()),
-      syncStatus: const Value(SyncRecordStatus.pending),
+    await (_db.update(_db.expenseWallets)..where((t) => t.id.equals(id))).write(
+      ExpenseWalletsCompanion(
+        name: name != null ? Value(name) : const Value.absent(),
+        colorHex: colorHex != null ? Value(colorHex) : const Value.absent(),
+        iconName: iconName != null ? Value(iconName) : const Value.absent(),
+        isArchived: isActive != null ? Value(!isActive) : const Value.absent(),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      ),
     );
-
-    await (_db.update(_db.accounts)
-          ..where((t) => t.id.equals(id) & t.companyId.equals(_currentCompanyId)))
-        .write(companion);
 
     final updated = await getWalletById(id);
 
@@ -827,10 +1104,16 @@ class DriftExpenseRepository {
 
     await enqueueMutation(
       db: _db,
-      table: 'accounts',
+      table: 'exp_wallets',
       recordId: id,
       type: 'UPDATE',
-      fullRowMap: updated.toMap(),
+      fullRowMap: {
+        'id': id,
+        'profile_id': _currentCompanyId,
+        'name': updated.name,
+        'is_archived': !updated.isActive,
+        'updated_at': encodeTime(now),
+      },
     );
 
     _notifyUpdates();
@@ -845,49 +1128,49 @@ class DriftExpenseRepository {
     final existing = await getWalletById(id);
 
     // Check if wallet has transactions
-    final vCount = await (_db.select(_db.vouchers)
+    final hasTxns = await (_db.select(_db.expenseTransactions)
           ..where((t) =>
-              t.companyId.equals(_currentCompanyId) &
-              (t.walletAccountId.equals(id) | t.toWalletAccountId.equals(id))))
-        .get();
-
-    final jCount = await (_db.select(_db.journalLines)
-          ..where((t) =>
-              t.companyId.equals(_currentCompanyId) &
-              t.accountId.equals(id) &
+              t.profileId.equals(_currentCompanyId) &
+              (t.walletId.equals(id) | t.toWalletId.equals(id)) &
               t.isDeleted.equals(false)))
         .get();
 
-    final hasTransactions = vCount.isNotEmpty || jCount.isNotEmpty;
     final now = DateTime.now();
 
-    if (hasTransactions) {
+    if (hasTxns.isNotEmpty) {
       // Archive instead of delete
-      await (_db.update(_db.accounts)
-            ..where((t) =>
-                t.id.equals(id) & t.companyId.equals(_currentCompanyId)))
-          .write(AccountsCompanion(
-        isActive: const Value(false),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ));
-    } else {
-      // Soft-delete
-      await (_db.update(_db.accounts)
-            ..where((t) =>
-                t.id.equals(id) & t.companyId.equals(_currentCompanyId)))
-          .write(AccountsCompanion(
-        isDeleted: const Value(true),
-        isActive: const Value(false),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ));
+      await (_db.update(_db.expenseWallets)..where((t) => t.id.equals(id))).write(
+        ExpenseWalletsCompanion(
+          isArchived: const Value(true),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_wallets',
+        recordId: id,
+        type: 'UPDATE',
+        fullRowMap: {
+          'id': id,
+          'profile_id': _currentCompanyId,
+          'is_archived': true,
+          'updated_at': encodeTime(now),
+        },
+      );
+
+      _notifyUpdates();
+      return false; // Archived, not deleted
     }
 
-    final updated = existing.copyWith(
-      isActive: false,
-      isDeleted: !hasTransactions,
-      updatedAt: now,
+    // Soft delete
+    await (_db.update(_db.expenseWallets)..where((t) => t.id.equals(id))).write(
+      ExpenseWalletsCompanion(
+        isDeleted: const Value(true),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      ),
     );
 
     await _auditService.recordLog(
@@ -895,270 +1178,242 @@ class DriftExpenseRepository {
       userId: _currentUserId,
       entityType: 'wallet',
       entityId: id,
-      action: hasTransactions ? AuditAction.update : AuditAction.delete,
+      action: AuditAction.delete,
       oldState: existing.toMap(),
-      newState: updated.toMap(),
     );
 
     await enqueueMutation(
       db: _db,
-      table: 'accounts',
+      table: 'exp_wallets',
       recordId: id,
-      type: 'UPDATE',
-      fullRowMap: updated.toMap(),
+      type: 'DELETE',
+      fullRowMap: {
+        'id': id,
+        'profile_id': _currentCompanyId,
+        'is_deleted': true,
+        'updated_at': encodeTime(now),
+      },
     );
 
     _notifyUpdates();
-    return !hasTransactions;
+    return true;
   }
 
-  Future<void> setOpeningBalance(
-    String walletId,
-    int openingBalanceInCents,
-  ) async {
+  Future<void> setOpeningBalance(String walletId, int openingBalanceInCents) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(
         _currentRole, UserAction.manageWalletsAndCategories);
 
-    final wallet = await getWalletById(walletId);
-    final equityId =
-        '${_currentCompanyId}_${ExpenseTrackerDefaults.openingBalanceEquityId}';
-
-    // Ensure Opening Balance Equity account exists
-    final equityRow = await (_db.select(_db.accounts)
-          ..where((t) =>
-              t.id.equals(equityId) & t.companyId.equals(_currentCompanyId)))
+    final wallet = await (_db.select(_db.expenseWallets)
+          ..where((t) => t.id.equals(walletId) & t.profileId.equals(_currentCompanyId)))
         .getSingleOrNull();
 
-    if (equityRow == null) {
-      await _db.into(_db.accounts).insertOnConflictUpdate(
-            AccountsCompanion.insert(
-              id: equityId,
-              companyId: Value(_currentCompanyId),
-              code: '3100',
-              name: 'Opening Balance Equity',
-              type: AccountType.equity.name,
-              isSystem: const Value(true),
-              isActive: const Value(true),
-              description: const Value('Opening equity balancing account'),
-              currentBalanceInCents: const Value(0),
-              createdAt: Value(DateTime.now()),
-              updatedAt: Value(DateTime.now()),
-            ),
-          );
+    if (wallet == null) {
+      throw AccountNotFoundException(walletId, 'Wallet not found: $walletId');
     }
 
-    final journalId = 'jnl_opening_${_currentCompanyId}_$walletId';
-    final journalNumber = 'JNL-OP-$walletId';
     final now = DateTime.now();
 
-    final List<JournalLinesCompanion> lines = [];
-    final isAsset = wallet.type == AccountType.asset;
+    await (_db.update(_db.expenseWallets)..where((t) => t.id.equals(walletId))).write(
+      ExpenseWalletsCompanion(
+        startingBalanceInCents: Value(openingBalanceInCents),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      ),
+    );
 
-    if (openingBalanceInCents > 0) {
-      if (isAsset) {
-        // Debit Wallet, Credit Equity
-        lines.add(JournalLinesCompanion.insert(
-          id: '${journalId}_dr',
-          companyId: Value(_currentCompanyId),
-          journalId: journalId,
-          accountId: walletId,
-          debitInCents: Value(openingBalanceInCents),
-          creditInCents: const Value(0),
-          narration: Value('Opening balance for ${wallet.name}'),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ));
-        lines.add(JournalLinesCompanion.insert(
-          id: '${journalId}_cr',
-          companyId: Value(_currentCompanyId),
-          journalId: journalId,
-          accountId: equityId,
-          debitInCents: const Value(0),
-          creditInCents: Value(openingBalanceInCents),
-          narration: const Value('Opening Balance Equity offset'),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ));
-      } else {
-        // Liability wallet (e.g. Credit Card): spending/opening debt increases liability (Credit)
-        // Debit Equity, Credit Wallet
-        lines.add(JournalLinesCompanion.insert(
-          id: '${journalId}_dr',
-          companyId: Value(_currentCompanyId),
-          journalId: journalId,
-          accountId: equityId,
-          debitInCents: Value(openingBalanceInCents),
-          creditInCents: const Value(0),
-          narration: const Value('Opening Balance Equity offset'),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ));
-        lines.add(JournalLinesCompanion.insert(
-          id: '${journalId}_cr',
-          companyId: Value(_currentCompanyId),
-          journalId: journalId,
-          accountId: walletId,
-          debitInCents: const Value(0),
-          creditInCents: Value(openingBalanceInCents),
-          narration: Value('Opening liability for ${wallet.name}'),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-        ));
-      }
-    }
+    await recalculateWalletBalances(walletId);
 
-    await _db.transaction(() async {
-      // Upsert journal header
-      await _db.into(_db.journals).insertOnConflictUpdate(
-            JournalsCompanion.insert(
-              id: journalId,
-              companyId: Value(_currentCompanyId),
-              journalNumber: journalNumber,
-              voucherId: const Value(null),
-              date: now,
-              narration: Value('Opening Balance for ${wallet.name}'),
-              totalAmountInCents: Value(openingBalanceInCents),
-              status: const Value('posted'),
-              createdAt: Value(now),
-              updatedAt: Value(now),
-            ),
-          );
-
-      // Delete existing opening journal lines for this wallet (from seed or prior setOpeningBalance)
-      final priorOpeningLines = await (_db.select(_db.journalLines)
-            ..where((t) =>
-                t.companyId.equals(_currentCompanyId) &
-                t.accountId.equals(walletId) &
-                t.journalId.like('jnl_opening_$_currentCompanyId%')))
-          .get();
-
-      for (final l in priorOpeningLines) {
-        await (_db.update(_db.journalLines)..where((t) => t.id.equals(l.id))).write(
-          JournalLinesCompanion(
-            isDeleted: const Value(true),
-            syncStatus: const Value(SyncRecordStatus.pending),
-            updatedAt: Value(now),
-          ),
-        );
-      }
-
-      // Soft-delete existing lines for this specific wallet opening journal
-      await (_db.update(_db.journalLines)..where((t) => t.journalId.equals(journalId))).write(
-        JournalLinesCompanion(
-          isDeleted: const Value(true),
-          syncStatus: const Value(SyncRecordStatus.pending),
-          updatedAt: Value(now),
-        ),
-      );
-
-      for (final line in lines) {
-        await _db.into(_db.journalLines).insertOnConflictUpdate(line);
-      }
-
-      // Recalculate account balances
-      await _postingEngine.recalculateAccountBalance(
-          walletId, _currentCompanyId);
-      await _postingEngine.recalculateAccountBalance(
-          equityId, _currentCompanyId);
-    });
+    await enqueueMutation(
+      db: _db,
+      table: 'exp_wallets',
+      recordId: walletId,
+      type: 'UPDATE',
+      fullRowMap: {
+        'id': walletId,
+        'profile_id': _currentCompanyId,
+        'starting_balance_in_cents': openingBalanceInCents,
+        'updated_at': encodeTime(now),
+      },
+    );
 
     _notifyUpdates();
   }
 
+  Future<void> recalculateWalletBalances([String? targetWalletId]) async {
+    final wallets = await (_db.select(_db.expenseWallets)
+          ..where((t) => t.profileId.equals(_currentCompanyId) & t.isDeleted.equals(false)))
+        .get();
+
+    for (final w in wallets) {
+      if (targetWalletId != null && w.id != targetWalletId) continue;
+
+      int balance = w.startingBalanceInCents;
+      final isLiability = w.walletType == 'credit_card';
+
+      final txns = await (_db.select(_db.expenseTransactions)
+            ..where((t) =>
+                t.profileId.equals(_currentCompanyId) &
+                t.isDeleted.equals(false) &
+                (t.walletId.equals(w.id) | t.toWalletId.equals(w.id))))
+          .get();
+
+      for (final tx in txns) {
+        if (tx.transactionType == 'expense' && tx.walletId == w.id) {
+          balance += isLiability ? tx.amountInCents : -tx.amountInCents;
+        } else if (tx.transactionType == 'income' && tx.walletId == w.id) {
+          balance += isLiability ? -tx.amountInCents : tx.amountInCents;
+        } else if (tx.transactionType == 'transfer') {
+          if (tx.walletId == w.id) {
+            balance += isLiability ? tx.amountInCents : -tx.amountInCents;
+          }
+          if (tx.toWalletId == w.id) {
+            balance += isLiability ? -tx.amountInCents : tx.amountInCents;
+          }
+        }
+      }
+
+      await (_db.update(_db.expenseWallets)..where((t) => t.id.equals(w.id))).write(
+        ExpenseWalletsCompanion(
+          currentBalanceInCents: Value(balance),
+          updatedAt: Value(DateTime.now()),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+    }
+  }
+
   // ==========================================
-  // CATEGORY CRUD
+  // CATEGORIES CRUD
   // ==========================================
 
   Future<List<AccountModel>> getCategories({
-    AccountType? type,
+    ExpenseCategoryType? type,
     bool includeArchived = false,
   }) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
 
-    final query = _db.select(_db.accounts)
-      ..where((t) =>
-          t.companyId.equals(_currentCompanyId) &
-          t.isDeleted.equals(false) &
-          (t.type.equals(AccountType.expense.name) |
-              t.type.equals(AccountType.income.name)));
+    final query = _db.select(_db.expenseCategories)
+      ..where((t) => t.profileId.equals(_currentCompanyId) & t.isDeleted.equals(false))
+      ..orderBy([(t) => OrderingTerm.asc(t.name)]);
 
     if (type != null) {
-      query.where((t) => t.type.equals(type.name));
-    }
-    if (!includeArchived) {
-      query.where((t) => t.isActive.equals(true));
+      query.where((t) => t.categoryType.equals(type.name));
     }
 
     final rows = await query.get();
-    return rows.map(_accountFromRow).toList();
+    final accounts = await (_db.select(_db.accounts)
+          ..where((t) => t.companyId.equals(_currentCompanyId)))
+        .get();
+    final accountMap = {for (final a in accounts) a.id: a};
+
+    final result = <AccountModel>[];
+    for (final row in rows) {
+      final acc = accountMap[row.id];
+      final model = _categoryToAccount(row, acc);
+      if (!includeArchived && !model.isActive) {
+        continue;
+      }
+      result.add(model);
+    }
+    return result;
   }
 
   Future<AccountModel> getCategoryById(String id) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
 
-    final row = await (_db.select(_db.accounts)
+    final row = await (_db.select(_db.expenseCategories)
           ..where((t) =>
               t.id.equals(id) &
-              t.companyId.equals(_currentCompanyId) &
+              t.profileId.equals(_currentCompanyId) &
               t.isDeleted.equals(false)))
         .getSingleOrNull();
 
     if (row == null) {
       throw AccountNotFoundException(id, 'Category account not found: $id');
     }
-    return _accountFromRow(row);
+    final acc = await (_db.select(_db.accounts)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    return _categoryToAccount(row, acc);
   }
 
   Future<AccountModel> createCategory({
     required String name,
-    required AccountType type,
+    required dynamic type, // AccountType or ExpenseCategoryType
     String? parentAccountId,
     String? description,
     String? code,
+    String? colorHex,
+    String? iconName,
   }) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(
         _currentRole, UserAction.manageWalletsAndCategories);
 
-    if (type != AccountType.expense && type != AccountType.income) {
-      throw ArgumentError('Category must be of type expense or income.');
+    final String typeStr;
+    if (type is AccountType) {
+      typeStr = type == AccountType.income ? 'income' : 'expense';
+    } else if (type is ExpenseCategoryType) {
+      typeStr = type.name;
+    } else {
+      typeStr = type.toString().toLowerCase().contains('income') ? 'income' : 'expense';
     }
 
-    if (parentAccountId != null) {
-      final parent = await getCategoryById(parentAccountId);
-      if (parent.type != type) {
-        throw ArgumentError(
-            'Sub-category type must match parent category type.');
+    // If parent category provided, validate matching type
+    if (parentAccountId != null && parentAccountId.isNotEmpty) {
+      final parent = await (_db.select(_db.expenseCategories)
+            ..where((t) =>
+                t.id.equals(parentAccountId) &
+                t.profileId.equals(_currentCompanyId) &
+                t.isDeleted.equals(false)))
+          .getSingleOrNull();
+
+      if (parent != null && parent.categoryType != typeStr) {
+        throw ArgumentError('Sub-category type ($typeStr) must match parent category type (${parent.categoryType}).');
       }
     }
 
     final now = DateTime.now();
-    final catId =
-        '${_currentCompanyId}_acc_cat_${_uuid.v4().substring(0, 8)}';
-    final catCode = code ?? await _generateUniqueCode(type: type, kind: 'category');
+    final catId = '${_currentCompanyId}_cat_${_uuid.v4().substring(0, 8)}';
 
-    final companion = AccountsCompanion.insert(
+    final companion = ExpenseCategoriesCompanion.insert(
       id: catId,
-      companyId: Value(_currentCompanyId),
-      code: catCode,
+      profileId: _currentCompanyId,
       name: name,
-      type: type.name,
-      kind: const Value('category'),
-      parentAccountId: Value(parentAccountId),
+      categoryType: Value(typeStr),
+      parentCategoryId: Value(parentAccountId),
+      iconName: Value(iconName),
+      colorHex: Value(colorHex),
       isSystem: const Value(false),
-      isActive: const Value(true),
-      description: Value(description ?? 'Category: $name'),
-      currentBalanceInCents: const Value(0),
       createdAt: Value(now),
       updatedAt: Value(now),
       isDeleted: const Value(false),
       syncStatus: const Value(SyncRecordStatus.pending),
     );
 
-    await _db.into(_db.accounts).insert(companion);
+    await _db.into(_db.expenseCategories).insert(companion);
+
+    // Keep legacy accounts table synchronized for backwards compatibility
+    await _db.into(_db.accounts).insertOnConflictUpdate(
+          AccountsCompanion.insert(
+            id: catId,
+            companyId: Value(_currentCompanyId),
+            code: catId,
+            name: name,
+            type: typeStr,
+            kind: const Value('category'),
+            parentAccountId: Value(parentAccountId),
+            isSystem: const Value(false),
+            isActive: const Value(true),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            isDeleted: const Value(false),
+            syncStatus: const Value(SyncRecordStatus.synced),
+          ),
+        );
 
     final created = await getCategoryById(catId);
 
@@ -1173,10 +1428,22 @@ class DriftExpenseRepository {
 
     await enqueueMutation(
       db: _db,
-      table: 'accounts',
+      table: 'exp_categories',
       recordId: catId,
       type: 'INSERT',
-      fullRowMap: created.toMap(),
+      fullRowMap: {
+        'id': catId,
+        'profile_id': _currentCompanyId,
+        'name': name,
+        'category_type': typeStr,
+        'parent_category_id': parentAccountId,
+        'icon_name': iconName,
+        'color_hex': colorHex,
+        'is_system': false,
+        'created_at': encodeTime(now),
+        'updated_at': encodeTime(now),
+        'is_deleted': false,
+      },
     );
 
     _notifyUpdates();
@@ -1189,35 +1456,26 @@ class DriftExpenseRepository {
     String? parentAccountId,
     String? description,
     bool? isActive,
+    String? colorHex,
+    String? iconName,
   }) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(
         _currentRole, UserAction.manageWalletsAndCategories);
 
     final existing = await getCategoryById(id);
+    final now = DateTime.now();
 
-    if (parentAccountId != null && parentAccountId != existing.parentAccountId) {
-      final parent = await getCategoryById(parentAccountId);
-      if (parent.type != existing.type) {
-        throw ArgumentError(
-            'Sub-category type must match parent category type.');
-      }
-    }
-
-    final companion = AccountsCompanion(
-      name: name != null ? Value(name) : const Value.absent(),
-      parentAccountId:
-          parentAccountId != null ? Value(parentAccountId) : const Value.absent(),
-      description:
-          description != null ? Value(description) : const Value.absent(),
-      isActive: isActive != null ? Value(isActive) : const Value.absent(),
-      updatedAt: Value(DateTime.now()),
-      syncStatus: const Value(SyncRecordStatus.pending),
+    await (_db.update(_db.expenseCategories)..where((t) => t.id.equals(id))).write(
+      ExpenseCategoriesCompanion(
+        name: name != null ? Value(name) : const Value.absent(),
+        parentCategoryId: parentAccountId != null ? Value(parentAccountId) : const Value.absent(),
+        colorHex: colorHex != null ? Value(colorHex) : const Value.absent(),
+        iconName: iconName != null ? Value(iconName) : const Value.absent(),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      ),
     );
-
-    await (_db.update(_db.accounts)
-          ..where((t) => t.id.equals(id) & t.companyId.equals(_currentCompanyId)))
-        .write(companion);
 
     final updated = await getCategoryById(id);
 
@@ -1233,10 +1491,16 @@ class DriftExpenseRepository {
 
     await enqueueMutation(
       db: _db,
-      table: 'accounts',
+      table: 'exp_categories',
       recordId: id,
       type: 'UPDATE',
-      fullRowMap: updated.toMap(),
+      fullRowMap: {
+        'id': id,
+        'profile_id': _currentCompanyId,
+        'name': updated.name,
+        'parent_category_id': updated.parentAccountId,
+        'updated_at': encodeTime(now),
+      },
     );
 
     _notifyUpdates();
@@ -1251,49 +1515,40 @@ class DriftExpenseRepository {
     final existing = await getCategoryById(id);
 
     // Check if category has transactions
-    final vCount = await (_db.select(_db.vouchers)
+    final hasTxns = await (_db.select(_db.expenseTransactions)
           ..where((t) =>
-              t.companyId.equals(_currentCompanyId) &
-              t.categoryAccountId.equals(id)))
-        .get();
-
-    final jCount = await (_db.select(_db.journalLines)
-          ..where((t) =>
-              t.companyId.equals(_currentCompanyId) &
-              t.accountId.equals(id) &
+              t.profileId.equals(_currentCompanyId) &
+              t.categoryId.equals(id) &
               t.isDeleted.equals(false)))
         .get();
 
-    final hasTransactions = vCount.isNotEmpty || jCount.isNotEmpty;
     final now = DateTime.now();
 
-    if (hasTransactions) {
-      // Archive instead of delete
-      await (_db.update(_db.accounts)
-            ..where((t) =>
-                t.id.equals(id) & t.companyId.equals(_currentCompanyId)))
-          .write(AccountsCompanion(
-        isActive: const Value(false),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ));
-    } else {
-      // Soft-delete
-      await (_db.update(_db.accounts)
-            ..where((t) =>
-                t.id.equals(id) & t.companyId.equals(_currentCompanyId)))
-          .write(AccountsCompanion(
-        isDeleted: const Value(true),
-        isActive: const Value(false),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ));
+    if (hasTxns.isNotEmpty) {
+      // In use: archive by keeping it in expenseCategories, mark inactive in accounts
+      await (_db.update(_db.accounts)..where((t) => t.id.equals(id))).write(
+        AccountsCompanion(
+          isActive: const Value(false),
+          updatedAt: Value(now),
+        ),
+      );
+      _notifyUpdates();
+      return false; // Archived / in-use, not deleted
     }
 
-    final updated = existing.copyWith(
-      isActive: false,
-      isDeleted: !hasTransactions,
-      updatedAt: now,
+    // Soft delete
+    await (_db.update(_db.expenseCategories)..where((t) => t.id.equals(id))).write(
+      ExpenseCategoriesCompanion(
+        isDeleted: const Value(true),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      ),
+    );
+    await (_db.update(_db.accounts)..where((t) => t.id.equals(id))).write(
+      AccountsCompanion(
+        isDeleted: const Value(true),
+        updatedAt: Value(now),
+      ),
     );
 
     await _auditService.recordLog(
@@ -1301,21 +1556,25 @@ class DriftExpenseRepository {
       userId: _currentUserId,
       entityType: 'category',
       entityId: id,
-      action: hasTransactions ? AuditAction.update : AuditAction.delete,
+      action: AuditAction.delete,
       oldState: existing.toMap(),
-      newState: updated.toMap(),
     );
 
     await enqueueMutation(
       db: _db,
-      table: 'accounts',
+      table: 'exp_categories',
       recordId: id,
-      type: 'UPDATE',
-      fullRowMap: updated.toMap(),
+      type: 'DELETE',
+      fullRowMap: {
+        'id': id,
+        'profile_id': _currentCompanyId,
+        'is_deleted': true,
+        'updated_at': encodeTime(now),
+      },
     );
 
     _notifyUpdates();
-    return !hasTransactions;
+    return true;
   }
 
   // ==========================================
@@ -1326,105 +1585,135 @@ class DriftExpenseRepository {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
 
-    final startOfMonth = DateTime(month.year, month.month, 1);
-    final endOfMonth =
-        DateTime(month.year, month.month + 1, 0, 23, 59, 59, 999);
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 0, 23, 59, 59, 999);
 
-    final txns = await getTransactions(
-      startDate: startOfMonth,
-      endDate: endOfMonth,
-      includeVoided: false,
-    );
+    final txns = await (_db.select(_db.expenseTransactions)
+          ..where((t) =>
+              t.profileId.equals(_currentCompanyId) &
+              t.isDeleted.equals(false) &
+              t.transactionDate.isBiggerOrEqualValue(start) &
+              t.transactionDate.isSmallerOrEqualValue(end)))
+        .get();
 
     int totalIncome = 0;
     int totalExpense = 0;
-    final Map<String, int> categoryTotals = {};
-    final Map<String, int> incomeCategoryTotals = {};
-    final Map<String, int> expenseCategoryTotals = {};
+    final categoryTotals = <String, int>{};
+    final incomeCatTotals = <String, int>{};
+    final expenseCatTotals = <String, int>{};
 
-    for (final txn in txns) {
-      if (txn.type == VoucherType.income) {
-        totalIncome += txn.totalAmountInCents;
-        if (txn.categoryAccountId != null) {
-          categoryTotals[txn.categoryAccountId!] =
-              (categoryTotals[txn.categoryAccountId!] ?? 0) +
-                  txn.totalAmountInCents;
-          incomeCategoryTotals[txn.categoryAccountId!] =
-              (incomeCategoryTotals[txn.categoryAccountId!] ?? 0) +
-                  txn.totalAmountInCents;
+    for (final tx in txns) {
+      if (tx.transactionType == 'expense') {
+        totalExpense += tx.amountInCents;
+        if (tx.categoryId != null) {
+          categoryTotals[tx.categoryId!] =
+              (categoryTotals[tx.categoryId!] ?? 0) + tx.amountInCents;
+          expenseCatTotals[tx.categoryId!] =
+              (expenseCatTotals[tx.categoryId!] ?? 0) + tx.amountInCents;
         }
-      } else if (txn.type == VoucherType.expense) {
-        totalExpense += txn.totalAmountInCents;
-        if (txn.categoryAccountId != null) {
-          categoryTotals[txn.categoryAccountId!] =
-              (categoryTotals[txn.categoryAccountId!] ?? 0) +
-                  txn.totalAmountInCents;
-          expenseCategoryTotals[txn.categoryAccountId!] =
-              (expenseCategoryTotals[txn.categoryAccountId!] ?? 0) +
-                  txn.totalAmountInCents;
+      } else if (tx.transactionType == 'income') {
+        totalIncome += tx.amountInCents;
+        if (tx.categoryId != null) {
+          categoryTotals[tx.categoryId!] =
+              (categoryTotals[tx.categoryId!] ?? 0) + tx.amountInCents;
+          incomeCatTotals[tx.categoryId!] =
+              (incomeCatTotals[tx.categoryId!] ?? 0) + tx.amountInCents;
         }
       }
     }
 
-    final wallets = await getWallets(includeArchived: false);
-    final Map<String, int> walletBalances = {};
-
+    final walletBalances = <String, int>{};
+    final wallets = await (_db.select(_db.expenseWallets)
+          ..where((t) => t.profileId.equals(_currentCompanyId) & t.isDeleted.equals(false)))
+        .get();
     for (final w in wallets) {
-      final query = _db.select(_db.journalLines).join([
-        innerJoin(_db.journals, _db.journals.id.equalsExp(_db.journalLines.journalId)),
-      ])..where(
-        _db.journalLines.accountId.equals(w.id) &
-        _db.journalLines.companyId.equals(_currentCompanyId) &
-        _db.journalLines.isDeleted.equals(false) &
-        _db.journals.status.equals('posted'),
-      );
-
-      final rows = await query.get();
-      int debit = 0;
-      int credit = 0;
-      for (final r in rows) {
-        final line = r.readTable(_db.journalLines);
-        debit += line.debitInCents;
-        credit += line.creditInCents;
-      }
-      walletBalances[w.id] = debit - credit;
+      walletBalances[w.id] = w.currentBalanceInCents;
     }
 
     return ExpenseMonthSummary(
-      month: startOfMonth,
+      month: month,
       totalIncomeInCents: totalIncome,
       totalExpenseInCents: totalExpense,
       netInCents: totalIncome - totalExpense,
       walletBalancesInCents: walletBalances,
       categoryTotalsInCents: categoryTotals,
-      incomeCategoryTotalsInCents: incomeCategoryTotals,
-      expenseCategoryTotalsInCents: expenseCategoryTotals,
+      incomeCategoryTotalsInCents: incomeCatTotals,
+      expenseCategoryTotalsInCents: expenseCatTotals,
     );
   }
 
-  AccountModel _accountFromRow(AccountTableData r) {
-    return AccountModel(
+  // ==========================================
+  // MODEL MAPPING HELPERS
+  // ==========================================
+
+  VoucherModel _rowToVoucher(ExpenseTransactionTableData r) {
+    VoucherType type;
+    switch (r.transactionType) {
+      case 'income':
+        type = VoucherType.income;
+        break;
+      case 'transfer':
+        type = VoucherType.transfer;
+        break;
+      case 'expense':
+      default:
+        type = VoucherType.expense;
+        break;
+    }
+
+    return VoucherModel(
       id: r.id,
-      companyId: r.companyId,
-      code: r.code,
-      name: r.name,
-      type: AccountType.values.firstWhere(
-        (t) => t.name.toLowerCase() == r.type.toLowerCase(),
-        orElse: () => AccountType.asset,
-      ),
-      parentAccountId: r.parentAccountId,
-      kind: r.kind,
-      isSystem: r.isSystem,
-      isActive: r.isActive,
-      description: r.description,
-      currentBalanceInCents: r.currentBalanceInCents,
+      companyId: r.profileId,
+      voucherNumber: r.referenceNumber ?? r.id,
+      type: type,
+      date: r.transactionDate,
+      status: r.isDeleted ? VoucherStatus.voided : VoucherStatus.posted,
+      totalAmountInCents: r.amountInCents,
+      subtotalInCents: r.amountInCents,
+      categoryAccountId: r.categoryId,
+      walletAccountId: r.walletId,
+      toWalletAccountId: r.toWalletId,
+      narration: r.note,
+      referenceNumber: r.referenceNumber,
+      receiptPhotoUrl: r.receiptPhotoUrl,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
     );
   }
 
-  void dispose() {
-    _isDisposed = true;
-    _updateStreamController.close();
+  AccountModel _walletToAccount(ExpenseWalletTableData w) {
+    return AccountModel(
+      id: w.id,
+      companyId: w.profileId,
+      code: w.id,
+      name: w.name,
+      type: w.walletType == 'credit_card' ? AccountType.liability : AccountType.asset,
+      kind: 'wallet',
+      isSystem: false,
+      isActive: !w.isArchived && !w.isDeleted,
+      description: 'Wallet: ${w.name}',
+      currentBalanceInCents: w.currentBalanceInCents,
+      createdAt: w.createdAt,
+      updatedAt: w.updatedAt,
+    );
+  }
+
+  AccountModel _categoryToAccount(ExpenseCategoryTableData c, [AccountTableData? acc]) {
+    final isActive = acc?.isActive ?? true;
+    return AccountModel(
+      id: c.id,
+      companyId: c.profileId,
+      code: c.id,
+      name: c.name,
+      type: c.categoryType == 'income' ? AccountType.income : AccountType.expense,
+      kind: 'category',
+      isSystem: c.isSystem,
+      isActive: isActive && !c.isDeleted,
+      parentAccountId: c.parentCategoryId,
+      description: 'Category: ${c.name}',
+      currentBalanceInCents: 0,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt,
+    );
   }
 }

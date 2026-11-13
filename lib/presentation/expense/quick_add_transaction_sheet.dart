@@ -38,23 +38,31 @@ class QuickAddTransactionSheet extends ConsumerStatefulWidget {
     this.initialVoucher,
   });
 
+  static bool _isSheetOpen = false;
+
   static Future<bool?> show(
     BuildContext context, {
     VoucherModel? initialVoucher,
-  }) {
+  }) async {
+    if (_isSheetOpen) return null;
+    _isSheetOpen = true;
     HapticFeedback.lightImpact();
-    return showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: false,
-      elevation: 0,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: 0.35),
-      builder: (ctx) => QuickAddTransactionSheet(
-        initialVoucher: initialVoucher,
-      ),
-    );
+    try {
+      return await showModalBottomSheet<bool>(
+        context: context,
+        showDragHandle: false,
+        elevation: 0,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        barrierColor: Colors.black.withValues(alpha: 0.35),
+        builder: (ctx) => QuickAddTransactionSheet(
+          initialVoucher: initialVoucher,
+        ),
+      );
+    } finally {
+      _isSheetOpen = false;
+    }
   }
 
   @override
@@ -139,14 +147,37 @@ class _QuickAddTransactionSheetState
     _refController.addListener(_onFieldChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _amountFocusNode.requestFocus();
-        _amountController.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: _amountController.text.length,
-        );
-      }
+      _focusAmountAndShowKeyboard();
+      final route = ModalRoute.of(context);
+      route?.animation?.addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _focusAmountAndShowKeyboard();
+        }
+      });
     });
+
+    // Staggered fallbacks to ensure soft keyboard opens reliably on all Android/iOS window transitions
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (mounted) _focusAmountAndShowKeyboard();
+    });
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) _focusAmountAndShowKeyboard();
+    });
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) _focusAmountAndShowKeyboard();
+    });
+  }
+
+  void _focusAmountAndShowKeyboard() {
+    if (!mounted) return;
+    if (!_amountFocusNode.hasFocus) {
+      _amountFocusNode.requestFocus();
+    }
+    _amountController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _amountController.text.length,
+    );
+    SystemChannels.textInput.invokeMethod('TextInput.show');
   }
 
   void _onAmountControllerChanged() {

@@ -38,7 +38,8 @@ class WidgetSyncService {
 
   /// Synchronizes the latest company metrics to native SharedPreferences (Android)
   /// and UserDefaults via App Groups (iOS), then triggers a native widget reload.
-  /// In expense mode, publishes this month's spend and income; in ledger mode,
+  /// In expense mode, publishes today's spend, budget progress, top categories,
+  /// as well as this month's spend and income; in ledger mode,
   /// publishes receivables and payables.
   static Future<bool> syncWidgetData({
     required Company company,
@@ -46,6 +47,12 @@ class WidgetSyncService {
     int? totalPayableCents,
     int? monthSpendCents,
     int? monthIncomeCents,
+    int? todaySpendCents,
+    int? budgetCents,
+    int? spendProgressPercent,
+    String? spendProgressText,
+    String? spendPercentText,
+    List<({String name, double percent})>? topCategories,
   }) async {
     try {
       final currencySym = company.currencyCode == 'INR' ? '₹' : company.currencyCode;
@@ -107,6 +114,66 @@ class WidgetSyncService {
       await HomeWidget.saveWidgetData<double>('cash_out_raw', cashOutRaw);
 
       if (isExpense) {
+        final bool showToday = (todaySpendCents != null && todaySpendCents > 0);
+        final String spendLabel = showToday ? 'Today' : 'This Month';
+        final int displaySpendCents = showToday ? todaySpendCents : effectiveOutCents;
+
+        final spendFormatted = CurrencyFormatter.format(
+          displaySpendCents,
+          includeSymbol: true,
+          showDecimalsAlways: false,
+        );
+        final spendAmountOnly = CurrencyFormatter.format(
+          displaySpendCents,
+          includeSymbol: false,
+          showDecimalsAlways: false,
+        ).trim();
+
+        await HomeWidget.saveWidgetData<String>('spend_label', spendLabel);
+        await HomeWidget.saveWidgetData<String>('today_label', spendLabel);
+        await HomeWidget.saveWidgetData<String>('today_spend_amount', spendFormatted);
+        await HomeWidget.saveWidgetData<String>('today_spend_value', spendAmountOnly);
+        await HomeWidget.saveWidgetData<double>('today_spend_raw', displaySpendCents / 100.0);
+
+        final budgetAmountOnly = budgetCents != null && budgetCents > 0
+            ? CurrencyFormatter.format(
+                budgetCents,
+                includeSymbol: false,
+                showDecimalsAlways: false,
+              ).trim()
+            : null;
+
+        final calculatedPercent = budgetCents != null && budgetCents > 0
+            ? ((displaySpendCents / budgetCents) * 100).round()
+            : 0;
+        final progressPercent = spendProgressPercent ?? calculatedPercent;
+
+        final progressText = spendProgressText ??
+            (budgetAmountOnly != null
+                ? 'Spend - $spendAmountOnly/$budgetAmountOnly'
+                : 'Spend - $spendAmountOnly');
+        final percentText = spendPercentText ??
+            (budgetCents != null && budgetCents > 0 ? '$progressPercent%' : '');
+
+        await HomeWidget.saveWidgetData<String>('spend_progress_text', progressText);
+        await HomeWidget.saveWidgetData<String>('spend_percent_text', percentText);
+        await HomeWidget.saveWidgetData<int>('spend_progress_percent', progressPercent.clamp(0, 100));
+
+        if (topCategories != null && topCategories.isNotEmpty) {
+          for (int i = 0; i < 3; i++) {
+            final catIndex = i + 1;
+            if (i < topCategories.length) {
+              await HomeWidget.saveWidgetData<String>('category_${catIndex}_name', topCategories[i].name);
+              await HomeWidget.saveWidgetData<double>('category_${catIndex}_percent', topCategories[i].percent);
+              await HomeWidget.saveWidgetData<int>('category_${catIndex}_percent_int', topCategories[i].percent.round());
+            } else {
+              await HomeWidget.saveWidgetData<String>('category_${catIndex}_name', '');
+              await HomeWidget.saveWidgetData<double>('category_${catIndex}_percent', 0.0);
+              await HomeWidget.saveWidgetData<int>('category_${catIndex}_percent_int', 0);
+            }
+          }
+        }
+
         await HomeWidget.saveWidgetData<String>('month_spend_amount', cashOutFormatted);
         await HomeWidget.saveWidgetData<String>('month_income_amount', cashInFormatted);
         await HomeWidget.saveWidgetData<double>('month_spend_raw', cashOutRaw);

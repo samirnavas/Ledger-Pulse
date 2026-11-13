@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../core/network/sync_codec.dart';
 import '../../core/network/sync_engine.dart';
 import '../local/audit_service.dart';
 import '../local/database.dart';
@@ -11,12 +12,11 @@ import '../models/audit_log_model.dart';
 import '../models/budget_model.dart';
 import '../models/company_model.dart';
 import '../models/rbac_model.dart';
-import '../models/voucher_model.dart';
 import '../security/access_control_service.dart';
 
 /// Dedicated repository for Budget management and spending progress computations.
-/// Operates on Drift database Budgets table with full RBAC, audit logging, outbox
-/// synchronization, and reactive update stream.
+/// Operates on Drift database dedicated `expense_budgets` table with full RBAC, audit logging,
+/// outbox synchronization, and reactive update stream.
 class DriftBudgetRepository {
   final AppDatabase _db;
   final AuditService _auditService;
@@ -53,7 +53,7 @@ class DriftBudgetRepository {
   void _notifyUpdates() {
     if (!_isDisposed && !_updateStreamController.isClosed) {
       _updateStreamController.add(null);
-      _syncEngine?.triggerBackgroundSync();
+      _syncEngine?.triggerBackgroundSync(companyId: _currentCompanyId);
     }
   }
 
@@ -112,6 +112,25 @@ class DriftBudgetRepository {
       return _cachedCompany!;
     }
 
+    final prof = await (_db.select(_db.profiles)
+          ..where((t) => t.id.equals(_currentCompanyId)))
+        .getSingleOrNull();
+    if (prof != null) {
+      _cachedCompany = Company(
+        id: prof.id,
+        name: prof.name,
+        legalName: prof.name,
+        currencyCode: prof.currencyCode,
+        mode: prof.profileType == 'expense'
+            ? CompanyMode.expenseTracker
+            : CompanyMode.ledger,
+        enabledModules: const {AppModule.vouchers, AppModule.budgets},
+        createdAt: prof.createdAt,
+        updatedAt: prof.updatedAt,
+      );
+      return _cachedCompany!;
+    }
+
     return Company(
       id: _currentCompanyId,
       name: 'Default Company',
@@ -166,17 +185,26 @@ class DriftBudgetRepository {
       throw ArgumentError('Budget amount must be greater than zero.');
     }
 
-    // Verify category exists and belongs to company
+    // Verify category exists and belongs to profile in expense_categories
     if (effCategoryId != 'all' && effCategoryId != 'all_categories') {
-      final cat = await (_db.select(_db.accounts)
+      final cat = await (_db.select(_db.expenseCategories)
             ..where((t) =>
                 t.id.equals(effCategoryId) &
-                t.companyId.equals(_currentCompanyId) &
+                t.profileId.equals(_currentCompanyId) &
                 t.isDeleted.equals(false)))
           .getSingleOrNull();
 
       if (cat == null) {
-        throw ArgumentError('Category account not found: $effCategoryId');
+        // Fallback check on accounts table during migration period
+        final accCat = await (_db.select(_db.accounts)
+              ..where((t) =>
+                  t.id.equals(effCategoryId) &
+                  t.companyId.equals(_currentCompanyId) &
+                  t.isDeleted.equals(false)))
+            .getSingleOrNull();
+        if (accCat == null) {
+          throw ArgumentError('Category not found: $effCategoryId');
+        }
       }
     }
 
@@ -184,22 +212,22 @@ class DriftBudgetRepository {
     final effectiveStart = startDate ?? now;
     final budgetId = 'bgt_${_uuid.v4().substring(0, 12)}';
 
-    final companion = BudgetsCompanion.insert(
+    final companion = ExpenseBudgetsCompanion.insert(
       id: budgetId,
-      companyId: Value(_currentCompanyId),
-      categoryAccountId: effCategoryId,
-      periodType: effPeriod.name,
+      profileId: _currentCompanyId,
+      categoryId: effCategoryId == 'all' || effCategoryId == 'all_categories'
+          ? const Value(null)
+          : Value(effCategoryId),
+      periodType: Value(effPeriod.name),
       amountInCents: effAmount,
       startDate: effectiveStart,
-      rolloverEnabled: Value(rolloverEnabled),
-      isActive: const Value(true),
       createdAt: Value(now),
       updatedAt: Value(now),
       isDeleted: const Value(false),
       syncStatus: const Value(SyncRecordStatus.pending),
     );
 
-    await _db.into(_db.budgets).insertOnConflictUpdate(companion);
+    await _db.into(_db.expenseBudgets).insertOnConflictUpdate(companion);
 
     final model = BudgetModel(
       id: budgetId,
@@ -227,10 +255,22 @@ class DriftBudgetRepository {
 
     await enqueueMutation(
       db: _db,
-      table: 'budgets',
+      table: 'exp_budgets',
       recordId: budgetId,
       type: 'INSERT',
-      fullRowMap: model.toMap(),
+      fullRowMap: {
+        'id': budgetId,
+        'profile_id': _currentCompanyId,
+        'category_id': effCategoryId == 'all' || effCategoryId == 'all_categories'
+            ? null
+            : effCategoryId,
+        'period_type': effPeriod.name,
+        'amount_in_cents': effAmount,
+        'start_date': encodeTime(effectiveStart),
+        'created_at': encodeTime(now),
+        'updated_at': encodeTime(now),
+        'is_deleted': false,
+      },
     );
 
     _notifyUpdates();
@@ -252,40 +292,43 @@ class DriftBudgetRepository {
     AccessControlService.verifyPermission(
         _currentRole, UserAction.manageWalletsAndCategories);
 
-    final effectiveId = id ?? budget?.id;
-    if (effectiveId == null) throw ArgumentError('Budget id is required');
+    final budgetId = id ?? budget?.id;
+    if (budgetId == null) {
+      throw ArgumentError('Budget id is required for update.');
+    }
 
-    final existing = await getBudgetById(effectiveId);
+    final existing = await getBudgetById(budgetId);
     final now = DateTime.now();
 
-    final updated = existing.copyWith(
-      amountInCents:
-          amountInCents ?? allocatedInCents ?? budget?.amountInCents,
-      periodType: periodType ?? period ?? budget?.periodType,
-      rolloverEnabled: rolloverEnabled ?? budget?.rolloverEnabled,
-      isActive: isActive ?? budget?.isActive,
-      startDate: startDate ?? budget?.startDate,
-      updatedAt: now,
+    final newAmount = amountInCents ?? allocatedInCents ?? budget?.amountInCents ?? existing.amountInCents;
+    final newPeriod = periodType ?? period ?? budget?.periodType ?? existing.periodType;
+    final newStart = startDate ?? budget?.startDate ?? existing.startDate;
+
+    await (_db.update(_db.expenseBudgets)..where((t) => t.id.equals(budgetId))).write(
+      ExpenseBudgetsCompanion(
+        amountInCents: Value(newAmount),
+        periodType: Value(newPeriod.name),
+        startDate: Value(newStart),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      ),
     );
 
-    await (_db.update(_db.budgets)
-          ..where((t) =>
-              t.id.equals(effectiveId) & t.companyId.equals(_currentCompanyId)))
-        .write(BudgetsCompanion(
-      amountInCents: Value(updated.amountInCents),
-      periodType: Value(updated.periodType.name),
-      rolloverEnabled: Value(updated.rolloverEnabled),
-      isActive: Value(updated.isActive),
-      startDate: Value(updated.startDate),
-      updatedAt: Value(now),
-      syncStatus: const Value(SyncRecordStatus.pending),
-    ));
+    final updated = existing.copyWith(
+      amountInCents: newAmount,
+      periodType: newPeriod,
+      startDate: newStart,
+      rolloverEnabled: rolloverEnabled ?? existing.rolloverEnabled,
+      isActive: isActive ?? existing.isActive,
+      updatedAt: now,
+      syncStatus: SyncRecordStatus.pending,
+    );
 
     await _auditService.recordLog(
       companyId: _currentCompanyId,
       userId: _currentUserId,
       entityType: 'budget',
-      entityId: effectiveId,
+      entityId: budgetId,
       action: AuditAction.update,
       oldState: existing.toMap(),
       newState: updated.toMap(),
@@ -293,17 +336,25 @@ class DriftBudgetRepository {
 
     await enqueueMutation(
       db: _db,
-      table: 'budgets',
-      recordId: effectiveId,
+      table: 'exp_budgets',
+      recordId: budgetId,
       type: 'UPDATE',
-      fullRowMap: updated.toMap(),
+      fullRowMap: {
+        'id': budgetId,
+        'profile_id': _currentCompanyId,
+        'amount_in_cents': newAmount,
+        'period_type': newPeriod.name,
+        'start_date': encodeTime(newStart),
+        'updated_at': encodeTime(now),
+        'is_deleted': false,
+      },
     );
 
     _notifyUpdates();
     return updated;
   }
 
-  Future<bool> deleteBudget(String id) async {
+  Future<void> deleteBudget(String id) async {
     await _ensureBudgetsEnabled();
     AccessControlService.verifyPermission(
         _currentRole, UserAction.manageWalletsAndCategories);
@@ -311,21 +362,13 @@ class DriftBudgetRepository {
     final existing = await getBudgetById(id);
     final now = DateTime.now();
 
-    final updated = existing.copyWith(
-      isDeleted: true,
-      isActive: false,
-      updatedAt: now,
+    await (_db.update(_db.expenseBudgets)..where((t) => t.id.equals(id))).write(
+      ExpenseBudgetsCompanion(
+        isDeleted: const Value(true),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      ),
     );
-
-    await (_db.update(_db.budgets)
-          ..where((t) =>
-              t.id.equals(id) & t.companyId.equals(_currentCompanyId)))
-        .write(BudgetsCompanion(
-      isDeleted: const Value(true),
-      isActive: const Value(false),
-      updatedAt: Value(now),
-      syncStatus: const Value(SyncRecordStatus.pending),
-    ));
 
     await _auditService.recordLog(
       companyId: _currentCompanyId,
@@ -334,76 +377,134 @@ class DriftBudgetRepository {
       entityId: id,
       action: AuditAction.delete,
       oldState: existing.toMap(),
-      newState: updated.toMap(),
     );
 
     await enqueueMutation(
       db: _db,
-      table: 'budgets',
+      table: 'exp_budgets',
       recordId: id,
-      type: 'UPDATE',
-      fullRowMap: updated.toMap(),
+      type: 'DELETE',
+      fullRowMap: {
+        'id': id,
+        'profile_id': _currentCompanyId,
+        'is_deleted': true,
+        'updated_at': encodeTime(now),
+      },
     );
 
     _notifyUpdates();
-    return true;
   }
 
-  Future<BudgetModel> getBudgetById(String id) async {
+  Future<void> restoreBudget(String id) async {
     await _ensureBudgetsEnabled();
-    final row = await (_db.select(_db.budgets)
-          ..where((t) =>
-              t.id.equals(id) &
-              t.companyId.equals(_currentCompanyId) &
-              t.isDeleted.equals(false)))
-        .getSingleOrNull();
+    AccessControlService.verifyPermission(
+        _currentRole, UserAction.manageWalletsAndCategories);
 
-    if (row == null) {
-      throw StateError('Budget not found with ID $id');
-    }
-    return _budgetFromRow(row);
+    final now = DateTime.now();
+
+    await (_db.update(_db.expenseBudgets)..where((t) => t.id.equals(id))).write(
+      ExpenseBudgetsCompanion(
+        isDeleted: const Value(false),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      ),
+    );
+
+    await enqueueMutation(
+      db: _db,
+      table: 'exp_budgets',
+      recordId: id,
+      type: 'UPDATE',
+      fullRowMap: {
+        'id': id,
+        'profile_id': _currentCompanyId,
+        'is_deleted': false,
+        'updated_at': encodeTime(now),
+      },
+    );
+
+    _notifyUpdates();
   }
 
   Future<List<BudgetModel>> getBudgets({bool includeInactive = false}) async {
     await _ensureBudgetsEnabled();
-    final query = _db.select(_db.budgets)
-      ..where((t) =>
-          t.companyId.equals(_currentCompanyId) & t.isDeleted.equals(false))
-      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
+    AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
 
-    if (!includeInactive) {
-      query.where((t) => t.isActive.equals(true));
-    }
+    final query = _db.select(_db.expenseBudgets)
+      ..where((t) => t.profileId.equals(_currentCompanyId) & t.isDeleted.equals(false))
+      ..orderBy([(t) => OrderingTerm.asc(t.startDate)]);
 
     final rows = await query.get();
-    return rows.map(_budgetFromRow).toList();
+    final legacyList = await (_db.select(_db.budgets)
+          ..where((t) => t.companyId.equals(_currentCompanyId)))
+        .get();
+    final legacyMap = {for (final b in legacyList) b.id: b};
+
+    final result = <BudgetModel>[];
+    for (final r in rows) {
+      final model = _budgetFromRow(r, legacyMap[r.id]);
+      if (!includeInactive && !model.isActive) {
+        continue;
+      }
+      result.add(model);
+    }
+    return result;
   }
 
   Stream<List<BudgetModel>> watchBudgets({bool includeInactive = false}) {
-    final query = _db.select(_db.budgets)
-      ..where((t) =>
-          t.companyId.equals(_currentCompanyId) & t.isDeleted.equals(false))
-      ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
+    AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
 
-    if (!includeInactive) {
-      query.where((t) => t.isActive.equals(true));
+    final query = _db.select(_db.expenseBudgets)
+      ..where((t) => t.profileId.equals(_currentCompanyId) & t.isDeleted.equals(false))
+      ..orderBy([(t) => OrderingTerm.asc(t.startDate)]);
+
+    return query.watch().asyncMap((rows) async {
+      final legacyList = await (_db.select(_db.budgets)
+            ..where((t) => t.companyId.equals(_currentCompanyId)))
+          .get();
+      final legacyMap = {for (final b in legacyList) b.id: b};
+
+      final result = <BudgetModel>[];
+      for (final r in rows) {
+        final model = _budgetFromRow(r, legacyMap[r.id]);
+        if (!includeInactive && !model.isActive) {
+          continue;
+        }
+        result.add(model);
+      }
+      return result;
+    });
+  }
+
+  Future<BudgetModel> getBudgetById(String id) async {
+    await _ensureBudgetsEnabled();
+    AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
+
+    final row = await (_db.select(_db.expenseBudgets)
+          ..where((t) =>
+              t.id.equals(id) &
+              t.profileId.equals(_currentCompanyId) &
+              t.isDeleted.equals(false)))
+        .getSingleOrNull();
+
+    if (row == null) {
+      throw ArgumentError('Budget not found: $id');
     }
 
-    return query.watch().map((rows) => rows.map(_budgetFromRow).toList());
+    final legacy = await (_db.select(_db.budgets)..where((t) => t.id.equals(id))).getSingleOrNull();
+    return _budgetFromRow(row, legacy);
   }
 
   // ==========================================
-  // PERIOD BOUNDS & PROGRESS MATH
+  // PROGRESS COMPUTATION & HELPERS
   // ==========================================
 
-  /// Returns `(startDate, endDate)` bounds for the given [periodType] enclosing [date].
   static ({DateTime start, DateTime end}) getPeriodBounds(
     BudgetPeriodType periodType,
     DateTime date,
   ) {
     switch (periodType) {
       case BudgetPeriodType.weekly:
-        // ISO-8601: Monday is 1, Sunday is 7
         final monday = DateTime(date.year, date.month, date.day)
             .subtract(Duration(days: date.weekday - 1));
         final sunday = monday
@@ -422,7 +523,6 @@ class DriftBudgetRepository {
     }
   }
 
-  /// Returns `(startDate, endDate)` bounds for the period immediately preceding [date].
   static ({DateTime start, DateTime end}) getPreviousPeriodBounds(
     BudgetPeriodType periodType,
     DateTime date,
@@ -443,14 +543,13 @@ class DriftBudgetRepository {
     }
   }
 
-  /// Recursively collects all category account IDs under [parentCategoryId] (including itself).
   Future<List<String>> _getCategoryAndSubCategoryIds(
       String parentCategoryId) async {
     if (parentCategoryId == 'all' || parentCategoryId == 'all_categories') {
-      final allCats = await (_db.select(_db.accounts)
+      final allCats = await (_db.select(_db.expenseCategories)
             ..where((t) =>
-                t.companyId.equals(_currentCompanyId) &
-                t.type.equals(AccountType.expense.name) &
+                t.profileId.equals(_currentCompanyId) &
+                t.categoryType.equals('expense') &
                 t.isDeleted.equals(false)))
           .get();
       return allCats.map((r) => r.id).toList();
@@ -461,10 +560,10 @@ class DriftBudgetRepository {
 
     while (queue.isNotEmpty) {
       final currentId = queue.removeAt(0);
-      final children = await (_db.select(_db.accounts)
+      final children = await (_db.select(_db.expenseCategories)
             ..where((t) =>
-                t.companyId.equals(_currentCompanyId) &
-                t.parentAccountId.equals(currentId) &
+                t.profileId.equals(_currentCompanyId) &
+                t.parentCategoryId.equals(currentId) &
                 t.isDeleted.equals(false)))
           .get();
 
@@ -479,31 +578,28 @@ class DriftBudgetRepository {
     return result;
   }
 
-  /// Calculates the sum of expense debits for the category (including sub-categories)
-  /// between [startDate] and [endDate].
   Future<int> _calculateSpentInPeriod(
     List<String> categoryIds,
     DateTime startDate,
     DateTime endDate,
   ) async {
-    final rows = await (_db.select(_db.vouchers)
+    final rows = await (_db.select(_db.expenseTransactions)
           ..where((t) =>
-              t.companyId.equals(_currentCompanyId) &
-              t.type.equals(VoucherType.expense.name) &
-              t.status.equals(VoucherStatus.posted.name) &
-              t.categoryAccountId.isIn(categoryIds) &
-              t.date.isBiggerOrEqualValue(startDate) &
-              t.date.isSmallerOrEqualValue(endDate)))
+              t.profileId.equals(_currentCompanyId) &
+              t.transactionType.equals('expense') &
+              t.isDeleted.equals(false) &
+              t.categoryId.isIn(categoryIds) &
+              t.transactionDate.isBiggerOrEqualValue(startDate) &
+              t.transactionDate.isSmallerOrEqualValue(endDate)))
         .get();
 
     int total = 0;
     for (final r in rows) {
-      total += r.totalAmountInCents;
+      total += r.amountInCents;
     }
     return total;
   }
 
-  /// Calculates spending progress, remaining allocation, and rollover for [budget] as of [asOfDate].
   Future<BudgetProgress> calculateProgress(
     BudgetModel budget, {
     DateTime? asOfDate,
@@ -511,7 +607,6 @@ class DriftBudgetRepository {
     final date = asOfDate ?? DateTime.now();
     final bounds = getPeriodBounds(budget.periodType, date);
 
-    // Get category account details
     AccountModel? catModel;
     if (budget.categoryAccountId == 'all' || budget.categoryAccountId == 'all_categories') {
       catModel = AccountModel(
@@ -527,27 +622,37 @@ class DriftBudgetRepository {
         updatedAt: DateTime.now(),
       );
     } else {
-      final catRow = await (_db.select(_db.accounts)
+      final catRow = await (_db.select(_db.expenseCategories)
             ..where((t) =>
                 t.id.equals(budget.categoryAccountId) &
-                t.companyId.equals(_currentCompanyId)))
+                t.profileId.equals(_currentCompanyId)))
           .getSingleOrNull();
-      catModel = catRow != null ? _accountFromRow(catRow) : null;
+      if (catRow != null) {
+        catModel = AccountModel(
+          id: catRow.id,
+          companyId: catRow.profileId,
+          code: catRow.id,
+          name: catRow.name,
+          type: AccountType.expense,
+          kind: 'category',
+          isSystem: catRow.isSystem,
+          isActive: !catRow.isDeleted,
+          currentBalanceInCents: 0,
+          createdAt: catRow.createdAt,
+          updatedAt: catRow.updatedAt,
+        );
+      }
     }
 
-    // Collect category and all sub-categories
     final categoryIds =
         await _getCategoryAndSubCategoryIds(budget.categoryAccountId);
 
-    // Calculate spent in current period
     final spentInCents =
         await _calculateSpentInPeriod(categoryIds, bounds.start, bounds.end);
 
-    // Calculate rollover if enabled
     int rolloverInCents = 0;
     if (budget.rolloverEnabled) {
       final prevBounds = getPreviousPeriodBounds(budget.periodType, date);
-      // Only rollover if previous period is at or after budget start date
       if (prevBounds.end.isAfter(budget.startDate) ||
           prevBounds.end.isAtSameMomentAs(budget.startDate)) {
         final prevSpent = await _calculateSpentInPeriod(
@@ -579,7 +684,6 @@ class DriftBudgetRepository {
     );
   }
 
-  /// Computes the overall monthly budget progress across all active budgets for [month].
   Future<OverallBudgetSummary> getOverallMonthlyBudget({DateTime? month}) async {
     final targetMonth = month ?? DateTime.now();
     final activeBudgets = await getBudgets(includeInactive: false);
@@ -613,7 +717,6 @@ class DriftBudgetRepository {
     );
   }
 
-  /// Returns the budget progress set for 'all' categories for [month], or null if none is set.
   Future<BudgetProgress?> getAllCategoriesBudget({DateTime? month}) async {
     final targetMonth = month ?? DateTime.now();
     final activeBudgets = await getBudgets(includeInactive: false);
@@ -628,44 +731,20 @@ class DriftBudgetRepository {
     return await calculateProgress(allCatBudget, asOfDate: targetMonth);
   }
 
-  // ==========================================
-  // HELPERS
-  // ==========================================
-
-  BudgetModel _budgetFromRow(BudgetTableData r) {
+  BudgetModel _budgetFromRow(ExpenseBudgetTableData r, [BudgetTableData? legacy]) {
     return BudgetModel(
       id: r.id,
-      companyId: r.companyId,
-      categoryAccountId: r.categoryAccountId,
+      companyId: r.profileId,
+      categoryAccountId: r.categoryId ?? 'all',
       periodType: BudgetPeriodType.fromString(r.periodType),
       amountInCents: r.amountInCents,
       startDate: r.startDate,
-      rolloverEnabled: r.rolloverEnabled,
-      isActive: r.isActive,
+      rolloverEnabled: legacy?.rolloverEnabled ?? false,
+      isActive: legacy?.isActive ?? true,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
       isDeleted: r.isDeleted,
       syncStatus: r.syncStatus,
-    );
-  }
-
-  AccountModel _accountFromRow(AccountTableData r) {
-    return AccountModel(
-      id: r.id,
-      companyId: r.companyId,
-      code: r.code,
-      name: r.name,
-      type: AccountType.values.firstWhere(
-        (t) => t.name == r.type,
-        orElse: () => AccountType.expense,
-      ),
-      parentAccountId: r.parentAccountId,
-      isSystem: r.isSystem,
-      isActive: r.isActive,
-      description: r.description,
-      currentBalanceInCents: r.currentBalanceInCents,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
     );
   }
 }

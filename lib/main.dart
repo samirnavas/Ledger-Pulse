@@ -12,6 +12,7 @@ import 'core/services/widget_sync_service.dart';
 import 'core/theme/android_theme.dart';
 import 'core/theme/ios_theme.dart';
 import 'data/models/company_mode.dart';
+import 'presentation/expense/quick_add_transaction_sheet.dart';
 import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/company_providers.dart';
 import 'presentation/providers/recurring_providers.dart';
@@ -62,6 +63,8 @@ void main() async {
 }
 
 class LedgerPulseApp extends ConsumerStatefulWidget {
+  static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
   const LedgerPulseApp({super.key});
 
   @override
@@ -108,6 +111,24 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
               ref.read(companyControllerProvider.notifier).selectCompany(companyId);
             }
 
+            final actionParam = uri.queryParameters['action'];
+            if (actionParam == 'quick_add') {
+              void tryOpenQuickAdd([int attempts = 0]) {
+                final ctx = LedgerPulseApp.rootNavigatorKey.currentContext;
+                if (ctx != null && ctx.mounted) {
+                  Future.delayed(const Duration(milliseconds: 250), () {
+                    final readyCtx = LedgerPulseApp.rootNavigatorKey.currentContext;
+                    if (readyCtx != null && readyCtx.mounted) {
+                      QuickAddTransactionSheet.show(readyCtx);
+                    }
+                  });
+                } else if (attempts < 10) {
+                  Future.delayed(const Duration(milliseconds: 200), () => tryOpenQuickAdd(attempts + 1));
+                }
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) => tryOpenQuickAdd());
+            }
+
             final moduleParam = uri.queryParameters['module'] ??
                 (uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null);
             if (moduleParam != null) {
@@ -145,6 +166,7 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
     if (isIos) {
       final isDark = themeMode == ThemeMode.dark;
       return CupertinoApp(
+        navigatorKey: LedgerPulseApp.rootNavigatorKey,
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
         theme: isDark ? IosTheme.darkTheme : IosTheme.lightTheme,
@@ -167,6 +189,7 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
             );
 
         return MaterialApp(
+          navigatorKey: LedgerPulseApp.rootNavigatorKey,
           title: AppStrings.appName,
           debugShowCheckedModeBanner: false,
           theme: AndroidTheme.getLight(lightScheme),

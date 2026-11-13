@@ -147,9 +147,42 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
       final effectiveOwnerId =
           company.ownerId ?? (isValidUuid ? currentUserId : (isSbUuid ? sbUserId : null));
 
+      await db.into(db.profiles).insertOnConflictUpdate(
+            ProfilesCompanion.insert(
+              id: company.id,
+              ownerId: Value(effectiveOwnerId),
+              name: company.name,
+              profileType: Value(company.mode == CompanyMode.ledger ? 'ledger' : 'expense'),
+              currencyCode: Value(company.currencyCode),
+              isActive: Value(company.isActive),
+              createdAt: Value(company.createdAt),
+              updatedAt: Value(company.updatedAt),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
+
+      await recordOutboxEntry(
+        targetTable: 'profiles',
+        recordId: company.id,
+        mutationType: 'UPSERT',
+        payload: {
+          'id': company.id,
+          'owner_id': effectiveOwnerId,
+          'name': company.name,
+          'profile_type': company.mode == CompanyMode.ledger ? 'ledger' : 'expense',
+          'currency_code': company.currencyCode,
+          'is_active': company.isActive,
+          'created_at': company.createdAt.toIso8601String(),
+          'updated_at': company.updatedAt.toIso8601String(),
+          'is_deleted': false,
+        },
+        companyId: company.id,
+      );
+
       await db.into(db.companies).insertOnConflictUpdate(
             CompaniesCompanion.insert(
               id: company.id,
+              profileId: Value(company.id),
               name: company.name,
               legalName: company.legalName,
               gstin: Value(company.gstin),
@@ -191,6 +224,7 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
         mutationType: 'UPSERT',
         payload: {
           ...company.toMap(),
+          'profile_id': company.id,
           'is_cloud_sync_enabled': company.isCloudSyncEnabled,
           'is_dropbox_sync_enabled': company.isDropboxSyncEnabled,
           'is_active': company.isActive,

@@ -102,16 +102,7 @@ class SupabaseGateway implements RemoteGateway {
           .maybeSingle();
       return response;
     } on PostgrestException catch (e) {
-      if (e.code == 'PGRST205' ||
-          e.code == '42P01' ||
-          e.code == '404' ||
-          e.code == '42703' ||
-          e.message.contains('has no field') ||
-          e.message.contains('schema cache') ||
-          e.message.contains('does not exist')) {
-        debugPrint('SupabaseGateway.upsertRow notice on $table (bypassing remote schema/trigger limitation): ${e.message}');
-        return row;
-      }
+      debugPrint('SupabaseGateway.upsertRow error on $table: ${e.message} (code: ${e.code})');
       rethrow;
     }
   }
@@ -217,7 +208,6 @@ Map<String, dynamic> mapToSnakeCase(
     'syncStatus',
     'remote_updated_at',
     'remoteUpdatedAt',
-    'revision',
   };
   final result = <String, dynamic>{};
   source.forEach((key, value) {
@@ -395,44 +385,46 @@ class SyncEngine {
 
   static int tableDependencyRank(String table) {
     switch (table) {
-      case 'user_profiles':
-        return 0;
-      case 'companies':
+      case 'profiles':
         return 1;
-      case 'shared_memberships':
+      case 'companies':
         return 2;
-      case 'accounts':
+      case 'shared_memberships':
         return 3;
-      case 'parties':
+      case 'user_profiles':
         return 4;
-      case 'tax_rates':
-        return 5;
-      case 'budgets':
-        return 6;
-      case 'recurring_rules':
-        return 7;
-      case 'vouchers':
-        return 8;
-      case 'journals':
-        return 9;
-      case 'journal_lines':
-        return 10;
       case 'exp_wallets':
-        return 11;
+        return 5;
       case 'exp_categories':
-        return 12;
+        return 6;
       case 'exp_budgets':
-        return 13;
-      case 'exp_recurring_rules':
-        return 14;
+        return 7;
       case 'exp_transactions':
+        return 8;
+      case 'exp_recurring_rules':
+        return 9;
+      case 'accounts':
+        return 10;
+      case 'parties':
+        return 11;
+      case 'tax_rates':
+        return 12;
+      case 'vouchers':
+        return 13;
+      case 'journals':
+        return 14;
+      case 'journal_lines':
         return 15;
-      case 'inventory_items':
+      case 'budgets':
         return 16;
-      case 'stock_ledger':
+      case 'recurring_rules':
         return 17;
-      case 'audit_logs':
+      case 'inventory_items':
         return 18;
+      case 'stock_ledger':
+        return 19;
+      case 'audit_logs':
+        return 20;
       default:
         return 99;
     }
@@ -583,6 +575,7 @@ class SyncEngine {
       return true;
     }
     switch (targetTable) {
+      case 'profiles':
       case 'companies':
         final id = payloadMap['id']?.toString();
         return id == companyId;
@@ -1323,9 +1316,14 @@ class SyncEngine {
             .write(SharedMembershipsCompanion(accountId: Value(authId)));
       }
 
-      // Automatically reset ALL permanent failures on sync retry so transient errors or old schema errors are retried
+      // Automatically reset transient network failures or old schema cache errors
       await (db.update(db.syncOutbox)
-            ..where((t) => t.lastError.isNotNull() & t.nextAttemptAt.isNull()))
+            ..where((t) =>
+                t.lastError.like('%PGRST204%') |
+                t.lastError.like('%schema cache%') |
+                t.lastError.like('%SocketException%') |
+                t.lastError.like('%Failed host lookup%') |
+                t.lastError.like('%ClientException%')))
           .write(
         const SyncOutboxCompanion(
           attempts: Value(0),
@@ -1723,7 +1721,6 @@ class SyncEngine {
             'syncStatus',
             'remote_updated_at',
             'remoteUpdatedAt',
-            'revision',
             'enabled_modules_json',
             'enabledModulesJson',
           },
@@ -2149,6 +2146,26 @@ class SyncEngine {
       } else if (local == null) {
         if (!_isSessionStale(expectedGeneration)) updated = true;
       }
+    } else if (table == 'profiles') {
+      if (_isSessionStale(expectedGeneration)) return false;
+      final local = await (db.select(
+        db.profiles,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      if (_isSessionStale(expectedGeneration)) return false;
+      if (local != null && local.revision == pushedRevision) {
+        if (_isSessionStale(expectedGeneration)) return false;
+        await (db.update(
+          db.profiles,
+        )..where((t) => t.id.equals(recordId))).write(
+          ProfilesCompanion(
+            syncStatus: const Value(SyncRecordStatus.synced),
+            remoteUpdatedAt: Value(now),
+          ),
+        );
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      } else if (local == null) {
+        if (!_isSessionStale(expectedGeneration)) updated = true;
+      }
     } else if (table == 'companies') {
       if (_isSessionStale(expectedGeneration)) return false;
       final local = await (db.select(
@@ -2552,6 +2569,13 @@ class SyncEngine {
           syncStatus: Value(SyncRecordStatus.error),
         ),
       );
+    } else if (table == 'profiles') {
+      if (_isSessionStale(expectedGeneration)) return;
+      await (db.update(
+        db.profiles,
+      )..where((t) => t.id.equals(recordId))).write(
+        const ProfilesCompanion(syncStatus: Value(SyncRecordStatus.error)),
+      );
     } else if (table == 'companies') {
       if (_isSessionStale(expectedGeneration)) return;
       await (db.update(
@@ -2633,9 +2657,49 @@ class SyncEngine {
 
   /// Table Descriptors for Table-Driven Pull Operations
   static final List<SyncTable> syncTables = [
+    // 0. Profiles (Canonical workspace identity - Top Level)
+    SyncTable<ProfileTableData, ProfilesCompanion>(
+      name: 'profiles',
+      toRemote: (row) => mapToSnakeCase(
+        row.toJson(),
+        ignoreKeys: {
+          'sync_status',
+          'syncStatus',
+          'remote_updated_at',
+          'remoteUpdatedAt',
+          'revision',
+        },
+      ),
+      fromRemote: (map) {
+        final p = mapToCamelCase(map);
+        return ProfilesCompanion(
+          id: Value(p['id'] as String),
+          ownerId: Value(p['ownerId'] as String?),
+          name: Value(p['name'] as String? ?? ''),
+          profileType: Value(p['profileType'] as String? ?? 'expense'),
+          currencyCode: Value(p['currencyCode'] as String? ?? 'INR'),
+          settingsJson: Value(p['settingsJson'] as String?),
+          isActive: Value(
+            p['isActive'] == null ||
+                p['isActive'] == true ||
+                p['isActive'] == 1,
+          ),
+          createdAt: Value(decodeTime(p['createdAt'])),
+          updatedAt: Value(decodeTime(p['updatedAt'])),
+          isDeleted: Value(p['isDeleted'] == true || p['isDeleted'] == 1),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          revision: Value((p['revision'] as int?) ?? 0),
+          remoteUpdatedAt: Value(
+            decodeTime(p['updatedAt'] ?? p['remoteUpdatedAt']),
+          ),
+        );
+      },
+    ),
+
     // 1. Companies (Top level)
     SyncTable<CompanyTableData, CompaniesCompanion>(
       name: 'companies',
+      parentTables: ['profiles'],
       toRemote: (row) {
         final map = mapToSnakeCase(
           row.toJson(),
@@ -2666,8 +2730,10 @@ class SyncEngine {
         final String? modulesJson = rawModules is String
             ? rawModules
             : (rawModules != null ? jsonEncode(rawModules) : null);
+        final compId = c['id'] as String;
         return CompaniesCompanion(
-          id: Value(c['id'] as String),
+          id: Value(compId),
+          profileId: Value(c['profileId'] as String? ?? compId),
           name: Value(c['name'] as String? ?? ''),
           legalName: Value(c['legalName'] as String? ?? ''),
           gstin: Value(c['gstin'] as String?),
@@ -2717,7 +2783,7 @@ class SyncEngine {
     // SharedMemberships
     SyncTable<SharedMembershipTableData, SharedMembershipsCompanion>(
       name: 'shared_memberships',
-      parentTables: ['companies'],
+      parentTables: ['profiles'],
       toRemote: (row) => mapToSnakeCase(row.toJson()),
       fromRemote: (map) {
         final c = mapToCamelCase(map);
@@ -3153,7 +3219,7 @@ class SyncEngine {
     // 14. ExpenseWallets
     SyncTable<ExpenseWalletTableData, ExpenseWalletsCompanion>(
       name: 'exp_wallets',
-      parentTables: ['companies'],
+      parentTables: ['profiles'],
       fromRemote: (map) {
         final c = mapToCamelCase(map);
         return ExpenseWalletsCompanion(
@@ -3189,7 +3255,7 @@ class SyncEngine {
     // 15. ExpenseCategories
     SyncTable<ExpenseCategoryTableData, ExpenseCategoriesCompanion>(
       name: 'exp_categories',
-      parentTables: ['companies'],
+      parentTables: ['profiles'],
       fromRemote: (map) {
         final c = mapToCamelCase(map);
         return ExpenseCategoriesCompanion(
@@ -3219,7 +3285,7 @@ class SyncEngine {
     // 16. ExpenseBudgets
     SyncTable<ExpenseBudgetTableData, ExpenseBudgetsCompanion>(
       name: 'exp_budgets',
-      parentTables: ['companies', 'exp_categories'],
+      parentTables: ['profiles', 'exp_categories'],
       fromRemote: (map) {
         final c = mapToCamelCase(map);
         return ExpenseBudgetsCompanion(
@@ -3251,7 +3317,7 @@ class SyncEngine {
     // 17. ExpenseRecurringRules
     SyncTable<ExpenseRecurringRuleTableData, ExpenseRecurringRulesCompanion>(
       name: 'exp_recurring_rules',
-      parentTables: ['companies'],
+      parentTables: ['profiles'],
       fromRemote: (map) {
         final c = mapToCamelCase(map);
         return ExpenseRecurringRulesCompanion(
@@ -3285,7 +3351,7 @@ class SyncEngine {
     // 18. ExpenseTransactions
     SyncTable<ExpenseTransactionTableData, ExpenseTransactionsCompanion>(
       name: 'exp_transactions',
-      parentTables: ['companies', 'exp_wallets', 'exp_categories'],
+      parentTables: ['profiles', 'exp_wallets', 'exp_categories'],
       fromRemote: (map) {
         final c = mapToCamelCase(map);
         return ExpenseTransactionsCompanion(
@@ -3637,6 +3703,11 @@ class SyncEngine {
         db.recurringRules,
       )..where((t) => t.id.equals(recordId))).getSingleOrNull();
       return r != null && r.syncStatus != SyncRecordStatus.synced;
+    } else if (table == 'profiles') {
+      final r = await (db.select(
+        db.profiles,
+      )..where((t) => t.id.equals(recordId))).getSingleOrNull();
+      return r != null && r.syncStatus != SyncRecordStatus.synced;
     } else if (table == 'companies') {
       final r = await (db.select(
         db.companies,
@@ -3770,6 +3841,14 @@ class SyncEngine {
         db.recurringRules,
       )..where((t) => t.id.equals(recordId))).write(
         RecurringRulesCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.synced),
+          remoteUpdatedAt: Value(dt),
+        ),
+      );
+    } else if (table == 'profiles') {
+      await (db.update(db.profiles)..where((t) => t.id.equals(recordId))).write(
+        ProfilesCompanion(
           isDeleted: const Value(true),
           syncStatus: const Value(SyncRecordStatus.synced),
           remoteUpdatedAt: Value(dt),
@@ -3912,8 +3991,39 @@ class SyncEngine {
       await db
           .into(db.recurringRules)
           .insertOnConflictUpdate(companion as RecurringRulesCompanion);
+    } else if (table == 'profiles') {
+      final prof = companion as ProfilesCompanion;
+      final existing = await (db.select(db.profiles)
+            ..where((t) => t.id.equals(prof.id.value)))
+          .getSingleOrNull();
+      final effectiveCompanion = existing != null
+          ? prof.copyWith(profileType: Value(existing.profileType))
+          : prof;
+      await db
+          .into(db.profiles)
+          .insertOnConflictUpdate(effectiveCompanion);
     } else if (table == 'companies') {
       final comp = companion as CompaniesCompanion;
+      final profId = comp.profileId.present && comp.profileId.value != null
+          ? comp.profileId.value!
+          : comp.id.value;
+      final existingProf = await (db.select(db.profiles)
+            ..where((t) => t.id.equals(profId)))
+          .getSingleOrNull();
+      if (existingProf == null) {
+        await db.into(db.profiles).insertOnConflictUpdate(
+          ProfilesCompanion.insert(
+            id: profId,
+            ownerId: Value(comp.ownerId.present ? comp.ownerId.value : null),
+            name: comp.name.value,
+            profileType: Value(comp.mode.present && comp.mode.value == 'expense' ? 'expense' : 'ledger'),
+            currencyCode: Value(comp.currencyCode.present ? comp.currencyCode.value : 'INR'),
+            createdAt: Value(comp.createdAt.present ? comp.createdAt.value : DateTime.now()),
+            updatedAt: Value(comp.updatedAt.present ? comp.updatedAt.value : DateTime.now()),
+            syncStatus: const Value(SyncRecordStatus.synced),
+          ),
+        );
+      }
       final existing = await (db.select(db.companies)
             ..where((t) => t.id.equals(comp.id.value)))
           .getSingleOrNull();
@@ -3952,9 +4062,63 @@ class SyncEngine {
           .into(db.expenseCategories)
           .insertOnConflictUpdate(companion as ExpenseCategoriesCompanion);
     } else if (table == 'exp_transactions') {
+      final tx = companion as ExpenseTransactionsCompanion;
+      if (tx.categoryId.present && tx.categoryId.value != null && tx.categoryId.value!.isNotEmpty) {
+        final catId = tx.categoryId.value!;
+        final exists = await (db.select(db.expenseCategories)..where((c) => c.id.equals(catId))).getSingleOrNull();
+        if (exists == null) {
+          await db.into(db.expenseCategories).insertOnConflictUpdate(
+            ExpenseCategoriesCompanion.insert(
+              id: catId,
+              profileId: tx.profileId.value,
+              name: 'Category',
+              categoryType: const Value('expense'),
+              createdAt: Value(tx.createdAt.value),
+              updatedAt: Value(tx.updatedAt.value),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+        }
+      }
+      if (tx.walletId.present && tx.walletId.value.isNotEmpty) {
+        final walId = tx.walletId.value;
+        final exists = await (db.select(db.expenseWallets)..where((w) => w.id.equals(walId))).getSingleOrNull();
+        if (exists == null) {
+          await db.into(db.expenseWallets).insertOnConflictUpdate(
+            ExpenseWalletsCompanion.insert(
+              id: walId,
+              profileId: tx.profileId.value,
+              name: 'Wallet',
+              walletType: const Value('cash'),
+              currencyCode: const Value('INR'),
+              createdAt: Value(tx.createdAt.value),
+              updatedAt: Value(tx.updatedAt.value),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+        }
+      }
+      if (tx.toWalletId.present && tx.toWalletId.value != null && tx.toWalletId.value!.isNotEmpty) {
+        final toWalId = tx.toWalletId.value!;
+        final exists = await (db.select(db.expenseWallets)..where((w) => w.id.equals(toWalId))).getSingleOrNull();
+        if (exists == null) {
+          await db.into(db.expenseWallets).insertOnConflictUpdate(
+            ExpenseWalletsCompanion.insert(
+              id: toWalId,
+              profileId: tx.profileId.value,
+              name: 'Destination Wallet',
+              walletType: const Value('cash'),
+              currencyCode: const Value('INR'),
+              createdAt: Value(tx.createdAt.value),
+              updatedAt: Value(tx.updatedAt.value),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+        }
+      }
       await db
           .into(db.expenseTransactions)
-          .insertOnConflictUpdate(companion as ExpenseTransactionsCompanion);
+          .insertOnConflictUpdate(tx);
     } else if (table == 'exp_budgets') {
       await db
           .into(db.expenseBudgets)

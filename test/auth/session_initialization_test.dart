@@ -78,9 +78,23 @@ class StubProfileRepository implements IProfileRepository {
     // Populate local database from remoteWorkspaces
     await db.transaction(() async {
       for (final p in remoteWorkspaces) {
+        await db.into(db.profiles).insertOnConflictUpdate(
+              ProfilesCompanion.insert(
+                id: p.id,
+                name: p.name,
+                profileType: Value(p.type.canonicalValue),
+                currencyCode: Value(p.currencyCode),
+                ownerId: Value(accountId),
+                createdAt: Value(p.updatedAt),
+                updatedAt: Value(p.updatedAt),
+                syncStatus: const Value(SyncRecordStatus.synced),
+              ),
+            );
+
         await db.into(db.companies).insertOnConflictUpdate(
               CompaniesCompanion.insert(
                 id: p.id,
+                profileId: Value(p.id),
                 name: p.name,
                 legalName: p.legalName,
                 mode: Value(p.type.canonicalValue),
@@ -128,9 +142,23 @@ class StubProfileRepository implements IProfileRepository {
     final id = customId ?? 'prf_${DateTime.now().millisecondsSinceEpoch}';
     final now = DateTime.now();
 
+    await db.into(db.profiles).insertOnConflictUpdate(
+          ProfilesCompanion.insert(
+            id: id,
+            name: name,
+            profileType: Value(type.canonicalValue),
+            currencyCode: Value(currencyCode),
+            ownerId: Value(accountId ?? 'usr_default'),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            syncStatus: const Value(SyncRecordStatus.synced),
+          ),
+        );
+
     await db.into(db.companies).insertOnConflictUpdate(
           CompaniesCompanion.insert(
             id: id,
+            profileId: Value(id),
             name: name,
             legalName: legalName ?? name,
             ownerId: Value(accountId ?? 'usr_default'),

@@ -38,52 +38,96 @@ class DriftProfileRepository implements IProfileRepository {
       String accountId) async {
     if (accountId.isEmpty) return [];
 
-    // 1. Query shared_memberships joined with companies
-    final query = db.select(db.companies).join([
+    // 1. Query shared_memberships joined with canonical profiles
+    final profileQuery = db.select(db.profiles).join([
       innerJoin(
         db.sharedMemberships,
-        db.sharedMemberships.profileId.equalsExp(db.companies.id),
+        db.sharedMemberships.profileId.equalsExp(db.profiles.id),
+      ),
+      leftOuterJoin(
+        db.companies,
+        db.companies.profileId.equalsExp(db.profiles.id) |
+            db.companies.id.equalsExp(db.profiles.id),
       ),
     ])
       ..where(db.sharedMemberships.accountId.equals(accountId) &
-          db.companies.isDeleted.equals(false));
+          db.profiles.isDeleted.equals(false));
 
-    final rows = await query.get();
-
+    final profileRows = await profileQuery.get();
     final result = <WorkspaceProfileHeader>[];
-    for (final row in rows) {
-      final company = row.readTable(db.companies);
+
+    for (final row in profileRows) {
+      final prof = row.readTable(db.profiles);
       final membership = row.readTable(db.sharedMemberships);
+      final comp = row.readTableOrNull(db.companies);
 
       result.add(
         WorkspaceProfileHeader(
-          id: company.id,
-          name: company.name,
-          legalName: company.legalName,
-          type: ProfileType.fromString(company.mode),
+          id: prof.id,
+          name: prof.name,
+          legalName: comp?.legalName ?? prof.name,
+          type: ProfileType.fromString(prof.profileType),
           role: ProfileRole.fromString(membership.role),
-          currencyCode: company.currencyCode,
-          gstin: company.gstin,
-          isActive: company.isActive,
-          updatedAt: company.updatedAt,
+          currencyCode: prof.currencyCode,
+          gstin: comp?.gstin,
+          isActive: prof.isActive,
+          updatedAt: prof.updatedAt,
         ),
       );
     }
 
-    // 2. Also include companies owned directly by accountId if membership wasn't backfilled
+    // 2. Also include profiles owned directly by accountId if membership wasn't backfilled
     final existingIds = result.map((p) => p.id).toSet();
-    final ownerQuery = db.select(db.companies)
-      ..where((c) => c.ownerId.equals(accountId) & c.isDeleted.equals(false));
-    final ownerRows = await ownerQuery.get();
-    for (final company in ownerRows) {
-      if (!existingIds.contains(company.id)) {
+    final ownerProfiles = await (db.select(db.profiles)
+          ..where((p) => p.ownerId.equals(accountId) & p.isDeleted.equals(false)))
+        .get();
+    for (final prof in ownerProfiles) {
+      if (!existingIds.contains(prof.id)) {
+        final comp = await (db.select(db.companies)
+              ..where((c) =>
+                  (c.profileId.equals(prof.id) | c.id.equals(prof.id)) &
+                  c.isDeleted.equals(false)))
+            .getSingleOrNull();
+        result.add(
+          WorkspaceProfileHeader(
+            id: prof.id,
+            name: prof.name,
+            legalName: comp?.legalName ?? prof.name,
+            type: ProfileType.fromString(prof.profileType),
+            role: ProfileRole.owner,
+            currencyCode: prof.currencyCode,
+            gstin: comp?.gstin,
+            isActive: prof.isActive,
+            updatedAt: prof.updatedAt,
+          ),
+        );
+        existingIds.add(prof.id);
+      }
+    }
+
+    // 3. Fallback: If no profiles table rows found, fallback to legacy companies
+    if (result.isEmpty) {
+      final query = db.select(db.companies).join([
+        innerJoin(
+          db.sharedMemberships,
+          db.sharedMemberships.profileId.equalsExp(db.companies.id),
+        ),
+      ])
+        ..where(db.sharedMemberships.accountId.equals(accountId) &
+            db.companies.isDeleted.equals(false));
+
+      final rows = await query.get();
+      for (final row in rows) {
+        final company = row.readTable(db.companies);
+        final membership = row.readTable(db.sharedMemberships);
+
         result.add(
           WorkspaceProfileHeader(
             id: company.id,
             name: company.name,
             legalName: company.legalName,
             type: ProfileType.fromString(company.mode),
-            role: ProfileRole.owner,
+            role: ProfileRole.fromString(membership.role),
             currencyCode: company.currencyCode,
             gstin: company.gstin,
             isActive: company.isActive,
@@ -110,8 +154,22 @@ class DriftProfileRepository implements IProfileRepository {
     Map<String, dynamic>? remoteProfile;
     List<Map<String, dynamic>> remoteMemberships = [];
     List<Map<String, dynamic>> remoteCompanies = [];
+    List<Map<String, dynamic>> remoteCanonicalProfiles = [];
 
     await Future.wait([
+      (() async {
+        try {
+          final res = await client
+              .from('profiles')
+              .select()
+              .eq('is_deleted', false)
+              .timeout(const Duration(seconds: 8));
+          remoteCanonicalProfiles = List<Map<String, dynamic>>.from(res);
+        } catch (e) {
+          if (_isNetworkException(e)) rethrow;
+          debugPrint('DriftProfileRepository: Error fetching profiles: $e');
+        }
+      })(),
       (() async {
         try {
           final res = await client
@@ -158,8 +216,54 @@ class DriftProfileRepository implements IProfileRepository {
 
     // 4. Batch upsert into local Drift database in a single transaction
     await db.transaction(() async {
+      for (final prof in remoteCanonicalProfiles) {
+        final profId = prof['id'] as String;
+        final profName = prof['name'] as String? ?? '';
+        final mode = prof['mode'] as String? ?? 'ledger';
+        final currencyCode = prof['currency_code'] as String? ??
+            prof['currencyCode'] as String? ??
+            'INR';
+        final ownerId = prof['owner_id'] as String? ??
+            prof['ownerId'] as String?;
+        final isDeleted = prof['is_deleted'] as bool? ??
+            prof['isDeleted'] as bool? ??
+            false;
+        final createdAtStr = prof['created_at'] ?? prof['createdAt'];
+        final updatedAtStr = prof['updated_at'] ?? prof['updatedAt'];
+        final createdAt =
+            createdAtStr != null ? decodeTime(createdAtStr) : DateTime.now();
+        final updatedAt =
+            updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
+        final revision = (prof['revision'] as num?)?.toInt() ?? 0;
+
+        final existingProf = await (db.select(db.profiles)
+              ..where((p) => p.id.equals(profId)))
+            .getSingleOrNull();
+        if (existingProf != null && existingProf.syncStatus != SyncRecordStatus.synced) {
+          continue;
+        }
+
+        await db.into(db.profiles).insertOnConflictUpdate(
+              ProfilesCompanion.insert(
+                id: profId,
+                name: profName,
+                profileType: Value(mode),
+                currencyCode: Value(currencyCode),
+                ownerId: Value(ownerId),
+                isDeleted: Value(isDeleted),
+                revision: Value(revision),
+                createdAt: Value(createdAt),
+                updatedAt: Value(updatedAt),
+                syncStatus: const Value(SyncRecordStatus.synced),
+              ),
+            );
+      }
+
       for (final comp in remoteCompanies) {
         final compId = comp['id'] as String;
+        final profId = comp['profile_id'] as String? ??
+            comp['profileId'] as String? ??
+            compId;
         final compName = comp['name'] as String? ?? '';
         final legalName = comp['legal_name'] as String? ??
             comp['legalName'] as String? ??
@@ -193,9 +297,30 @@ class DriftProfileRepository implements IProfileRepository {
         }
         final effectiveMode = existingComp != null ? existingComp.mode : mode;
 
+        // Ensure canonical profile row exists locally to maintain referential integrity
+        final existingProf = await (db.select(db.profiles)
+              ..where((p) => p.id.equals(profId)))
+            .getSingleOrNull();
+        if (existingProf == null) {
+          await db.into(db.profiles).insertOnConflictUpdate(
+                ProfilesCompanion.insert(
+                  id: profId,
+                  name: compName,
+                  profileType: Value(effectiveMode),
+                  currencyCode: Value(currencyCode),
+                  ownerId: Value(ownerId),
+                  isDeleted: Value(isDeleted),
+                  createdAt: Value(createdAt),
+                  updatedAt: Value(updatedAt),
+                  syncStatus: const Value(SyncRecordStatus.synced),
+                ),
+              );
+        }
+
         await db.into(db.companies).insertOnConflictUpdate(
               CompaniesCompanion.insert(
                 id: compId,
+                profileId: Value(profId),
                 name: compName,
                 legalName: legalName,
                 mode: Value(effectiveMode),
@@ -228,6 +353,23 @@ class DriftProfileRepository implements IProfileRepository {
             updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
 
         if (profId.isNotEmpty) {
+          final existingProf = await (db.select(db.profiles)
+                ..where((p) => p.id.equals(profId)))
+              .getSingleOrNull();
+          if (existingProf == null) {
+            await db.into(db.profiles).insertOnConflictUpdate(
+                  ProfilesCompanion.insert(
+                    id: profId,
+                    name: 'Profile $profId',
+                    profileType: const Value('ledger'),
+                    ownerId: Value(accId),
+                    createdAt: Value(joinedAt),
+                    updatedAt: Value(updatedAt),
+                    syncStatus: const Value(SyncRecordStatus.synced),
+                  ),
+                );
+          }
+
           await db.into(db.sharedMemberships).insertOnConflictUpdate(
                 SharedMembershipsCompanion.insert(
                   id: memId,
@@ -388,10 +530,46 @@ class DriftProfileRepository implements IProfileRepository {
     );
 
     await db.transaction(() async {
-      // 1. Insert company with pending syncStatus and verified ownerId
+      // 1. Insert canonical profile with pending syncStatus and verified ownerId
+      await db.into(db.profiles).insertOnConflictUpdate(
+            ProfilesCompanion.insert(
+              id: profileId,
+              name: name,
+              profileType: Value(type.canonicalValue),
+              currencyCode: Value(currencyCode),
+              ownerId: Value(effectiveAccountId),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              isDeleted: const Value(false),
+              revision: const Value(0),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
+
+      // 2. Enqueue canonical profile mutation (MUST BE ENQUEUED FIRST)
+      await enqueueMutation(
+        db: db,
+        table: 'profiles',
+        recordId: profileId,
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': profileId,
+          'name': name,
+          'mode': type.canonicalValue,
+          'currency_code': currencyCode,
+          'owner_id': effectiveAccountId,
+          'created_at': encodeTime(now),
+          'updated_at': encodeTime(now),
+          'is_deleted': false,
+          'revision': 0,
+        },
+      );
+
+      // 3. Insert company row linking to canonical profile_id
       await db.into(db.companies).insertOnConflictUpdate(
             CompaniesCompanion.insert(
               id: profileId,
+              profileId: Value(profileId),
               name: name,
               legalName: effectiveLegalName,
               ownerId: Value(effectiveAccountId),
@@ -410,19 +588,7 @@ class DriftProfileRepository implements IProfileRepository {
             ),
           );
 
-      // 2. Insert membership using valid UUID
-      await db.into(db.sharedMemberships).insertOnConflictUpdate(
-            SharedMembershipsCompanion.insert(
-              id: membershipId,
-              profileId: profileId,
-              accountId: effectiveAccountId,
-              role: 'owner',
-              joinedAt: Value(now),
-              updatedAt: Value(now),
-            ),
-          );
-
-      // 3. Enqueue company outbox mutation (MUST BE ENQUEUED BEFORE membership)
+      // 4. Enqueue company mutation (BEFORE shared_memberships)
       await enqueueMutation(
         db: db,
         table: 'companies',
@@ -430,6 +596,7 @@ class DriftProfileRepository implements IProfileRepository {
         type: 'UPSERT',
         fullRowMap: {
           'id': profileId,
+          'profile_id': profileId,
           'name': name,
           'legal_name': effectiveLegalName,
           'legalName': effectiveLegalName,
@@ -456,7 +623,19 @@ class DriftProfileRepository implements IProfileRepository {
         },
       );
 
-      // 4. Enqueue membership outbox mutation (AFTER company)
+      // 5. Insert membership using valid UUID
+      await db.into(db.sharedMemberships).insertOnConflictUpdate(
+            SharedMembershipsCompanion.insert(
+              id: membershipId,
+              profileId: profileId,
+              accountId: effectiveAccountId,
+              role: 'owner',
+              joinedAt: Value(now),
+              updatedAt: Value(now),
+            ),
+          );
+
+      // 6. Enqueue membership outbox mutation (AFTER company)
       await enqueueMutation(
         db: db,
         table: 'shared_memberships',
@@ -472,15 +651,20 @@ class DriftProfileRepository implements IProfileRepository {
         },
       );
 
-      // 5. Seed chart of accounts for company
-      final engine = postingEngine ?? VoucherPostingEngine(db, AuditService(db));
-      await engine.seedAccountsFor(
-        companyModel,
-        initialWalletBalancesInCents: initialWalletBalancesInCents,
-      );
+      // 7. Seed accounts for Ledger mode
+      if (type == ProfileType.ledger) {
+        final engine = postingEngine ?? VoucherPostingEngine(db, AuditService(db));
+        await engine.seedAccountsFor(
+          companyModel,
+          initialWalletBalancesInCents: initialWalletBalancesInCents,
+        );
+      }
 
-      // 6. Seed defaults for expense mode
+      // 8. Seed defaults for expense mode (zero accounting vouchers or accounts)
       if (type == ProfileType.expense) {
+        final initialCash = initialWalletBalancesInCents?['cash'] ??
+            initialWalletBalancesInCents?['Cash in Hand'] ??
+            0;
         final walletId = '${profileId}_wal_cash';
         await db.into(db.expenseWallets).insertOnConflictUpdate(
               ExpenseWalletsCompanion.insert(
@@ -489,6 +673,8 @@ class DriftProfileRepository implements IProfileRepository {
                 name: 'Cash in Hand',
                 walletType: const Value('cash'),
                 currencyCode: Value(currencyCode),
+                startingBalanceInCents: Value(initialCash),
+                currentBalanceInCents: Value(initialCash),
                 colorHex: const Value('#006C4C'),
                 iconName: const Value('payments'),
                 createdAt: Value(now),
@@ -508,8 +694,8 @@ class DriftProfileRepository implements IProfileRepository {
             'name': 'Cash in Hand',
             'wallet_type': 'cash',
             'currency_code': currencyCode,
-            'starting_balance_in_cents': 0,
-            'current_balance_in_cents': 0,
+            'starting_balance_in_cents': initialCash,
+            'current_balance_in_cents': initialCash,
             'color_hex': '#006C4C',
             'icon_name': 'payments',
             'is_archived': false,
@@ -568,7 +754,7 @@ class DriftProfileRepository implements IProfileRepository {
       }
     });
 
-    // 6. Trigger background sync after transaction commit
+    // 7. Trigger background sync after transaction commit
     syncEngine.triggerBackgroundSync(companyId: profileId);
 
     return WorkspaceProfileHeader(
@@ -586,8 +772,8 @@ class DriftProfileRepository implements IProfileRepository {
   @override
   Future<void> deleteProfile(String profileId) async {
     final now = DateTime.now();
-    await (db.update(db.companies)..where((t) => t.id.equals(profileId))).write(
-      CompaniesCompanion(
+    await (db.update(db.profiles)..where((t) => t.id.equals(profileId))).write(
+      ProfilesCompanion(
         isDeleted: const Value(true),
         syncStatus: const Value(SyncRecordStatus.pending),
         updatedAt: Value(now),
@@ -595,17 +781,42 @@ class DriftProfileRepository implements IProfileRepository {
     );
     await enqueueMutation(
       db: db,
-      table: 'companies',
+      table: 'profiles',
       recordId: profileId,
       type: 'UPSERT',
       fullRowMap: {
         'id': profileId,
         'is_deleted': true,
-        'isDeleted': true,
         'updated_at': encodeTime(now),
-        'updatedAt': encodeTime(now),
       },
     );
+
+    // Also soft-delete linked company if one exists
+    final comp = await (db.select(db.companies)
+          ..where((c) => c.profileId.equals(profileId) | c.id.equals(profileId)))
+        .getSingleOrNull();
+    if (comp != null) {
+      await (db.update(db.companies)..where((t) => t.id.equals(comp.id))).write(
+        CompaniesCompanion(
+          isDeleted: const Value(true),
+          syncStatus: const Value(SyncRecordStatus.pending),
+          updatedAt: Value(now),
+        ),
+      );
+      await enqueueMutation(
+        db: db,
+        table: 'companies',
+        recordId: comp.id,
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': comp.id,
+          'is_deleted': true,
+          'isDeleted': true,
+          'updated_at': encodeTime(now),
+          'updatedAt': encodeTime(now),
+        },
+      );
+    }
     syncEngine.triggerBackgroundSync(companyId: profileId);
   }
 }

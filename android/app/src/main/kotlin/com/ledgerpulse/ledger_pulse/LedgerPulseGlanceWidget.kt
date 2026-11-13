@@ -1,6 +1,5 @@
 package com.ledgerpulse.ledger_pulse
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -12,8 +11,12 @@ import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.LinearProgressIndicator
+import androidx.glance.appwidget.ProgressIndicatorDefaults
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
@@ -24,6 +27,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -50,7 +54,11 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
         val companyName = prefs.getString("company_name", "Ledger Enterprise") ?: "Ledger Enterprise"
         val companyId = prefs.getString("company_id", "default") ?: "default"
         val currencySymbol = prefs.getString("currency_symbol", "₹") ?: "₹"
-        
+        val mode = prefs.getString("mode", "ledger") ?: "ledger"
+        val isExpense = mode.equals("expense", ignoreCase = true) ||
+                        mode.equals("expenseTracker", ignoreCase = true) ||
+                        mode.equals("expense_tracker", ignoreCase = true)
+
         var cashIn = prefs.getString("cash_in_value", null)
         if (cashIn.isNullOrEmpty()) {
             val raw = prefs.getString("cash_in_amount", "2000") ?: "2000"
@@ -63,6 +71,25 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
             cashOut = raw.replace("₹", "").trim()
         }
 
+        var todaySpend = prefs.getString("today_spend_amount", null)
+        if (todaySpend.isNullOrEmpty()) {
+            val rawValue = prefs.getString("today_spend_value", null)
+                ?: prefs.getString("cash_out_value", "2,000")
+                ?: "2,000"
+            todaySpend = "$currencySymbol$rawValue"
+        }
+
+        val spendLabel = prefs.getString("spend_label", null)
+            ?: prefs.getString("today_label", "Today")
+            ?: "Today"
+        val spendProgress = prefs.getString("spend_progress_text", "Spend - 2000/3700") ?: "Spend - 2000/3700"
+        val spendPercent = prefs.getString("spend_percent_text", "58%") ?: "58%"
+        val progressInt = getSafeInt(prefs, "spend_progress_percent", 58)
+
+        val cat1 = prefs.getString("category_1_name", "Food & Dining") ?: "Food & Dining"
+        val cat2 = prefs.getString("category_2_name", "Groceries") ?: "Groceries"
+        val cat3 = prefs.getString("category_3_name", "Travel") ?: "Travel"
+
         val deepLinkIntent = Intent(
             Intent.ACTION_VIEW,
             Uri.parse("ledgerpulse://dashboard?company_id=$companyId"),
@@ -72,15 +99,174 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
 
+        val quickAddIntent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("ledgerpulse://dashboard?company_id=$companyId&action=quick_add"),
+            context,
+            MainActivity::class.java
+        ).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
         provideContent {
             GlanceTheme {
-                LedgerPulseWidgetContent(
-                    companyName = companyName,
-                    cashIn = cashIn,
-                    cashOut = cashOut,
-                    currencySymbol = currencySymbol,
-                    intent = deepLinkIntent
+                if (isExpense) {
+                    ExpenseWidgetContent(
+                        companyName = companyName,
+                        spendLabel = spendLabel,
+                        todaySpend = todaySpend,
+                        spendProgress = spendProgress,
+                        spendPercent = spendPercent,
+                        progressPercent = progressInt,
+                        cat1 = cat1,
+                        cat2 = cat2,
+                        cat3 = cat3,
+                        intent = deepLinkIntent,
+                        quickAddIntent = quickAddIntent
+                    )
+                } else {
+                    LedgerPulseWidgetContent(
+                        companyName = companyName,
+                        cashIn = cashIn,
+                        cashOut = cashOut,
+                        currencySymbol = currencySymbol,
+                        intent = deepLinkIntent
+                    )
+                }
+            }
+        }
+    }
+
+    private fun getSafeInt(prefs: android.content.SharedPreferences, key: String, defaultVal: Int): Int {
+        return try {
+            val all = prefs.all
+            val value = all[key] ?: return defaultVal
+            when (value) {
+                is Int -> value
+                is Long -> value.toInt()
+                is Number -> value.toInt()
+                is String -> value.toIntOrNull() ?: defaultVal
+                else -> defaultVal
+            }
+        } catch (_: Exception) {
+            defaultVal
+        }
+    }
+
+    @Composable
+    private fun ExpenseWidgetContent(
+        companyName: String,
+        spendLabel: String,
+        todaySpend: String,
+        spendProgress: String,
+        spendPercent: String,
+        progressPercent: Int,
+        cat1: String,
+        cat2: String,
+        cat3: String,
+        intent: Intent,
+        quickAddIntent: Intent
+    ) {
+        val widgetBgColor = androidx.glance.unit.ColorProvider(R.color.widget_expense_bg)
+        val textColor = androidx.glance.unit.ColorProvider(R.color.widget_expense_text)
+        val trackColor = androidx.glance.unit.ColorProvider(R.color.widget_expense_track)
+        val fillColor = androidx.glance.unit.ColorProvider(R.color.widget_expense_fill)
+
+        Box(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .cornerRadius(28.dp)
+                .background(widgetBgColor)
+                .clickable(actionStartActivity(intent))
+                .padding(14.dp),
+            contentAlignment = Alignment.TopStart
+        ) {
+            Column(
+                modifier = GlanceModifier.fillMaxSize()
+            ) {
+                // Header: Profile Name & Plus Quick Add Action
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = companyName,
+                        style = TextStyle(
+                            color = textColor,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        maxLines = 1,
+                        modifier = GlanceModifier.defaultWeight()
+                    )
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_widget_add),
+                        contentDescription = "Add Expense",
+                        modifier = GlanceModifier
+                            .width(22.dp)
+                            .height(22.dp)
+                            .clickable(actionStartActivity(quickAddIntent))
+                    )
+                }
+
+                Spacer(modifier = GlanceModifier.defaultWeight())
+
+                // Subtitle: Today or This Month
+                Text(
+                    text = spendLabel,
+                    style = TextStyle(
+                        color = textColor,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Normal
+                    )
                 )
+
+                // Large Amount: ₹2,000
+                Text(
+                    text = todaySpend,
+                    style = TextStyle(
+                        color = textColor,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    maxLines = 1
+                )
+
+                Spacer(modifier = GlanceModifier.defaultWeight())
+
+                // Progress Bar
+                LinearProgressIndicator(
+                    progress = (progressPercent.coerceIn(0, 100) / 100f),
+                    modifier = GlanceModifier.fillMaxWidth().height(8.dp).cornerRadius(4.dp),
+                    color = fillColor,
+                    backgroundColor = trackColor
+                )
+
+                Spacer(modifier = GlanceModifier.height(4.dp))
+
+                // Spend - 2000/3700 and 58%
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = spendProgress,
+                        style = TextStyle(
+                            color = textColor,
+                            fontSize = 11.sp
+                        ),
+                        maxLines = 1,
+                        modifier = GlanceModifier.defaultWeight()
+                    )
+                    Text(
+                        text = spendPercent,
+                        style = TextStyle(
+                            color = textColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    )
+                }
             }
         }
     }
@@ -93,7 +279,6 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
         currencySymbol: String,
         intent: Intent
     ) {
-        // M3 Expressive Palette via resource IDs with automatic Light/Dark mode support
         val widgetBgColor = androidx.glance.unit.ColorProvider(R.color.widget_bg)
         val onSurfaceColor = androidx.glance.unit.ColorProvider(R.color.widget_on_surface)
         val onSurfaceVariant = androidx.glance.unit.ColorProvider(R.color.widget_on_surface_variant)

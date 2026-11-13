@@ -30,6 +30,8 @@ void main() {
     voucherRepo = DriftVoucherRepository(db: db, auditService: auditService, postingEngine: postingEngine, currentCompanyId: testCompanyId);
     inventoryRepo = DriftInventoryRepository(db: db, auditService: auditService, currentCompanyId: testCompanyId);
 
+    await postingEngine.ensureCompanyAccounts(testCompanyId);
+
     // Add customer & supplier parties
     final customer = Party(
       id: 'party_customer_1',

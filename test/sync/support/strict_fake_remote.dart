@@ -45,6 +45,10 @@ class StrictFakeRemoteSyncBackend extends FakeGateway {
     if (tableMap == null) return [];
     final list = tableMap.values.toList();
     if (companyId == null) return list;
-    return list.where((r) => r['company_id'] == companyId || r['companyId'] == companyId).toList();
+    return list.where((r) =>
+        r['company_id'] == companyId ||
+        r['companyId'] == companyId ||
+        r['profile_id'] == companyId ||
+        r['profileId'] == companyId).toList();
   }
 }

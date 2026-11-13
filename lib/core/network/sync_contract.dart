@@ -20,6 +20,7 @@ enum SyncDomain {
 
 enum SyncEntityType {
   // Shared
+  profile,
   company,
   userProfile,
   sharedMembership,
@@ -45,6 +46,8 @@ enum SyncEntityType {
 
   String toTableName() {
     switch (this) {
+      case SyncEntityType.profile:
+        return 'profiles';
       case SyncEntityType.company:
         return 'companies';
       case SyncEntityType.userProfile:

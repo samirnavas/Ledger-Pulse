@@ -43,10 +43,31 @@ void main() {
       currentCompanyId: expenseCompanyId,
     );
 
+    // Create Profiles in db
+    await db.into(db.profiles).insert(
+          ProfilesCompanion.insert(
+            id: expenseCompanyId,
+            name: 'Expense Co',
+            profileType: Value(CompanyMode.expenseTracker.name),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
+    await db.into(db.profiles).insert(
+          ProfilesCompanion.insert(
+            id: ledgerCompanyId,
+            name: 'Ledger Co',
+            profileType: Value(CompanyMode.ledger.name),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+          ),
+        );
+
     // Create Expense Tracker company in db
     await db.into(db.companies).insert(
           CompaniesCompanion.insert(
             id: expenseCompanyId,
+            profileId: const Value(expenseCompanyId),
             name: 'Expense Co',
             legalName: 'Expense Co Ltd',
             mode: Value(CompanyMode.expenseTracker.name),

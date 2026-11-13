@@ -1,13 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- M3 Expressive Light Mode Tokens for Ledger Pulse Widget -->
-    <color name="widget_bg">#9BD6A2</color>
-    <color name="widget_container_tonal">#86C58E</color>
-    <color name="widget_on_surface">#0A1C0E</color>
-    <color name="widget_on_surface_variant">#1E3B24</color>
-    <color name="widget_divider">#527357</color>
-    <color name="widget_inflow_indicator">#004D25</color>
-    <color name="widget_outflow_indicator">#8A1414</color>
+    <color name="widget_bg">#F2EDE8</color>
+    <color name="widget_container_tonal">#E5DFD9</color>
+    <color name="widget_on_surface">#1D1B16</color>
+    <color name="widget_on_surface_variant">#4A463F</color>
+    <color name="widget_divider">#CBC4BC</color>
+    <color name="widget_inflow_indicator">#2D6A4F</color>
+    <color name="widget_outflow_indicator">#BA1A1A</color>
     <color name="widget_badge_inflow_bg">#C8E6C9</color>
     <color name="widget_badge_outflow_bg">#FFCDD2</color>
+
+    <!-- Expense Tracker Widget Tokens: aliases to widget theme tokens -->
+    <color name="widget_expense_bg">@color/widget_bg</color>
+    <color name="widget_expense_text">@color/widget_on_surface</color>
+    <color name="widget_expense_subtext">@color/widget_on_surface_variant</color>
+    <color name="widget_expense_track">@color/widget_container_tonal</color>
+    <color name="widget_expense_fill">@color/widget_inflow_indicator</color>
+    <color name="widget_expense_donut_1">@color/widget_inflow_indicator</color>
+    <color name="widget_expense_donut_2">#8D6E63</color>
+    <color name="widget_expense_donut_3">@color/widget_divider</color>
 </resources>

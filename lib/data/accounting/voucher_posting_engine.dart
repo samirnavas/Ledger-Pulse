@@ -26,6 +26,43 @@ class VoucherPostingEngine {
     Company company, {
     Map<String, int>? initialWalletBalancesInCents,
   }) async {
+    // Ensure canonical profile and company rows exist to guarantee foreign key referential integrity
+    final existingProf = await (_db.select(_db.profiles)
+          ..where((p) => p.id.equals(company.id)))
+        .getSingleOrNull();
+    if (existingProf == null) {
+      await _db.into(_db.profiles).insertOnConflictUpdate(
+            ProfilesCompanion.insert(
+              id: company.id,
+              name: company.name,
+              profileType: Value(company.mode == CompanyMode.ledger ? 'ledger' : 'expense'),
+              currencyCode: Value(company.currencyCode),
+              createdAt: Value(company.createdAt),
+              updatedAt: Value(company.updatedAt),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+    }
+
+    final existingComp = await (_db.select(_db.companies)
+          ..where((c) => c.id.equals(company.id)))
+        .getSingleOrNull();
+    if (existingComp == null) {
+      await _db.into(_db.companies).insertOnConflictUpdate(
+            CompaniesCompanion.insert(
+              id: company.id,
+              profileId: Value(company.id),
+              name: company.name,
+              legalName: company.legalName,
+              mode: Value(company.mode.canonicalValue),
+              currencyCode: Value(company.currencyCode),
+              createdAt: Value(company.createdAt),
+              updatedAt: Value(company.updatedAt),
+              syncStatus: const Value(SyncRecordStatus.synced),
+            ),
+          );
+    }
+
     final existingCount = await (_db.select(_db.accounts)
           ..where((t) => t.companyId.equals(company.id) & t.isDeleted.equals(false)))
         .get();
@@ -65,6 +102,39 @@ class VoucherPostingEngine {
               syncStatus: const Value(SyncRecordStatus.pending),
             ),
           );
+
+      if (company.mode == CompanyMode.expenseTracker) {
+        if (acc.kind == 'wallet' || acc.type == AccountType.asset) {
+          await _db.into(_db.expenseWallets).insertOnConflictUpdate(
+                ExpenseWalletsCompanion.insert(
+                  id: acc.id,
+                  profileId: company.id,
+                  name: acc.name,
+                  walletType: Value(acc.id.contains('bank') ? 'bank' : 'cash'),
+                  currencyCode: Value(company.currencyCode),
+                  startingBalanceInCents: Value(acc.currentBalanceInCents),
+                  currentBalanceInCents: Value(acc.currentBalanceInCents),
+                  createdAt: Value(acc.createdAt),
+                  updatedAt: Value(acc.updatedAt),
+                  syncStatus: const Value(SyncRecordStatus.synced),
+                ),
+              );
+        } else if (acc.type == AccountType.expense || acc.type == AccountType.income) {
+          await _db.into(_db.expenseCategories).insertOnConflictUpdate(
+                ExpenseCategoriesCompanion.insert(
+                  id: acc.id,
+                  profileId: company.id,
+                  name: acc.name,
+                  categoryType: Value(acc.type == AccountType.income ? 'income' : 'expense'),
+                  parentCategoryId: Value(acc.parentAccountId),
+                  isSystem: Value(acc.isSystem),
+                  createdAt: Value(acc.createdAt),
+                  updatedAt: Value(acc.updatedAt),
+                  syncStatus: const Value(SyncRecordStatus.synced),
+                ),
+              );
+        }
+      }
     }
 
     // If expense tracker wallets have initial balances, post a balanced opening journal entry

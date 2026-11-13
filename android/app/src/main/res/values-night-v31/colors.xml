@@ -10,4 +10,14 @@
     <color name="widget_outflow_indicator">@android:color/system_accent3_200</color>
     <color name="widget_badge_inflow_bg">@android:color/system_accent1_800</color>
     <color name="widget_badge_outflow_bg">@android:color/system_accent3_800</color>
+
+    <!-- Expense Tracker Dynamic Dark Palette (matches Ledger Pulse & phone theme) -->
+    <color name="widget_expense_bg">@color/widget_bg</color>
+    <color name="widget_expense_text">@color/widget_on_surface</color>
+    <color name="widget_expense_subtext">@color/widget_on_surface_variant</color>
+    <color name="widget_expense_track">@color/widget_container_tonal</color>
+    <color name="widget_expense_fill">@color/widget_inflow_indicator</color>
+    <color name="widget_expense_donut_1">@color/widget_inflow_indicator</color>
+    <color name="widget_expense_donut_2">@android:color/system_accent2_200</color>
+    <color name="widget_expense_donut_3">@color/widget_divider</color>
 </resources>

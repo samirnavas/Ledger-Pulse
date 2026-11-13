@@ -25,13 +25,12 @@ void main() {
         profileId: profileId,
       );
 
-      // Seed test company profile
-      await db.into(db.companies).insert(
-            CompaniesCompanion.insert(
+      // Seed test canonical profile
+      await db.into(db.profiles).insert(
+            ProfilesCompanion.insert(
               id: profileId,
               name: 'Test Expense Profile',
-              legalName: 'Test Expense Profile',
-              mode: const Value('expense'),
+              profileType: const Value('expense'),
               createdAt: Value(DateTime.now()),
               updatedAt: Value(DateTime.now()),
             ),

@@ -71,27 +71,25 @@ void main() {
         narration: 'Expense to void',
       );
 
-      fakeRemote.upsert('vouchers', voucher.id, {
+      fakeRemote.upsert('exp_transactions', voucher.id, {
         'id': voucher.id,
-        'company_id': companyId,
-        'voucher_number': voucher.voucherNumber,
-        'type': 'expense',
-        'status': 'posted',
+        'profile_id': companyId,
+        'transaction_type': 'expense',
         'is_deleted': false,
-        'total_amount_in_cents': 50000,
-        'category_account_id': categoryId,
-        'wallet_account_id': walletId,
+        'amount_in_cents': 50000,
+        'category_id': categoryId,
+        'wallet_id': walletId,
       });
 
       await expenseRepo.voidTransaction(voucher.id);
 
       await syncEngine.pullChanges(companyId: companyId);
 
-      final localVoucher = await (db.select(db.vouchers)..where((t) => t.id.equals(voucher.id))).getSingle();
+      final localTx = await (db.select(db.expenseTransactions)..where((t) => t.id.equals(voucher.id))).getSingle();
       expect(
-        localVoucher.status == 'voided' || localVoucher.isDeleted,
+        localTx.isDeleted,
         isTrue,
-        reason: 'Expense voucher should remain voided/deleted locally after pull',
+        reason: 'Expense transaction should remain voided/deleted locally after pull',
       );
 
       await db.close();
@@ -142,24 +140,22 @@ void main() {
 
       final customWallet = await expenseRepo.createWallet(name: 'Test Wallet Sync', type: AccountType.asset);
 
-      fakeRemote.upsert('accounts', customWallet.id, {
+      fakeRemote.upsert('exp_wallets', customWallet.id, {
         'id': customWallet.id,
-        'company_id': companyId,
+        'profile_id': companyId,
         'name': 'Test Wallet Sync',
-        'type': 'asset',
         'is_deleted': false,
-        'is_active': true,
       });
 
       await expenseRepo.deleteWallet(customWallet.id);
 
       await syncEngine.pullChanges(companyId: companyId);
 
-      final localWallet = await (db.select(db.accounts)..where((t) => t.id.equals(customWallet.id))).getSingle();
+      final localWallet = await (db.select(db.expenseWallets)..where((t) => t.id.equals(customWallet.id))).getSingle();
       expect(
-        localWallet.isDeleted || !localWallet.isActive,
+        localWallet.isDeleted || localWallet.isArchived,
         isTrue,
-        reason: 'Wallet should remain deleted/inactive locally after pull',
+        reason: 'Wallet should remain deleted/archived locally after pull',
       );
 
       await db.close();
@@ -210,22 +206,21 @@ void main() {
 
       final customCat = await expenseRepo.createCategory(name: 'Test Category Sync', type: AccountType.expense);
 
-      fakeRemote.upsert('accounts', customCat.id, {
+      fakeRemote.upsert('exp_categories', customCat.id, {
         'id': customCat.id,
-        'company_id': companyId,
+        'profile_id': companyId,
         'name': 'Test Category Sync',
-        'type': 'expense',
+        'category_type': 'expense',
         'is_deleted': false,
-        'is_active': true,
       });
 
       await expenseRepo.deleteCategory(customCat.id);
 
       await syncEngine.pullChanges(companyId: companyId);
 
-      final localCat = await (db.select(db.accounts)..where((t) => t.id.equals(customCat.id))).getSingle();
+      final localCat = await (db.select(db.expenseCategories)..where((t) => t.id.equals(customCat.id))).getSingle();
       expect(
-        localCat.isDeleted || !localCat.isActive,
+        localCat.isDeleted,
         isTrue,
         reason: 'Category should remain deleted/inactive locally after pull',
       );
@@ -395,31 +390,31 @@ void main() {
       );
 
       // Simulate record having been previously synced to remote
-      await (db.update(db.vouchers)..where((t) => t.id.equals(voucher.id))).write(
-        const VouchersCompanion(
+      await (db.update(db.expenseTransactions)..where((t) => t.id.equals(voucher.id))).write(
+        const ExpenseTransactionsCompanion(
           syncStatus: Value(SyncRecordStatus.synced),
         ),
       );
 
-      final initialRow = await (db.select(db.vouchers)..where((t) => t.id.equals(voucher.id))).getSingle();
+      final initialRow = await (db.select(db.expenseTransactions)..where((t) => t.id.equals(voucher.id))).getSingle();
       final initialUpdatedAt = initialRow.updatedAt;
 
       await Future.delayed(const Duration(seconds: 1, milliseconds: 100));
 
       await expenseRepo.voidTransaction(voucher.id);
 
-      final voidedRow = await (db.select(db.vouchers)..where((t) => t.id.equals(voucher.id))).getSingle();
+      final voidedRow = await (db.select(db.expenseTransactions)..where((t) => t.id.equals(voucher.id))).getSingle();
 
       expect(
         voidedRow.syncStatus,
         equals(SyncRecordStatus.pending),
-        reason: 'Voucher syncStatus should transition to pending upon voiding',
+        reason: 'Transaction syncStatus should transition to pending upon voiding',
       );
 
       expect(
         voidedRow.updatedAt.isAfter(initialUpdatedAt),
         isTrue,
-        reason: 'Voucher updatedAt timestamp should be updated when voided (before: $initialUpdatedAt, after: ${voidedRow.updatedAt})',
+        reason: 'Transaction updatedAt timestamp should be updated when voided (before: $initialUpdatedAt, after: ${voidedRow.updatedAt})',
       );
 
       await db.close();

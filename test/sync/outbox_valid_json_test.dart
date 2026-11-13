@@ -5,6 +5,7 @@ import 'package:ledger_pulse/core/network/sync_engine.dart';
 import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
 import 'package:ledger_pulse/data/local/audit_service.dart';
 import 'package:ledger_pulse/data/local/database.dart';
+import 'package:ledger_pulse/data/local/outbox_helper.dart';
 import 'package:ledger_pulse/data/local/drift_budget_repository.dart';
 import 'package:ledger_pulse/data/local/drift_expense_repository.dart';
 import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
@@ -19,23 +20,6 @@ import 'support/strict_fake_remote.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  const realTableNames = <String>{
-    'companies',
-    'user_profiles',
-    'parties',
-    'ledger_entries',
-    'audit_logs',
-    'sync_outbox',
-    'inventory_items',
-    'stock_ledger',
-    'vouchers',
-    'accounts',
-    'journals',
-    'journal_lines',
-    'budgets',
-    'recurring_rules',
-  };
 
   group('Outbox Valid JSON & Table Name Schema Tests', () {
     test('1. collect ALL sync_outbox violations and report tuples at end', () async {
@@ -205,15 +189,15 @@ void main() {
 
       final wallet = await expenseRepo.createWallet(name: 'AutoQueue Wallet', type: AccountType.asset);
 
-      final accountRow = await (db.select(db.accounts)..where((t) => t.id.equals(wallet.id))).getSingle();
+      final walletRow = await (db.select(db.expenseWallets)..where((t) => t.id.equals(wallet.id))).getSingle();
       expect(
-        accountRow.syncStatus,
+        walletRow.syncStatus,
         equals(SyncRecordStatus.pending),
-        reason: 'Local accounts row should have syncStatus == pending after creation',
+        reason: 'Local exp_wallets row should have syncStatus == pending after creation',
       );
 
       final outboxRowsBeforePush = await (db.select(db.syncOutbox)).get();
-      final accountOutboxRows = outboxRowsBeforePush.where((r) => r.targetTable == 'accounts' && r.recordId == wallet.id);
+      final walletOutboxRows = outboxRowsBeforePush.where((r) => r.targetTable == 'exp_wallets' && r.recordId == wallet.id);
 
       final outboxSummary = outboxRowsBeforePush.map((r) {
         bool parses = false;
@@ -225,9 +209,9 @@ void main() {
       }).join(', ');
 
       expect(
-        accountOutboxRows,
+        walletOutboxRows,
         isNotEmpty,
-        reason: 'Expected wallet account to be queued with targetTable "accounts" in sync_outbox. Actual outbox rows: [$outboxSummary]',
+        reason: 'Expected wallet to be queued with targetTable "exp_wallets" in sync_outbox. Actual outbox rows: [$outboxSummary]',
       );
 
       await syncEngine.pushQueue(companyId: companyId);
