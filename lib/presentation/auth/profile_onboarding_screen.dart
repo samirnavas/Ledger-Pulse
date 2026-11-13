@@ -18,8 +18,13 @@ import 'app_root_gate.dart';
 
 class ProfileOnboardingScreen extends ConsumerStatefulWidget {
   final String userId;
+  final String? initialName;
 
-  const ProfileOnboardingScreen({super.key, required this.userId});
+  const ProfileOnboardingScreen({
+    super.key,
+    required this.userId,
+    this.initialName,
+  });
 
   @override
   ConsumerState<ProfileOnboardingScreen> createState() =>
@@ -39,11 +44,34 @@ class _ProfileOnboardingScreenState
   String? _errorMessage;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.initialName != null && widget.initialName!.trim().isNotEmpty) {
+      _nameController.text = widget.initialName!.trim();
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _legalNameController.dispose();
     _gstinController.dispose();
     super.dispose();
+  }
+
+  void _handleLogout() async {
+    HapticFeedback.mediumImpact();
+    await ref.read(authControllerProvider.notifier).logout();
+    ref.read(profileSessionProvider.notifier).logout();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        createAdaptivePageRoute(
+          builder: (_) => const AppRootGate(),
+          transitionType: SharedAxisTransitionType.scaled,
+        ),
+        (route) => false,
+      );
+    }
   }
 
   void _handleCreate() async {
@@ -83,6 +111,8 @@ class _ProfileOnboardingScreenState
       // Save preference for newly created profile so it immediately becomes active
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs?.setString('last_active_profile_${widget.userId}', created.id);
+      await prefs?.setString('last_active_company_id_${widget.userId}', created.id);
+      await prefs?.setString('last_active_company_id', created.id);
 
       // Reload profile session so state machine transitions to active profile
       await ref
@@ -121,6 +151,26 @@ class _ProfileOnboardingScreenState
 
     return AdaptiveScaffold(
       title: 'Setup Your Workspace',
+      actions: [
+        if (isIos)
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: _handleLogout,
+            child: Icon(
+              CupertinoIcons.square_arrow_right,
+              size: 22,
+              color: isDark
+                  ? AppColors.textSecondaryDark
+                  : AppColors.textSecondaryLight,
+            ),
+          )
+        else
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Sign Out',
+            onPressed: _handleLogout,
+          ),
+      ],
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),

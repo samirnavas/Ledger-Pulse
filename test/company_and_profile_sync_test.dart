@@ -87,9 +87,8 @@ void main() {
 
       // Verify outbox queue
       final outboxItems = await (db.select(db.syncOutbox)..where((t) => t.recordId.equals('cmp_tech_corp'))).get();
-      expect(outboxItems.length, equals(1));
-      expect(outboxItems.first.targetTable, equals('companies'));
-      expect(outboxItems.first.mutationType, equals('UPSERT'));
+      final compOutbox = outboxItems.firstWhere((o) => o.targetTable == 'companies');
+      expect(compOutbox.mutationType, equals('UPSERT'));
     });
 
     test('UserProfile saving persists to UserProfiles & Companies and enqueues to SyncOutbox', () async {

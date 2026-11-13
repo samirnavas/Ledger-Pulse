@@ -655,6 +655,7 @@ class SyncEngine {
       final pendingCompaniesQuery = db.select(db.companies)
         ..where(
           (t) =>
+              t.id.equals('cmp_default').not() &
               (!allowAllCompanies
                   ? t.id.equals(companyId)
                   : const Constant(true)) &
@@ -1341,6 +1342,7 @@ class SyncEngine {
       // Companies
       final errCompanies = await (db.select(db.companies)
             ..where((t) =>
+                t.id.equals('cmp_default').not() &
                 (companyId != 'cmp_default'
                     ? t.id.equals(companyId)
                     : const Constant(true)) &
@@ -1725,6 +1727,16 @@ class SyncEngine {
             'enabledModulesJson',
           },
         );
+
+        if ((outboxRow.targetTable == 'companies' ||
+                outboxRow.targetTable == 'profiles') &&
+            outboxRow.recordId == 'cmp_default') {
+          // Never push local unauthenticated placeholder 'cmp_default' to cloud Supabase
+          await (db.delete(db.syncOutbox)
+                ..where((t) => t.id.equals(outboxRow.id)))
+              .go();
+          continue;
+        }
 
         if (outboxRow.targetTable == 'companies') {
           remoteMap.remove('enabled_modules_json');

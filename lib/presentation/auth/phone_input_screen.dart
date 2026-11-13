@@ -14,6 +14,7 @@ import '../../core/widgets/liquid_glass_card.dart';
 import '../providers/auth_providers.dart';
 import '../providers/profile_session_controller.dart';
 import 'app_root_gate.dart';
+import 'profile_onboarding_screen.dart';
 
 enum AuthMode { signUp, login }
 
@@ -90,19 +91,16 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
               ref.read(authRepositoryProvider).currentUserId;
 
           if (userId != null && mounted) {
-            await ref
-                .read(profileSessionProvider.notifier)
-                .loadProfilesForUser(userId, isLogin: true);
-
-            if (mounted) {
-              Navigator.of(context).pushAndRemoveUntil(
-                createAdaptivePageRoute(
-                  builder: (context) => const AppRootGate(),
-                  transitionType: SharedAxisTransitionType.scaled,
+            Navigator.of(context).pushAndRemoveUntil(
+              createAdaptivePageRoute(
+                builder: (context) => ProfileOnboardingScreen(
+                  userId: userId,
+                  initialName: name,
                 ),
-                (route) => false,
-              );
-            }
+                transitionType: SharedAxisTransitionType.scaled,
+              ),
+              (route) => false,
+            );
           }
         } else if (mounted) {
           final err = ref.read(authControllerProvider).error ?? result.message;

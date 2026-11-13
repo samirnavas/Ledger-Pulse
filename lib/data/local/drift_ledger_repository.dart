@@ -120,8 +120,10 @@ class DriftLedgerRepository extends DriftLedgerRepositoryBase
 
   Future<void> _seedIfEmpty() async {
     // Only seed the guest/default company row if currently in cmp_default context
-    // to avoid implicitly fabricating duplicate workspaces for real company IDs.
-    if (_currentCompanyId == 'cmp_default') {
+    // AND the current user is unauthenticated (guest / usr_default),
+    // to avoid implicitly fabricating duplicate workspaces for real authenticated users.
+    final isGuest = _currentUserId.isEmpty || _currentUserId == 'usr_default';
+    if (_currentCompanyId == 'cmp_default' && isGuest) {
       await _db.into(_db.companies).insert(
         CompaniesCompanion.insert(
           id: 'cmp_default',

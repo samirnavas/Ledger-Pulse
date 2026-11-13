@@ -88,10 +88,38 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
 
   @override
   Future<List<Company>> getCompanies() async {
-    var rows = await (db.select(db.companies)..where((t) => t.isDeleted.equals(false))).get();
+    final isAuth = currentUserId.isNotEmpty &&
+        currentUserId != 'usr_default' &&
+        RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+            .hasMatch(currentUserId);
+
+    final query = db.select(db.companies)..where((t) => t.isDeleted.equals(false));
+
+    if (isAuth) {
+      // Exclude unauthenticated guest company
+      query.where((t) => t.id.equals('cmp_default').not());
+
+      // Find all profile/company IDs the authenticated user has explicit membership in
+      final memberRows = await (db.selectOnly(db.sharedMemberships)
+            ..addColumns([db.sharedMemberships.profileId])
+            ..where(db.sharedMemberships.accountId.equals(currentUserId)))
+          .map((row) => row.read(db.sharedMemberships.profileId)!)
+          .get();
+
+      if (memberRows.isNotEmpty) {
+        query.where((t) =>
+            t.ownerId.equals(currentUserId) |
+            t.id.isIn(memberRows) |
+            (t.profileId.isNotNull() & t.profileId.isIn(memberRows)));
+      } else {
+        query.where((t) => t.ownerId.equals(currentUserId));
+      }
+    }
+
+    var rows = await query.get();
 
     // One-time compatibility: if the table has no companies but companiesJson has data, import it.
-    if (rows.isEmpty) {
+    if (rows.isEmpty && !isAuth) {
       await _importCompaniesFromJsonIfEmpty();
       rows = await (db.select(db.companies)..where((t) => t.isDeleted.equals(false))).get();
     }
