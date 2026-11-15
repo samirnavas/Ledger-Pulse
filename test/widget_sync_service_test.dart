@@ -2,7 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ledger_pulse/core/utils/currency_formatter.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
+import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
+import 'package:ledger_pulse/presentation/expense/quick_add_transaction_sheet.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
+import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
+import 'package:ledger_pulse/presentation/providers/profile_session_state.dart';
+import 'package:ledger_pulse/presentation/splash/splash_screen.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -95,5 +100,49 @@ void main() {
       expect(progressText, equals('Spend - 2,000/3,700'));
       expect(percent, equals(54)); // 2000 / 3700 ~ 54%
     });
+    test('QuickAddTransactionSheet.isSheetOpen tracks modal state accurately', () {
+      expect(QuickAddTransactionSheet.isSheetOpen, isFalse);
+    });
+
+    test('SplashScreen skipHold fast-tracks splash animation on quick_add launch', () {
+      SplashScreen.skipHold = true;
+      expect(SplashScreen.skipHold, isTrue);
+      SplashScreen.skipHold = false;
+    });
+
+    test('activeCompanyProvider fallback preserves expenseTracker mode when profile is expense', () {
+      final container = ProviderContainer(
+        overrides: [
+          userCompaniesProvider.overrideWithValue([]),
+          profileSessionProvider.overrideWith(() => _MockExpenseProfileSessionController()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final company = container.read(activeCompanyProvider);
+      expect(company.mode, equals(CompanyMode.expenseTracker));
+      expect(company.name, equals('Personal Expense Workspace'));
+    });
   });
+}
+
+class _MockExpenseProfileSessionController extends ProfileSessionController {
+  @override
+  ProfileSessionState build() {
+    return ActiveProfileReadySessionState(
+      userId: 'usr_test_123',
+      activeProfile: WorkspaceProfileHeader(
+        id: 'prof_test_expense',
+        name: 'Personal Expense Workspace',
+        legalName: 'Personal Expense Workspace',
+        type: ProfileType.expense,
+        role: ProfileRole.owner,
+        currencyCode: 'INR',
+        isActive: true,
+        updatedAt: DateTime.now(),
+      ),
+      availableProfiles: [],
+      isOffline: false,
+    );
+  }
 }

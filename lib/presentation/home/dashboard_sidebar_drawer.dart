@@ -285,7 +285,7 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                       ),
                     ),
                     title: const Text(
-                      'Switch Company',
+                      'Switch Profile',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,

@@ -175,7 +175,7 @@ void main() {
       expect(find.byType(DashboardScreen), findsNothing);
       expect(find.text('Personal Expenses'), findsWidgets);
       expect(find.byKey(const Key('expense_balance_card')), findsNothing);
-      expect(find.byKey(const Key('expense_company_switcher_button')), findsOneWidget);
+      expect(find.byKey(const Key('active_profile_indicator_pill')), findsOneWidget);
     });
 
     testWidgets('Switching company immediately swaps home screen and resets mode-specific state', (tester) async {
@@ -245,7 +245,7 @@ void main() {
   });
 
   group('Hiding Ledger Concepts in Expense Mode', () {
-    testWidgets('DashboardSidebarDrawer shows only Settings, Export, Sync, Switch company in expense mode', (tester) async {
+    testWidgets('DashboardSidebarDrawer shows only Settings, Export, Sync, Switch Profile in expense mode', (tester) async {
       final profile = UserProfile(
         id: 'usr_test',
         name: 'John Doe',
@@ -285,7 +285,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify ONLY the 4 permitted items are visible
-      expect(find.text('Switch Company'), findsOneWidget);
+      expect(find.text('Switch Profile'), findsOneWidget);
       expect(find.text('Sync & Backup Center'), findsOneWidget);
       expect(find.text('Export'), findsOneWidget);
       expect(find.text('Settings & Preferences'), findsOneWidget);
@@ -382,6 +382,13 @@ void main() {
       expect(find.text('CTS-2010 Cheque Printing'), findsNothing);
       expect(find.text('Signature & Company Branding'), findsNothing);
       expect(find.text('e-Invoice & GST Compliance'), findsNothing);
+
+      // Verify Business Ledger Workspace, Security & Audit Logs, Master Reporting Hub and PRO badge are hidden in Expense Mode
+      expect(find.text('Business Ledger Workspace'), findsNothing);
+      expect(find.text('Security & Audit Logs'), findsNothing);
+      expect(find.text('Master Reporting Hub'), findsNothing);
+      expect(find.text('REPORTING & COMPLIANCE'), findsNothing);
+      expect(find.text('PRO'), findsNothing);
     });
   });
 }

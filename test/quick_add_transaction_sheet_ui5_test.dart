@@ -172,21 +172,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Check presets, amount display and type switcher are rendered
-      expect(find.byType(EntryQuickPresetsRow), findsOneWidget);
+      // Check amount display and type switcher are rendered
       expect(find.byType(EntryAmountDisplay), findsOneWidget);
       expect(find.byType(TransactionTypeSwitcher), findsOneWidget);
 
       // Enter amount using device keyboard (numberpad field)
       final amountField = find.byKey(const Key('quick_add_amount_field'));
       expect(amountField, findsOneWidget);
-      await tester.enterText(amountField, '100');
-      await tester.pumpAndSettle();
-
-      expect(find.text('100'), findsWidgets);
-
-      // Tap preset: +500 -> 600
-      await tester.tap(find.text('+₹500'));
+      await tester.enterText(amountField, '600');
       await tester.pumpAndSettle();
 
       expect(find.text('600'), findsOneWidget);
@@ -373,8 +366,10 @@ void main() {
       expect(find.text('Team snacks'), findsOneWidget);
       expect(find.text('Update Transaction'), findsOneWidget);
 
-      // Add +100 preset -> 145
-      await tester.tap(find.text('+₹100'));
+      // Change amount to 145
+      final editAmountField = find.byKey(const Key('quick_add_amount_field'));
+      expect(editAmountField, findsOneWidget);
+      await tester.enterText(editAmountField, '145');
       await tester.pumpAndSettle();
 
       expect(find.text('145'), findsOneWidget);

@@ -21,7 +21,7 @@ class ModeStrings {
   // Company / Entity Labeling
   String get entityLabel => isExpense ? 'Account' : 'Company';
   String get entityLabelPlural => isExpense ? 'Accounts' : 'Companies';
-  String get switchEntity => isExpense ? 'Switch Account' : 'Switch Company';
+  String get switchEntity => 'Switch Profile';
   String get addEntity => isExpense ? 'Add New Account' : 'Add New Company';
   String get entitySubtitlePlaceholder =>
       isExpense ? 'Personal Expense Tracker' : 'Personal / Sole Trader';

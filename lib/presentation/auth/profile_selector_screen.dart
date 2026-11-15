@@ -211,9 +211,9 @@ class ProfileSelectorScreen extends ConsumerWidget {
     required VoidCallback onTap,
   }) {
     final isExpense = profile.isExpense;
-    final accentColor = isExpense
+    final accentColor = isActive
         ? colorScheme.primary
-        : colorScheme.secondary;
+        : colorScheme.onSurfaceVariant;
 
     final itemContent = Row(
       children: [

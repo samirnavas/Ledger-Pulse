@@ -73,7 +73,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(ProfileOnboardingScreen), findsOneWidget);
-      expect(find.text('Setup Your Workspace'), findsOneWidget);
+      expect(find.text('Setup Your Profile'), findsOneWidget);
       expect(find.text('Personal & Expense'), findsOneWidget);
       expect(find.text('Business Ledger'), findsOneWidget);
     });

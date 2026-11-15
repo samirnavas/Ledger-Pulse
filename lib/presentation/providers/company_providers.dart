@@ -55,11 +55,27 @@ final userCompaniesProvider = Provider<List<Company>>((ref) {
 final activeCompanyProvider = Provider<Company>((ref) {
   final companies = ref.watch(userCompaniesProvider);
   final activeCompanyId = ref.watch(userProfileProvider.select((p) => p.activeCompanyId));
+  final sessionState = ref.watch(profileSessionProvider);
+
   if (companies.isEmpty) {
+    CompanyMode fallbackMode = CompanyMode.ledger;
+    String fallbackName = '';
+    String fallbackCurrency = 'INR';
+
+    if (sessionState is ActiveProfileReadySessionState) {
+      fallbackMode = sessionState.activeProfile.type == ProfileType.expense
+          ? CompanyMode.expenseTracker
+          : CompanyMode.ledger;
+      fallbackName = sessionState.activeProfile.name;
+      fallbackCurrency = sessionState.activeProfile.currencyCode;
+    }
+
     return Company(
       id: activeCompanyId,
-      name: '',
-      legalName: '',
+      name: fallbackName,
+      legalName: fallbackName,
+      mode: fallbackMode,
+      currencyCode: fallbackCurrency,
       createdAt: DateTime.fromMillisecondsSinceEpoch(0),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
     );
@@ -69,7 +85,13 @@ final activeCompanyProvider = Provider<Company>((ref) {
   final profileMatch = companies.where((c) => c.id == activeCompanyId).firstOrNull;
   if (profileMatch != null) return profileMatch;
 
-  // 2. Try to match persisted last_active_company_id from SharedPreferences
+  // 2. Try to match active profile from profileSessionProvider if available
+  if (sessionState is ActiveProfileReadySessionState) {
+    final sessionMatch = companies.where((c) => c.id == sessionState.activeProfile.id).firstOrNull;
+    if (sessionMatch != null) return sessionMatch;
+  }
+
+  // 3. Try to match persisted last_active_company_id from SharedPreferences
   final prefs = ref.watch(sharedPreferencesProvider);
   final savedId = prefs?.getString('last_active_company_id');
   if (savedId != null && savedId.isNotEmpty) {

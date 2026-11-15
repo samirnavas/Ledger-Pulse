@@ -372,13 +372,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 12),
               _buildActionTile(
                 context,
-                title: 'Active Company',
+                title: 'Active Profile',
                 subtitle: profile.activeCompany.name.isNotEmpty
                     ? profile.activeCompany.name
                     : (activeCompany.name.isNotEmpty
                         ? activeCompany.name
                         : (profile.businessName.isNotEmpty ? profile.businessName : 'My Workspace')),
-                icon: isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded,
+                icon: activeCompany.isExpense
+                    ? (isIos ? CupertinoIcons.money_dollar_circle_fill : Icons.account_balance_wallet_rounded)
+                    : (isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded),
                 isIos: isIos,
                 trailing: Chip(
                   label: Text(

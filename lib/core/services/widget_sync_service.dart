@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
@@ -11,6 +12,8 @@ class WidgetSyncService {
   static const String androidWidgetQualified = 'com.ledgerpulse.ledger_pulse.LedgerPulseWidgetProvider';
   static const String androidGlanceQualified = 'com.ledgerpulse.ledger_pulse.LedgerPulseGlanceReceiver';
   static const String iOSWidgetName = 'LedgerPulseWidget';
+
+  static StreamSubscription<Uri?>? _widgetClickSubscription;
 
   /// Initializes App Group and handles deep linking if the app was launched from a widget.
   static Future<void> initialize({
@@ -26,11 +29,14 @@ class WidgetSyncService {
       }
 
       // Listen for runtime clicks when app is in background/foreground
-      HomeWidget.widgetClicked.listen((Uri? uri) {
-        if (uri != null && onWidgetClick != null) {
-          onWidgetClick(uri);
-        }
-      });
+      if (onWidgetClick != null) {
+        await _widgetClickSubscription?.cancel();
+        _widgetClickSubscription = HomeWidget.widgetClicked.listen((Uri? uri) {
+          if (uri != null) {
+            onWidgetClick(uri);
+          }
+        });
+      }
     } catch (e) {
       debugPrint('WidgetSyncService.initialize error: $e');
     }

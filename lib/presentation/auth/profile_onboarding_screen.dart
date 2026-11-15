@@ -211,15 +211,13 @@ class _ProfileOnboardingScreenState
         CupertinoTheme.of(context).brightness == Brightness.dark;
     final colorScheme = theme.colorScheme;
 
-    final primaryText =
-        isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight;
     final secondaryText =
         isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight;
 
     final canPop = ModalRoute.of(context)?.canPop ?? false;
 
     return AdaptiveScaffold(
-      title: 'Setup Your Workspace',
+      title: 'Setup Your Profile',
       actions: [
         if (!canPop)
           if (isIos)
@@ -242,33 +240,14 @@ class _ProfileOnboardingScreenState
             ),
       ],
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Minimal Header
-              Text(
-                'Select Workspace Type',
-                style: AppTypography.titleLarge.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: primaryText,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Choose how you want to manage your records and enter profile details.',
-                style: AppTypography.bodySmall.copyWith(
-                  color: secondaryText,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Section Header
-              const AdaptiveSectionHeader(
-                title: 'WORKSPACE TYPE',
-                padding: EdgeInsets.only(bottom: 10),
-              ),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
 
               // Material 3 / Cupertino Adaptive Segmented Control
               AdaptiveSegmentedControl<ProfileType>(
@@ -313,7 +292,7 @@ class _ProfileOnboardingScreenState
               Padding(
                 padding: const EdgeInsets.only(left: 1),
                 child: Text(
-                  'Workspace type cannot be changed after creation.',
+                  'Profile type cannot be changed after creation.',
                   style: TextStyle(
                     fontSize: 11.5,
                     color: isDark
@@ -472,17 +451,33 @@ class _ProfileOnboardingScreenState
                 ),
               ],
 
-              const SizedBox(height: 28),
-
-              AdaptiveButton(
-                onPressed: _isCreating ? null : _handleCreate,
-                isFullWidth: true,
-                isLoading: _isCreating,
-                child: const Text('Complete & Open Workspace'),
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-            ],
-          ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.surfaceDark : AppColors.surfaceLight,
+                border: Border(
+                  top: BorderSide(
+                    color: isDark ? AppColors.borderDark : AppColors.borderLight,
+                    width: 0.5,
+                  ),
+                ),
+              ),
+              child: SafeArea(
+                top: false,
+                child: AdaptiveButton(
+                  onPressed: _isCreating ? null : _handleCreate,
+                  isFullWidth: true,
+                  isLoading: _isCreating,
+                  child: const Text('Complete & Open Profile'),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/sync_engine.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/sync_model.dart';
+import '../expense/quick_add_transaction_sheet.dart';
 import 'company_providers.dart';
 import 'ledger_providers.dart';
 import 'profile_provider.dart';
@@ -57,8 +58,14 @@ class SyncNotifier extends Notifier<SyncStatus> {
       } catch (err) {
         debugPrint('Error reloading profile after sync: $err');
       }
-      ref.invalidate(userCompaniesProvider);
-      ref.invalidate(activeCompanyProvider);
+
+      // Background auto-sync must operate purely in the background without
+      // disrupting any active modal or triggering route/tree resets.
+      final isModalOpen = QuickAddTransactionSheet.isSheetOpen;
+      if (!isModalOpen && !isAutoSync) {
+        ref.invalidate(userCompaniesProvider);
+        ref.invalidate(activeCompanyProvider);
+      }
 
       // Refresh pending count and ledger updates so UI immediately reflects synced changes
       ref.invalidate(pendingSyncCountProvider);

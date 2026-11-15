@@ -480,7 +480,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                   children: [
                     Icon(CupertinoIcons.checkmark_circle, size: 20),
                     SizedBox(width: 8),
-                    Text('Switch to this Company'),
+                    Text('Switch to this Profile'),
                   ],
                 ),
               ),
@@ -574,7 +574,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                       if (!isSelected) ...[
                         ListTile(
                           leading: const Icon(Icons.check_circle_outline_rounded),
-                          title: const Text('Switch to this Company'),
+                          title: const Text('Switch to this Profile'),
                           onTap: () {
                             Navigator.pop(ctx);
                             ref.read(companyControllerProvider.notifier).selectCompany(company.id);
@@ -638,7 +638,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Switch Company',
+                  'Switch Profile',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -693,13 +693,17 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                           height: 42,
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? CupertinoColors.activeBlue
+                                ? CupertinoTheme.of(context).primaryColor
                                 : CupertinoColors.systemGrey5,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
-                            CupertinoIcons.building_2_fill,
-                            color: isSelected ? CupertinoColors.white : CupertinoColors.systemGrey,
+                            company.isExpense
+                                ? CupertinoIcons.money_dollar_circle_fill
+                                : CupertinoIcons.building_2_fill,
+                            color: isSelected
+                                ? CupertinoColors.white
+                                : CupertinoColors.systemGrey,
                             size: 22,
                           ),
                         ),
@@ -735,9 +739,9 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                           ),
                         ),
                         if (isSelected) ...[
-                          const Icon(
+                          Icon(
                             CupertinoIcons.checkmark_circle_fill,
-                            color: CupertinoColors.activeBlue,
+                            color: CupertinoTheme.of(context).primaryColor,
                             size: 20,
                           ),
                           const SizedBox(width: 4),
@@ -780,7 +784,11 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 foregroundColor: isSelected
                     ? Theme.of(context).colorScheme.onPrimary
                     : Theme.of(context).colorScheme.onSurfaceVariant,
-                child: const Icon(Icons.business_rounded),
+                child: Icon(
+                  company.isExpense
+                      ? Icons.account_balance_wallet_rounded
+                      : Icons.business_rounded,
+                ),
               ),
               title: Text(
                 company.name,

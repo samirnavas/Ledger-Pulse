@@ -13,7 +13,6 @@ import 'package:ledger_pulse/data/local/drift_voucher_repository.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
-import 'package:ledger_pulse/presentation/providers/company_providers.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
 import 'package:ledger_pulse/presentation/settings/settings_screen.dart';
@@ -253,7 +252,7 @@ void main() {
       expect(cashAccountAfter.currentBalanceInCents, equals(700000));
     });
 
-    testWidgets('Settings in expense mode explains workspace immutability and offers separate workspace', (tester) async {
+    testWidgets('Settings in expense mode removes Business Ledger Workspace tile', (tester) async {
       const companyId = 'cmp_ui_test';
 
       final expenseCompany = Company(
@@ -306,29 +305,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // 1. Verify 'Business Ledger Workspace' tile is displayed
+      // Verify 'Business Ledger Workspace' tile is removed in expense mode
       final upgradeTile = find.byKey(const Key('upgrade_to_business_ledger_tile'));
-      expect(upgradeTile, findsOneWidget);
-      expect(find.text('Business Ledger Workspace'), findsOneWidget);
-      expect(find.textContaining('Workspace types are immutable'), findsOneWidget);
-
-      // 2. Tap tile
-      await tester.tap(upgradeTile);
-      await tester.pumpAndSettle();
-
-      // 3. Verify explanation dialog appears explaining immutability
-      expect(find.textContaining('enforces immutable workspace types'), findsOneWidget);
-      expect(find.textContaining('cannot be converted into a Business Ledger'), findsOneWidget);
-      expect(find.textContaining('remain completely intact'), findsOneWidget);
-      expect(find.byKey(const Key('cancel_upgrade_button')), findsOneWidget);
-      expect(find.byKey(const Key('confirm_upgrade_button')), findsOneWidget);
-
-      // 4. Cancel dismisses without changing anything
-      await tester.tap(find.byKey(const Key('cancel_upgrade_button')));
-      await tester.pumpAndSettle();
-
-      final activeComp = container.read(activeCompanyProvider);
-      expect(activeComp.mode, equals(CompanyMode.expenseTracker));
+      expect(upgradeTile, findsNothing);
+      expect(find.text('Business Ledger Workspace'), findsNothing);
     });
   });
 }

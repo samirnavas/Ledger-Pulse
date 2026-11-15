@@ -206,7 +206,7 @@ void main() {
       // Verify bottom sheet menu appeared
       expect(find.text('Edit Company Details'), findsOneWidget);
       expect(find.text('Delete Company'), findsOneWidget);
-      expect(find.text('Switch to this Company'), findsOneWidget);
+      expect(find.text('Switch to this Profile'), findsOneWidget);
 
       // Dismiss menu
       await tester.tapAt(const Offset(20, 20));

@@ -214,58 +214,6 @@ class SettingsScreen extends ConsumerWidget {
                         );
                       },
                     ),
-                    if (isExpense) ...[
-                      const Divider(height: 1),
-                      ListTile(
-                        key: const Key('upgrade_to_business_ledger_tile'),
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            isIos
-                                ? CupertinoIcons.building_2_fill
-                                : Icons.business_outlined,
-                            color: AppColors.primaryBlue,
-                            size: 22,
-                          ),
-                        ),
-                        title: const Text(
-                          'Business Ledger Workspace',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Workspace types are immutable. Create a separate Business Ledger workspace for double-entry bookkeeping & GST.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
-                          ),
-                        ),
-                        trailing: Icon(
-                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
-                          size: isIos ? 14 : 20,
-                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                        ),
-                        onTap: () {
-                          HapticFeedback.mediumImpact();
-                          showCreateBusinessLedgerDialog(
-                            context,
-                            ref,
-                            activeCompany,
-                          );
-                        },
-                      ),
-                    ],
                   ],
                 ),
 
@@ -325,112 +273,116 @@ class SettingsScreen extends ConsumerWidget {
                         SyncSettingsSheet.show(context);
                       },
                     ),
-                    const Divider(height: 1),
-                    ListTile(
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      leading: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: (isIos ? CupertinoColors.systemPurple : Theme.of(context).colorScheme.tertiary).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          isIos
-                              ? CupertinoIcons.doc_text_search
-                              : Icons.manage_search_rounded,
-                          color: isIos ? CupertinoColors.systemPurple : Theme.of(context).colorScheme.tertiary,
-                          size: 22,
-                        ),
-                      ),
-                      title: const Text(
-                        'Security & Audit Logs',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Immutable activity ledger and transaction trails',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      trailing: Icon(
-                        isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
-                        size: isIos ? 14 : 20,
-                        color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                      ),
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.of(context).push(
-                          createAdaptivePageRoute(
-                            builder: (ctx) => const AuditLogScreen(),
+                    if (!isExpense) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: (isIos ? CupertinoColors.systemPurple : Theme.of(context).colorScheme.tertiary).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        );
-                      },
-                    ),
+                          child: Icon(
+                            isIos
+                                ? CupertinoIcons.doc_text_search
+                                : Icons.manage_search_rounded,
+                            color: isIos ? CupertinoColors.systemPurple : Theme.of(context).colorScheme.tertiary,
+                            size: 22,
+                          ),
+                        ),
+                        title: const Text(
+                          'Security & Audit Logs',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Immutable activity ledger and transaction trails',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                          size: isIos ? 14 : 20,
+                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.of(context).push(
+                            createAdaptivePageRoute(
+                              builder: (ctx) => const AuditLogScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
 
                 const SizedBox(height: 24),
 
-                // 4. REPORTS & EXPORTS
-                _buildSectionHeader(context, 'REPORTING & COMPLIANCE'),
-                const SizedBox(height: 8),
-                _buildCard(
-                  context,
-                  isDark,
-                  isIos,
-                  children: [
-                    ListTile(
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      leading: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: (isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          isIos
-                              ? CupertinoIcons.chart_pie_fill
-                              : Icons.analytics_rounded,
-                          color: isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary,
-                          size: 22,
-                        ),
-                      ),
-                      title: const Text(
-                        'Master Reporting Hub',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '36 comprehensive reports, Daybook, P&L & GSTR JSON',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      trailing: Icon(
-                        isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
-                        size: isIos ? 14 : 20,
-                        color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                      ),
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.of(context).push(
-                          createAdaptivePageRoute(
-                            builder: (ctx) => const ReportingHubScreen(),
+                if (!isExpense) ...[
+                  // 4. REPORTS & EXPORTS
+                  _buildSectionHeader(context, 'REPORTING & COMPLIANCE'),
+                  const SizedBox(height: 8),
+                  _buildCard(
+                    context,
+                    isDark,
+                    isIos,
+                    children: [
+                      ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: (isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                          child: Icon(
+                            isIos
+                                ? CupertinoIcons.chart_pie_fill
+                                : Icons.analytics_rounded,
+                            color: isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary,
+                            size: 22,
+                          ),
+                        ),
+                        title: const Text(
+                          'Master Reporting Hub',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '36 comprehensive reports, Daybook, P&L & GSTR JSON',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                          size: isIos ? 14 : 20,
+                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.of(context).push(
+                            createAdaptivePageRoute(
+                              builder: (ctx) => const ReportingHubScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
 
                 if (!isExpense) ...[
                   const SizedBox(height: 24),
@@ -616,22 +568,24 @@ class SettingsScreen extends ConsumerWidget {
                         'Version 1.0.0 (Build 2026.09)',
                         style: TextStyle(fontSize: 12, color: Colors.grey),
                       ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'PRO',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                      ),
+                      trailing: isExpense
+                          ? null
+                          : Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryBlue.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'PRO',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primaryBlue,
+                                ),
+                              ),
+                            ),
                     ),
                   ],
                 ),

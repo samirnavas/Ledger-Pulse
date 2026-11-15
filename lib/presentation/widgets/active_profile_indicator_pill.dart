@@ -45,8 +45,9 @@ class ActiveProfileIndicatorPill extends ConsumerWidget {
       roleName = 'Owner';
     }
 
-    final accentColor =
-        isExpense ? AppColors.primaryGreen : AppColors.primaryBlue;
+    final themeColor = isIos
+        ? CupertinoTheme.of(context).primaryColor
+        : Theme.of(context).colorScheme.primary;
 
     return InkWell(
       key: const Key('active_profile_indicator_pill'),
@@ -68,7 +69,7 @@ class ActiveProfileIndicatorPill extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: isDark ? 0.2 : 0.12),
+                color: themeColor.withValues(alpha: isDark ? 0.2 : 0.12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -80,7 +81,7 @@ class ActiveProfileIndicatorPill extends ConsumerWidget {
                         ? CupertinoIcons.building_2_fill
                         : Icons.business_rounded),
                 size: 16,
-                color: accentColor,
+                color: themeColor,
               ),
             ),
             const SizedBox(width: 8),
@@ -129,7 +130,7 @@ class ActiveProfileIndicatorPill extends ConsumerWidget {
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: accentColor.withValues(alpha: 0.12),
+                          color: themeColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -138,7 +139,7 @@ class ActiveProfileIndicatorPill extends ConsumerWidget {
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.3,
-                            color: accentColor,
+                            color: themeColor,
                           ),
                         ),
                       ),

@@ -9,6 +9,15 @@ import '../../core/utils/adaptive_page_route.dart';
 import '../auth/app_root_gate.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
+  /// Global indicator whether the splash screen is currently active and animating.
+  /// Used by deep linking / widget launch handlers to prevent opening modals
+  /// on top of SplashScreen before Navigator.pushReplacement has settled.
+  static bool isSplashActive = true;
+
+  /// Fast-track flag set when launching directly into an action (e.g. quick_add).
+  /// Bypasses the hold duration so the target screen and modal appear promptly.
+  static bool skipHold = false;
+
   final VoidCallback? onAnimationComplete;
   final Duration holdDuration;
 
@@ -25,9 +34,24 @@ class SplashScreen extends ConsumerStatefulWidget {
 class _SplashScreenState extends ConsumerState<SplashScreen> {
   bool _hasNavigated = false;
 
+  @override
+  void initState() {
+    super.initState();
+    SplashScreen.isSplashActive = true;
+  }
+
+  @override
+  void dispose() {
+    SplashScreen.isSplashActive = false;
+    SplashScreen.skipHold = false;
+    super.dispose();
+  }
+
   void _onSequenceFinished() {
     if (_hasNavigated || !mounted) return;
     _hasNavigated = true;
+    SplashScreen.isSplashActive = false;
+    SplashScreen.skipHold = false;
 
     if (widget.onAnimationComplete != null) {
       widget.onAnimationComplete!();
@@ -66,12 +90,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         : AppColors.textSecondaryLight;
 
     // Animation timeline calculation (snappy & fast):
-    // 1. Fade in & scale: 300ms
-    // 2. Hold: widget.holdDuration (default 450ms)
-    // 3. Exit delay = 300ms + holdDuration
-    const entryDuration = Duration(milliseconds: 300);
-    final exitDelay = entryDuration + widget.holdDuration;
-    const exitDuration = Duration(milliseconds: 250);
+    // 1. Fade in & scale: 300ms (or 100ms when fast-tracking deep links)
+    // 2. Hold: widget.holdDuration (default 450ms, or zero when skipping hold)
+    // 3. Exit delay = entryDuration + holdDuration
+    final entryDuration = SplashScreen.skipHold
+        ? const Duration(milliseconds: 100)
+        : const Duration(milliseconds: 300);
+    final effectiveHold =
+        SplashScreen.skipHold ? Duration.zero : widget.holdDuration;
+    final exitDelay = entryDuration + effectiveHold;
+    final exitDuration = SplashScreen.skipHold
+        ? const Duration(milliseconds: 100)
+        : const Duration(milliseconds: 250);
 
     final content = Center(
       child: Column(

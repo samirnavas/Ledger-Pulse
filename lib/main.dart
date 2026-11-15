@@ -13,8 +13,11 @@ import 'core/theme/android_theme.dart';
 import 'core/theme/ios_theme.dart';
 import 'data/models/company_mode.dart';
 import 'presentation/expense/quick_add_transaction_sheet.dart';
+import 'package:home_widget/home_widget.dart';
 import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/company_providers.dart';
+import 'presentation/providers/profile_session_controller.dart';
+import 'presentation/providers/profile_session_state.dart';
 import 'presentation/providers/recurring_providers.dart';
 import 'presentation/providers/sync_providers.dart';
 import 'presentation/providers/theme_provider.dart';
@@ -34,7 +37,11 @@ void main() async {
   // Initialize Home Screen Widget bridge & App Groups
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
     try {
-      await WidgetSyncService.initialize();
+      await HomeWidget.setAppGroupId(WidgetSyncService.appGroupId);
+      final initialWidgetUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+      if (initialWidgetUri?.queryParameters['action'] == 'quick_add') {
+        SplashScreen.skipHold = true;
+      }
     } catch (e) {
       debugPrint('WidgetSyncService init notice: $e');
     }
@@ -108,22 +115,48 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
           onWidgetClick: (uri) {
             final companyId = uri.queryParameters['company_id'];
             if (companyId != null && companyId.isNotEmpty) {
-              ref.read(companyControllerProvider.notifier).selectCompany(companyId);
+              final activeCompany = ref.read(activeCompanyProvider);
+              if (activeCompany.id != companyId) {
+                ref.read(companyControllerProvider.notifier).selectCompany(companyId);
+                final sessionState = ref.read(profileSessionProvider);
+                if (sessionState is ActiveProfileReadySessionState) {
+                  final match = sessionState.availableProfiles.where((p) => p.id == companyId).firstOrNull;
+                  if (match != null && match.id != sessionState.activeProfile.id) {
+                    ref.read(profileSessionProvider.notifier).switchProfile(match);
+                  }
+                }
+              }
             }
 
             final actionParam = uri.queryParameters['action'];
             if (actionParam == 'quick_add') {
               void tryOpenQuickAdd([int attempts = 0]) {
+                if (QuickAddTransactionSheet.isSheetOpen) return;
+
+                // 1. Wait until splash screen has completed its transition and pushReplacement
+                if (SplashScreen.isSplashActive && attempts < 40) {
+                  Future.delayed(const Duration(milliseconds: 100), () => tryOpenQuickAdd(attempts + 1));
+                  return;
+                }
+
+                // 2. Wait until profile session has finished loading workspaces
+                final sessionState = ref.read(profileSessionProvider);
+                if ((sessionState is LoadingProfilesSessionState || sessionState is SessionInitializingState) && attempts < 40) {
+                  Future.delayed(const Duration(milliseconds: 100), () => tryOpenQuickAdd(attempts + 1));
+                  return;
+                }
+
+                // 3. Ensure rootNavigatorKey has a mounted context ready to present modal
                 final ctx = LedgerPulseApp.rootNavigatorKey.currentContext;
                 if (ctx != null && ctx.mounted) {
-                  Future.delayed(const Duration(milliseconds: 250), () {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
                     final readyCtx = LedgerPulseApp.rootNavigatorKey.currentContext;
-                    if (readyCtx != null && readyCtx.mounted) {
+                    if (readyCtx != null && readyCtx.mounted && !QuickAddTransactionSheet.isSheetOpen) {
                       QuickAddTransactionSheet.show(readyCtx);
                     }
                   });
-                } else if (attempts < 10) {
-                  Future.delayed(const Duration(milliseconds: 200), () => tryOpenQuickAdd(attempts + 1));
+                } else if (attempts < 40) {
+                  Future.delayed(const Duration(milliseconds: 100), () => tryOpenQuickAdd(attempts + 1));
                 }
               }
               WidgetsBinding.instance.addPostFrameCallback((_) => tryOpenQuickAdd());

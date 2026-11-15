@@ -21,7 +21,6 @@ import '../../data/services/recurring_service.dart';
 import '../ledger/widgets/entry_amount_display.dart';
 import '../ledger/widgets/entry_attachment_picker_sheet.dart';
 import '../ledger/widgets/entry_note_and_details.dart';
-import '../ledger/widgets/entry_quick_presets_row.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import '../providers/recurring_providers.dart';
@@ -39,6 +38,7 @@ class QuickAddTransactionSheet extends ConsumerStatefulWidget {
   });
 
   static bool _isSheetOpen = false;
+  static bool get isSheetOpen => _isSheetOpen;
 
   static Future<bool?> show(
     BuildContext context, {
@@ -213,22 +213,6 @@ class _QuickAddTransactionSheetState
     _noteController.dispose();
     _refController.dispose();
     super.dispose();
-  }
-
-  void _addQuickPreset(int amount) {
-    HapticFeedback.lightImpact();
-    setState(() {
-      _errorMessage = null;
-      final current = double.tryParse(_amountString) ?? 0.0;
-      final updated = current + amount;
-      final newString = updated == updated.roundToDouble()
-          ? updated.toInt().toString()
-          : updated.toStringAsFixed(2);
-      _amountController.text = newString;
-      _amountController.selection =
-          TextSelection.collapsed(offset: newString.length);
-      _amountString = newString;
-    });
   }
 
   Future<void> _pickDate() async {
@@ -761,7 +745,6 @@ class _QuickAddTransactionSheetState
     final categoriesAsync = ref.watch(categoriesProvider);
 
     final themeColor = _getTypeColor(context, _selectedType);
-    final currencySymbol = CurrencyFormatter.getSymbol(company.currencyCode);
 
     final containerColor = isIos
         ? (isDark
@@ -910,15 +893,6 @@ class _QuickAddTransactionSheetState
                           showKeypadIcon: false,
                           textFieldKey: const Key('quick_add_amount_field'),
                           onTap: () => _amountFocusNode.requestFocus(),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Quick Presets Row (+100, +500, +1000)
-                        EntryQuickPresetsRow(
-                          themeColor: themeColor,
-                          currencySymbol: currencySymbol,
-                          presets: const [100, 500, 1000],
-                          onAddPreset: _addQuickPreset,
                         ),
                         const SizedBox(height: 12),
 
