@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/constants/colors.dart';
 import '../../core/theme/adaptive_theme.dart';
@@ -667,6 +668,13 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                                 ),
                               ],
                             ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${DateFormat.yMMMd().format(progress.periodStartDate)} – ${DateFormat.yMMMd().format(progress.periodEndDate)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),

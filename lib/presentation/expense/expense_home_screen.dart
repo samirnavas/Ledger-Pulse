@@ -38,6 +38,7 @@ import 'providers/expense_tab_controller.dart';
 import 'quick_add_transaction_sheet.dart';
 import 'recurring_screen.dart';
 import 'transactions_screen.dart';
+import 'transaction_details_screen.dart';
 import 'widgets/category_breakdown_card.dart';
 import 'widgets/expense_sidebar_drawer.dart';
 
@@ -1014,7 +1015,7 @@ class _ExpenseHomeView extends ConsumerWidget {
                         variant: AmountVariant.medium,
                         overrideColor: color,
                       ),
-                      onTap: onViewAllTransactions,
+                      onTap: () => TransactionDetailsScreen.show(context, t),
                     );
                   }).toList(),
                 );

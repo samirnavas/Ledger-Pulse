@@ -21,6 +21,7 @@ import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/presentation/expense/quick_add_transaction_sheet.dart';
 import 'package:ledger_pulse/presentation/expense/transactions_screen.dart';
+import 'package:ledger_pulse/presentation/expense/transaction_details_screen.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
 import 'package:ledger_pulse/presentation/providers/database_providers.dart';
 import 'package:ledger_pulse/presentation/providers/expense_providers.dart';
@@ -136,6 +137,56 @@ void main() {
   }
 
   group('Prompt UI-4 – Transactions Tab Matches Party List', () {
+    for (final receipt in <String?>[null, '/missing/invoice.png']) {
+      testWidgets('history opens details with invoice state: $receipt', (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+        final txn = await expenseRepo.addExpense(
+          categoryAccountId:
+              '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}',
+          walletAccountId:
+              '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}',
+          amountInCents: 12500,
+          narration: 'Dinner receipt',
+          date: DateTime.now(),
+          receiptPhotoUrl: receipt,
+        );
+        await tester.pumpWidget(buildApp(platform: TargetPlatform.android));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(AdaptiveListRow).first);
+        await tester.pumpAndSettle();
+        expect(find.byType(TransactionDetailsScreen), findsOneWidget);
+        expect(find.byType(QuickAddTransactionSheet), findsNothing);
+        expect(find.text('Dinner receipt'), findsOneWidget);
+        expect(find.text(txn.voucherNumber), findsOneWidget);
+        expect(find.text('Food & Dining'), findsOneWidget);
+        await tester.ensureVisible(
+          find.byKey(const Key('transaction_invoice_section')),
+        );
+        if (receipt != null) {
+          await tester.runAsync(() async {
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+          });
+        }
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            receipt == null
+                ? 'No invoice attached'
+                : 'Invoice unavailable on this device',
+          ),
+          findsOneWidget,
+        );
+        expect(tester.takeException(), isNull);
+      });
+    }
+
     testWidgets('header scrolls away and returns on a small reverse scroll', (
       tester,
     ) async {

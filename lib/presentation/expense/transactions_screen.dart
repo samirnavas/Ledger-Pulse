@@ -32,6 +32,7 @@ import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import '../providers/sync_providers.dart';
 import 'quick_add_transaction_sheet.dart';
+import 'transaction_details_screen.dart';
 
 /// Transactions list tab matching the ledger's party list layout and primitives:
 /// - Floating top row with [AdaptiveSearchField] and [AdaptiveIconSurfaceButton] (active filter indicator).
@@ -456,7 +457,10 @@ class _ExpenseTransactionsScreenState
     final Widget innerContent = PopScope(
       canPop: !_isSearchActive,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+        if (didPop) {
+          ref.read(transactionFiltersProvider.notifier).reset();
+          return;
+        }
         _clearSearch();
       },
       child: Material(
@@ -505,6 +509,7 @@ class _ExpenseTransactionsScreenState
                                   ? CupertinoIcons.slider_horizontal_3
                                   : Icons.filter_list_rounded,
                               isActive: hasActiveFilters,
+                              filledActive: true,
                               activeColor: themeColor,
                               tooltip: 'Filter Transactions',
                               onTap: () =>
@@ -799,9 +804,9 @@ class _ExpenseTransactionsScreenState
                                       trailing: trailingAmount,
                                       showDivider: !isLast,
                                       onTap: () =>
-                                          QuickAddTransactionSheet.show(
+                                          TransactionDetailsScreen.show(
                                             context,
-                                            initialVoucher: txn,
+                                            txn,
                                           ),
                                     ),
                                   );
@@ -841,36 +846,6 @@ class _ExpenseTransactionsScreenState
     if (canPop) {
       return AdaptiveScaffold(
         title: modeStrings.transactionsTab,
-        actions: [
-          if (isIos)
-            CupertinoButton(
-              key: const Key('transaction_filter_button'),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              onPressed: () =>
-                  ExpenseTransactionsScreen.showFilterModal(context, ref),
-              child: Icon(
-                CupertinoIcons.slider_horizontal_3,
-                size: 22,
-                color: hasActiveFilters ? themeColor : null,
-              ),
-            )
-          else
-            IconButton(
-              key: const Key('transaction_filter_button'),
-              icon: const Icon(Icons.filter_list_rounded),
-              style: hasActiveFilters
-                  ? IconButton.styleFrom(
-                      foregroundColor: themeColor,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primaryContainer,
-                    )
-                  : null,
-              tooltip: 'Filter',
-              onPressed: () =>
-                  ExpenseTransactionsScreen.showFilterModal(context, ref),
-            ),
-        ],
         floatingActionButton: isIos
             ? null
             : SpringMorphingFab(

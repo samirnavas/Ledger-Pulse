@@ -12,6 +12,7 @@ class AdaptiveIconSurfaceButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final bool isActive;
+  final bool filledActive;
   final Color? activeColor;
   final Color? inactiveColor;
   final String? tooltip;
@@ -22,6 +23,7 @@ class AdaptiveIconSurfaceButton extends StatelessWidget {
     required this.icon,
     this.onTap,
     this.isActive = false,
+    this.filledActive = false,
     this.activeColor,
     this.inactiveColor,
     this.tooltip,
@@ -42,7 +44,15 @@ class AdaptiveIconSurfaceButton extends StatelessWidget {
             ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
             : Theme.of(context).colorScheme.onSurface);
 
-    final color = isActive ? effectiveActiveColor : effectiveInactiveColor;
+    final filled = isActive && filledActive;
+    final color = filled
+        ? (ThemeData.estimateBrightnessForColor(effectiveActiveColor) ==
+                  Brightness.dark
+              ? Colors.white
+              : Colors.black)
+        : isActive
+        ? effectiveActiveColor
+        : effectiveInactiveColor;
 
     Widget button;
 
@@ -56,14 +66,24 @@ class AdaptiveIconSurfaceButton extends StatelessWidget {
           }
         },
         borderRadius: BorderRadius.circular(14),
-        child: LiquidGlassContainer(
-          height: btnSize,
-          width: btnSize,
-          borderRadius: 14,
-          blur: 20,
-          border: 1.0,
-          child: Icon(icon, size: 20, color: color),
-        ),
+        child: filled
+            ? Container(
+                height: btnSize,
+                width: btnSize,
+                decoration: BoxDecoration(
+                  color: effectiveActiveColor,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 20, color: color),
+              )
+            : LiquidGlassContainer(
+                height: btnSize,
+                width: btnSize,
+                borderRadius: 14,
+                blur: 20,
+                border: 1.0,
+                child: Icon(icon, size: 20, color: color),
+              ),
       );
     } else {
       final btnSize = size ?? 48.0;
@@ -81,14 +101,18 @@ class AdaptiveIconSurfaceButton extends StatelessWidget {
             height: btnSize,
             width: btnSize,
             decoration: BoxDecoration(
-              color: isActive
+              color: filled
+                  ? effectiveActiveColor
+                  : isActive
                   ? effectiveActiveColor.withValues(alpha: isDark ? 0.24 : 0.12)
                   : Theme.of(context).colorScheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                  alpha: isDark ? 0.35 : 0.5,
-                ),
+                color: filled
+                    ? effectiveActiveColor
+                    : Theme.of(context).colorScheme.outlineVariant.withValues(
+                        alpha: isDark ? 0.35 : 0.5,
+                      ),
                 width: 1,
               ),
             ),
