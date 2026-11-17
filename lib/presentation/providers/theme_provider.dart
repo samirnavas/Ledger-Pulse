@@ -35,7 +35,8 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
 
   Future<void> _persistTheme(ThemeMode mode) async {
     try {
-      final prefs = ref.read(sharedPreferencesProvider) ??
+      final prefs =
+          ref.read(sharedPreferencesProvider) ??
           await SharedPreferences.getInstance();
       String stringValue;
       switch (mode) {
@@ -64,3 +65,27 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
 final appThemeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
   ThemeModeNotifier.new,
 );
+
+/// Controls system accent colors independently of light/dark appearance.
+class DynamicColorNotifier extends Notifier<bool> {
+  static const preferenceKey = 'user_dynamic_color_enabled';
+
+  @override
+  bool build() =>
+      ref.watch(sharedPreferencesProvider)?.getBool(preferenceKey) ?? true;
+
+  Future<void> setEnabled(bool enabled) async {
+    state = enabled;
+    try {
+      final prefs =
+          ref.read(sharedPreferencesProvider) ??
+          await SharedPreferences.getInstance();
+      await prefs.setBool(preferenceKey, enabled);
+    } catch (e) {
+      debugPrint('DynamicColorNotifier: failed to persist preference: $e');
+    }
+  }
+}
+
+final dynamicColorEnabledProvider =
+    NotifierProvider<DynamicColorNotifier, bool>(DynamicColorNotifier.new);

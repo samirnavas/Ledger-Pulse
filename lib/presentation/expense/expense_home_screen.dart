@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -50,6 +51,18 @@ class ExpenseHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
+  bool _fabExtended = true;
+
+  bool _handleScroll(UserScrollNotification notification) {
+    if (notification.depth == 0 &&
+        notification.metrics.axis == Axis.vertical &&
+        notification.direction != ScrollDirection.idle) {
+      final extended = notification.direction == ScrollDirection.forward;
+      if (_fabExtended != extended) setState(() => _fabExtended = extended);
+    }
+    return false;
+  }
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _handlePrimaryAction(
@@ -69,7 +82,8 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       QuickAddTransactionSheet.show(context);
     } else if (hasBudgets && tabIndex == 1) {
       BudgetsScreen.showAddBudgetSheet(context, ref);
-    } else if ((hasBudgets && tabIndex == 3) || (!hasBudgets && tabIndex == 2)) {
+    } else if ((hasBudgets && tabIndex == 3) ||
+        (!hasBudgets && tabIndex == 2)) {
       ExpenseAccountsScreen.showAddAccountOrCategoryDialog(context, ref);
     }
   }
@@ -86,6 +100,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
 
     if (tabState.customPrimaryAction != null) {
       fabChild = SpringMorphingFab(
+        isExtended: _fabExtended,
         key: const ValueKey('expense_custom_action_fab'),
         icon: Icons.add,
         label: tabState.customPrimaryLabel ?? 'Add',
@@ -95,6 +110,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       );
     } else if (tabIndex == 0) {
       fabChild = SpringMorphingFab(
+        isExtended: _fabExtended,
         key: const Key('expense_quick_add_fab'),
         icon: Icons.add,
         label: 'Add transaction',
@@ -107,6 +123,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       );
     } else if (hasBudgets && tabIndex == 1) {
       fabChild = SpringMorphingFab(
+        isExtended: _fabExtended,
         key: const Key('budget_add_fab'),
         icon: Icons.add,
         label: 'Add budget',
@@ -117,8 +134,10 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
           BudgetsScreen.showAddBudgetSheet(context, ref);
         },
       );
-    } else if ((hasBudgets && tabIndex == 3) || (!hasBudgets && tabIndex == 2)) {
+    } else if ((hasBudgets && tabIndex == 3) ||
+        (!hasBudgets && tabIndex == 2)) {
       fabChild = SpringMorphingFab(
+        isExtended: _fabExtended,
         key: const Key('accounts_add_fab'),
         icon: Icons.add,
         label: 'Add wallet/category',
@@ -205,15 +224,9 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         },
       ),
       if (hasBudgets)
-        const BudgetsScreen(
-          key: PageStorageKey('expense_tab_budgets'),
-        ),
-      const ExpenseReportsScreen(
-        key: PageStorageKey('expense_tab_reports'),
-      ),
-      const ExpenseAccountsScreen(
-        key: PageStorageKey('expense_tab_accounts'),
-      ),
+        const BudgetsScreen(key: PageStorageKey('expense_tab_budgets')),
+      const ExpenseReportsScreen(key: PageStorageKey('expense_tab_reports')),
+      const ExpenseAccountsScreen(key: PageStorageKey('expense_tab_accounts')),
     ];
 
     final clampedIndex = currentTabIndex.clamp(0, screens.length - 1);
@@ -225,7 +238,8 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       titleWidget = const ActiveProfileIndicatorPill();
     } else if (hasBudgets && clampedIndex == 1) {
       titleText = modeStrings.budgetsTab;
-    } else if ((hasBudgets && clampedIndex == 2) || (!hasBudgets && clampedIndex == 1)) {
+    } else if ((hasBudgets && clampedIndex == 2) ||
+        (!hasBudgets && clampedIndex == 1)) {
       titleText = modeStrings.reportsTab;
     } else {
       titleText = modeStrings.accountsTab;
@@ -257,14 +271,17 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
                   ),
                 )
               : const Icon(Icons.cloud_sync_rounded),
-          tooltip: syncStatus == SyncStatus.syncing ? 'Syncing...' : 'Sync & Backup',
+          tooltip: syncStatus == SyncStatus.syncing
+              ? 'Syncing...'
+              : 'Sync & Backup',
           onPressed: () {
             HapticFeedback.lightImpact();
             SyncSettingsSheet.show(context);
           },
         ),
 
-      if ((hasBudgets && clampedIndex == 2) || (!hasBudgets && clampedIndex == 1))
+      if ((hasBudgets && clampedIndex == 2) ||
+          (!hasBudgets && clampedIndex == 1))
         if (isIos)
           CupertinoButton(
             key: const Key('reports_export_button'),
@@ -304,14 +321,17 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
             },
           ),
 
-      if ((hasBudgets && clampedIndex == 3) || (!hasBudgets && clampedIndex == 2))
+      if ((hasBudgets && clampedIndex == 3) ||
+          (!hasBudgets && clampedIndex == 2))
         if (company.isModuleEnabled(AppModule.recurring))
           if (isIos)
             CupertinoButton(
               key: const Key('accounts_recurring_rules_button'),
               padding: const EdgeInsets.symmetric(horizontal: 8),
               onPressed: () => Navigator.of(context).push(
-                createAdaptivePageRoute(builder: (_) => const RecurringScreen()),
+                createAdaptivePageRoute(
+                  builder: (_) => const RecurringScreen(),
+                ),
               ),
               child: const Icon(CupertinoIcons.repeat, size: 22),
             )
@@ -321,22 +341,30 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
               icon: const Icon(Icons.update_rounded),
               tooltip: 'Recurring Rules',
               onPressed: () => Navigator.of(context).push(
-                createAdaptivePageRoute(builder: (_) => const RecurringScreen()),
+                createAdaptivePageRoute(
+                  builder: (_) => const RecurringScreen(),
+                ),
               ),
             ),
 
       // 3. iOS '+' action button (no FAB on iOS)
-      if (isIos && (clampedIndex == 0 || (hasBudgets && clampedIndex == 1) || (hasBudgets ? clampedIndex == 3 : clampedIndex == 2)))
+      if (isIos &&
+          (clampedIndex == 0 ||
+              (hasBudgets && clampedIndex == 1) ||
+              (hasBudgets ? clampedIndex == 3 : clampedIndex == 2)))
         CupertinoButton(
           key: const Key('expense_ios_add_button'),
           padding: const EdgeInsets.symmetric(horizontal: 8),
-          onPressed: () => _handlePrimaryAction(context, ref, clampedIndex, hasBudgets),
+          onPressed: () =>
+              _handlePrimaryAction(context, ref, clampedIndex, hasBudgets),
           child: const Icon(CupertinoIcons.add, size: 22),
         ),
     ];
 
     return PopScope(
-      canPop: clampedIndex == 0 && !(_scaffoldKey.currentState?.isDrawerOpen ?? false),
+      canPop:
+          clampedIndex == 0 &&
+          !(_scaffoldKey.currentState?.isDrawerOpen ?? false),
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
@@ -357,31 +385,38 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         actions: actions,
         floatingActionButton: isIos
             ? null
-            : _buildAnimatedFab(context, ref, clampedIndex, hasBudgets, colorScheme),
+            : _buildAnimatedFab(
+                context,
+                ref,
+                clampedIndex,
+                hasBudgets,
+                colorScheme,
+              ),
         bottomNavigationBar: AdaptiveBottomNav(
           currentIndex: clampedIndex,
           onTap: (index) {
             HapticFeedback.lightImpact();
+            setState(() => _fabExtended = true);
             ref.read(expenseTabControllerProvider.notifier).setTab(index);
           },
           destinations: androidDestinations,
           iosItems: iosItems,
         ),
-        body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (child, animation) {
-            return FadeTransition(
-              opacity: animation,
-              child: child,
-            );
-          },
-          child: KeyedSubtree(
-            key: ValueKey<int>(clampedIndex),
-            child: AdaptivePageEntrance(
+        body: NotificationListener<UserScrollNotification>(
+          onNotification: _handleScroll,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) {
+              return FadeTransition(opacity: animation, child: child);
+            },
+            child: KeyedSubtree(
               key: ValueKey<int>(clampedIndex),
-              child: screens[clampedIndex],
+              child: AdaptivePageEntrance(
+                key: ValueKey<int>(clampedIndex),
+                child: screens[clampedIndex],
+              ),
             ),
           ),
         ),
@@ -404,10 +439,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
 class _ExpenseHomeView extends ConsumerWidget {
   final VoidCallback onViewAllTransactions;
 
-  const _ExpenseHomeView({
-    super.key,
-    required this.onViewAllTransactions,
-  });
+  const _ExpenseHomeView({super.key, required this.onViewAllTransactions});
 
   void _previousMonth(WidgetRef ref, DateTime current) {
     final prev = DateTime(current.year, current.month - 1);
@@ -446,7 +478,9 @@ class _ExpenseHomeView extends ConsumerWidget {
                     CupertinoButton(
                       child: const Text('Done'),
                       onPressed: () {
-                        ref.read(selectedMonthProvider.notifier).setMonth(
+                        ref
+                            .read(selectedMonthProvider.notifier)
+                            .setMonth(
                               DateTime(tempDate.year, tempDate.month, 1),
                             );
                         Navigator.pop(ctx);
@@ -477,9 +511,9 @@ class _ExpenseHomeView extends ConsumerWidget {
         initialDatePickerMode: DatePickerMode.year,
       );
       if (picked != null) {
-        ref.read(selectedMonthProvider.notifier).setMonth(
-              DateTime(picked.year, picked.month, 1),
-            );
+        ref
+            .read(selectedMonthProvider.notifier)
+            .setMonth(DateTime(picked.year, picked.month, 1));
       }
     }
   }
@@ -522,7 +556,10 @@ class _ExpenseHomeView extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 child: Text(
                   monthTitle,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ),
@@ -638,7 +675,13 @@ class _ExpenseHomeView extends ConsumerWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                _buildMonthSwitcher(context, ref, selectedMonth, monthTitle, isIos),
+                _buildMonthSwitcher(
+                  context,
+                  ref,
+                  selectedMonth,
+                  monthTitle,
+                  isIos,
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -658,17 +701,26 @@ class _ExpenseHomeView extends ConsumerWidget {
               error: (err, stack) => Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+                  color: theme.colorScheme.errorContainer.withValues(
+                    alpha: 0.3,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.error_outline_rounded, color: theme.colorScheme.error, size: 18),
+                    Icon(
+                      Icons.error_outline_rounded,
+                      color: theme.colorScheme.error,
+                      size: 18,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Failed to load metrics: $err',
-                        style: TextStyle(color: theme.colorScheme.error, fontSize: 12),
+                        style: TextStyle(
+                          color: theme.colorScheme.error,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -680,10 +732,15 @@ class _ExpenseHomeView extends ConsumerWidget {
                 final dailyAvgInCents = (expense / daysCount).round();
 
                 final allCatBudget = allCategoriesBudgetAsync.asData?.value;
-                final hasBudget = allCatBudget != null && allCatBudget.effectiveAllocatedInCents > 0;
-                final budgetCents = allCatBudget?.effectiveAllocatedInCents ?? 0;
+                final hasBudget =
+                    allCatBudget != null &&
+                    allCatBudget.effectiveAllocatedInCents > 0;
+                final budgetCents =
+                    allCatBudget?.effectiveAllocatedInCents ?? 0;
                 final spentCents = allCatBudget?.spentInCents ?? expense;
-                final rawRatio = hasBudget && budgetCents > 0 ? (spentCents / budgetCents) : 0.0;
+                final rawRatio = hasBudget && budgetCents > 0
+                    ? (spentCents / budgetCents)
+                    : 0.0;
                 final budgetPercent = rawRatio.clamp(0.0, 1.0);
 
                 final primaryColor = theme.colorScheme.primary;
@@ -716,7 +773,9 @@ class _ExpenseHomeView extends ConsumerWidget {
                                   shape: BoxShape.circle,
                                 ),
                                 child: Icon(
-                                  isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
+                                  isIos
+                                      ? CupertinoIcons.arrow_up
+                                      : Icons.arrow_upward_rounded,
                                   size: 16,
                                   color: primaryColor,
                                 ),
@@ -734,7 +793,10 @@ class _ExpenseHomeView extends ConsumerWidget {
                           ),
                           if (hasBudget)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: progressColor.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(8),
@@ -742,7 +804,9 @@ class _ExpenseHomeView extends ConsumerWidget {
                               child: Text(
                                 rawRatio >= 1.0
                                     ? 'Exceeded'
-                                    : (rawRatio >= 0.8 ? 'Warning' : 'On Track'),
+                                    : (rawRatio >= 0.8
+                                          ? 'Warning'
+                                          : 'On Track'),
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -805,8 +869,12 @@ class _ExpenseHomeView extends ConsumerWidget {
                           child: LinearProgressIndicator(
                             value: budgetPercent,
                             minHeight: 8,
-                            backgroundColor: progressColor.withValues(alpha: 0.15),
-                            valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+                            backgroundColor: progressColor.withValues(
+                              alpha: 0.15,
+                            ),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              progressColor,
+                            ),
                           ),
                         ),
                       ],
@@ -822,7 +890,9 @@ class _ExpenseHomeView extends ConsumerWidget {
               data: (categories) {
                 return summaryAsync.when(
                   data: (summary) {
-                    final hasBudgets = company.isModuleEnabled(AppModule.budgets);
+                    final hasBudgets = company.isModuleEnabled(
+                      AppModule.budgets,
+                    );
                     final reportsTabIndex = hasBudgets ? 2 : 1;
                     return CategoryBreakdownCard(
                       categoryTotalsInCents: summary.categoryTotalsInCents,
@@ -830,14 +900,20 @@ class _ExpenseHomeView extends ConsumerWidget {
                       currencyCode: company.currencyCode,
                       totalExpenseInCents: summary.totalExpenseInCents,
                       onCardTap: () {
-                        ref.read(expenseTabControllerProvider.notifier).setTab(reportsTabIndex);
+                        ref
+                            .read(expenseTabControllerProvider.notifier)
+                            .setTab(reportsTabIndex);
                       },
                       onCategoryTap: (catId) {
                         final current = ref.read(transactionFiltersProvider);
-                        ref.read(transactionFiltersProvider.notifier).updateFilters(
+                        ref
+                            .read(transactionFiltersProvider.notifier)
+                            .updateFilters(
                               current.copyWith(categoryIds: [catId]),
                             );
-                        ref.read(expenseTabControllerProvider.notifier).setTab(reportsTabIndex);
+                        ref
+                            .read(expenseTabControllerProvider.notifier)
+                            .setTab(reportsTabIndex);
                       },
                     );
                   },
@@ -845,7 +921,9 @@ class _ExpenseHomeView extends ConsumerWidget {
                   error: (err, stack) => Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+                      color: theme.colorScheme.errorContainer.withValues(
+                        alpha: 0.3,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text('Error loading category breakdown: $err'),
@@ -876,14 +954,15 @@ class _ExpenseHomeView extends ConsumerWidget {
                     title: modeStrings.emptyRecordsTitle,
                     subtitle: modeStrings.emptyRecordsSubtitle,
                     actionLabel: 'Add Transaction',
-                    onActionPressed: () => QuickAddTransactionSheet.show(context),
+                    onActionPressed: () =>
+                        QuickAddTransactionSheet.show(context),
                   );
                 }
 
                 final recentTxns = txns.take(10).toList();
                 final catMap = categoriesAsync.asData?.value != null
                     ? <String, AccountModel>{
-                        for (final c in categoriesAsync.asData!.value) c.id: c
+                        for (final c in categoriesAsync.asData!.value) c.id: c,
                       }
                     : <String, AccountModel>{};
 
@@ -896,10 +975,16 @@ class _ExpenseHomeView extends ConsumerWidget {
                     final isTransfer = t.type == VoucherType.transfer;
                     final color = theme.colorScheme.primary;
                     final icon = isTransfer
-                        ? (isIos ? CupertinoIcons.arrow_right_arrow_left : Icons.swap_horiz_rounded)
+                        ? (isIos
+                              ? CupertinoIcons.arrow_right_arrow_left
+                              : Icons.swap_horiz_rounded)
                         : (isIncome
-                            ? (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded)
-                            : (isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded));
+                              ? (isIos
+                                    ? CupertinoIcons.arrow_down
+                                    : Icons.arrow_downward_rounded)
+                              : (isIos
+                                    ? CupertinoIcons.arrow_up
+                                    : Icons.arrow_upward_rounded));
                     final title = t.narration?.trim().isNotEmpty == true
                         ? t.narration!
                         : (cat?.name ?? (isIncome ? 'Income' : 'Expense'));
@@ -907,7 +992,9 @@ class _ExpenseHomeView extends ConsumerWidget {
                     return AdaptiveListRow(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       title: title,
-                      subtitle: DateFormat('dd MMM yyyy, hh:mm a').format(t.date),
+                      subtitle: DateFormat(
+                        'dd MMM yyyy, hh:mm a',
+                      ).format(t.date),
                       leading: Container(
                         width: 40,
                         height: 40,
@@ -920,7 +1007,9 @@ class _ExpenseHomeView extends ConsumerWidget {
                       trailing: AmountText(
                         amountInCents: isTransfer
                             ? t.totalAmountInCents
-                            : (isIncome ? t.totalAmountInCents : -t.totalAmountInCents),
+                            : (isIncome
+                                  ? t.totalAmountInCents
+                                  : -t.totalAmountInCents),
                         currencyCode: company.currencyCode,
                         variant: AmountVariant.medium,
                         overrideColor: color,
@@ -936,7 +1025,9 @@ class _ExpenseHomeView extends ConsumerWidget {
               error: (err, stack) => Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.errorContainer.withValues(alpha: 0.3),
+                  color: theme.colorScheme.errorContainer.withValues(
+                    alpha: 0.3,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text('Error loading transactions: $err'),

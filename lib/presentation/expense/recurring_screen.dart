@@ -38,9 +38,9 @@ class RecurringScreen extends ConsumerStatefulWidget {
 
   /// Pushes the screen using [createAdaptivePageRoute].
   static Future<void> push(BuildContext context) {
-    return Navigator.of(context).push(
-      createAdaptivePageRoute(builder: (_) => const RecurringScreen()),
-    );
+    return Navigator.of(
+      context,
+    ).push(createAdaptivePageRoute(builder: (_) => const RecurringScreen()));
   }
 
   @override
@@ -55,7 +55,9 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
   }) async {
     final company = ref.read(activeCompanyProvider);
     final wallets = await ref.read(expenseRepositoryProvider).getWallets();
-    final allCategories = await ref.read(expenseRepositoryProvider).getCategories();
+    final allCategories = await ref
+        .read(expenseRepositoryProvider)
+        .getCategories();
 
     VoucherType selectedType =
         existingRule?.template.type ?? VoucherType.expense;
@@ -64,10 +66,12 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
           ? (existingRule.template.amountInCents / 100).toStringAsFixed(2)
           : '',
     );
-    final notesController =
-        TextEditingController(text: existingRule?.template.notes ?? '');
+    final notesController = TextEditingController(
+      text: existingRule?.template.notes ?? '',
+    );
 
-    String? selectedWalletId = existingRule?.template.walletAccountId ??
+    String? selectedWalletId =
+        existingRule?.template.walletAccountId ??
         (wallets.isNotEmpty ? wallets.first.id : null);
     String? selectedToWalletId = existingRule?.template.toWalletAccountId;
 
@@ -77,7 +81,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
 
     Future<void> doSave(BuildContext sheetCtx, String? catId) async {
       final amount = double.tryParse(amountController.text.trim()) ?? 0;
-      if (amount <= 0) {
+      if (!amount.isFinite || (amount * 100).round() <= 0) {
         showAppFeedback(context, 'Please enter a valid amount', isError: true);
         return;
       }
@@ -86,10 +90,27 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
         return;
       }
       if (selectedType == VoucherType.transfer && selectedToWalletId == null) {
-        showAppFeedback(context, 'Please select destination wallet', isError: true);
+        showAppFeedback(
+          context,
+          'Please select destination wallet',
+          isError: true,
+        );
         return;
       }
 
+      if (selectedType != VoucherType.transfer && catId == null) {
+        showAppFeedback(context, 'Please select a category', isError: true);
+        return;
+      }
+      if (selectedType == VoucherType.transfer &&
+          selectedToWalletId == selectedWalletId) {
+        showAppFeedback(
+          context,
+          'Please select a different destination wallet',
+          isError: true,
+        );
+        return;
+      }
       final amountInCents = (amount * 100).round();
       final recurringService = ref.read(recurringServiceProvider);
 
@@ -98,30 +119,41 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
         amountInCents: amountInCents,
         walletAccountId: selectedWalletId!,
         categoryAccountId: selectedType == VoucherType.transfer ? null : catId,
-        toWalletAccountId:
-            selectedType == VoucherType.transfer ? selectedToWalletId : null,
+        toWalletAccountId: selectedType == VoucherType.transfer
+            ? selectedToWalletId
+            : null,
         notes: notesController.text.trim().isEmpty
             ? null
             : notesController.text.trim(),
       );
 
       HapticFeedback.mediumImpact();
-      if (existingRule == null) {
-        await recurringService.createRule(
-          template: template,
-          interval: selectedInterval,
-          nextRunDate: nextRunDate,
-        );
-      } else {
-        await recurringService.updateRule(
-          rule: existingRule.copyWith(
+      try {
+        if (existingRule == null) {
+          await recurringService.createRule(
             template: template,
             interval: selectedInterval,
             nextRunDate: nextRunDate,
-          ),
-        );
+          );
+        } else {
+          await recurringService.updateRule(
+            rule: existingRule.copyWith(
+              template: template,
+              interval: selectedInterval,
+              nextRunDate: nextRunDate,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          showAppFeedback(
+            context,
+            'Could not save recurring rule: $e',
+            isError: true,
+          );
+        }
+        return;
       }
-
       if (context.mounted) {
         Navigator.of(sheetCtx).pop();
         showAppFeedback(
@@ -144,36 +176,38 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
         return StatefulBuilder(
           builder: (context, setSheetState) {
             final filteredCategories = allCategories
-                .where((c) => selectedType == VoucherType.expense
-                    ? c.type == AccountType.expense
-                    : c.type == AccountType.income)
+                .where(
+                  (c) => selectedType == VoucherType.expense
+                      ? c.type == AccountType.expense
+                      : c.type == AccountType.income,
+                )
                 .toList();
 
             String? selectedCategoryId =
                 existingRule?.template.categoryAccountId ??
-                    (filteredCategories.isNotEmpty
-                        ? filteredCategories.first.id
-                        : null);
+                (filteredCategories.isNotEmpty
+                    ? filteredCategories.first.id
+                    : null);
 
             final walletPickerItems = wallets
-                .map((w) => AdaptivePickerItem<String>(
-                      value: w.id,
-                      label: w.name,
-                    ))
+                .map(
+                  (w) => AdaptivePickerItem<String>(value: w.id, label: w.name),
+                )
                 .toList();
 
             final categoryPickerItems = filteredCategories
-                .map((c) => AdaptivePickerItem<String>(
-                      value: c.id,
-                      label: c.name,
-                    ))
+                .map(
+                  (c) => AdaptivePickerItem<String>(value: c.id, label: c.name),
+                )
                 .toList();
 
             final intervalPickerItems = RecurringIntervalType.values
-                .map((interval) => AdaptivePickerItem<RecurringIntervalType>(
-                      value: interval,
-                      label: interval.displayName,
-                    ))
+                .map(
+                  (interval) => AdaptivePickerItem<RecurringIntervalType>(
+                    value: interval,
+                    label: interval.displayName,
+                  ),
+                )
                 .toList();
 
             return SingleChildScrollView(
@@ -205,7 +239,8 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
                     key: const Key('recurring_amount_field'),
                     controller: amountController,
                     keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                      decimal: true,
+                    ),
                     decoration: InputDecoration(
                       prefixText: '${company.currencyCode} ',
                       border: OutlineInputBorder(
@@ -339,16 +374,27 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
 
   // Trigger Run Due manually
   Future<void> _runDueRules() async {
-    final count =
-        await ref.read(recurringServiceProvider).generateDue(DateTime.now());
-    if (mounted) {
-      HapticFeedback.lightImpact();
-      showAppFeedback(
-        context,
-        count == 0
-            ? 'No recurring transactions were due'
-            : 'Generated $count recurring transaction(s) successfully!',
-      );
+    try {
+      final count = await ref
+          .read(recurringServiceProvider)
+          .generateDue(DateTime.now());
+      if (mounted) {
+        HapticFeedback.lightImpact();
+        showAppFeedback(
+          context,
+          count == 0
+              ? 'No recurring transactions were due'
+              : 'Generated $count recurring transaction(s) successfully!',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showAppFeedback(
+          context,
+          'Could not run recurring rules: $e',
+          isError: true,
+        );
+      }
     }
   }
 
@@ -407,44 +453,44 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
             ),
       body: AdaptivePageEntrance(
         child: rulesListAsync.when(
-        loading: () => ListView(
-          padding: const EdgeInsets.all(16),
-          children: const [
-            SkeletonListTile(),
-            SkeletonListTile(),
-            SkeletonListTile(),
-          ],
-        ),
-        error: (err, _) => Center(child: Text('Error loading rules: $err')),
-        data: (rules) {
-          if (rules.isEmpty) {
-            return EmptyStateView(
-              icon: Icons.update,
-              title: 'No Recurring Rules',
-              message:
-                  'Automate your repeating bills, subscriptions, or salaries with recurring transactions.',
-              actionLabel: 'Create First Rule',
-              onAction: () => _showAddEditRuleSheet(context),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
-            itemCount: rules.length,
-            itemBuilder: (context, index) {
-              final rule = rules[index];
-              return _buildRuleCard(
-                context,
-                company,
-                rule,
-                wallets,
-                categories,
+          loading: () => ListView(
+            padding: const EdgeInsets.all(16),
+            children: const [
+              SkeletonListTile(),
+              SkeletonListTile(),
+              SkeletonListTile(),
+            ],
+          ),
+          error: (err, _) => Center(child: Text('Error loading rules: $err')),
+          data: (rules) {
+            if (rules.isEmpty) {
+              return EmptyStateView(
+                icon: Icons.update,
+                title: 'No Recurring Rules',
+                message:
+                    'Automate your repeating bills, subscriptions, or salaries with recurring transactions.',
+                actionLabel: 'Create First Rule',
+                onAction: () => _showAddEditRuleSheet(context),
               );
-            },
-          );
-        },
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+              itemCount: rules.length,
+              itemBuilder: (context, index) {
+                final rule = rules[index];
+                return _buildRuleCard(
+                  context,
+                  company,
+                  rule,
+                  wallets,
+                  categories,
+                );
+              },
+            );
+          },
+        ),
       ),
-    ),
     );
   }
 
@@ -462,24 +508,30 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
     final typeColor = isExpense
         ? AppColors.expense(context)
         : isIncome
-            ? AppColors.income(context)
-            : AppColors.transfer(context);
+        ? AppColors.income(context)
+        : AppColors.transfer(context);
 
     final typeIcon = isExpense
         ? Icons.arrow_upward
         : isIncome
-            ? Icons.arrow_downward
-            : Icons.swap_horiz;
+        ? Icons.arrow_downward
+        : Icons.swap_horiz;
 
     String ruleTitle = template.type.displayName;
     if (template.notes != null && template.notes!.isNotEmpty) {
       ruleTitle = template.notes!;
     } else if (template.type == VoucherType.transfer) {
-      final fromW = wallets.where((w) => w.id == template.walletAccountId).firstOrNull;
-      final toW = wallets.where((w) => w.id == template.toWalletAccountId).firstOrNull;
+      final fromW = wallets
+          .where((w) => w.id == template.walletAccountId)
+          .firstOrNull;
+      final toW = wallets
+          .where((w) => w.id == template.toWalletAccountId)
+          .firstOrNull;
       ruleTitle = '${fromW?.name ?? 'Wallet'} → ${toW?.name ?? 'Wallet'}';
     } else if (template.categoryAccountId != null) {
-      final cat = categories.where((c) => c.id == template.categoryAccountId).firstOrNull;
+      final cat = categories
+          .where((c) => c.id == template.categoryAccountId)
+          .firstOrNull;
       if (cat != null) ruleTitle = cat.name;
     }
 
@@ -548,8 +600,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
                     value: 'delete',
                     child: const Row(
                       children: [
-                        Icon(Icons.delete_outline,
-                            size: 18, color: Colors.red),
+                        Icon(Icons.delete_outline, size: 18, color: Colors.red),
                         SizedBox(width: 8),
                         Text('Delete', style: TextStyle(color: Colors.red)),
                       ],

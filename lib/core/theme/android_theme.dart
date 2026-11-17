@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../constants/typography.dart';
-import '../utils/adaptive_page_route.dart';
 
 /// Material Design 3 (MD3) Android Theme
 ///
@@ -562,7 +561,7 @@ class AndroidTheme {
       // --- Modern Android Predictive Back & Platform Transitions ---
       pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: EnhancedPredictiveBackPageTransitionsBuilder(),
+          TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
           TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
           TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
           TargetPlatform.windows: ZoomPageTransitionsBuilder(),

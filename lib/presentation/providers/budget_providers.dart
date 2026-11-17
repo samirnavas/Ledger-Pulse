@@ -42,8 +42,9 @@ final budgetsListProvider = FutureProvider<List<BudgetModel>>((ref) async {
 });
 
 /// Reactive stream of calculated BudgetProgress for all active budgets.
-final budgetsProgressListProvider =
-    FutureProvider<List<BudgetProgress>>((ref) async {
+final budgetsProgressListProvider = FutureProvider<List<BudgetProgress>>((
+  ref,
+) async {
   final company = ref.watch(activeCompanyProvider);
   if (company.mode != CompanyMode.expenseTracker ||
       !company.isModuleEnabled(AppModule.budgets)) {
@@ -52,6 +53,13 @@ final budgetsProgressListProvider =
 
   final repo = ref.watch(budgetRepositoryProvider);
   final selectedMonth = ref.watch(selectedMonthProvider);
+  final expenseSub = ref
+      .watch(expenseRepositoryProvider)
+      .repositoryUpdatesStream
+      .listen((_) {
+        ref.invalidateSelf();
+      });
+  ref.onDispose(expenseSub.cancel);
 
   // Invalidate when repo updates or transactions change
   final sub = repo.repositoryUpdatesStream.listen((_) {
@@ -69,8 +77,9 @@ final budgetsProgressListProvider =
 });
 
 /// Overall monthly budget summary combining all active budgets.
-final overallMonthlyBudgetProvider =
-    FutureProvider<OverallBudgetSummary>((ref) async {
+final overallMonthlyBudgetProvider = FutureProvider<OverallBudgetSummary>((
+  ref,
+) async {
   final company = ref.watch(activeCompanyProvider);
   if (company.mode != CompanyMode.expenseTracker ||
       !company.isModuleEnabled(AppModule.budgets)) {
@@ -79,6 +88,13 @@ final overallMonthlyBudgetProvider =
 
   final repo = ref.watch(budgetRepositoryProvider);
   final selectedMonth = ref.watch(selectedMonthProvider);
+  final expenseSub = ref
+      .watch(expenseRepositoryProvider)
+      .repositoryUpdatesStream
+      .listen((_) {
+        ref.invalidateSelf();
+      });
+  ref.onDispose(expenseSub.cancel);
 
   final sub = repo.repositoryUpdatesStream.listen((_) {
     ref.invalidateSelf();
@@ -89,8 +105,9 @@ final overallMonthlyBudgetProvider =
 });
 
 /// Reactive stream for the 'All Categories' overall budget progress.
-final allCategoriesBudgetProvider =
-    FutureProvider<BudgetProgress?>((ref) async {
+final allCategoriesBudgetProvider = FutureProvider<BudgetProgress?>((
+  ref,
+) async {
   final company = ref.watch(activeCompanyProvider);
   if (company.mode != CompanyMode.expenseTracker ||
       !company.isModuleEnabled(AppModule.budgets)) {
@@ -99,6 +116,13 @@ final allCategoriesBudgetProvider =
 
   final repo = ref.watch(budgetRepositoryProvider);
   final selectedMonth = ref.watch(selectedMonthProvider);
+  final expenseSub = ref
+      .watch(expenseRepositoryProvider)
+      .repositoryUpdatesStream
+      .listen((_) {
+        ref.invalidateSelf();
+      });
+  ref.onDispose(expenseSub.cancel);
 
   final sub = repo.repositoryUpdatesStream.listen((_) {
     ref.invalidateSelf();

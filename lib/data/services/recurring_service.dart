@@ -34,6 +34,7 @@ class RecurringService {
   Role _currentRole;
   Company? _cachedCompany;
   bool _isDisposed = false;
+  Future<int>? _generationInFlight;
 
   RecurringService({
     required AppDatabase db,
@@ -44,14 +45,14 @@ class RecurringService {
     String currentUserId = 'usr_default',
     Role currentRole = Role.admin,
     Company? company,
-  })  : _db = db,
-        _expenseRepo = expenseRepo,
-        _auditService = auditService ?? AuditService(db),
-        _syncEngine = syncEngine,
-        _currentCompanyId = currentCompanyId,
-        _currentUserId = currentUserId,
-        _currentRole = currentRole,
-        _cachedCompany = company;
+  }) : _db = db,
+       _expenseRepo = expenseRepo,
+       _auditService = auditService ?? AuditService(db),
+       _syncEngine = syncEngine,
+       _currentCompanyId = currentCompanyId,
+       _currentUserId = currentUserId,
+       _currentRole = currentRole,
+       _cachedCompany = company;
 
   Stream<void> get repositoryUpdatesStream => _updateStreamController.stream;
 
@@ -95,9 +96,9 @@ class RecurringService {
     if (_cachedCompany != null && _cachedCompany!.id == _currentCompanyId) {
       return _cachedCompany!;
     }
-    final row = await (_db.select(_db.companies)
-          ..where((t) => t.id.equals(_currentCompanyId)))
-        .getSingleOrNull();
+    final row = await (_db.select(
+      _db.companies,
+    )..where((t) => t.id.equals(_currentCompanyId))).getSingleOrNull();
 
     if (row != null) {
       _cachedCompany = Company(
@@ -119,9 +120,9 @@ class RecurringService {
       return _cachedCompany!;
     }
 
-    final prof = await (_db.select(_db.profiles)
-          ..where((t) => t.id.equals(_currentCompanyId)))
-        .getSingleOrNull();
+    final prof = await (_db.select(
+      _db.profiles,
+    )..where((t) => t.id.equals(_currentCompanyId))).getSingleOrNull();
     if (prof != null) {
       _cachedCompany = Company(
         id: prof.id,
@@ -174,18 +175,36 @@ class RecurringService {
   /// (e.g. `rec_<ruleId>_<yyyyMMdd>`), advances `nextRunDate`, and deactivates rules whose
   /// end date has elapsed.
   Future<int> generateDue(DateTime now, {int maxIterations = 366}) async {
+    final inFlight = _generationInFlight;
+    if (inFlight != null) {
+      await inFlight;
+      return generateDue(now, maxIterations: maxIterations);
+    }
+    final run = _generateDue(now, maxIterations: maxIterations);
+    _generationInFlight = run;
+    try {
+      return await run;
+    } finally {
+      _generationInFlight = null;
+    }
+  }
+
+  Future<int> _generateDue(DateTime now, {required int maxIterations}) async {
     final enabled = await isRecurringEnabled();
     if (!enabled) return 0;
 
-    final dueRules = await (_db.select(_db.expenseRecurringRules)
-          ..where((t) =>
-              t.profileId.equals(_currentCompanyId) &
-              t.isActive.equals(true) &
-              t.isDeleted.equals(false) &
-              t.nextRunDate.isSmallerOrEqualValue(now)))
-        .get();
+    final dueRules =
+        await (_db.select(_db.expenseRecurringRules)..where(
+              (t) =>
+                  t.profileId.equals(_currentCompanyId) &
+                  t.isActive.equals(true) &
+                  t.isDeleted.equals(false) &
+                  t.nextRunDate.isSmallerOrEqualValue(now),
+            ))
+            .get();
 
     int generatedCount = 0;
+    final failedRules = <String>[];
 
     for (final ruleRow in dueRules) {
       final rule = _ruleFromRow(ruleRow);
@@ -204,13 +223,14 @@ class RecurringService {
         final deterministicId = 'rec_${rule.id}_$dateStr';
 
         // Check if transaction already exists for this execution in exp_transactions
-        final existingTxn = await (_db.select(_db.expenseTransactions)
-              ..where((t) => t.id.equals(deterministicId)))
-            .getSingleOrNull();
+        final existingTxn = await (_db.select(
+          _db.expenseTransactions,
+        )..where((t) => t.id.equals(deterministicId))).getSingleOrNull();
 
         if (existingTxn == null) {
           try {
             final t = rule.template;
+            _validateTemplate(t);
             switch (t.type) {
               case VoucherType.expense:
                 if (t.categoryAccountId != null && t.walletAccountId != null) {
@@ -263,29 +283,42 @@ class RecurringService {
                 break;
             }
           } catch (e) {
-            debugPrint('Failed to post recurring transaction for rule ${rule.id}: $e');
+            debugPrint(
+              'Failed to post recurring transaction for rule ${rule.id}: $e',
+            );
+            failedRules.add(rule.id);
+            break; // Leave the failed occurrence due for retry.
           }
         }
 
-        currentRun = advanceDate(currentRun, rule.intervalType, rule.intervalCount);
+        currentRun = advanceDate(
+          currentRun,
+          rule.intervalType,
+          rule.intervalCount,
+        );
         iterations++;
       }
 
+      if (rule.endDate != null && currentRun.isAfter(rule.endDate!)) {
+        ruleActive = false;
+      }
       final updatedRule = rule.copyWith(
         nextRunDate: currentRun,
         isActive: ruleActive,
         updatedAt: now,
       );
 
-      await (_db.update(_db.expenseRecurringRules)
-            ..where((t) =>
-                t.id.equals(rule.id) & t.profileId.equals(_currentCompanyId)))
-          .write(ExpenseRecurringRulesCompanion(
-        nextRunDate: Value(currentRun),
-        isActive: Value(ruleActive),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ));
+      await (_db.update(_db.expenseRecurringRules)..where(
+            (t) => t.id.equals(rule.id) & t.profileId.equals(_currentCompanyId),
+          ))
+          .write(
+            ExpenseRecurringRulesCompanion(
+              nextRunDate: Value(currentRun),
+              isActive: Value(ruleActive),
+              updatedAt: Value(now),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
 
       await enqueueMutation(
         db: _db,
@@ -296,8 +329,11 @@ class RecurringService {
       );
     }
 
-    if (generatedCount > 0) {
-      _notifyUpdates();
+    if (dueRules.isNotEmpty) _notifyUpdates();
+    if (failedRules.isNotEmpty) {
+      throw StateError(
+        'Could not generate ${failedRules.length} recurring rule(s). Check their wallets and categories, then retry. Failed occurrences remain due.',
+      );
     }
 
     return generatedCount;
@@ -323,7 +359,9 @@ class RecurringService {
         final targetYear = date.year + yearOffset;
         final targetMonth = ((nextMonth - 1) % 12) + 1;
         final daysInTargetMonth = DateTime(targetYear, targetMonth + 1, 0).day;
-        final targetDay = date.day > daysInTargetMonth ? daysInTargetMonth : date.day;
+        final targetDay = date.day > daysInTargetMonth
+            ? daysInTargetMonth
+            : date.day;
         return DateTime(
           targetYear,
           targetMonth,
@@ -336,8 +374,12 @@ class RecurringService {
 
       case RecurringIntervalType.yearly:
         final targetYear = date.year + count;
-        final isLeapTarget = (targetYear % 4 == 0 && targetYear % 100 != 0) || (targetYear % 400 == 0);
-        final targetDay = (date.month == 2 && date.day == 29 && !isLeapTarget) ? 28 : date.day;
+        final isLeapTarget =
+            (targetYear % 4 == 0 && targetYear % 100 != 0) ||
+            (targetYear % 400 == 0);
+        final targetDay = (date.month == 2 && date.day == 29 && !isLeapTarget)
+            ? 28
+            : date.day;
         return DateTime(
           targetYear,
           date.month,
@@ -364,10 +406,19 @@ class RecurringService {
   }) async {
     await _ensureRecurringEnabled();
     AccessControlService.verifyPermission(
-        _currentRole, UserAction.createExpense);
+      _currentRole,
+      UserAction.createExpense,
+    );
 
     final effectiveInterval =
         intervalType ?? interval ?? RecurringIntervalType.monthly;
+    _validateTemplate(template);
+    if (intervalCount < 1) {
+      throw ArgumentError('Interval count must be positive.');
+    }
+    if (endDate != null && endDate.isBefore(nextRunDate)) {
+      throw ArgumentError('End date must be on or after the first run.');
+    }
     final ruleId = 'rec_rule_${_uuid.v4().substring(0, 12)}';
     final now = DateTime.now();
 
@@ -438,16 +489,14 @@ class RecurringService {
     final effectiveId = id ?? rule?.id;
     if (effectiveId == null) throw ArgumentError('Rule id is required');
     final effectiveTemplate = template ?? rule?.template;
-    final effectiveInterval =
-        intervalType ?? interval ?? rule?.intervalType;
+    final effectiveInterval = intervalType ?? interval ?? rule?.intervalType;
     final effectiveCount = intervalCount ?? rule?.intervalCount;
     final effectiveNextRun = nextRunDate ?? rule?.nextRunDate;
     final effectiveEndDate = endDate ?? rule?.endDate;
     final effectiveActive = isActive ?? rule?.isActive;
 
     await _ensureRecurringEnabled();
-    AccessControlService.verifyPermission(
-        _currentRole, UserAction.editExpense);
+    AccessControlService.verifyPermission(_currentRole, UserAction.editExpense);
 
     final existing = await getRuleById(effectiveId);
     final now = DateTime.now();
@@ -462,19 +511,27 @@ class RecurringService {
       updatedAt: now,
     );
 
-    await (_db.update(_db.expenseRecurringRules)
-          ..where((t) =>
-              t.id.equals(effectiveId) & t.profileId.equals(_currentCompanyId)))
-        .write(ExpenseRecurringRulesCompanion(
-      templateJson: Value(updated.template.toJson()),
-      intervalType: Value(updated.intervalType.name),
-      intervalCount: Value(updated.intervalCount),
-      nextRunDate: Value(updated.nextRunDate),
-      endDate: Value(updated.endDate),
-      isActive: Value(updated.isActive),
-      updatedAt: Value(now),
-      syncStatus: const Value(SyncRecordStatus.pending),
-    ));
+    _validateTemplate(updated.template);
+    if (updated.intervalCount < 1) {
+      throw ArgumentError('Interval count must be positive.');
+    }
+
+    await (_db.update(_db.expenseRecurringRules)..where(
+          (t) =>
+              t.id.equals(effectiveId) & t.profileId.equals(_currentCompanyId),
+        ))
+        .write(
+          ExpenseRecurringRulesCompanion(
+            templateJson: Value(updated.template.toJson()),
+            intervalType: Value(updated.intervalType.name),
+            intervalCount: Value(updated.intervalCount),
+            nextRunDate: Value(updated.nextRunDate),
+            endDate: Value(updated.endDate),
+            isActive: Value(updated.isActive),
+            updatedAt: Value(now),
+            syncStatus: const Value(SyncRecordStatus.pending),
+          ),
+        );
 
     await _auditService.recordLog(
       companyId: _currentCompanyId,
@@ -504,8 +561,7 @@ class RecurringService {
 
   Future<bool> deleteRule(String id) async {
     await _ensureRecurringEnabled();
-    AccessControlService.verifyPermission(
-        _currentRole, UserAction.editExpense);
+    AccessControlService.verifyPermission(_currentRole, UserAction.editExpense);
 
     final existing = await getRuleById(id);
     final now = DateTime.now();
@@ -516,15 +572,17 @@ class RecurringService {
       updatedAt: now,
     );
 
-    await (_db.update(_db.expenseRecurringRules)
-          ..where((t) =>
-              t.id.equals(id) & t.profileId.equals(_currentCompanyId)))
-        .write(ExpenseRecurringRulesCompanion(
-      isDeleted: const Value(true),
-      isActive: const Value(false),
-      updatedAt: Value(now),
-      syncStatus: const Value(SyncRecordStatus.pending),
-    ));
+    await (_db.update(_db.expenseRecurringRules)..where(
+          (t) => t.id.equals(id) & t.profileId.equals(_currentCompanyId),
+        ))
+        .write(
+          ExpenseRecurringRulesCompanion(
+            isDeleted: const Value(true),
+            isActive: const Value(false),
+            updatedAt: Value(now),
+            syncStatus: const Value(SyncRecordStatus.pending),
+          ),
+        );
 
     await _auditService.recordLog(
       companyId: _currentCompanyId,
@@ -550,12 +608,14 @@ class RecurringService {
 
   Future<RecurringRuleModel> getRuleById(String id) async {
     await _ensureRecurringEnabled();
-    final row = await (_db.select(_db.expenseRecurringRules)
-          ..where((t) =>
-              t.id.equals(id) &
-              t.profileId.equals(_currentCompanyId) &
-              t.isDeleted.equals(false)))
-        .getSingleOrNull();
+    final row =
+        await (_db.select(_db.expenseRecurringRules)..where(
+              (t) =>
+                  t.id.equals(id) &
+                  t.profileId.equals(_currentCompanyId) &
+                  t.isDeleted.equals(false),
+            ))
+            .getSingleOrNull();
 
     if (row == null) {
       throw StateError('Recurring rule not found: $id');
@@ -563,11 +623,15 @@ class RecurringService {
     return _ruleFromRow(row);
   }
 
-  Future<List<RecurringRuleModel>> getRules({bool includeInactive = true}) async {
+  Future<List<RecurringRuleModel>> getRules({
+    bool includeInactive = true,
+  }) async {
     await _ensureRecurringEnabled();
     final query = _db.select(_db.expenseRecurringRules)
-      ..where((t) =>
-          t.profileId.equals(_currentCompanyId) & t.isDeleted.equals(false))
+      ..where(
+        (t) =>
+            t.profileId.equals(_currentCompanyId) & t.isDeleted.equals(false),
+      )
       ..orderBy([(t) => OrderingTerm.asc(t.nextRunDate)]);
 
     if (!includeInactive) {
@@ -580,8 +644,10 @@ class RecurringService {
 
   Stream<List<RecurringRuleModel>> watchRules({bool includeInactive = true}) {
     final query = _db.select(_db.expenseRecurringRules)
-      ..where((t) =>
-          t.profileId.equals(_currentCompanyId) & t.isDeleted.equals(false))
+      ..where(
+        (t) =>
+            t.profileId.equals(_currentCompanyId) & t.isDeleted.equals(false),
+      )
       ..orderBy([(t) => OrderingTerm.asc(t.nextRunDate)]);
 
     if (!includeInactive) {
@@ -589,6 +655,33 @@ class RecurringService {
     }
 
     return query.watch().map((rows) => rows.map(_ruleFromRow).toList());
+  }
+
+  static void _validateTemplate(RecurringTemplate template) {
+    if (template.amountInCents <= 0) {
+      throw ArgumentError('Amount must be positive.');
+    }
+    if (template.walletAccountId == null || template.walletAccountId!.isEmpty) {
+      throw ArgumentError('Select a wallet.');
+    }
+    switch (template.type) {
+      case VoucherType.expense:
+      case VoucherType.income:
+        if (template.categoryAccountId == null ||
+            template.categoryAccountId!.isEmpty) {
+          throw ArgumentError('Select a category.');
+        }
+        break;
+      case VoucherType.transfer:
+        if (template.toWalletAccountId == null ||
+            template.toWalletAccountId!.isEmpty ||
+            template.toWalletAccountId == template.walletAccountId) {
+          throw ArgumentError('Select a different destination wallet.');
+        }
+        break;
+      default:
+        throw ArgumentError('Unsupported recurring transaction type.');
+    }
   }
 
   RecurringRuleModel _ruleFromRow(ExpenseRecurringRuleTableData r) {

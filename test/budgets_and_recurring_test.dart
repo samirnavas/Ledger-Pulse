@@ -98,13 +98,17 @@ void main() {
     );
 
     // Seed company in DB
-    await db.into(db.companies).insert(
+    await db
+        .into(db.companies)
+        .insert(
           CompaniesCompanion.insert(
             id: enabledCompany.id,
             name: enabledCompany.name,
             legalName: enabledCompany.legalName,
             mode: Value(enabledCompany.mode.name),
-            enabledModulesJson: const Value('["vouchers","budgets","recurring"]'),
+            enabledModulesJson: const Value(
+              '["vouchers","budgets","recurring"]',
+            ),
             createdAt: Value(now),
             updatedAt: Value(now),
           ),
@@ -127,10 +131,7 @@ void main() {
     await db.close();
   });
 
-  Widget buildTestScope({
-    required Widget child,
-    Company? companyOverride,
-  }) {
+  Widget buildTestScope({required Widget child, Company? companyOverride}) {
     final company = companyOverride ?? enabledCompany;
     return ProviderScope(
       overrides: [
@@ -152,78 +153,167 @@ void main() {
           () => _TestMonthNotifier(DateTime(now.year, now.month)),
         ),
       ],
-      child: MaterialApp(
-        home: child,
-      ),
+      child: MaterialApp(home: child),
     );
   }
 
   group('Budgets - Period Math & Rollover', () {
-    test('Calculates period boundaries accurately for weekly, monthly, yearly', () {
-      final date = DateTime(2026, 10, 15); // Thursday
-
-      final weeklyBounds =
-          DriftBudgetRepository.getPeriodBounds(BudgetPeriodType.weekly, date);
-      expect(weeklyBounds.start.weekday, DateTime.monday);
-      expect(weeklyBounds.end.weekday, DateTime.sunday);
-
-      final monthlyBounds =
-          DriftBudgetRepository.getPeriodBounds(BudgetPeriodType.monthly, date);
-      expect(monthlyBounds.start, DateTime(2026, 10, 1));
-      expect(monthlyBounds.end, DateTime(2026, 10, 31, 23, 59, 59, 999));
-
-      final yearlyBounds =
-          DriftBudgetRepository.getPeriodBounds(BudgetPeriodType.yearly, date);
-      expect(yearlyBounds.start, DateTime(2026, 1, 1));
-      expect(yearlyBounds.end, DateTime(2026, 12, 31, 23, 59, 59, 999));
-    });
-
-    test('Aggregates sub-category expenses into parent category budget', () async {
-      // 1. Create wallet
+    testWidgets('Budget progress refreshes after an expense changes', (
+      tester,
+    ) async {
       final wallet = await expenseRepo.createWallet(
-        name: 'Main Cash',
+        name: 'Budget refresh cash',
         type: AccountType.asset,
-        openingBalanceInCents: 500000,
+        openingBalanceInCents: 50000,
       );
-
-      // 2. Create parent category (Food) and child category (Restaurants)
-      final parentCat = await expenseRepo.createCategory(
-        name: 'Food',
+      final category = await expenseRepo.createCategory(
+        name: 'Budget refresh food',
         type: AccountType.expense,
       );
-      final subCat = await expenseRepo.createCategory(
-        name: 'Restaurants',
-        type: AccountType.expense,
-        parentAccountId: parentCat.id,
+      await budgetRepo.createBudget(
+        categoryId: category.id,
+        amountInCents: 10000,
       );
-
-      // 3. Set monthly budget on parent Food category: 10,000 INR (1,000,000 cents)
-      final budget = await budgetRepo.createBudget(
-        categoryId: parentCat.id,
-        amountInCents: 1000000,
-        period: BudgetPeriodType.monthly,
+      await tester.pumpWidget(buildTestScope(child: const BudgetsScreen()));
+      await tester.pumpAndSettle();
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(BudgetsScreen)),
       );
-
-      // 4. Post expense to sub-category (Restaurants)
+      expect(
+        (await container.read(
+          budgetsProgressListProvider.future,
+        )).single.spentInCents,
+        0,
+      );
       await expenseRepo.addExpense(
         walletAccountId: wallet.id,
-        categoryAccountId: subCat.id,
-        amountInCents: 400000, // 4,000 INR
-        date: DateTime(2026, 10, 10),
+        categoryAccountId: category.id,
+        amountInCents: 2500,
+        date: now,
       );
-
-      // 5. Compute progress for parent budget
-      final progress = await budgetRepo.calculateProgress(
-        budget,
-        asOfDate: DateTime(2026, 10, 15),
+      await tester.pumpAndSettle();
+      expect(
+        (await container.read(
+          budgetsProgressListProvider.future,
+        )).single.spentInCents,
+        2500,
       );
-
-      expect(progress.spentInCents, 400000);
-      expect(progress.remainingInCents, 600000);
-      expect(progress.percentUsed, 40.0);
-      expect(progress.isWarning, isFalse);
-      expect(progress.isExceeded, isFalse);
+      expect(
+        (await container.read(
+          overallMonthlyBudgetProvider.future,
+        )).totalSpentInCents,
+        2500,
+      );
     });
+
+    test('Budget edits and rollover survive reloading', () async {
+      final category = await expenseRepo.createCategory(
+        name: 'Budget edit category',
+        type: AccountType.expense,
+      );
+      final created = await budgetRepo.createBudget(
+        categoryId: 'all',
+        amountInCents: 10000,
+        rolloverEnabled: true,
+      );
+      expect(
+        (await budgetRepo.getBudgetById(created.id)).rolloverEnabled,
+        isTrue,
+      );
+      await budgetRepo.updateBudget(
+        budget: created.copyWith(
+          categoryId: category.id,
+          allocatedInCents: 20000,
+          rolloverEnabled: false,
+        ),
+      );
+      final loaded = await budgetRepo.getBudgetById(created.id);
+      expect(loaded.categoryId, category.id);
+      expect(loaded.allocatedInCents, 20000);
+      expect(loaded.rolloverEnabled, isFalse);
+      await expectLater(
+        budgetRepo.updateBudget(id: created.id, amountInCents: 0),
+        throwsArgumentError,
+      );
+    });
+
+    test(
+      'Calculates period boundaries accurately for weekly, monthly, yearly',
+      () {
+        final date = DateTime(2026, 10, 15); // Thursday
+
+        final weeklyBounds = DriftBudgetRepository.getPeriodBounds(
+          BudgetPeriodType.weekly,
+          date,
+        );
+        expect(weeklyBounds.start.weekday, DateTime.monday);
+        expect(weeklyBounds.end.weekday, DateTime.sunday);
+
+        final monthlyBounds = DriftBudgetRepository.getPeriodBounds(
+          BudgetPeriodType.monthly,
+          date,
+        );
+        expect(monthlyBounds.start, DateTime(2026, 10, 1));
+        expect(monthlyBounds.end, DateTime(2026, 10, 31, 23, 59, 59, 999));
+
+        final yearlyBounds = DriftBudgetRepository.getPeriodBounds(
+          BudgetPeriodType.yearly,
+          date,
+        );
+        expect(yearlyBounds.start, DateTime(2026, 1, 1));
+        expect(yearlyBounds.end, DateTime(2026, 12, 31, 23, 59, 59, 999));
+      },
+    );
+
+    test(
+      'Aggregates sub-category expenses into parent category budget',
+      () async {
+        // 1. Create wallet
+        final wallet = await expenseRepo.createWallet(
+          name: 'Main Cash',
+          type: AccountType.asset,
+          openingBalanceInCents: 500000,
+        );
+
+        // 2. Create parent category (Food) and child category (Restaurants)
+        final parentCat = await expenseRepo.createCategory(
+          name: 'Food',
+          type: AccountType.expense,
+        );
+        final subCat = await expenseRepo.createCategory(
+          name: 'Restaurants',
+          type: AccountType.expense,
+          parentAccountId: parentCat.id,
+        );
+
+        // 3. Set monthly budget on parent Food category: 10,000 INR (1,000,000 cents)
+        final budget = await budgetRepo.createBudget(
+          categoryId: parentCat.id,
+          amountInCents: 1000000,
+          period: BudgetPeriodType.monthly,
+        );
+
+        // 4. Post expense to sub-category (Restaurants)
+        await expenseRepo.addExpense(
+          walletAccountId: wallet.id,
+          categoryAccountId: subCat.id,
+          amountInCents: 400000, // 4,000 INR
+          date: DateTime(2026, 10, 10),
+        );
+
+        // 5. Compute progress for parent budget
+        final progress = await budgetRepo.calculateProgress(
+          budget,
+          asOfDate: DateTime(2026, 10, 15),
+        );
+
+        expect(progress.spentInCents, 400000);
+        expect(progress.remainingInCents, 600000);
+        expect(progress.percentUsed, 40.0);
+        expect(progress.isWarning, isFalse);
+        expect(progress.isExceeded, isFalse);
+      },
+    );
 
     test('Calculates rollover correctly from previous period', () async {
       final wallet = await expenseRepo.createWallet(
@@ -268,7 +358,9 @@ void main() {
   });
 
   group('Budgets - Threshold Banners UI', () {
-    testWidgets('Shows 80% warning banner and 100% exceeded banner', (tester) async {
+    testWidgets('Shows 80% warning banner and 100% exceeded banner', (
+      tester,
+    ) async {
       final wallet = await expenseRepo.createWallet(
         name: 'Cash',
         type: AccountType.asset,
@@ -321,44 +413,151 @@ void main() {
   });
 
   group('Recurring Transactions - Idempotency & Catch-Up', () {
-    test('generateDue is idempotent: multiple executions never duplicate vouchers', () async {
-      final wallet = await expenseRepo.createWallet(
-        name: 'Checking Wallet',
-        type: AccountType.asset,
-      );
-      final cat = await expenseRepo.createCategory(
-        name: 'Rent',
-        type: AccountType.expense,
-      );
+    test(
+      'Failed occurrences remain due and can be retried after repair',
+      () async {
+        final category = await expenseRepo.createCategory(
+          name: 'Retry fee',
+          type: AccountType.expense,
+        );
+        final due = DateTime(2026, 10, 1);
+        final rule = await recurringService.createRule(
+          template: RecurringTemplate(
+            type: VoucherType.expense,
+            amountInCents: 1000,
+            walletAccountId: 'missing_wallet',
+            categoryAccountId: category.id,
+          ),
+          nextRunDate: due,
+        );
+        await expectLater(recurringService.generateDue(due), throwsStateError);
+        expect((await recurringService.getRuleById(rule.id)).nextRunDate, due);
+        expect(await expenseRepo.getTransactions(), isEmpty);
+        final wallet = await expenseRepo.createWallet(
+          name: 'Repaired wallet',
+          type: AccountType.asset,
+        );
+        await recurringService.updateRule(
+          id: rule.id,
+          template: RecurringTemplate(
+            type: VoucherType.expense,
+            amountInCents: 1000,
+            walletAccountId: wallet.id,
+            categoryAccountId: category.id,
+          ),
+        );
+        expect(await recurringService.generateDue(due), 1);
+        expect(await recurringService.generateDue(due), 0);
+      },
+    );
 
-      // Active rule due today
-      await recurringService.createRule(
-        template: RecurringTemplate(
-          type: VoucherType.expense,
-          amountInCents: 1500000, // 15,000 INR
-          walletAccountId: wallet.id,
-          categoryAccountId: cat.id,
-          narration: 'Office Rent',
-        ),
-        interval: RecurringIntervalType.monthly,
-        nextRunDate: DateTime(2026, 10, 1),
-      );
+    test(
+      'Concurrent runs post each occurrence once and finish ended rules',
+      () async {
+        final wallet = await expenseRepo.createWallet(
+          name: 'Concurrent wallet',
+          type: AccountType.asset,
+        );
+        final category = await expenseRepo.createCategory(
+          name: 'Concurrent fee',
+          type: AccountType.expense,
+        );
+        final due = DateTime(2026, 10, 1);
+        final rule = await recurringService.createRule(
+          template: RecurringTemplate(
+            type: VoucherType.expense,
+            amountInCents: 1000,
+            walletAccountId: wallet.id,
+            categoryAccountId: category.id,
+          ),
+          nextRunDate: due,
+          endDate: due,
+        );
+        final counts = await Future.wait([
+          recurringService.generateDue(due),
+          recurringService.generateDue(due),
+        ]);
+        expect(counts.reduce((a, b) => a + b), 1);
+        expect((await expenseRepo.getTransactions()).length, 1);
+        expect((await recurringService.getRuleById(rule.id)).isActive, isFalse);
+      },
+    );
 
-      // First run: should post 1 transaction and advance nextRunDate to 2026-11-01
-      final generated1 = await recurringService.generateDue(DateTime(2026, 10, 15));
-      expect(generated1, 1);
+    test(
+      'Rejects incomplete recurring templates and invalid intervals',
+      () async {
+        await expectLater(
+          recurringService.createRule(
+            template: const RecurringTemplate(
+              type: VoucherType.expense,
+              amountInCents: 1000,
+              walletAccountId: 'wallet',
+            ),
+            nextRunDate: now,
+          ),
+          throwsArgumentError,
+        );
+        await expectLater(
+          recurringService.createRule(
+            template: const RecurringTemplate(
+              type: VoucherType.transfer,
+              amountInCents: 1000,
+              walletAccountId: 'wallet',
+              toWalletAccountId: 'other',
+            ),
+            intervalCount: 0,
+            nextRunDate: now,
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
 
-      final vouchersAfterFirst = await expenseRepo.getTransactions();
-      expect(vouchersAfterFirst.length, 1);
-      expect(vouchersAfterFirst.first.narration, 'Office Rent');
+    test(
+      'generateDue is idempotent: multiple executions never duplicate vouchers',
+      () async {
+        final wallet = await expenseRepo.createWallet(
+          name: 'Checking Wallet',
+          type: AccountType.asset,
+        );
+        final cat = await expenseRepo.createCategory(
+          name: 'Rent',
+          type: AccountType.expense,
+        );
 
-      // Second run immediately after: nothing is due, 0 generated!
-      final generated2 = await recurringService.generateDue(DateTime(2026, 10, 15));
-      expect(generated2, 0);
+        // Active rule due today
+        await recurringService.createRule(
+          template: RecurringTemplate(
+            type: VoucherType.expense,
+            amountInCents: 1500000, // 15,000 INR
+            walletAccountId: wallet.id,
+            categoryAccountId: cat.id,
+            narration: 'Office Rent',
+          ),
+          interval: RecurringIntervalType.monthly,
+          nextRunDate: DateTime(2026, 10, 1),
+        );
 
-      final vouchersAfterSecond = await expenseRepo.getTransactions();
-      expect(vouchersAfterSecond.length, 1); // No duplicates!
-    });
+        // First run: should post 1 transaction and advance nextRunDate to 2026-11-01
+        final generated1 = await recurringService.generateDue(
+          DateTime(2026, 10, 15),
+        );
+        expect(generated1, 1);
+
+        final vouchersAfterFirst = await expenseRepo.getTransactions();
+        expect(vouchersAfterFirst.length, 1);
+        expect(vouchersAfterFirst.first.narration, 'Office Rent');
+
+        // Second run immediately after: nothing is due, 0 generated!
+        final generated2 = await recurringService.generateDue(
+          DateTime(2026, 10, 15),
+        );
+        expect(generated2, 0);
+
+        final vouchersAfterSecond = await expenseRepo.getTransactions();
+        expect(vouchersAfterSecond.length, 1); // No duplicates!
+      },
+    );
 
     test('generateDue caps catch-up iterations at maxIterations', () async {
       final wallet = await expenseRepo.createWallet(
@@ -394,67 +593,89 @@ void main() {
   });
 
   group('Disabled Module Behavior', () {
-    testWidgets('BudgetsScreen shows disabled view when budgets module is off', (tester) async {
-      final disabledCompany = enabledCompany.copyWith(
-        enabledModules: const {AppModule.vouchers, AppModule.recurring},
-      );
+    testWidgets(
+      'BudgetsScreen shows disabled view when budgets module is off',
+      (tester) async {
+        final disabledCompany = enabledCompany.copyWith(
+          enabledModules: const {AppModule.vouchers, AppModule.recurring},
+        );
 
-      await tester.pumpWidget(buildTestScope(
-        child: const BudgetsScreen(),
-        companyOverride: disabledCompany,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildTestScope(
+            child: const BudgetsScreen(),
+            companyOverride: disabledCompany,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('budgets_module_disabled')), findsOneWidget);
-    });
+        expect(
+          find.byKey(const Key('budgets_module_disabled')),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('RecurringScreen shows disabled view when recurring module is off', (tester) async {
-      final disabledCompany = enabledCompany.copyWith(
-        enabledModules: const {AppModule.vouchers, AppModule.budgets},
-      );
+    testWidgets(
+      'RecurringScreen shows disabled view when recurring module is off',
+      (tester) async {
+        final disabledCompany = enabledCompany.copyWith(
+          enabledModules: const {AppModule.vouchers, AppModule.budgets},
+        );
 
-      await tester.pumpWidget(buildTestScope(
-        child: const RecurringScreen(),
-        companyOverride: disabledCompany,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildTestScope(
+            child: const RecurringScreen(),
+            companyOverride: disabledCompany,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('recurring_module_disabled')), findsOneWidget);
-    });
+        expect(
+          find.byKey(const Key('recurring_module_disabled')),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('QuickAddTransactionSheet shows repeat option only when recurring is on', (tester) async {
-      tester.view.physicalSize = const Size(1200, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+    testWidgets(
+      'QuickAddTransactionSheet shows repeat option only when recurring is on',
+      (tester) async {
+        tester.view.physicalSize = const Size(1200, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-      // 1. With recurring module ON
-      await tester.pumpWidget(buildTestScope(
-        child: const Scaffold(
-          body: QuickAddTransactionSheet(),
-        ),
-      ));
-      await tester.pumpAndSettle();
+        // 1. With recurring module ON
+        await tester.pumpWidget(
+          buildTestScope(
+            child: const Scaffold(body: QuickAddTransactionSheet()),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('quick_add_repeat_switch')), findsOneWidget);
+        expect(
+          find.byKey(const Key('quick_add_repeat_switch')),
+          findsOneWidget,
+        );
 
-      // 2. With recurring module OFF
-      final disabledCompany = enabledCompany.copyWith(
-        enabledModules: const {AppModule.vouchers, AppModule.budgets},
-      );
+        // 2. With recurring module OFF
+        final disabledCompany = enabledCompany.copyWith(
+          enabledModules: const {AppModule.vouchers, AppModule.budgets},
+        );
 
-      await tester.pumpWidget(buildTestScope(
-        child: const Scaffold(
-          body: QuickAddTransactionSheet(),
-        ),
-        companyOverride: disabledCompany,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildTestScope(
+            child: const Scaffold(body: QuickAddTransactionSheet()),
+            companyOverride: disabledCompany,
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('quick_add_repeat_switch')), findsNothing);
-    });
+        expect(find.byKey(const Key('quick_add_repeat_switch')), findsNothing);
+      },
+    );
   });
 }
 
@@ -463,11 +684,7 @@ class _FakeSyncEngineForTest extends SyncEngine {
 
   @override
   Future<SyncResult> pushQueue({String? companyId}) async {
-    return SyncResult(
-      success: true,
-      itemsPushed: 0,
-      timestamp: DateTime.now(),
-    );
+    return SyncResult(success: true, itemsPushed: 0, timestamp: DateTime.now());
   }
 }
 

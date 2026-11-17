@@ -81,12 +81,12 @@ class LedgerPulseApp extends ConsumerStatefulWidget {
 class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
   AppLifecycleListener? _lifecycleListener;
 
-  void _processRecurringIfDue() {
+  Future<void> _processRecurringIfDue() async {
     try {
       final company = ref.read(activeCompanyProvider);
       if (company.mode == CompanyMode.expenseTracker &&
           company.isModuleEnabled(AppModule.recurring)) {
-        ref.read(recurringServiceProvider).generateDue(DateTime.now());
+        await ref.read(recurringServiceProvider).generateDue(DateTime.now());
       }
     } catch (e) {
       debugPrint('Background recurring check failed: $e');
@@ -188,6 +188,16 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Profiles load after the first frame; check again when the active workspace
+    // becomes ready or the user switches companies.
+    ref.listen(activeCompanyProvider, (previous, next) {
+      if (previous?.id != next.id || previous?.mode != next.mode ||
+          previous?.isModuleEnabled(AppModule.recurring) != next.isModuleEnabled(AppModule.recurring)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _processRecurringIfDue();
+        });
+      }
+    });
     // Keep native home screen widget synced with active company & business totals
     ref.watch(widgetSyncProvider);
     // Keep data synchronized automatically each time the app opens or switches company
@@ -195,6 +205,7 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
 
     final isIos = !kIsWeb && Platform.isIOS;
     final themeMode = ref.watch(appThemeModeProvider);
+    final dynamicColorEnabled = ref.watch(dynamicColorEnabledProvider);
 
     if (isIos) {
       final isDark = themeMode == ThemeMode.dark;
@@ -210,12 +221,12 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         const Color fallbackSeed = Color(0xFF006C4C);
-        final lightScheme = lightDynamic ??
+        final lightScheme = (dynamicColorEnabled ? lightDynamic : null) ??
             ColorScheme.fromSeed(
               seedColor: fallbackSeed,
               brightness: Brightness.light,
             );
-        final darkScheme = darkDynamic ??
+        final darkScheme = (dynamicColorEnabled ? darkDynamic : null) ??
             ColorScheme.fromSeed(
               seedColor: fallbackSeed,
               brightness: Brightness.dark,

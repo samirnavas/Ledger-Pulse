@@ -8,6 +8,33 @@ import 'package:ledger_pulse/presentation/providers/theme_provider.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  test(
+    'Dynamic colors default on and preserve the toggle across restarts',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = ProviderContainer(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(dynamicColorEnabledProvider), isTrue);
+      await container
+          .read(dynamicColorEnabledProvider.notifier)
+          .setEnabled(false);
+      expect(container.read(dynamicColorEnabledProvider), isFalse);
+      final restarted = ProviderContainer(
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+      );
+      addTearDown(restarted.dispose);
+      expect(restarted.read(dynamicColorEnabledProvider), isFalse);
+      await restarted
+          .read(dynamicColorEnabledProvider.notifier)
+          .setEnabled(true);
+      expect(prefs.getBool(DynamicColorNotifier.preferenceKey), isTrue);
+      expect(restarted.read(appThemeModeProvider), ThemeMode.system);
+    },
+  );
+
   group('ThemeModeNotifier Local Persistence Tests', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
@@ -16,9 +43,7 @@ void main() {
     test('Defaults to ThemeMode.system when no preference is saved', () async {
       final prefs = await SharedPreferences.getInstance();
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(prefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
       );
       addTearDown(container.dispose);
 
@@ -33,9 +58,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
 
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(prefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
       );
       addTearDown(container.dispose);
 
@@ -50,9 +73,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
 
       final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(prefs),
-        ],
+        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
       );
       addTearDown(container.dispose);
 
@@ -60,35 +81,36 @@ void main() {
       expect(mode, equals(ThemeMode.light));
     });
 
-    test('Persists mode change to SharedPreferences when setDark, setLight, setAuto called', () async {
-      final prefs = await SharedPreferences.getInstance();
+    test(
+      'Persists mode change to SharedPreferences when setDark, setLight, setAuto called',
+      () async {
+        final prefs = await SharedPreferences.getInstance();
 
-      final container = ProviderContainer(
-        overrides: [
-          sharedPreferencesProvider.overrideWithValue(prefs),
-        ],
-      );
-      addTearDown(container.dispose);
+        final container = ProviderContainer(
+          overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        );
+        addTearDown(container.dispose);
 
-      final notifier = container.read(appThemeModeProvider.notifier);
+        final notifier = container.read(appThemeModeProvider.notifier);
 
-      // Set to Dark
-      notifier.setDark();
-      expect(container.read(appThemeModeProvider), equals(ThemeMode.dark));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(prefs.getString('user_preferred_theme_mode'), equals('dark'));
+        // Set to Dark
+        notifier.setDark();
+        expect(container.read(appThemeModeProvider), equals(ThemeMode.dark));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(prefs.getString('user_preferred_theme_mode'), equals('dark'));
 
-      // Set to Light
-      notifier.setLight();
-      expect(container.read(appThemeModeProvider), equals(ThemeMode.light));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(prefs.getString('user_preferred_theme_mode'), equals('light'));
+        // Set to Light
+        notifier.setLight();
+        expect(container.read(appThemeModeProvider), equals(ThemeMode.light));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(prefs.getString('user_preferred_theme_mode'), equals('light'));
 
-      // Set to System / Auto
-      notifier.setAuto();
-      expect(container.read(appThemeModeProvider), equals(ThemeMode.system));
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(prefs.getString('user_preferred_theme_mode'), equals('system'));
-    });
+        // Set to System / Auto
+        notifier.setAuto();
+        expect(container.read(appThemeModeProvider), equals(ThemeMode.system));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        expect(prefs.getString('user_preferred_theme_mode'), equals('system'));
+      },
+    );
   });
 }

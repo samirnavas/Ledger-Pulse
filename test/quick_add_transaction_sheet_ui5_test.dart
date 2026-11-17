@@ -18,7 +18,6 @@ import 'package:ledger_pulse/data/services/recurring_service.dart';
 import 'package:ledger_pulse/presentation/expense/quick_add_transaction_sheet.dart';
 import 'package:ledger_pulse/presentation/expense/widgets/transaction_type_switcher.dart';
 import 'package:ledger_pulse/presentation/ledger/widgets/entry_amount_display.dart';
-import 'package:ledger_pulse/presentation/ledger/widgets/entry_quick_presets_row.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
 import 'package:ledger_pulse/presentation/providers/database_providers.dart';
 import 'package:ledger_pulse/presentation/providers/expense_providers.dart';

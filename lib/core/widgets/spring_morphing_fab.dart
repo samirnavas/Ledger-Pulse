@@ -18,9 +18,13 @@ class SpringMorphingFab extends StatefulWidget {
     this.backgroundColor,
     this.foregroundColor,
     this.heroTag,
+    this.isExtended = true,
     this.elevation = 6.0,
     this.pressedElevation = 2.0,
   });
+
+  /// Whether to show the label beside the icon.
+  final bool isExtended;
 
   /// The leading icon.
   final IconData icon;
@@ -135,9 +139,11 @@ class _SpringMorphingFabState extends State<SpringMorphingFab>
                 color: bgColor,
                 elevation: currentElevation,
                 borderRadius: BorderRadius.circular(cornerRadius),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
+                child: AnimatedPadding(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: widget.isExtended ? 20 : 17,
                     vertical: 16,
                   ),
                   child: child,
@@ -147,21 +153,44 @@ class _SpringMorphingFabState extends State<SpringMorphingFab>
           ),
         );
       },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(widget.icon, color: fgColor, size: 22),
-          const SizedBox(width: 10),
-          Text(
-            widget.label,
-            style: TextStyle(
-              color: fgColor,
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              letterSpacing: 0.2,
-            ),
+      child: Semantics(
+        label: widget.label,
+        button: true,
+        child: ExcludeSemantics(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(widget.icon, color: fgColor, size: 22),
+              TweenAnimationBuilder<double>(
+                tween: Tween(end: widget.isExtended ? 1.0 : 0.0),
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) => ClipRect(
+                  child: Align(
+                    widthFactor: value,
+                    heightFactor: 1,
+                    child: Opacity(opacity: value, child: child),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(width: 10),
+                    Text(
+                      widget.label,
+                      style: TextStyle(
+                        color: fgColor,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

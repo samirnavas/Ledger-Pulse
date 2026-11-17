@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/data/models/voucher_model.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_chip.dart';
+import 'package:ledger_pulse/core/widgets/spring_morphing_fab.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_icon_surface_button.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_list_row.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_search_field.dart';
@@ -68,7 +69,9 @@ void main() {
       currentCompanyId: expenseCompanyId,
     );
 
-    await db.into(db.companies).insert(
+    await db
+        .into(db.companies)
+        .insert(
           CompaniesCompanion.insert(
             id: expenseCompanyId,
             name: testCompany.name,
@@ -110,20 +113,12 @@ void main() {
     ProviderContainer? container,
   }) {
     final app = MaterialApp(
-      theme: ThemeData(
-        platform: platform,
-        useMaterial3: true,
-      ),
-      home: const Scaffold(
-        body: ExpenseTransactionsScreen(),
-      ),
+      theme: ThemeData(platform: platform, useMaterial3: true),
+      home: const Scaffold(body: ExpenseTransactionsScreen()),
     );
 
     if (container != null) {
-      return UncontrolledProviderScope(
-        container: container,
-        child: app,
-      );
+      return UncontrolledProviderScope(container: container, child: app);
     }
 
     return ProviderScope(
@@ -131,7 +126,9 @@ void main() {
         appDatabaseProvider.overrideWithValue(db),
         syncEngineProvider.overrideWithValue(_FakeSyncEngineTxn(db: db)),
         activeCompanyProvider.overrideWithValue(testCompany),
-        userProfileProvider.overrideWith(() => _TestProfileNotifierTxn(testProfile)),
+        userProfileProvider.overrideWith(
+          () => _TestProfileNotifierTxn(testProfile),
+        ),
         expenseRepositoryProvider.overrideWithValue(expenseRepo),
       ],
       child: app,
@@ -139,66 +136,128 @@ void main() {
   }
 
   group('Prompt UI-4 – Transactions Tab Matches Party List', () {
-    testWidgets('renders top row, search field and filter button on both platforms',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      // 1. Android
-      await tester.pumpWidget(buildApp(platform: TargetPlatform.android));
+    testWidgets('header scrolls away and returns on a small reverse scroll', (
+      tester,
+    ) async {
+      for (var i = 0; i < 35; i++) {
+        await expenseRepo.addExpense(
+          categoryAccountId:
+              '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}',
+          walletAccountId:
+              '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}',
+          amountInCents: 100,
+          date: now.subtract(Duration(days: i % 20)),
+        );
+      }
+      await tester.pumpWidget(buildApp());
       await tester.pumpAndSettle();
-
-      expect(find.byType(AdaptiveSearchField), findsOneWidget);
-      expect(find.byType(AdaptiveIconSurfaceButton), findsOneWidget);
-      expect(find.byType(AdaptiveChipRow<VoucherType?>), findsOneWidget);
-
-      // 2. iOS
-      await tester.pumpWidget(buildApp(platform: TargetPlatform.iOS));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(AdaptiveSearchField), findsOneWidget);
-      expect(find.byType(AdaptiveIconSurfaceButton), findsOneWidget);
-      expect(find.byType(AdaptiveChipRow<VoucherType?>), findsOneWidget);
-    });
-
-    testWidgets('day grouped headers and rows use AdaptiveSectionHeader & AdaptiveListRow',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
-      final cashWalletId =
-          '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}';
-      final foodCatId =
-          '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}';
-
-      await expenseRepo.addExpense(
-        categoryAccountId: foodCatId,
-        walletAccountId: cashWalletId,
-        amountInCents: 3500,
-        narration: 'Dinner with Team',
-        date: DateTime.now(),
+      Navigator.of(tester.element(find.byType(ExpenseTransactionsScreen))).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const ExpenseTransactionsScreen(),
+        ),
       );
-
-      await tester.pumpWidget(buildApp(platform: TargetPlatform.android));
       await tester.pumpAndSettle();
-
-      expect(find.byType(AdaptiveSectionHeader), findsOneWidget);
-      expect(find.text('Today'), findsOneWidget);
-      expect(find.byType(AdaptiveListRow), findsOneWidget);
-      expect(find.text('Food & Dining'), findsOneWidget);
-      expect(find.textContaining('Dinner with Team'), findsOneWidget);
+      final fab = find.byKey(const Key('transactions_quick_add_fab'));
+      expect(tester.widget<SpringMorphingFab>(fab).isExtended, isTrue);
+      final expandedWidth = tester.getSize(fab).width;
+      final summary = find.byKey(const Key('transactions_summary'));
+      expect(summary.hitTestable(), findsOneWidget);
+      final scroll = find.byKey(const PageStorageKey('transactions_scroll'));
+      final search = find.byKey(const Key('transaction_search_field'));
+      expect(search.hitTestable(), findsOneWidget);
+      await tester.drag(scroll, const Offset(0, -700));
+      await tester.pumpAndSettle();
+      expect(search.hitTestable(), findsNothing);
+      expect(summary.hitTestable(), findsNothing);
+      expect(tester.widget<SpringMorphingFab>(fab).isExtended, isFalse);
+      expect(tester.getSize(fab).width, lessThan(expandedWidth));
+      final position = tester
+          .state<ScrollableState>(
+            find
+                .descendant(of: scroll, matching: find.byType(Scrollable))
+                .first,
+          )
+          .position;
+      final offsetBefore = position.pixels;
+      await tester.drag(scroll, const Offset(0, 65));
+      await tester.pumpAndSettle();
+      expect(position.pixels, greaterThan(0));
+      expect(position.pixels, lessThan(offsetBefore));
+      expect(search.hitTestable(), findsOneWidget);
+      expect(tester.widget<SpringMorphingFab>(fab).isExtended, isTrue);
+      expect(tester.getSize(fab).width, expandedWidth);
+      expect(summary.hitTestable(), findsNothing);
+      position.jumpTo(0);
+      await tester.pumpAndSettle();
+      expect(summary.hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
 
-    testWidgets('filter button shows active tint when filters are set',
-        (tester) async {
+    testWidgets(
+      'renders top row, search field and filter button on both platforms',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        // 1. Android
+        await tester.pumpWidget(buildApp(platform: TargetPlatform.android));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AdaptiveSearchField), findsOneWidget);
+        expect(find.byType(AdaptiveIconSurfaceButton), findsOneWidget);
+        expect(find.byType(AdaptiveChipRow<VoucherType?>), findsOneWidget);
+
+        // 2. iOS
+        await tester.pumpWidget(buildApp(platform: TargetPlatform.iOS));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AdaptiveSearchField), findsOneWidget);
+        expect(find.byType(AdaptiveIconSurfaceButton), findsOneWidget);
+        expect(find.byType(AdaptiveChipRow<VoucherType?>), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'day grouped headers and rows use AdaptiveSectionHeader & AdaptiveListRow',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final cashWalletId =
+            '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}';
+        final foodCatId =
+            '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}';
+
+        await expenseRepo.addExpense(
+          categoryAccountId: foodCatId,
+          walletAccountId: cashWalletId,
+          amountInCents: 3500,
+          narration: 'Dinner with Team',
+          date: DateTime.now(),
+        );
+
+        await tester.pumpWidget(buildApp(platform: TargetPlatform.android));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AdaptiveSectionHeader), findsOneWidget);
+        expect(find.text('Today'), findsOneWidget);
+        expect(find.byType(AdaptiveListRow), findsOneWidget);
+        expect(find.text('Food & Dining'), findsOneWidget);
+        expect(find.textContaining('Dinner with Team'), findsOneWidget);
+      },
+    );
+
+    testWidgets('filter button shows active tint when filters are set', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -211,16 +270,17 @@ void main() {
           appDatabaseProvider.overrideWithValue(db),
           syncEngineProvider.overrideWithValue(_FakeSyncEngineTxn(db: db)),
           activeCompanyProvider.overrideWithValue(testCompany),
-          userProfileProvider.overrideWith(() => _TestProfileNotifierTxn(testProfile)),
+          userProfileProvider.overrideWith(
+            () => _TestProfileNotifierTxn(testProfile),
+          ),
           expenseRepositoryProvider.overrideWithValue(expenseRepo),
         ],
       );
       addTearDown(container.dispose);
 
-      await tester.pumpWidget(buildApp(
-        platform: TargetPlatform.android,
-        container: container,
-      ));
+      await tester.pumpWidget(
+        buildApp(platform: TargetPlatform.android, container: container),
+      );
       await tester.pumpAndSettle();
 
       var filterButton = tester.widget<AdaptiveIconSurfaceButton>(
@@ -229,7 +289,9 @@ void main() {
       expect(filterButton.isActive, false);
 
       // Set category filter
-      container.read(transactionFiltersProvider.notifier).updateFilters(
+      container
+          .read(transactionFiltersProvider.notifier)
+          .updateFilters(
             const TransactionFilters(categoryIds: ['some_cat_id']),
           );
       await tester.pumpAndSettle();
@@ -240,8 +302,9 @@ void main() {
       expect(filterButton.isActive, true);
     });
 
-    testWidgets('search filtering and PopScope predictive back clears search',
-        (tester) async {
+    testWidgets('search filtering and PopScope predictive back clears search', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -301,54 +364,57 @@ void main() {
       expect(find.textContaining('App Project Freelance'), findsOneWidget);
     });
 
-    testWidgets('swipe right-to-left triggers void confirmation and voids transaction',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+    testWidgets(
+      'swipe right-to-left triggers void confirmation and voids transaction',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-      final cashWalletId =
-          '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}';
-      final foodCatId =
-          '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}';
+        final cashWalletId =
+            '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}';
+        final foodCatId =
+            '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}';
 
-      final txn = await expenseRepo.addExpense(
-        categoryAccountId: foodCatId,
-        walletAccountId: cashWalletId,
-        amountInCents: 1200,
-        narration: 'Quick Snack',
-        date: DateTime.now(),
-      );
+        final txn = await expenseRepo.addExpense(
+          categoryAccountId: foodCatId,
+          walletAccountId: cashWalletId,
+          amountInCents: 1200,
+          narration: 'Quick Snack',
+          date: DateTime.now(),
+        );
 
-      await tester.pumpWidget(buildApp(platform: TargetPlatform.android));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(buildApp(platform: TargetPlatform.android));
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Quick Snack'), findsOneWidget);
+        expect(find.textContaining('Quick Snack'), findsOneWidget);
 
-      // Swipe right to left (endToStart)
-      final dismissibleFinder = find.byKey(ValueKey('txn_${txn.id}'));
-      expect(dismissibleFinder, findsOneWidget);
+        // Swipe right to left (endToStart)
+        final dismissibleFinder = find.byKey(ValueKey('txn_${txn.id}'));
+        expect(dismissibleFinder, findsOneWidget);
 
-      await tester.drag(dismissibleFinder, const Offset(-500, 0));
-      await tester.pumpAndSettle();
+        await tester.drag(dismissibleFinder, const Offset(-500, 0));
+        await tester.pumpAndSettle();
 
-      // Confirm dialog appears
-      expect(find.text('Void Transaction?'), findsOneWidget);
-      final confirmBtn = find.widgetWithText(FilledButton, 'Void');
-      expect(confirmBtn, findsOneWidget);
+        // Confirm dialog appears
+        expect(find.text('Void Transaction?'), findsOneWidget);
+        final confirmBtn = find.widgetWithText(FilledButton, 'Void');
+        expect(confirmBtn, findsOneWidget);
 
-      await tester.tap(confirmBtn);
-      await tester.pumpAndSettle();
+        await tester.tap(confirmBtn);
+        await tester.pumpAndSettle();
 
-      // Transaction is voided and removed from active list
-      expect(find.textContaining('Quick Snack'), findsNothing);
-    });
+        // Transaction is voided and removed from active list
+        expect(find.textContaining('Quick Snack'), findsNothing);
+      },
+    );
 
-    testWidgets('swipe left-to-right opens quick add edit sheet',
-        (tester) async {
+    testWidgets('swipe left-to-right opens quick add edit sheet', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -375,6 +441,9 @@ void main() {
       // Swipe left to right (startToEnd)
       final dismissibleFinder = find.byKey(ValueKey('txn_${txn.id}'));
       await tester.drag(dismissibleFinder, const Offset(500, 0));
+      await tester.pumpAndSettle();
+
+      await tester.pump(const Duration(milliseconds: 600));
       await tester.pumpAndSettle();
 
       // Quick add sheet opened in edit mode

@@ -9,6 +9,7 @@ import '../../core/constants/strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_page_entrance.dart';
+import '../../core/widgets/adaptive_controls.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/sync_model.dart';
@@ -810,6 +811,7 @@ class SettingsScreen extends ConsumerWidget {
     bool isDark,
     bool isIos,
   ) {
+    final dynamicColorEnabled = ref.watch(dynamicColorEnabledProvider);
     final cardBody = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -863,6 +865,18 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 16),
 
+        if (!isIos) ...[
+          AdaptiveSwitch(
+            key: const Key('dynamic_color_switch'),
+            label: 'Dynamic colors',
+            subtitle: dynamicColorEnabled
+                ? 'On ? Use system colors when available'
+                : 'Off ? Use the default app colors',
+            value: dynamicColorEnabled,
+            onChanged: (enabled) => ref.read(dynamicColorEnabledProvider.notifier).setEnabled(enabled),
+          ),
+          const SizedBox(height: 16),
+        ],
         // iOS: Native Cupertino Sliding Segmented Control
         // Android / Material: M3 Expressive Morphing Button Group
         if (isIos)

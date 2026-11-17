@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -32,14 +33,14 @@ import '../providers/sync_providers.dart';
 import 'quick_add_transaction_sheet.dart';
 
 /// Transactions list tab matching the ledger's party list layout and primitives:
-/// - Sticky top row with [AdaptiveSearchField] and [AdaptiveIconSurfaceButton] (active filter indicator).
+/// - Floating top row with [AdaptiveSearchField] and [AdaptiveIconSurfaceButton] (active filter indicator).
 /// - [AdaptiveChipRow] for transaction type filtering (All, Expense, Income, Transfer).
 /// - Top summary banner metric card (Inflow, Outflow, Net Total) in app primary theme color.
 /// - Day-grouped list inside themed [AdaptiveSurfaceCard]s.
 /// - Category-specific avatars and signed [AmountText] indicators matching recent transactions styling.
 /// - Swipe actions with [AdaptiveSwipeBackgrounds] (edit & void confirmation).
 /// - Predictive Android back & focus dismissal via [PopScope].
-/// - [RefreshIndicator.adaptive] with [AnimatedSwitcher] keyed on active filters.
+/// - One scroll view with a floating header and pull-to-refresh.
 class ExpenseTransactionsScreen extends ConsumerStatefulWidget {
   const ExpenseTransactionsScreen({super.key});
 
@@ -60,6 +61,18 @@ class ExpenseTransactionsScreen extends ConsumerStatefulWidget {
 
 class _ExpenseTransactionsScreenState
     extends ConsumerState<ExpenseTransactionsScreen> {
+  bool _fabExtended = true;
+
+  bool _handleScroll(UserScrollNotification notification) {
+    if (notification.depth == 0 &&
+        notification.metrics.axis == Axis.vertical &&
+        notification.direction != ScrollDirection.idle) {
+      final extended = notification.direction == ScrollDirection.forward;
+      if (_fabExtended != extended) setState(() => _fabExtended = extended);
+    }
+    return false;
+  }
+
   late final TextEditingController _searchController;
   late final FocusNode _searchFocusNode;
 
@@ -90,7 +103,9 @@ class _ExpenseTransactionsScreenState
   void _onSearchChanged(String query) {
     final currentFilters = ref.read(transactionFiltersProvider);
     final trimmed = query.trim();
-    ref.read(transactionFiltersProvider.notifier).updateFilters(
+    ref
+        .read(transactionFiltersProvider.notifier)
+        .updateFilters(
           currentFilters.copyWith(
             textQuery: trimmed.isEmpty ? null : trimmed,
             clearTextQuery: trimmed.isEmpty,
@@ -108,11 +123,10 @@ class _ExpenseTransactionsScreenState
 
   void _setTypeFilter(VoucherType? type) {
     final currentFilters = ref.read(transactionFiltersProvider);
-    ref.read(transactionFiltersProvider.notifier).updateFilters(
-          currentFilters.copyWith(
-            type: type,
-            clearType: type == null,
-          ),
+    ref
+        .read(transactionFiltersProvider.notifier)
+        .updateFilters(
+          currentFilters.copyWith(type: type, clearType: type == null),
         );
   }
 
@@ -132,10 +146,7 @@ class _ExpenseTransactionsScreenState
         final repo = ref.read(expenseRepositoryProvider);
         await repo.voidTransaction(txn.id);
         if (mounted) {
-          showAppFeedback(
-            context,
-            '${txn.voucherNumber} voided successfully',
-          );
+          showAppFeedback(context, '${txn.voucherNumber} voided successfully');
         }
         return true;
       } catch (e) {
@@ -152,9 +163,15 @@ class _ExpenseTransactionsScreenState
     return false;
   }
 
-  IconData _getCategoryIcon(String? categoryName, VoucherType type, bool isIos) {
+  IconData _getCategoryIcon(
+    String? categoryName,
+    VoucherType type,
+    bool isIos,
+  ) {
     if (type == VoucherType.transfer) {
-      return isIos ? CupertinoIcons.arrow_right_arrow_left : Icons.swap_horiz_rounded;
+      return isIos
+          ? CupertinoIcons.arrow_right_arrow_left
+          : Icons.swap_horiz_rounded;
     }
     if (categoryName == null || categoryName.trim().isEmpty) {
       return type == VoucherType.income
@@ -214,7 +231,11 @@ class _ExpenseTransactionsScreenState
   }
 
   Widget _buildCategoryAvatar(
-      BuildContext context, Color color, IconData icon, bool isIos) {
+    BuildContext context,
+    Color color,
+    IconData icon,
+    bool isIos,
+  ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = color.withValues(alpha: isDark ? 0.22 : 0.14);
 
@@ -263,6 +284,7 @@ class _ExpenseTransactionsScreenState
     final themeColor = Theme.of(context).colorScheme.primary;
 
     return Padding(
+      key: const Key('transactions_summary'),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: AdaptiveSurfaceCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -282,7 +304,9 @@ class _ExpenseTransactionsScreenState
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Icon(
-                          isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
+                          isIos
+                              ? CupertinoIcons.arrow_down
+                              : Icons.arrow_downward_rounded,
                           size: 12,
                           color: themeColor,
                         ),
@@ -311,7 +335,9 @@ class _ExpenseTransactionsScreenState
             Container(
               width: 1,
               height: 32,
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              color: Theme.of(
+                context,
+              ).colorScheme.outlineVariant.withValues(alpha: 0.5),
             ),
             const SizedBox(width: 12),
             // Total Expenses
@@ -328,7 +354,9 @@ class _ExpenseTransactionsScreenState
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Icon(
-                          isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
+                          isIos
+                              ? CupertinoIcons.arrow_up
+                              : Icons.arrow_upward_rounded,
                           size: 12,
                           color: themeColor,
                         ),
@@ -357,7 +385,9 @@ class _ExpenseTransactionsScreenState
             Container(
               width: 1,
               height: 32,
-              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+              color: Theme.of(
+                context,
+              ).colorScheme.outlineVariant.withValues(alpha: 0.5),
             ),
             const SizedBox(width: 12),
             // Net Summary
@@ -400,27 +430,23 @@ class _ExpenseTransactionsScreenState
     final isIos = AdaptiveThemeHelper.isIos(context);
     final themeColor = Theme.of(context).colorScheme.primary;
 
-    final hasActiveFilters = (filters.categoryIds != null &&
-            filters.categoryIds!.isNotEmpty) ||
+    final hasActiveFilters =
+        (filters.categoryIds != null && filters.categoryIds!.isNotEmpty) ||
         (filters.walletIds != null && filters.walletIds!.isNotEmpty) ||
         filters.startDate != null ||
         filters.endDate != null;
 
     final catMap = categoriesAsync.asData?.value != null
         ? <String, AccountModel>{
-            for (final c in categoriesAsync.asData!.value) c.id: c
+            for (final c in categoriesAsync.asData!.value) c.id: c,
           }
         : <String, AccountModel>{};
 
     final walletMap = walletsAsync.asData?.value != null
         ? <String, AccountModel>{
-            for (final w in walletsAsync.asData!.value) w.id: w
+            for (final w in walletsAsync.asData!.value) w.id: w,
           }
         : <String, AccountModel>{};
-
-    // Filter key for smooth AnimatedSwitcher transitions
-    final filterKey =
-        '${filters.type}_${filters.categoryIds?.join(",")}_${filters.walletIds?.join(",")}_${filters.startDate?.millisecondsSinceEpoch}_${filters.endDate?.millisecondsSinceEpoch}_${filters.textQuery}';
 
     final canPop = ModalRoute.of(context)?.canPop ?? false;
 
@@ -432,351 +458,379 @@ class _ExpenseTransactionsScreenState
       },
       child: Material(
         color: Colors.transparent,
-        child: Column(
-          children: [
-            // 1. Top Search & Filter Button Row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: AdaptiveSearchField(
-                      key: const Key('transaction_search_field'),
-                      controller: _searchController,
-                      focusNode: _searchFocusNode,
-                      hint: modeStrings.searchHint,
-                      onChanged: _onSearchChanged,
-                      onClear: _clearSearch,
-                    ),
+        child: RefreshIndicator.adaptive(
+          onRefresh: () async {
+            HapticFeedback.lightImpact();
+            ref.invalidate(transactionsProvider);
+            ref.invalidate(monthSummaryProvider);
+            ref.invalidate(walletsProvider);
+            await ref.read(syncControllerProvider.notifier).triggerSync();
+          },
+          child: CustomScrollView(
+            key: const PageStorageKey('transactions_scroll'),
+            physics: const AlwaysScrollableScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            slivers: [
+              SliverFloatingHeader(
+                key: const Key('transactions_floating_header'),
+                child: Material(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // 1. Top Search & Filter Button Row
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: AdaptiveSearchField(
+                                key: const Key('transaction_search_field'),
+                                controller: _searchController,
+                                focusNode: _searchFocusNode,
+                                hint: modeStrings.searchHint,
+                                onChanged: _onSearchChanged,
+                                onClear: _clearSearch,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            AdaptiveIconSurfaceButton(
+                              key: const Key('transaction_filter_button'),
+                              icon: isIos
+                                  ? CupertinoIcons.slider_horizontal_3
+                                  : Icons.filter_list_rounded,
+                              isActive: hasActiveFilters,
+                              tooltip: 'Filter Transactions',
+                              onTap: () =>
+                                  ExpenseTransactionsScreen.showFilterModal(
+                                    context,
+                                    ref,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // 2. Horizontal Type Filter Row (All, Expense, Income, Transfer)
+                      AdaptiveChipRow<VoucherType?>(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 4,
+                        ),
+                        items: [
+                          const AdaptiveChipItem(value: null, label: 'All'),
+                          AdaptiveChipItem(
+                            value: VoucherType.expense,
+                            label: 'Expenses',
+                            icon: Icon(
+                              isIos
+                                  ? CupertinoIcons.arrow_up
+                                  : Icons.arrow_upward_rounded,
+                              size: 14,
+                              color: themeColor,
+                            ),
+                          ),
+                          AdaptiveChipItem(
+                            value: VoucherType.income,
+                            label: 'Income',
+                            icon: Icon(
+                              isIos
+                                  ? CupertinoIcons.arrow_down
+                                  : Icons.arrow_downward_rounded,
+                              size: 14,
+                              color: themeColor,
+                            ),
+                          ),
+                          AdaptiveChipItem(
+                            value: VoucherType.transfer,
+                            label: 'Transfers',
+                            icon: Icon(
+                              isIos
+                                  ? CupertinoIcons.arrow_right_arrow_left
+                                  : Icons.swap_horiz_rounded,
+                              size: 14,
+                              color: themeColor,
+                            ),
+                          ),
+                        ],
+                        selectedValue: filters.type,
+                        onSelected: (val) => _setTypeFilter(val),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  AdaptiveIconSurfaceButton(
-                    key: const Key('transaction_filter_button'),
-                    icon: isIos
-                        ? CupertinoIcons.slider_horizontal_3
-                        : Icons.filter_list_rounded,
-                    isActive: hasActiveFilters,
-                    tooltip: 'Filter Transactions',
-                    onTap: () => ExpenseTransactionsScreen.showFilterModal(context, ref),
-                  ),
-                ],
+                ),
               ),
-            ),
+              SliverToBoxAdapter(
+                child: transactionsAsync.maybeWhen(
+                  data: (txns) => txns.isNotEmpty
+                      ? _buildSummaryCard(
+                          context: context,
+                          transactions: txns,
+                          currencyCode: company.currencyCode,
+                        )
+                      : const SizedBox.shrink(),
+                  orElse: () => const SizedBox.shrink(),
+                ),
+              ),
+              transactionsAsync.when(
+                data: (transactions) {
+                  if (transactions.isEmpty) {
+                    final currentQuery = _searchController.text.trim();
+                    return SliverPadding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      sliver: SliverList.list(
+                        children: [
+                          EmptyStateView(
+                            key: const Key('empty_transactions_view'),
+                            lottieAsset: 'assets/animations/empty_ledger.json',
+                            fallbackIcon: currentQuery.isNotEmpty
+                                ? (isIos
+                                      ? CupertinoIcons.search
+                                      : Icons.search_off_rounded)
+                                : Icons.receipt_long_outlined,
+                            title: currentQuery.isNotEmpty
+                                ? 'No matches for "$currentQuery"'
+                                : modeStrings.emptyTransactionsTitle,
+                            subtitle: currentQuery.isNotEmpty
+                                ? 'Try searching by a different note or voucher number.'
+                                : modeStrings.emptyTransactionsSubtitle,
+                            actionLabel: modeStrings.addTransaction,
+                            onActionPressed: () =>
+                                QuickAddTransactionSheet.show(context),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
 
-            // 2. Horizontal Type Filter Row (All, Expense, Income, Transfer)
-            AdaptiveChipRow<VoucherType?>(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              items: [
-                const AdaptiveChipItem(
-                  value: null,
-                  label: 'All',
-                ),
-                AdaptiveChipItem(
-                  value: VoucherType.expense,
-                  label: 'Expenses',
-                  icon: Icon(
-                    isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded,
-                    size: 14,
-                    color: themeColor,
-                  ),
-                ),
-                AdaptiveChipItem(
-                  value: VoucherType.income,
-                  label: 'Income',
-                  icon: Icon(
-                    isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded,
-                    size: 14,
-                    color: themeColor,
-                  ),
-                ),
-                AdaptiveChipItem(
-                  value: VoucherType.transfer,
-                  label: 'Transfers',
-                  icon: Icon(
-                    isIos
-                        ? CupertinoIcons.arrow_right_arrow_left
-                        : Icons.swap_horiz_rounded,
-                    size: 14,
-                    color: themeColor,
-                  ),
-                ),
-              ],
-              selectedValue: filters.type,
-              onSelected: (val) => _setTypeFilter(val),
-            ),
-            const SizedBox(height: 4),
+                  // Group transactions by day
+                  final Map<DateTime, List<VoucherModel>> grouped = {};
+                  for (final txn in transactions) {
+                    final dayKey = DateTime(
+                      txn.date.year,
+                      txn.date.month,
+                      txn.date.day,
+                    );
+                    grouped.putIfAbsent(dayKey, () => []).add(txn);
+                  }
 
-            // 3. Overview Summary Banner Card
-            transactionsAsync.maybeWhen(
-              data: (txns) => txns.isNotEmpty
-                  ? _buildSummaryCard(
-                      context: context,
-                      transactions: txns,
-                      currencyCode: company.currencyCode,
-                    )
-                  : const SizedBox.shrink(),
-              orElse: () => const SizedBox.shrink(),
-            ),
+                  for (final dayKey in grouped.keys) {
+                    grouped[dayKey]!.sort((a, b) {
+                      final cmp = b.date.compareTo(a.date);
+                      if (cmp != 0) return cmp;
+                      return b.createdAt.compareTo(a.createdAt);
+                    });
+                  }
 
-            // 4. Transactions List with Pull-to-Refresh & Day-grouping
-            Expanded(
-              child: RefreshIndicator.adaptive(
-                onRefresh: () async {
-                  HapticFeedback.lightImpact();
-                  ref.invalidate(transactionsProvider);
-                  ref.invalidate(monthSummaryProvider);
-                  ref.invalidate(walletsProvider);
-                  await ref.read(syncControllerProvider.notifier).triggerSync();
-                },
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: KeyedSubtree(
-                    key: ValueKey<String>(filterKey),
-                    child: transactionsAsync.when(
-                      data: (transactions) {
-                        if (transactions.isEmpty) {
-                          final currentQuery = _searchController.text.trim();
-                          return ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(vertical: 40),
-                            children: [
-                              EmptyStateView(
-                                key: const Key('empty_transactions_view'),
-                                lottieAsset: 'assets/animations/empty_ledger.json',
-                                fallbackIcon: currentQuery.isNotEmpty
-                                    ? (isIos
-                                        ? CupertinoIcons.search
-                                        : Icons.search_off_rounded)
-                                    : Icons.receipt_long_outlined,
-                                title: currentQuery.isNotEmpty
-                                    ? 'No matches for "$currentQuery"'
-                                    : modeStrings.emptyTransactionsTitle,
-                                subtitle: currentQuery.isNotEmpty
-                                    ? 'Try searching by a different note or voucher number.'
-                                    : modeStrings.emptyTransactionsSubtitle,
-                                actionLabel: modeStrings.addTransaction,
-                                onActionPressed: () =>
-                                    QuickAddTransactionSheet.show(context),
-                              ),
-                            ],
-                          );
+                  final sortedDays = grouped.keys.toList()
+                    ..sort((a, b) => b.compareTo(a));
+
+                  return SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 90),
+                    sliver: SliverList.builder(
+                      itemCount: sortedDays.length,
+                      itemBuilder: (ctx, dayIndex) {
+                        final day = sortedDays[dayIndex];
+                        final dayTxns = grouped[day]!;
+                        final dayHeader = _formatDayHeader(day);
+
+                        // Compute day total net
+                        int dayTotal = 0;
+                        for (final t in dayTxns) {
+                          if (t.type == VoucherType.income) {
+                            dayTotal += t.totalAmountInCents;
+                          } else if (t.type == VoucherType.expense) {
+                            dayTotal -= t.totalAmountInCents;
+                          }
                         }
 
-                        // Group transactions by day
-                        final Map<DateTime, List<VoucherModel>> grouped = {};
-                        for (final txn in transactions) {
-                          final dayKey =
-                              DateTime(txn.date.year, txn.date.month, txn.date.day);
-                          grouped.putIfAbsent(dayKey, () => []).add(txn);
-                        }
-
-                        for (final dayKey in grouped.keys) {
-                          grouped[dayKey]!.sort((a, b) {
-                            final cmp = b.date.compareTo(a.date);
-                            if (cmp != 0) return cmp;
-                            return b.createdAt.compareTo(a.createdAt);
-                          });
-                        }
-
-                        final sortedDays = grouped.keys.toList()
-                          ..sort((a, b) => b.compareTo(a));
-
-                        return ListView.builder(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(0, 8, 0, 90),
-                          itemCount: sortedDays.length,
-                          itemBuilder: (ctx, dayIndex) {
-                            final day = sortedDays[dayIndex];
-                            final dayTxns = grouped[day]!;
-                            final dayHeader = _formatDayHeader(day);
-
-                            // Compute day total net
-                            int dayTotal = 0;
-                            for (final t in dayTxns) {
-                              if (t.type == VoucherType.income) {
-                                dayTotal += t.totalAmountInCents;
-                              } else if (t.type == VoucherType.expense) {
-                                dayTotal -= t.totalAmountInCents;
-                              }
-                            }
-
-                            return Container(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              child: AdaptiveSurfaceCard(
-                                padding: EdgeInsets.zero,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Day Header Bar using AdaptiveSectionHeader
-                                    AdaptiveSectionHeader(
-                                      title: dayHeader,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 10,
-                                      ),
-                                      trailing: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: themeColor.withValues(alpha: 0.12),
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                        ),
-                                        child: AmountText(
-                                          amountInCents: dayTotal,
-                                          currencyCode: company.currencyCode,
-                                          variant: AmountVariant.small,
-                                          overrideColor: themeColor,
-                                        ),
-                                      ),
+                        return Container(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 6,
+                          ),
+                          child: AdaptiveSurfaceCard(
+                            padding: EdgeInsets.zero,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Day Header Bar using AdaptiveSectionHeader
+                                AdaptiveSectionHeader(
+                                  title: dayHeader,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 10,
+                                  ),
+                                  trailing: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
                                     ),
+                                    decoration: BoxDecoration(
+                                      color: themeColor.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: AmountText(
+                                      amountInCents: dayTotal,
+                                      currencyCode: company.currencyCode,
+                                      variant: AmountVariant.small,
+                                      overrideColor: themeColor,
+                                    ),
+                                  ),
+                                ),
 
-                                    // Day Transaction Rows
-                                    ...List.generate(dayTxns.length, (i) {
-                                      final txn = dayTxns[i];
-                                      final isLast = i == dayTxns.length - 1;
-                                      final isIncome = txn.type == VoucherType.income;
-                                      final isTransfer = txn.type == VoucherType.transfer;
-                                      final cat = txn.categoryAccountId != null
-                                          ? catMap[txn.categoryAccountId!]
-                                          : null;
-                                      final sourceWallet = txn.walletAccountId != null
-                                          ? walletMap[txn.walletAccountId!]
-                                          : null;
-                                      final destWallet = txn.toWalletAccountId != null
-                                          ? walletMap[txn.toWalletAccountId!]
-                                          : null;
+                                // Day Transaction Rows
+                                ...List.generate(dayTxns.length, (i) {
+                                  final txn = dayTxns[i];
+                                  final isLast = i == dayTxns.length - 1;
+                                  final isIncome =
+                                      txn.type == VoucherType.income;
+                                  final isTransfer =
+                                      txn.type == VoucherType.transfer;
+                                  final cat = txn.categoryAccountId != null
+                                      ? catMap[txn.categoryAccountId!]
+                                      : null;
+                                  final sourceWallet =
+                                      txn.walletAccountId != null
+                                      ? walletMap[txn.walletAccountId!]
+                                      : null;
+                                  final destWallet =
+                                      txn.toWalletAccountId != null
+                                      ? walletMap[txn.toWalletAccountId!]
+                                      : null;
 
-                                      final categoryIcon = _getCategoryIcon(
-                                        cat?.name,
-                                        txn.type,
-                                        isIos,
-                                      );
+                                  final categoryIcon = _getCategoryIcon(
+                                    cat?.name,
+                                    txn.type,
+                                    isIos,
+                                  );
 
-                                      final title = isTransfer
-                                          ? 'Transfer'
-                                          : (cat?.name ??
-                                              (isIncome ? 'Income' : 'Expense'));
+                                  final title = isTransfer
+                                      ? 'Transfer'
+                                      : (cat?.name ??
+                                            (isIncome ? 'Income' : 'Expense'));
 
-                                      final subtitleParts = <String>[];
-                                      if (isTransfer) {
-                                        subtitleParts.add(
-                                            '${sourceWallet?.name ?? 'Wallet'} ➔ ${destWallet?.name ?? 'Wallet'}');
-                                      } else if (sourceWallet != null) {
-                                        subtitleParts.add(sourceWallet.name);
-                                      }
+                                  final subtitleParts = <String>[];
+                                  if (isTransfer) {
+                                    subtitleParts.add(
+                                      '${sourceWallet?.name ?? 'Wallet'} ➔ ${destWallet?.name ?? 'Wallet'}',
+                                    );
+                                  } else if (sourceWallet != null) {
+                                    subtitleParts.add(sourceWallet.name);
+                                  }
 
-                                      subtitleParts
-                                          .add(DateFormatter.formatTime(txn.date));
+                                  subtitleParts.add(
+                                    DateFormatter.formatTime(txn.date),
+                                  );
 
-                                      if (txn.narration != null &&
-                                          txn.narration!.trim().isNotEmpty) {
-                                        subtitleParts.add(txn.narration!.trim());
-                                      }
+                                  if (txn.narration != null &&
+                                      txn.narration!.trim().isNotEmpty) {
+                                    subtitleParts.add(txn.narration!.trim());
+                                  }
 
-                                      final subtitle = subtitleParts.isNotEmpty
-                                          ? subtitleParts.join(' • ')
-                                          : null;
+                                  final subtitle = subtitleParts.isNotEmpty
+                                      ? subtitleParts.join(' • ')
+                                      : null;
 
-                                      final trailingAmount = AmountText(
-                                        amountInCents: isTransfer
-                                            ? txn.totalAmountInCents
-                                            : (isIncome
-                                                ? txn.totalAmountInCents
-                                                : -txn.totalAmountInCents),
-                                        currencyCode: company.currencyCode,
-                                        variant: AmountVariant.medium,
-                                        overrideColor: themeColor,
-                                      );
+                                  final trailingAmount = AmountText(
+                                    amountInCents: isTransfer
+                                        ? txn.totalAmountInCents
+                                        : (isIncome
+                                              ? txn.totalAmountInCents
+                                              : -txn.totalAmountInCents),
+                                    currencyCode: company.currencyCode,
+                                    variant: AmountVariant.medium,
+                                    overrideColor: themeColor,
+                                  );
 
-                                      return Dismissible(
-                                        key: ValueKey('txn_${txn.id}'),
-                                        direction: DismissDirection.horizontal,
-                                        dismissThresholds: const {
-                                          DismissDirection.startToEnd: 0.25,
-                                          DismissDirection.endToStart: 0.25,
-                                        },
-                                        background: AdaptiveSwipeBackgrounds.edit(
-                                          context,
-                                          isIos: isIos,
-                                        ),
-                                        secondaryBackground:
-                                            AdaptiveSwipeBackgrounds.delete(
+                                  return Dismissible(
+                                    key: ValueKey('txn_${txn.id}'),
+                                    direction: DismissDirection.horizontal,
+                                    dismissThresholds: const {
+                                      DismissDirection.startToEnd: 0.25,
+                                      DismissDirection.endToStart: 0.25,
+                                    },
+                                    background: AdaptiveSwipeBackgrounds.edit(
+                                      context,
+                                      isIos: isIos,
+                                    ),
+                                    secondaryBackground:
+                                        AdaptiveSwipeBackgrounds.delete(
                                           context,
                                           isIos: isIos,
                                           label: 'Void',
                                         ),
-                                        confirmDismiss: (direction) async {
-                                          if (direction ==
-                                              DismissDirection.startToEnd) {
-                                            HapticFeedback.lightImpact();
-                                            QuickAddTransactionSheet.show(
-                                              context,
-                                              initialVoucher: txn,
-                                            );
-                                            return false;
-                                          } else if (direction ==
-                                              DismissDirection.endToStart) {
-                                            HapticFeedback.mediumImpact();
-                                            return await _voidTransaction(txn);
-                                          }
-                                          return false;
-                                        },
-                                        child: AdaptiveListRow(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 10,
-                                          ),
-                                          leading: _buildCategoryAvatar(
-                                            context,
-                                            themeColor,
-                                            categoryIcon,
-                                            isIos,
-                                          ),
-                                          title: title,
-                                          subtitle: subtitle,
-                                          trailing: trailingAmount,
-                                          showDivider: !isLast,
-                                          onTap: () => QuickAddTransactionSheet.show(
+                                    confirmDismiss: (direction) async {
+                                      if (direction ==
+                                          DismissDirection.startToEnd) {
+                                        HapticFeedback.lightImpact();
+                                        QuickAddTransactionSheet.show(
+                                          context,
+                                          initialVoucher: txn,
+                                        );
+                                        return false;
+                                      } else if (direction ==
+                                          DismissDirection.endToStart) {
+                                        HapticFeedback.mediumImpact();
+                                        return await _voidTransaction(txn);
+                                      }
+                                      return false;
+                                    },
+                                    child: AdaptiveListRow(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 10,
+                                      ),
+                                      leading: _buildCategoryAvatar(
+                                        context,
+                                        themeColor,
+                                        categoryIcon,
+                                        isIos,
+                                      ),
+                                      title: title,
+                                      subtitle: subtitle,
+                                      trailing: trailingAmount,
+                                      showDivider: !isLast,
+                                      onTap: () =>
+                                          QuickAddTransactionSheet.show(
                                             context,
                                             initialVoucher: txn,
                                           ),
-                                        ),
-                                      );
-                                    }),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
                         );
                       },
-                      loading: () => ListView.builder(
-                        itemCount: 8,
-                        itemBuilder: (_, _) => const SkeletonListTile(),
-                      ),
-                      error: (err, _) => Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            'Error loading transactions: $err',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+                    ),
+                  );
+                },
+
+                loading: () => SliverList.builder(
+                  itemCount: 8,
+                  itemBuilder: (_, _) => const SkeletonListTile(),
+                ),
+                error: (err, _) => SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        'Error loading transactions: $err',
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -805,17 +859,23 @@ class _ExpenseTransactionsScreenState
         floatingActionButton: isIos
             ? null
             : SpringMorphingFab(
+                isExtended: _fabExtended,
                 key: const Key('transactions_quick_add_fab'),
                 icon: Icons.add,
                 label: 'Add transaction',
                 backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                foregroundColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                foregroundColor: Theme.of(
+                  context,
+                ).colorScheme.onPrimaryContainer,
                 onPressed: () {
                   HapticFeedback.lightImpact();
                   QuickAddTransactionSheet.show(context);
                 },
               ),
-        body: AdaptivePageEntrance(child: innerContent),
+        body: NotificationListener<UserScrollNotification>(
+          onNotification: _handleScroll,
+          child: AdaptivePageEntrance(child: innerContent),
+        ),
       );
     }
 
@@ -864,7 +924,9 @@ class _TransactionFilterModalContent extends ConsumerWidget {
           // Date Range Section
           Text(
             'Date Range',
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 8),
           Row(
@@ -875,9 +937,9 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                   selectedDate: filters.startDate ?? DateTime.now(),
                   onDateSelected: (date) {
                     final cur = ref.read(transactionFiltersProvider);
-                    ref.read(transactionFiltersProvider.notifier).updateFilters(
-                          cur.copyWith(startDate: date),
-                        );
+                    ref
+                        .read(transactionFiltersProvider.notifier)
+                        .updateFilters(cur.copyWith(startDate: date));
                   },
                 ),
               ),
@@ -888,9 +950,9 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                   selectedDate: filters.endDate ?? DateTime.now(),
                   onDateSelected: (date) {
                     final cur = ref.read(transactionFiltersProvider);
-                    ref.read(transactionFiltersProvider.notifier).updateFilters(
-                          cur.copyWith(endDate: date),
-                        );
+                    ref
+                        .read(transactionFiltersProvider.notifier)
+                        .updateFilters(cur.copyWith(endDate: date));
                   },
                 ),
               ),
@@ -904,7 +966,9 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                 onPressed: () {
                   HapticFeedback.lightImpact();
                   final cur = ref.read(transactionFiltersProvider);
-                  ref.read(transactionFiltersProvider.notifier).updateFilters(
+                  ref
+                      .read(transactionFiltersProvider.notifier)
+                      .updateFilters(
                         TransactionFilters(
                           categoryIds: cur.categoryIds,
                           walletIds: cur.walletIds,
@@ -913,7 +977,10 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                         ),
                       );
                 },
-                child: const Text('Clear Dates', style: TextStyle(fontSize: 12)),
+                child: const Text(
+                  'Clear Dates',
+                  style: TextStyle(fontSize: 12),
+                ),
               ),
             ),
           ],
@@ -922,7 +989,9 @@ class _TransactionFilterModalContent extends ConsumerWidget {
           // Category Filter Section
           Text(
             'Category',
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 8),
           categoriesAsync.when(
@@ -933,13 +1002,14 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                 AdaptiveChip(
                   label: 'All Categories',
                   isSelected:
-                      filters.categoryIds == null || filters.categoryIds!.isEmpty,
+                      filters.categoryIds == null ||
+                      filters.categoryIds!.isEmpty,
                   selectedColor: theme.colorScheme.primary,
                   onSelected: (_) {
                     final cur = ref.read(transactionFiltersProvider);
-                    ref.read(transactionFiltersProvider.notifier).updateFilters(
-                          cur.copyWith(categoryIds: null),
-                        );
+                    ref
+                        .read(transactionFiltersProvider.notifier)
+                        .updateFilters(cur.copyWith(categoryIds: null));
                   },
                 ),
                 ...cats.map((c) {
@@ -951,9 +1021,9 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                     onSelected: (selected) {
                       final cur = ref.read(transactionFiltersProvider);
                       final next = selected ? [c.id] : null;
-                      ref.read(transactionFiltersProvider.notifier).updateFilters(
-                            cur.copyWith(categoryIds: next),
-                          );
+                      ref
+                          .read(transactionFiltersProvider.notifier)
+                          .updateFilters(cur.copyWith(categoryIds: next));
                     },
                   );
                 }),
@@ -967,7 +1037,9 @@ class _TransactionFilterModalContent extends ConsumerWidget {
           // Wallet Filter Section
           Text(
             'Wallet',
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 8),
           walletsAsync.when(
@@ -982,9 +1054,9 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                   selectedColor: theme.colorScheme.primary,
                   onSelected: (_) {
                     final cur = ref.read(transactionFiltersProvider);
-                    ref.read(transactionFiltersProvider.notifier).updateFilters(
-                          cur.copyWith(walletIds: null),
-                        );
+                    ref
+                        .read(transactionFiltersProvider.notifier)
+                        .updateFilters(cur.copyWith(walletIds: null));
                   },
                 ),
                 ...wallets.map((w) {
@@ -996,9 +1068,9 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                     onSelected: (selected) {
                       final cur = ref.read(transactionFiltersProvider);
                       final next = selected ? [w.id] : null;
-                      ref.read(transactionFiltersProvider.notifier).updateFilters(
-                            cur.copyWith(walletIds: next),
-                          );
+                      ref
+                          .read(transactionFiltersProvider.notifier)
+                          .updateFilters(cur.copyWith(walletIds: next));
                     },
                   );
                 }),
