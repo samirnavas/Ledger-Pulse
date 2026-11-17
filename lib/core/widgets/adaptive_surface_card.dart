@@ -85,15 +85,11 @@ class AdaptiveSurfaceCard extends StatelessWidget {
     }
 
     final effectiveRadius = borderRadius ?? 28.0;
-    final cardBorder = accentColor != null
-        ? Border.all(
-            color: accentColor!.withValues(alpha: isDark ? 0.35 : 0.2),
-            width: 1.5,
-          )
-        : Border.all(
-            color: isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.04),
-            width: 1.0,
-          );
+    final cardBorder = Border.all(
+      color: (accentColor ?? Theme.of(context).colorScheme.primary)
+          .withValues(alpha: isDark ? 0.22 : 0.16),
+      width: 0.75,
+    );
 
     final containerDecoration = BoxDecoration(
       color: color ?? Theme.of(context).colorScheme.surfaceContainer,

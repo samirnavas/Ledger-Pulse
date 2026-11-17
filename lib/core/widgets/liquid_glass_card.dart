@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:real_liquid_glass/real_liquid_glass.dart';
 
@@ -25,13 +24,14 @@ class LiquidGlassCard extends StatelessWidget {
     this.width,
     this.height,
     this.blur = 24,
-    this.border = 1.2,
+    this.border = 0.75,
     this.color,
     this.borderColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return LiquidGlassContainer(
       width: width,
       height: height,
@@ -40,8 +40,12 @@ class LiquidGlassCard extends StatelessWidget {
       borderRadius: borderRadius,
       blur: blur,
       border: border,
-      color: color,
-      borderColor: borderColor,
+      color: color ?? (theme.brightness == Brightness.light
+          ? theme.colorScheme.surfaceContainer
+          : null),
+      borderColor: borderColor ?? theme.colorScheme.primary.withValues(
+        alpha: theme.brightness == Brightness.dark ? 0.22 : 0.16,
+      ),
       onTap: onTap,
       child: child,
     );

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/constants/colors.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
@@ -35,9 +34,11 @@ class BudgetsScreen extends ConsumerStatefulWidget {
     BuildContext context,
     WidgetRef ref, {
     BudgetModel? existingBudget,
-  }) =>
-      _BudgetsScreenState.showAddEditBudgetSheetStatic(context, ref,
-          existingBudget: existingBudget);
+  }) => _BudgetsScreenState.showAddEditBudgetSheetStatic(
+    context,
+    ref,
+    existingBudget: existingBudget,
+  );
 
   @override
   ConsumerState<BudgetsScreen> createState() => _BudgetsScreenState();
@@ -48,17 +49,19 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
   Future<void> _showAddEditBudgetSheet(
     BuildContext context, {
     BudgetModel? existingBudget,
-  }) =>
-      showAddEditBudgetSheetStatic(context, ref,
-          existingBudget: existingBudget);
+  }) => showAddEditBudgetSheetStatic(
+    context,
+    ref,
+    existingBudget: existingBudget,
+  );
 
   static Color _getThresholdColor(BuildContext context, double percentUsed) {
     if (percentUsed >= 100.0) {
-      return AppColors.expense(context);
+      return Theme.of(context).colorScheme.error;
     } else if (percentUsed >= 80.0) {
-      return Colors.amber.shade700;
+      return Theme.of(context).colorScheme.tertiary;
     } else {
-      return AppColors.income(context);
+      return Theme.of(context).colorScheme.primary;
     }
   }
 
@@ -84,8 +87,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     bool rolloverEnabled = existingBudget?.rolloverEnabled ?? false;
 
     Future<void> doSave(BuildContext sheetCtx) async {
-      final parsedAmount =
-          double.tryParse(amountController.text.trim()) ?? 0;
+      final parsedAmount = double.tryParse(amountController.text.trim()) ?? 0;
       if (parsedAmount <= 0) {
         showAppFeedback(context, 'Please enter a valid amount', isError: true);
         return;
@@ -142,10 +144,10 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                 value: 'all',
                 label: 'All Categories (Overall)',
               ),
-              ...expenseCategories.map((cat) => AdaptivePickerItem<String>(
-                    value: cat.id,
-                    label: cat.name,
-                  )),
+              ...expenseCategories.map(
+                (cat) =>
+                    AdaptivePickerItem<String>(value: cat.id, label: cat.name),
+              ),
             ];
 
             return SingleChildScrollView(
@@ -188,7 +190,8 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     key: const Key('budget_amount_field'),
                     controller: amountController,
                     keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
+                      decimal: true,
+                    ),
                     decoration: InputDecoration(
                       prefixText: '${company.currencyCode} ',
                       border: OutlineInputBorder(
@@ -237,9 +240,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   AdaptiveButton(
                     key: const Key('save_budget_button'),
                     child: Text(
-                      existingBudget == null
-                          ? 'Set Budget'
-                          : 'Update Budget',
+                      existingBudget == null ? 'Set Budget' : 'Update Budget',
                     ),
                     onPressed: () => doSave(sheetContext),
                   ),
@@ -297,126 +298,64 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
       child: Material(
         color: Colors.transparent,
         child: progressListAsync.when(
-        loading: () => ListView(
-          padding: const EdgeInsets.all(16),
-          children: const [
-            SkeletonListTile(),
-            SkeletonListTile(),
-            SkeletonListTile(),
-          ],
-        ),
-        error: (err, _) => Center(child: Text('Error loading budgets: $err')),
-        data: (progressList) {
-          final exceededBudgets =
-              progressList.where((p) => p.isExceeded).toList();
-          final warningBudgets =
-              progressList.where((p) => p.isWarning && !p.isExceeded).toList();
-
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-            children: [
-              // Threshold Banners
-              if (exceededBudgets.isNotEmpty)
-                _buildExceededBanner(theme, exceededBudgets),
-              if (warningBudgets.isNotEmpty)
-                _buildWarningBanner(theme, warningBudgets),
-
-              // Overall Monthly Budget Hero Card
-              overallAsync.when(
-                data: (overall) =>
-                    _buildOverallBudgetCard(theme, company, overall),
-                loading: () => const SizedBox.shrink(),
-                error: (err, stack) => const SizedBox.shrink(),
-              ),
-
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Category Budgets',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '${progressList.length} Active',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              if (progressList.isEmpty)
-                EmptyStateView(
-                  icon: Icons.pie_chart_outline,
-                  title: 'No Budgets Set',
-                  message:
-                      'Set category budgets to control spending and keep your finances on track.',
-                  actionLabel: 'Set First Budget',
-                  onAction: () => _showAddEditBudgetSheet(context),
-                )
-              else
-                ...progressList.map(
-                  (progress) => _buildBudgetCard(
-                    theme,
-                    company,
-                    progress,
-                  ),
-                ),
+          loading: () => ListView(
+            padding: const EdgeInsets.all(16),
+            children: const [
+              SkeletonListTile(),
+              SkeletonListTile(),
+              SkeletonListTile(),
             ],
-          );
-        },
-      ),
-    ),
-    );
-  }
-
-  // 100% Exceeded Banner
-  Widget _buildExceededBanner(
-    ThemeData theme,
-    List<BudgetProgress> exceededBudgets,
-  ) {
-    final catNames = exceededBudgets.map((b) => b.categoryName).join(', ');
-    return Container(
-      key: const Key('budget_exceeded_banner'),
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.red.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.red.withValues(alpha: 0.45)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.error_outline, color: Colors.red, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Budget Exceeded (100%+)',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'You have exceeded your allocated budget for $catNames.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.red.shade900,
-                  ),
-                ),
-              ],
-            ),
           ),
-        ],
+          error: (err, _) => Center(child: Text('Error loading budgets: $err')),
+          data: (progressList) {
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+              children: [
+                // Overall Monthly Budget Hero Card
+                overallAsync.when(
+                  data: (overall) =>
+                      _buildOverallBudgetCard(theme, company, overall),
+                  loading: () => const SizedBox.shrink(),
+                  error: (err, stack) => const SizedBox.shrink(),
+                ),
+
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Category Budgets',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '${progressList.length} Active',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                if (progressList.isEmpty)
+                  EmptyStateView(
+                    icon: Icons.pie_chart_outline,
+                    title: 'No Budgets Set',
+                    message:
+                        'Set category budgets to control spending and keep your finances on track.',
+                    actionLabel: 'Set First Budget',
+                    onAction: () => _showAddEditBudgetSheet(context),
+                  )
+                else
+                  ...progressList.map(
+                    (progress) => _buildBudgetCard(theme, company, progress),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -432,15 +371,20 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.amber.withValues(alpha: 0.15),
+        color: theme.colorScheme.tertiaryContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.45)),
+        border: Border.all(
+          color: theme.colorScheme.tertiary.withValues(alpha: 0.45),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning_amber_rounded,
-              color: Colors.amber.shade800, size: 22),
+          Icon(
+            Icons.warning_amber_rounded,
+            color: theme.colorScheme.onTertiaryContainer,
+            size: 22,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -449,7 +393,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                 Text(
                   'Approaching Limit (80%+)',
                   style: TextStyle(
-                    color: Colors.amber.shade900,
+                    color: theme.colorScheme.onTertiaryContainer,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
@@ -458,7 +402,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                 Text(
                   'You have reached 80% or more of your budget for $catNames.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.amber.shade900,
+                    color: theme.colorScheme.onTertiaryContainer,
                   ),
                 ),
               ],
@@ -475,8 +419,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     Company company,
     OverallBudgetSummary overall,
   ) {
-    final percentClamped =
-        overall.totalAllocatedInCents > 0 ? (overall.percentUsed / 100) : 0.0;
+    final percentClamped = overall.totalAllocatedInCents > 0
+        ? (overall.percentUsed / 100)
+        : 0.0;
     final progressColor = _getThresholdColor(context, overall.percentUsed);
 
     return AdaptiveSurfaceCard(
@@ -533,6 +478,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   ),
                   AmountText(
                     amountInCents: overall.totalSpentInCents,
+                    overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.medium,
                   ),
@@ -551,8 +497,8 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     amountInCents: overall.remainingInCents,
                     currencyCode: company.currencyCode,
                     overrideColor: overall.remainingInCents < 0
-                        ? AppColors.expense(context)
-                        : AppColors.income(context),
+                        ? theme.colorScheme.error
+                        : theme.colorScheme.primary,
                     variant: AmountVariant.medium,
                   ),
                 ],
@@ -568,6 +514,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   ),
                   AmountText(
                     amountInCents: overall.totalAllocatedInCents,
+                    overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.medium,
                   ),
@@ -635,9 +582,12 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                               const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  color:
+                                      theme.colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -652,17 +602,20 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                                 const SizedBox(width: 4),
                                 Container(
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.withValues(alpha: 0.15),
+                                    color: theme.colorScheme.primaryContainer,
                                     borderRadius: BorderRadius.circular(6),
                                   ),
-                                  child: const Text(
+                                  child: Text(
                                     'Rollover',
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.blue,
+                                      color:
+                                          theme.colorScheme.onPrimaryContainer,
                                     ),
                                   ),
                                 ),
@@ -706,12 +659,18 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   PopupMenuItem(
                     key: Key('delete_budget_${budget.id}'),
                     value: 'delete',
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.delete_outline,
-                            size: 18, color: Colors.red),
+                        Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: theme.colorScheme.error,
+                        ),
                         SizedBox(width: 8),
-                        Text('Delete', style: TextStyle(color: Colors.red)),
+                        Text(
+                          'Delete',
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
                       ],
                     ),
                   ),
@@ -733,6 +692,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                 children: [
                   AmountText(
                     amountInCents: progress.spentInCents,
+                    overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.small,
                   ),
@@ -744,6 +704,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   ),
                   AmountText(
                     amountInCents: progress.effectiveAllocatedInCents,
+                    overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.small,
                   ),
@@ -764,7 +725,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
             Text(
               '+${CurrencyFormatter.format(progress.rolloverInCents, currencyCode: company.currencyCode)} rolled over from last period',
               style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.blue.shade700,
+                color: theme.colorScheme.primary,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -790,7 +751,7 @@ class _AdaptiveProgressBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+
     final clampedValue = value.clamp(0.0, 1.0);
 
     if (isIos) {
@@ -803,13 +764,9 @@ class _AdaptiveProgressBar extends StatelessWidget {
             height: height,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(height / 2),
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.12)
-                  : Colors.black.withValues(alpha: 0.08),
+              color: theme.colorScheme.surfaceContainerHighest,
               border: Border.all(
-                color: isDark
-                    ? Colors.white.withValues(alpha: 0.15)
-                    : Colors.black.withValues(alpha: 0.06),
+                color: theme.colorScheme.outlineVariant,
                 width: 0.5,
               ),
             ),

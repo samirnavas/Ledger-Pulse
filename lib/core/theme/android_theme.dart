@@ -46,8 +46,8 @@ class AndroidTheme {
         rawScheme.surfaceContainerLow,
       );
       final Color tintedSurfaceContainer = Color.alphaBlend(
-        rawScheme.primary.withValues(alpha: 0.06),
-        rawScheme.surfaceContainer,
+        rawScheme.primary.withValues(alpha: 0.07),
+        rawScheme.surface,
       );
       final Color tintedSurfaceContainerHigh = Color.alphaBlend(
         rawScheme.primary.withValues(alpha: 0.08),
@@ -64,7 +64,7 @@ class AndroidTheme {
         surfaceContainer: tintedSurfaceContainer,
         surfaceContainerHigh: tintedSurfaceContainerHigh,
         surfaceContainerHighest: tintedSurfaceContainerHighest,
-        surface: tintedSurfaceLow,
+        surface: rawScheme.surface,
       );
     } else {
       // Dark Mode: Pure black background (true dark / AMOLED) with clean neutral dark surfaces.
@@ -93,7 +93,7 @@ class AndroidTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: isDark
           ? const Color(0xFF000000)
-          : scheme.surfaceContainerLow,
+          : scheme.surface,
       canvasColor: isDark
           ? const Color(0xFF000000)
           : scheme.surfaceContainerLow,
@@ -173,10 +173,8 @@ class AndroidTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shapeCornerExtraLarge),
           side: BorderSide(
-            color: isDark
-                ? const Color(0xFF27272A)
-                : scheme.outlineVariant.withValues(alpha: 0.6),
-            width: 1,
+            color: scheme.primary.withValues(alpha: isDark ? 0.22 : 0.16),
+            width: 0.75,
           ),
         ),
         margin: EdgeInsets.zero,
