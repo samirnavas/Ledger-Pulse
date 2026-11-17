@@ -861,7 +861,9 @@ class _ExpenseTransactionsScreenState
               style: hasActiveFilters
                   ? IconButton.styleFrom(
                       foregroundColor: themeColor,
-                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                      backgroundColor: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer,
                     )
                   : null,
               tooltip: 'Filter',
@@ -1085,4 +1087,24 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                           .read(transactionFiltersProvider.notifier)
                           .updateFilters(cur.copyWith(walletIds: next));
                     },
-          
+                  );
+                }),
+              ],
+            ),
+            loading: () => const LinearProgressIndicator(),
+            error: (err, _) => Text('Error: $err'),
+          ),
+          const SizedBox(height: 24),
+
+          if (!isIos)
+            AdaptiveButton(
+              onPressed: () => Navigator.of(context).pop(),
+              isFullWidth: true,
+              type: AdaptiveButtonType.primary,
+              child: const Text('Apply Filters'),
+            ),
+        ],
+      ),
+    );
+  }
+}

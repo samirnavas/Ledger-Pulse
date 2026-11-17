@@ -33,9 +33,11 @@ class AdaptiveIconSurfaceButton extends StatelessWidget {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final effectiveActiveColor = activeColor ??
+    final effectiveActiveColor =
+        activeColor ??
         (isIos ? AppColors.primaryBlue : Theme.of(context).colorScheme.primary);
-    final effectiveInactiveColor = inactiveColor ??
+    final effectiveInactiveColor =
+        inactiveColor ??
         (isIos
             ? (isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight)
             : Theme.of(context).colorScheme.onSurface);
@@ -60,11 +62,7 @@ class AdaptiveIconSurfaceButton extends StatelessWidget {
           borderRadius: 14,
           blur: 20,
           border: 1.0,
-          child: Icon(
-            icon,
-            size: 20,
-            color: color,
-          ),
+          child: Icon(icon, size: 20, color: color),
         ),
       );
     } else {
@@ -83,20 +81,18 @@ class AdaptiveIconSurfaceButton extends StatelessWidget {
             height: btnSize,
             width: btnSize,
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              color: isActive
+                  ? effectiveActiveColor.withValues(alpha: isDark ? 0.24 : 0.12)
+                  : Theme.of(context).colorScheme.surfaceContainerHigh,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                      alpha: isDark ? 0.35 : 0.5,
-                    ),
+                  alpha: isDark ? 0.35 : 0.5,
+                ),
                 width: 1,
               ),
             ),
-            child: Icon(
-              icon,
-              size: 22,
-              color: color,
-            ),
+            child: Icon(icon, size: 22, color: color),
           ),
         ),
       );
