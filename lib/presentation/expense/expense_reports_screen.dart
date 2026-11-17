@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_chip.dart';
+import '../../core/widgets/adaptive_controls.dart';
+import '../../core/widgets/adaptive_picker.dart';
 import '../../core/widgets/adaptive_date_field.dart';
 import '../../core/widgets/adaptive_form_sheet.dart';
 import '../../core/widgets/adaptive_list_row.dart';
@@ -120,11 +122,7 @@ class ExpenseReportsScreen extends ConsumerStatefulWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        showAppFeedback(
-          context,
-          'CSV Export failed: $e',
-          isError: true,
-        );
+        showAppFeedback(context, 'CSV Export failed: $e', isError: true);
       }
     }
   }
@@ -159,11 +157,7 @@ class ExpenseReportsScreen extends ConsumerStatefulWidget {
       );
     } catch (e) {
       if (context.mounted) {
-        showAppFeedback(
-          context,
-          'PDF Export failed: $e',
-          isError: true,
-        );
+        showAppFeedback(context, 'PDF Export failed: $e', isError: true);
       }
     }
   }
@@ -234,120 +228,159 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
     final txnsAsync = ref.watch(transactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final walletsAsync = ref.watch(walletsProvider);
+    final filters = ref.watch(transactionFiltersProvider);
 
     return AdaptivePageEntrance(
       child: Material(
         color: Colors.transparent,
         child: txnsAsync.when(
-        data: (allTxns) {
-          final categories = categoriesAsync.value ?? [];
-          final wallets = walletsAsync.value ?? [];
+          data: (allTxns) {
+            final categories = categoriesAsync.value ?? [];
+            final wallets = walletsAsync.value ?? [];
 
-          final catReport = ExpenseReportEngine.calculateSpendingByCategory(
-            vouchers: allTxns,
-            categories: categories,
-            startDate: range.$1,
-            endDate: range.$2,
-          );
+            final catReport = ExpenseReportEngine.calculateSpendingByCategory(
+              vouchers: allTxns,
+              categories: categories,
+              startDate: range.$1,
+              endDate: range.$2,
+            );
 
-          final trendReport = ExpenseReportEngine.calculateMonthlyTrend(
-            vouchers: allTxns,
-            referenceDate: DateTime.now(),
-            months: 6,
-          );
+            final trendReport = ExpenseReportEngine.calculateMonthlyTrend(
+              vouchers: allTxns,
+              referenceDate: DateTime.now(),
+              months: 6,
+            );
 
-          final incExpReport = ExpenseReportEngine.calculateIncomeVsExpense(
-            vouchers: allTxns,
-            startDate: range.$1,
-            endDate: range.$2,
-          );
+            final incExpReport = ExpenseReportEngine.calculateIncomeVsExpense(
+              vouchers: allTxns,
+              startDate: range.$1,
+              endDate: range.$2,
+            );
 
-          final walletReport =
-              ExpenseReportEngine.calculateWalletBalanceHistory(
-            wallets: wallets,
-            vouchers: allTxns,
-          );
+            final walletReport =
+                ExpenseReportEngine.calculateWalletBalanceHistory(
+                  wallets: wallets,
+                  vouchers: allTxns,
+                );
 
-          return ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            children: [
-              // Period Selector using AdaptiveChipRow
-              AdaptiveChipRow<ReportDateFilter>(
-                padding: EdgeInsets.zero,
-                selectedValue: _selectedFilter,
-                onSelected: (val) {
-                  if (val != null) {
-                    setState(() => _selectedFilter = val);
-                  }
-                },
-                items: ReportDateFilter.values
-                    .map(
-                      (f) => AdaptiveChipItem(
-                        value: f,
-                        label: f.label,
-                      ),
-                    )
-                    .toList(),
-              ),
-
-              if (_selectedFilter == ReportDateFilter.custom) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: AdaptiveDateField(
-                        label: 'Start Date',
-                        selectedDate: _customStartDate,
-                        onDateSelected: (d) =>
-                            setState(() => _customStartDate = d),
-                      ),
+            return ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              children: [
+                AdaptiveDropdownField<String>(
+                  key: const Key('report_category_selector'),
+                  label: 'Category',
+                  value: filters.categoryIds?.isNotEmpty == true
+                      ? (filters.categoryIds!.length == 1
+                            ? filters.categoryIds!.first
+                            : 'selected_categories')
+                      : 'all_categories',
+                  items: [
+                    const AdaptivePickerItem(
+                      value: 'all_categories',
+                      label: 'All categories',
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: AdaptiveDateField(
-                        label: 'End Date',
-                        selectedDate: _customEndDate,
-                        onDateSelected: (d) => setState(() => _customEndDate = d),
+                    if ((filters.categoryIds?.length ?? 0) > 1)
+                      const AdaptivePickerItem(
+                        value: 'selected_categories',
+                        label: 'Selected categories',
+                      ),
+                    ...categories.map(
+                      (category) => AdaptivePickerItem(
+                        value: category.id,
+                        label: category.name,
                       ),
                     ),
                   ],
+                  onChanged: (categoryId) {
+                    if (categoryId == null ||
+                        categoryId == 'selected_categories') {
+                      return;
+                    }
+                    ref
+                        .read(transactionFiltersProvider.notifier)
+                        .updateFilters(
+                          filters.copyWith(
+                            categoryIds: categoryId == 'all_categories'
+                                ? null
+                                : [categoryId],
+                          ),
+                        );
+                  },
                 ),
+                const SizedBox(height: 12),
+                // Period Selector using AdaptiveChipRow
+                AdaptiveChipRow<ReportDateFilter>(
+                  padding: EdgeInsets.zero,
+                  selectedValue: _selectedFilter,
+                  onSelected: (val) {
+                    if (val != null) {
+                      setState(() => _selectedFilter = val);
+                    }
+                  },
+                  items: ReportDateFilter.values
+                      .map((f) => AdaptiveChipItem(value: f, label: f.label))
+                      .toList(),
+                ),
+
+                if (_selectedFilter == ReportDateFilter.custom) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: AdaptiveDateField(
+                          label: 'Start Date',
+                          selectedDate: _customStartDate,
+                          onDateSelected: (d) =>
+                              setState(() => _customStartDate = d),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: AdaptiveDateField(
+                          label: 'End Date',
+                          selectedDate: _customEndDate,
+                          onDateSelected: (d) =>
+                              setState(() => _customEndDate = d),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 16),
+
+                // 1. Spending by Category Card
+                _CategoryBreakdownCard(report: catReport),
+                const SizedBox(height: 16),
+
+                // 2. Monthly Trend Card
+                _MonthlyTrendCard(report: trendReport),
+                const SizedBox(height: 16),
+
+                // 3. Income vs Expense Card
+                _IncomeVsExpenseCard(report: incExpReport),
+                const SizedBox(height: 16),
+
+                // 4. Wallet Balance History Card
+                _WalletDistributionCard(report: walletReport),
+                const SizedBox(height: 20),
+
+                // Quick P&L Statement Trigger
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => _showProfitAndLoss(allTxns),
+                    icon: const Icon(Icons.analytics_outlined),
+                    label: const Text('View Profit & Loss Statement'),
+                  ),
+                ),
+                const SizedBox(height: 32),
               ],
-              const SizedBox(height: 16),
-
-              // 1. Spending by Category Card
-              _CategoryBreakdownCard(report: catReport),
-              const SizedBox(height: 16),
-
-              // 2. Monthly Trend Card
-              _MonthlyTrendCard(report: trendReport),
-              const SizedBox(height: 16),
-
-              // 3. Income vs Expense Card
-              _IncomeVsExpenseCard(report: incExpReport),
-              const SizedBox(height: 16),
-
-              // 4. Wallet Balance History Card
-              _WalletDistributionCard(report: walletReport),
-              const SizedBox(height: 20),
-
-              // Quick P&L Statement Trigger
-              Center(
-                child: TextButton.icon(
-                  onPressed: () => _showProfitAndLoss(allTxns),
-                  icon: const Icon(Icons.analytics_outlined),
-                  label: const Text('View Profit & Loss Statement'),
-                ),
-              ),
-              const SizedBox(height: 32),
-            ],
-          );
-        },
-        loading: () =>
-            const Center(child: CircularProgressIndicator.adaptive()),
-        error: (e, _) => Center(child: Text('Error loading reports: $e')),
+            );
+          },
+          loading: () =>
+              const Center(child: CircularProgressIndicator.adaptive()),
+          error: (e, _) => Center(child: Text('Error loading reports: $e')),
+        ),
       ),
-    ),
     );
   }
 }
@@ -450,8 +483,8 @@ class _CategoryBreakdownCardState extends State<_CategoryBreakdownCard>
                         parent: _controller,
                         curve: Curves.easeOutCubic,
                       ).value,
-                      backgroundColor:
-                          theme.colorScheme.outlineVariant.withValues(alpha: 0.25),
+                      backgroundColor: theme.colorScheme.outlineVariant
+                          .withValues(alpha: 0.25),
                     ),
                     child: Center(
                       child: Column(
@@ -551,7 +584,10 @@ class _CategoryDonutPainter extends CustomPainter {
 
     for (int i = 0; i < categories.length; i++) {
       final sweepAngle =
-          (categories[i].totalSpentInCents / totalSpend) * 2 * math.pi * progress;
+          (categories[i].totalSpentInCents / totalSpend) *
+          2 *
+          math.pi *
+          progress;
       if (sweepAngle <= 0) continue;
 
       final paint = Paint()
@@ -638,15 +674,9 @@ class _MonthlyTrendCardState extends State<_MonthlyTrendCard>
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              _LegendDot(
-                color: theme.colorScheme.primary,
-                label: 'Income',
-              ),
+              _LegendDot(color: theme.colorScheme.primary, label: 'Income'),
               const SizedBox(width: 12),
-              _LegendDot(
-                color: theme.colorScheme.error,
-                label: 'Expense',
-              ),
+              _LegendDot(color: theme.colorScheme.error, label: 'Expense'),
             ],
           ),
           const SizedBox(height: 16),
@@ -799,10 +829,7 @@ class _MonthlyTrendChartPainter extends CustomPainter {
 
       // Month label
       final labelText = m.monthLabel.split(' ').first;
-      final textSpan = TextSpan(
-        text: labelText,
-        style: textStyle,
-      );
+      final textSpan = TextSpan(text: labelText, style: textStyle);
       final textPainter = TextPainter(
         text: textSpan,
         textDirection: TextDirection.ltr,
@@ -1068,8 +1095,9 @@ class _ProfitAndLossSheet extends StatelessWidget {
                         child: Text(
                           particulars,
                           style: TextStyle(
-                            fontWeight:
-                                isNet ? FontWeight.bold : FontWeight.w500,
+                            fontWeight: isNet
+                                ? FontWeight.bold
+                                : FontWeight.w500,
                             fontSize: isNet ? 15 : 13,
                           ),
                         ),

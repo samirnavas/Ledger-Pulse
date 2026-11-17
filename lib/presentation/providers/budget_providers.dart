@@ -7,6 +7,13 @@ import 'company_providers.dart';
 import 'database_providers.dart';
 import 'expense_providers.dart';
 
+// Month selection is normalized to day 1. Weekly budgets in the current
+// month must use today's week rather than the week containing that day.
+DateTime _budgetEvaluationDate(DateTime month) {
+  final now = DateTime.now();
+  return month.year == now.year && month.month == now.month ? now : month;
+}
+
 /// Active instance of DriftBudgetRepository scoped to the active company.
 final budgetRepositoryProvider = Provider<DriftBudgetRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);
@@ -70,7 +77,10 @@ final budgetsProgressListProvider = FutureProvider<List<BudgetProgress>>((
   final budgets = await repo.getBudgets(includeInactive: false);
   final result = <BudgetProgress>[];
   for (final b in budgets) {
-    final progress = await repo.calculateProgress(b, asOfDate: selectedMonth);
+    final progress = await repo.calculateProgress(
+      b,
+      asOfDate: _budgetEvaluationDate(selectedMonth),
+    );
     result.add(progress);
   }
   return result;
@@ -101,7 +111,9 @@ final overallMonthlyBudgetProvider = FutureProvider<OverallBudgetSummary>((
   });
   ref.onDispose(sub.cancel);
 
-  return await repo.getOverallMonthlyBudget(month: selectedMonth);
+  return await repo.getOverallMonthlyBudget(
+    month: _budgetEvaluationDate(selectedMonth),
+  );
 });
 
 /// Reactive stream for the 'All Categories' overall budget progress.
@@ -129,5 +141,7 @@ final allCategoriesBudgetProvider = FutureProvider<BudgetProgress?>((
   });
   ref.onDispose(sub.cancel);
 
-  return await repo.getAllCategoriesBudget(month: selectedMonth);
+  return await repo.getAllCategoriesBudget(
+    month: _budgetEvaluationDate(selectedMonth),
+  );
 });

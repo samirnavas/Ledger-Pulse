@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_pulse/core/widgets/adaptive_chip.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
 import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
 import 'package:ledger_pulse/data/local/audit_service.dart';
@@ -72,15 +73,18 @@ void main() {
       currentCompanyId: testCompanyId,
     );
 
-    await db.into(db.companies).insert(
+    await db
+        .into(db.companies)
+        .insert(
           CompaniesCompanion.insert(
             id: testCompanyId,
             name: testCompany.name,
             legalName: testCompany.legalName,
             currencyCode: Value(testCompany.currencyCode),
             mode: Value(testCompany.mode.name),
-            enabledModulesJson:
-                const Value('["vouchers","budgets","recurring"]'),
+            enabledModulesJson: const Value(
+              '["vouchers","budgets","recurring"]',
+            ),
             createdAt: Value(now),
             updatedAt: Value(now),
           ),
@@ -141,65 +145,131 @@ void main() {
         recurringServiceProvider.overrideWithValue(recurringService),
       ],
       child: MaterialApp(
-        theme: ThemeData(
-          platform: platform,
-          useMaterial3: true,
-        ),
+        theme: ThemeData(platform: platform, useMaterial3: true),
         home: child,
       ),
     );
   }
 
+  for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    for (final type in [VoucherType.expense, VoucherType.income]) {
+      testWidgets(
+        'Create and select a category during transaction entry ($platform, $type)',
+        (tester) async {
+          tester.view.physicalSize = const Size(800, 1400);
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          await tester.pumpWidget(
+            buildTestApp(
+              platform: platform,
+              child: const Scaffold(body: QuickAddTransactionSheet()),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.pump(const Duration(milliseconds: 600));
+          await tester.pumpAndSettle();
+          tester
+              .widget<TransactionTypeSwitcher>(
+                find.byType(TransactionTypeSwitcher),
+              )
+              .onTypeChanged(type);
+          await tester.pumpAndSettle();
+          final amount = find.byKey(const Key('quick_add_amount_field'));
+          await tester.enterText(amount, '123.45');
+          tester.testTextInput.hide();
+          await tester.pumpAndSettle();
+          final more = find.byKey(const Key('cat_chip_more'));
+          await tester.ensureVisible(more);
+          await tester.tap(more);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Add category'));
+          await tester.pumpAndSettle();
+          expect(find.byKey(const Key('category_name_input')), findsOneWidget);
+          await tester.enterText(
+            find.byKey(const Key('category_name_input')),
+            'Inline category',
+          );
+          tester.testTextInput.hide();
+          await tester.pumpAndSettle();
+          final save = find.byKey(const Key('save_category_button'));
+          await tester.ensureVisible(save);
+          await tester.tap(platform == TargetPlatform.iOS ? find.text('Save') : save);
+          await tester.pumpAndSettle();
+          final created = (await expenseRepo.getCategories()).singleWhere(
+            (c) => c.name == 'Inline category',
+          );
+          expect(
+            created.type,
+            type == VoucherType.expense
+                ? AccountType.expense
+                : AccountType.income,
+          );
+          expect(
+            tester
+                .widget<AdaptiveChip>(find.byKey(Key('cat_chip_${created.id}')))
+                .isSelected,
+            isTrue,
+          );
+          expect(tester.widget<TextField>(amount).controller!.text, '123.45');
+          expect(find.byType(QuickAddTransactionSheet), findsOneWidget);
+          await tester.pump(const Duration(seconds: 4));
+          await tester.pumpAndSettle();
+        },
+      );
+    }
+  }
+
   group('Prompt UI-5 – Quick-Add Transaction Sheet', () {
     testWidgets(
-        '1. Add Expense on Android with Keypad, Presets and AdaptiveChips',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+      '1. Add Expense on Android with Keypad, Presets and AdaptiveChips',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
 
-      await tester.pumpWidget(
-        buildTestApp(
-          platform: TargetPlatform.android,
-          child: const Scaffold(
-            body: QuickAddTransactionSheet(),
+        await tester.pumpWidget(
+          buildTestApp(
+            platform: TargetPlatform.android,
+            child: const Scaffold(body: QuickAddTransactionSheet()),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Check amount display and type switcher are rendered
-      expect(find.byType(EntryAmountDisplay), findsOneWidget);
-      expect(find.byType(TransactionTypeSwitcher), findsOneWidget);
+        // Check amount display and type switcher are rendered
+        expect(find.byType(EntryAmountDisplay), findsOneWidget);
+        expect(find.byType(TransactionTypeSwitcher), findsOneWidget);
 
-      // Enter amount using device keyboard (numberpad field)
-      final amountField = find.byKey(const Key('quick_add_amount_field'));
-      expect(amountField, findsOneWidget);
-      await tester.enterText(amountField, '600');
-      await tester.pumpAndSettle();
+        // Enter amount using device keyboard (numberpad field)
+        final amountField = find.byKey(const Key('quick_add_amount_field'));
+        expect(amountField, findsOneWidget);
+        await tester.enterText(amountField, '600');
+        await tester.pumpAndSettle();
 
-      expect(find.text('600'), findsOneWidget);
+        expect(find.text('600'), findsOneWidget);
 
-      // Select Food & Dining category
-      final foodChip = find.text('Food & Dining');
-      expect(foodChip, findsOneWidget);
-      await tester.tap(foodChip);
-      await tester.pumpAndSettle();
+        // Select Food & Dining category
+        final foodChip = find.text('Food & Dining');
+        expect(foodChip, findsOneWidget);
+        await tester.tap(foodChip);
+        await tester.pumpAndSettle();
 
-      // Tap submit button
-      final submitBtn = find.byKey(const Key('quick_add_submit_button'));
-      await tester.tap(submitBtn);
-      await tester.pumpAndSettle();
+        // Tap submit button
+        final submitBtn = find.byKey(const Key('quick_add_submit_button'));
+        await tester.tap(submitBtn);
+        await tester.pumpAndSettle();
 
-      // Verify transaction in repository
-      final expenses =
-          await expenseRepo.getTransactions(type: VoucherType.expense);
-      expect(expenses.length, equals(1));
-      expect(expenses.first.totalAmountInCents, equals(60000));
-    });
+        // Verify transaction in repository
+        final expenses = await expenseRepo.getTransactions(
+          type: VoucherType.expense,
+        );
+        expect(expenses.length, equals(1));
+        expect(expenses.first.totalAmountInCents, equals(60000));
+      },
+    );
 
     testWidgets('2. Add Expense on iOS platform', (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
@@ -212,9 +282,7 @@ void main() {
       await tester.pumpWidget(
         buildTestApp(
           platform: TargetPlatform.iOS,
-          child: const Scaffold(
-            body: QuickAddTransactionSheet(),
-          ),
+          child: const Scaffold(body: QuickAddTransactionSheet()),
         ),
       );
       await tester.pumpAndSettle();
@@ -234,8 +302,9 @@ void main() {
       await tester.tap(find.byKey(const Key('quick_add_submit_button')));
       await tester.pumpAndSettle();
 
-      final expenses =
-          await expenseRepo.getTransactions(type: VoucherType.expense);
+      final expenses = await expenseRepo.getTransactions(
+        type: VoucherType.expense,
+      );
       expect(expenses.length, equals(1));
       expect(expenses.first.totalAmountInCents, equals(25000));
     });
@@ -251,9 +320,7 @@ void main() {
       await tester.pumpWidget(
         buildTestApp(
           platform: TargetPlatform.android,
-          child: const Scaffold(
-            body: QuickAddTransactionSheet(),
-          ),
+          child: const Scaffold(body: QuickAddTransactionSheet()),
         ),
       );
       await tester.pumpAndSettle();
@@ -279,8 +346,9 @@ void main() {
       await tester.tap(find.byKey(const Key('quick_add_submit_button')));
       await tester.pumpAndSettle();
 
-      final incomes =
-          await expenseRepo.getTransactions(type: VoucherType.income);
+      final incomes = await expenseRepo.getTransactions(
+        type: VoucherType.income,
+      );
       expect(incomes.length, equals(1));
       expect(incomes.first.totalAmountInCents, equals(500000));
     });
@@ -296,9 +364,7 @@ void main() {
       await tester.pumpWidget(
         buildTestApp(
           platform: TargetPlatform.iOS,
-          child: const Scaffold(
-            body: QuickAddTransactionSheet(),
-          ),
+          child: const Scaffold(body: QuickAddTransactionSheet()),
         ),
       );
       await tester.pumpAndSettle();
@@ -322,14 +388,16 @@ void main() {
       await tester.tap(find.byKey(const Key('quick_add_submit_button')));
       await tester.pumpAndSettle();
 
-      final transfers =
-          await expenseRepo.getTransactions(type: VoucherType.transfer);
+      final transfers = await expenseRepo.getTransactions(
+        type: VoucherType.transfer,
+      );
       expect(transfers.length, equals(1));
       expect(transfers.first.totalAmountInCents, equals(35000));
     });
 
-    testWidgets('5. Edit Mode pre-populates fields and updates voucher',
-        (tester) async {
+    testWidgets('5. Edit Mode pre-populates fields and updates voucher', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -351,9 +419,7 @@ void main() {
       await tester.pumpWidget(
         buildTestApp(
           child: Scaffold(
-            body: QuickAddTransactionSheet(
-              initialVoucher: created,
-            ),
+            body: QuickAddTransactionSheet(initialVoucher: created),
           ),
         ),
       );
@@ -382,8 +448,9 @@ void main() {
       expect(txns.first.totalAmountInCents, equals(14500));
     });
 
-    testWidgets('6. Dirty-back confirm: PopScope and discard dialog',
-        (tester) async {
+    testWidgets('6. Dirty-back confirm: PopScope and discard dialog', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -472,11 +539,7 @@ void main() {
       });
 
       await tester.pumpWidget(
-        buildTestApp(
-          child: const Scaffold(
-            body: QuickAddTransactionSheet(),
-          ),
-        ),
+        buildTestApp(child: const Scaffold(body: QuickAddTransactionSheet())),
       );
       await tester.pumpAndSettle();
 
@@ -487,7 +550,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify frequency dropdown and date fields appear
-      expect(find.byKey(const Key('quick_add_repeat_interval')), findsOneWidget);
+      expect(
+        find.byKey(const Key('quick_add_repeat_interval')),
+        findsOneWidget,
+      );
       expect(find.text('Start Date'), findsOneWidget);
 
       // Enter amount via device keyboard field

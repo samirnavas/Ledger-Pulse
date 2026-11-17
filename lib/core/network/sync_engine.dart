@@ -121,7 +121,7 @@ class SupabaseGateway implements RemoteGateway {
     try {
       var query = client.from(table).select();
 
-      if (table == 'companies') {
+      if (table == 'companies' || table == 'profiles') {
         query = query.eq('id', companyId);
       } else if (table == 'user_profiles') {
         if (activeUserId != null && activeUserId.isNotEmpty) {
@@ -670,6 +670,8 @@ class SyncEngine {
           type: 'UPSERT',
           fullRowMap: {
             'id': c.id,
+            'profile_id': c.profileId ?? c.id,
+            'profileId': c.profileId ?? c.id,
             'name': c.name,
             'legalName': c.legalName,
             'gstin': c.gstin,
@@ -1296,6 +1298,29 @@ class SyncEngine {
     });
   }
 
+  // A failed child can be retried once its referenced local parent is present.
+  // This is restricted to expense foreign keys, not arbitrary constraint errors.
+  Future<bool> _hasExpenseDependency(SyncOutboxTableData row, String companyId) async {
+    String? categoryId;
+    if (row.targetTable == 'exp_categories') {
+      final category = await (db.select(db.expenseCategories)..where((t) => t.id.equals(row.recordId))).getSingleOrNull();
+      categoryId = category?.parentCategoryId;
+    } else if (row.targetTable == 'exp_budgets') {
+      final budget = await (db.select(db.expenseBudgets)..where((t) => t.id.equals(row.recordId))).getSingleOrNull();
+      categoryId = budget?.categoryId;
+    } else if (row.targetTable == 'exp_transactions') {
+      final transaction = await (db.select(db.expenseTransactions)..where((t) => t.id.equals(row.recordId))).getSingleOrNull();
+      if (row.lastError!.contains('wallet_id')) {
+        final walletId = row.lastError!.contains('to_wallet_id') ? transaction?.toWalletId : transaction?.walletId;
+        if (walletId == null) return false;
+        return await (db.select(db.expenseWallets)..where((t) => t.id.equals(walletId) & t.profileId.equals(companyId) & t.isDeleted.equals(false))).getSingleOrNull() != null;
+      }
+      categoryId = transaction?.categoryId;
+    }
+    if (categoryId == null) return false;
+    return await (db.select(db.expenseCategories)..where((t) => t.id.equals(categoryId!) & t.profileId.equals(companyId) & t.isDeleted.equals(false))).getSingleOrNull() != null;
+  }
+
   Future<void> _repairFailedSyncRecords({required String companyId}) async {
     try {
       final authId = _resolveActiveAuthId();
@@ -1317,21 +1342,60 @@ class SyncEngine {
             .write(SharedMembershipsCompanion(accountId: Value(authId)));
       }
 
-      // Automatically reset transient network failures or old schema cache errors
-      await (db.update(db.syncOutbox)
-            ..where((t) =>
-                t.lastError.like('%PGRST204%') |
-                t.lastError.like('%schema cache%') |
-                t.lastError.like('%SocketException%') |
-                t.lastError.like('%Failed host lookup%') |
-                t.lastError.like('%ClientException%')))
-          .write(
-        const SyncOutboxCompanion(
-          attempts: Value(0),
-          lastError: Value(null),
-          nextAttemptAt: Value(null),
-        ),
+      // Retry repaired bootstrap failures in this workspace without reopening
+      // unrelated authorization failures or discarding any queued changes.
+      final failedRows = await (db.select(
+        db.syncOutbox,
+      )..where((t) => t.lastError.isNotNull())).get();
+      bool belongs(SyncOutboxTableData row) => _recordBelongsToWorkspace(
+        targetTable: row.targetTable,
+        payloadMap: jsonDecode(row.payload) as Map<String, dynamic>,
+        companyId: companyId,
+        activeUserId: activeUserId,
       );
+      bool bootstrapError(String error) =>
+          error.contains('PGRST204') ||
+          (error.contains('no field') && error.contains('revision'));
+      final repairingBootstrap = failedRows.any(
+        (row) =>
+            const {
+              'profiles',
+              'companies',
+              'shared_memberships',
+            }.contains(row.targetTable) &&
+            belongs(row) &&
+            bootstrapError(row.lastError!),
+      );
+      for (final row in failedRows) {
+        if (!belongs(row)) continue;
+        final error = row.lastError!;
+        final dependencyReady = error.contains('23503') &&
+            await _hasExpenseDependency(row, companyId);
+        final retry = dependencyReady ||
+            (row.targetTable == 'exp_budgets' && error.contains('23502') && error.contains('category_id')) ||
+            error.contains('PGRST204') ||
+            error.contains('schema cache') ||
+            error.contains('SocketException') ||
+            error.contains('Failed host lookup') ||
+            error.contains('ClientException') ||
+            (repairingBootstrap &&
+                (error.contains('23503') ||
+                    error.contains('not found in companies table'))) ||
+            (row.targetTable == 'shared_memberships' &&
+                error.contains('no field') &&
+                error.contains('revision')) ||
+            (repairingBootstrap && error.contains('42501'));
+        if (!retry) continue;
+        await (db.update(
+          db.syncOutbox,
+        )..where((t) => t.id.equals(row.id))).write(
+          const SyncOutboxCompanion(
+            attempts: Value(0),
+            lastError: Value(null),
+            nextAttemptAt: Value(null),
+          ),
+        );
+      }
 
       final permanentOutbox = await (db.select(db.syncOutbox)
             ..where((t) => t.lastError.isNotNull() & t.nextAttemptAt.isNull()))
@@ -1677,11 +1741,27 @@ class SyncEngine {
       );
     }
 
+    final categoryRows = await (db.select(db.expenseCategories)..where((t) => t.profileId.equals(companyId))).get();
+    final categoryParents = {for (final c in categoryRows) c.id: c.parentCategoryId};
+    int categoryDepth(String id) {
+      final seen = <String>{};
+      var depth = 0;
+      String? current = id;
+      while (current != null && seen.add(current)) {
+        current = categoryParents[current];
+        if (current != null) depth++;
+      }
+      return depth;
+    }
     outboxRows.sort((a, b) {
       final rankA = tableDependencyRank(a.targetTable);
       final rankB = tableDependencyRank(b.targetTable);
       if (rankA != rankB) {
         return rankA.compareTo(rankB);
+      }
+      if (a.targetTable == 'exp_categories' && b.targetTable == 'exp_categories') {
+        final parentOrder = categoryDepth(a.recordId).compareTo(categoryDepth(b.recordId));
+        if (parentOrder != 0) return parentOrder;
       }
       return a.createdAt.compareTo(b.createdAt);
     });
@@ -1738,7 +1818,32 @@ class SyncEngine {
           continue;
         }
 
-        if (outboxRow.targetTable == 'companies') {
+        if (outboxRow.targetTable == 'profiles') {
+          if (remoteMap.containsKey('mode') && remoteMap['profile_type'] == null) {
+            remoteMap['profile_type'] = remoteMap['mode'];
+          }
+          if (remoteMap.containsKey('profile_type') && remoteMap['mode'] == null) {
+            remoteMap['mode'] = remoteMap['profile_type'];
+          }
+          final authId = _resolveActiveAuthId();
+          final owner = remoteMap['owner_id']?.toString();
+          if (authId != null && (owner == null || owner.isEmpty || owner == 'usr_default')) {
+            remoteMap['owner_id'] = authId;
+            await (db.update(db.profiles)..where((t) => t.id.equals(outboxRow.recordId)))
+                .write(ProfilesCompanion(ownerId: Value(authId)));
+          }
+          if (remoteMap['settings_json'] is String) {
+            remoteMap['settings_json'] = jsonDecode(remoteMap['settings_json'] as String);
+          }
+          const profileColumns = {
+            'id', 'owner_id', 'name', 'profile_type', 'mode', 'currency_code',
+            'settings_json', 'is_active', 'is_deleted', 'revision', 'created_at', 'updated_at',
+          };
+          remoteMap.removeWhere((key, _) => !profileColumns.contains(key));
+        } else if (outboxRow.targetTable == 'companies') {
+          if (remoteMap['profile_id'] == null || remoteMap['profile_id'].toString().isEmpty) {
+            remoteMap['profile_id'] = remoteMap['id'];
+          }
           remoteMap.remove('enabled_modules_json');
           remoteMap.remove('enabledModulesJson');
 
@@ -2690,7 +2795,7 @@ class SyncEngine {
           name: Value(p['name'] as String? ?? ''),
           profileType: Value(p['profileType'] as String? ?? 'expense'),
           currencyCode: Value(p['currencyCode'] as String? ?? 'INR'),
-          settingsJson: Value(p['settingsJson'] as String?),
+          settingsJson: Value(p['settingsJson'] == null ? null : p['settingsJson'] is String ? p['settingsJson'] as String : jsonEncode(p['settingsJson'])),
           isActive: Value(
             p['isActive'] == null ||
                 p['isActive'] == true ||

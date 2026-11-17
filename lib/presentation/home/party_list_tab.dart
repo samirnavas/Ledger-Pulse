@@ -1,3 +1,4 @@
+import '../../core/widgets/app_pull_to_refresh.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -634,9 +635,8 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
 
         // 2. Party List View with swipe-down-to-refresh
         Expanded(
-          child: RefreshIndicator.adaptive(
+          child: AppPullToRefresh(
             onRefresh: () async {
-              HapticFeedback.lightImpact();
               ref.invalidate(partyListProvider);
               ref.invalidate(businessSummaryProvider);
               await ref.read(syncControllerProvider.notifier).triggerSync();

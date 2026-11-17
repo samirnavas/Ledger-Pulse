@@ -1,3 +1,4 @@
+import '../../core/widgets/app_pull_to_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -392,7 +393,7 @@ class _ExpenseCsvImportSheetState extends ConsumerState<ExpenseCsvImportSheet> {
                   title: 'No Rows Found',
                   message: 'The selected CSV file contains no valid rows.',
                 )
-              : RefreshIndicator.adaptive(
+              : AppPullToRefresh(
                   onRefresh: () async {
                     _parseCsv();
                   },

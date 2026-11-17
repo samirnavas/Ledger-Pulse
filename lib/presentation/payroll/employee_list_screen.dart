@@ -1,6 +1,6 @@
+import '../../core/widgets/app_pull_to_refresh.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
@@ -315,9 +315,8 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
 
           // Employee List with swipe-down-to-refresh
           Expanded(
-            child: RefreshIndicator.adaptive(
+            child: AppPullToRefresh(
               onRefresh: () async {
-                HapticFeedback.lightImpact();
                 ref.invalidate(employeeListProvider);
               },
               child: filtered.isEmpty

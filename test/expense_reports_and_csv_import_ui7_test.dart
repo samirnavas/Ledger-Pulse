@@ -91,23 +91,15 @@ void main() {
         walletsProvider.overrideWith((ref) async => [wallet]),
       ],
       child: MaterialApp(
-        theme: ThemeData(
-          useMaterial3: true,
-          platform: platform,
-        ),
+        theme: ThemeData(useMaterial3: true, platform: platform),
         home: Scaffold(body: child),
       ),
     );
   }
 
-  group('Prompt UI-7 Reports & Export Sheet Tests', () {
-    testWidgets('Reports tab renders on Android with AdaptiveChips and Section Cards',
-        (tester) async {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 2.0;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
+  testWidgets(
+    'Report category selector follows breakdown selection and can reset it',
+    (tester) async {
       await tester.pumpWidget(
         buildAppWithScreen(
           platform: TargetPlatform.android,
@@ -115,24 +107,82 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      final selector = find.byKey(const Key('report_category_selector'));
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ExpenseReportsScreen)),
+      );
+      expect(
+        tester.widget<AdaptiveDropdownField<String>>(selector).value,
+        'all_categories',
+      );
+      tester.widget<AdaptiveDropdownField<String>>(selector).onChanged!(
+        category.id,
+      );
+      await tester.pumpAndSettle();
+      expect(container.read(transactionFiltersProvider).categoryIds, [
+        category.id,
+      ]);
+      expect(
+        tester.widget<AdaptiveDropdownField<String>>(selector).value,
+        category.id,
+      );
+      tester.widget<AdaptiveDropdownField<String>>(selector).onChanged!(
+        'all_categories',
+      );
+      await tester.pumpAndSettle();
+      expect(container.read(transactionFiltersProvider).categoryIds, isNull);
+      expect(
+        tester.widget<AdaptiveDropdownField<String>>(selector).value,
+        'all_categories',
+      );
+      container
+          .read(transactionFiltersProvider.notifier)
+          .updateFilters(TransactionFilters(categoryIds: [category.id]));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<AdaptiveDropdownField<String>>(selector).value,
+        category.id,
+      );
+    },
+  );
 
-      // Period selector chip row
-      expect(find.byType(AdaptiveChipRow<ReportDateFilter>), findsOneWidget);
-      expect(find.text('This Month'), findsWidgets);
-      expect(find.text('Last 3 Months'), findsWidgets);
-      expect(find.text('This Year'), findsWidgets);
-      expect(find.text('Custom'), findsWidgets);
+  group('Prompt UI-7 Reports & Export Sheet Tests', () {
+    testWidgets(
+      'Reports tab renders on Android with AdaptiveChips and Section Cards',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 2.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-      // Report section cards & headers
-      expect(find.byType(AdaptiveSurfaceCard), findsNWidgets(4));
-      expect(find.byType(AdaptiveSectionHeader), findsNWidgets(4));
-      expect(find.text('Spending by category'), findsOneWidget);
-      expect(find.text('Monthly trend'), findsOneWidget);
-      expect(find.text('Income vs expense'), findsOneWidget);
-      expect(find.text('Wallet balance history'), findsOneWidget);
-    });
+        await tester.pumpWidget(
+          buildAppWithScreen(
+            platform: TargetPlatform.android,
+            child: const ExpenseReportsScreen(),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-    testWidgets('Reports tab renders on iOS with Cupertino styling', (tester) async {
+        // Period selector chip row
+        expect(find.byType(AdaptiveChipRow<ReportDateFilter>), findsOneWidget);
+        expect(find.text('This Month'), findsWidgets);
+        expect(find.text('Last 3 Months'), findsWidgets);
+        expect(find.text('This Year'), findsWidgets);
+        expect(find.text('Custom'), findsWidgets);
+
+        // Report section cards & headers
+        expect(find.byType(AdaptiveSurfaceCard), findsNWidgets(4));
+        expect(find.byType(AdaptiveSectionHeader), findsNWidgets(4));
+        expect(find.text('Spending by category'), findsOneWidget);
+        expect(find.text('Monthly trend'), findsOneWidget);
+        expect(find.text('Income vs expense'), findsOneWidget);
+        expect(find.text('Wallet balance history'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Reports tab renders on iOS with Cupertino styling', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -151,44 +201,49 @@ void main() {
       expect(find.byType(AdaptiveSectionHeader), findsNWidgets(4));
     });
 
-    testWidgets('Export sheet opens with showAdaptiveFormSheet and AdaptiveListRows',
-        (tester) async {
-      await tester.pumpWidget(
-        buildAppWithScreen(
-          platform: TargetPlatform.android,
-          child: Builder(
-            builder: (context) {
-              return Consumer(
-                builder: (context, ref, child) {
-                  return ElevatedButton(
-                    onPressed: () {
-                      ExpenseReportsScreen.showExportSheet(
-                        context: context,
-                        ref: ref,
-                        transactions: testVouchers,
-                        dateRange: (DateTime(2026, 1, 1), DateTime(2026, 12, 31)),
-                      );
-                    },
-                    child: const Text('Open Export'),
-                  );
-                },
-              );
-            },
+    testWidgets(
+      'Export sheet opens with showAdaptiveFormSheet and AdaptiveListRows',
+      (tester) async {
+        await tester.pumpWidget(
+          buildAppWithScreen(
+            platform: TargetPlatform.android,
+            child: Builder(
+              builder: (context) {
+                return Consumer(
+                  builder: (context, ref, child) {
+                    return ElevatedButton(
+                      onPressed: () {
+                        ExpenseReportsScreen.showExportSheet(
+                          context: context,
+                          ref: ref,
+                          transactions: testVouchers,
+                          dateRange: (
+                            DateTime(2026, 1, 1),
+                            DateTime(2026, 12, 31),
+                          ),
+                        );
+                      },
+                      child: const Text('Open Export'),
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Open Export'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Open Export'));
+        await tester.pumpAndSettle();
 
-      // Verify adaptive form sheet title and rows
-      expect(find.text('Export Report'), findsOneWidget);
-      expect(find.text('Export as CSV'), findsOneWidget);
-      expect(find.text('Export as PDF'), findsOneWidget);
-      expect(find.byType(AdaptiveListRow), findsNWidgets(2));
-      expect(find.byType(ListTile), findsNothing);
-    });
+        // Verify adaptive form sheet title and rows
+        expect(find.text('Export Report'), findsOneWidget);
+        expect(find.text('Export as CSV'), findsOneWidget);
+        expect(find.text('Export as PDF'), findsOneWidget);
+        expect(find.byType(AdaptiveListRow), findsNWidgets(2));
+        expect(find.byType(ListTile), findsNothing);
+      },
+    );
   });
 
   group('Prompt UI-7 CSV Import Sheet Tests', () {
@@ -198,7 +253,9 @@ Date,Amount,Type,Category,Wallet,Narration
 2026-10-16,120.00,Income,Salary,Main Wallet,Freelance payment
 ''';
 
-    testWidgets('CSV import sheet step layout and column mapping flow', (tester) async {
+    testWidgets('CSV import sheet step layout and column mapping flow', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 2.0;
       addTearDown(tester.view.resetPhysicalSize);

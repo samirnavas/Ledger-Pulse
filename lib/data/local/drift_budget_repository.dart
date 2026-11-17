@@ -31,6 +31,7 @@ class DriftBudgetRepository {
   Role _currentRole;
   Company? _cachedCompany;
   bool _isDisposed = false;
+  late final StreamSubscription<Set<TableUpdate>> _databaseUpdates;
 
   DriftBudgetRepository({
     required AppDatabase db,
@@ -46,7 +47,20 @@ class DriftBudgetRepository {
        _currentCompanyId = currentCompanyId,
        _currentUserId = currentUserId,
        _currentRole = currentRole,
-       _cachedCompany = company;
+       _cachedCompany = company {
+    _databaseUpdates = _db
+        .tableUpdates(
+          TableUpdateQuery.onAllTables([
+            _db.expenseBudgets,
+            _db.budgets,
+            _db.expenseTransactions,
+            _db.expenseCategories,
+          ]),
+        )
+        .listen((_) {
+          if (!_isDisposed) _updateStreamController.add(null);
+        });
+  }
 
   Stream<void> get repositoryUpdatesStream => _updateStreamController.stream;
 
@@ -59,6 +73,7 @@ class DriftBudgetRepository {
 
   void dispose() {
     _isDisposed = true;
+    _databaseUpdates.cancel();
     _updateStreamController.close();
   }
 
@@ -655,7 +670,7 @@ class DriftBudgetRepository {
   }
 
   Future<int> _calculateSpentInPeriod(
-    List<String> categoryIds,
+    List<String>? categoryIds,
     DateTime startDate,
     DateTime endDate,
   ) async {
@@ -665,7 +680,9 @@ class DriftBudgetRepository {
                   t.profileId.equals(_currentCompanyId) &
                   t.transactionType.equals('expense') &
                   t.isDeleted.equals(false) &
-                  t.categoryId.isIn(categoryIds) &
+                  (categoryIds == null
+                      ? const Constant<bool>(true)
+                      : t.categoryId.isIn(categoryIds)) &
                   t.transactionDate.isBiggerOrEqualValue(startDate) &
                   t.transactionDate.isSmallerOrEqualValue(endDate),
             ))
@@ -725,9 +742,11 @@ class DriftBudgetRepository {
       }
     }
 
-    final categoryIds = await _getCategoryAndSubCategoryIds(
-      budget.categoryAccountId,
-    );
+    final categoryIds =
+        budget.categoryAccountId == 'all' ||
+            budget.categoryAccountId == 'all_categories'
+        ? null
+        : await _getCategoryAndSubCategoryIds(budget.categoryAccountId);
 
     final spentInCents = await _calculateSpentInPeriod(
       categoryIds,

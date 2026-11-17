@@ -13,6 +13,7 @@ import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
 import '../providers/profile_session_controller.dart';
 import '../providers/profile_session_state.dart';
+import 'edit_profile_sheet.dart';
 
 void _showErrorMessage(BuildContext context, String message) {
   if (!context.mounted) return;
@@ -52,16 +53,20 @@ class CompanySwitcherSheet extends ConsumerStatefulWidget {
       initialChildSize: 0.6,
       minChildSize: 0.35,
       maxChildSize: 0.85,
-      builder: (ctx, scrollCtrl) => CompanySwitcherSheet(scrollController: scrollCtrl),
+      builder: (ctx, scrollCtrl) =>
+          CompanySwitcherSheet(scrollController: scrollCtrl),
     );
   }
 
   static void showAddCompanyDialog(BuildContext context, WidgetRef ref) {
     final authState = ref.read(authControllerProvider);
-    final userId = authState.userId ?? ref.read(authRepositoryProvider).currentUserId;
+    final userId =
+        authState.userId ?? ref.read(authRepositoryProvider).currentUserId;
     if (userId == null || userId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please sign in to add a workspace profile.')),
+        const SnackBar(
+          content: Text('Please sign in to add a workspace profile.'),
+        ),
       );
       return;
     }
@@ -73,7 +78,8 @@ class CompanySwitcherSheet extends ConsumerStatefulWidget {
   }
 
   @override
-  ConsumerState<CompanySwitcherSheet> createState() => _CompanySwitcherSheetState();
+  ConsumerState<CompanySwitcherSheet> createState() =>
+      _CompanySwitcherSheetState();
 }
 
 class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
@@ -98,240 +104,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
   }
 
   void _showEditCompanyDialog(BuildContext context, Company company) {
-    final nameCtrl = TextEditingController(text: company.name);
-    final legalNameCtrl = TextEditingController(text: company.legalName);
-    final gstinCtrl = TextEditingController(text: company.gstin ?? '');
-    final addressCtrl = TextEditingController(text: company.address ?? '');
-    final phoneCtrl = TextEditingController(text: company.phoneNumber ?? '');
-    final emailCtrl = TextEditingController(text: company.email ?? '');
-    final isIos = AdaptiveThemeHelper.isIos(context);
-
-    final isExpense = company.mode == CompanyMode.expenseTracker;
-    final modeLabel = isExpense ? 'Expense Tracker' : 'Business Ledger';
-
-    if (isIos) {
-      showCupertinoDialog(
-        context: context,
-        builder: (ctx) => CupertinoAlertDialog(
-          title: const Text('Edit Company'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 12),
-                CupertinoTextField(
-                  controller: TextEditingController(text: 'Mode: $modeLabel'),
-                  readOnly: true,
-                  enabled: false,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                CupertinoTextField(
-                  controller: nameCtrl,
-                  placeholder: 'Company Name *',
-                ),
-                const SizedBox(height: 8),
-                CupertinoTextField(
-                  controller: legalNameCtrl,
-                  placeholder: 'Legal / Trade Name',
-                ),
-                if (!isExpense) ...[
-                  const SizedBox(height: 8),
-                  CupertinoTextField(
-                    controller: gstinCtrl,
-                    placeholder: 'GSTIN (Optional)',
-                    textCapitalization: TextCapitalization.characters,
-                  ),
-                ],
-                const SizedBox(height: 8),
-                CupertinoTextField(
-                  controller: addressCtrl,
-                  placeholder: 'Address (Optional)',
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 8),
-                CupertinoTextField(
-                  controller: phoneCtrl,
-                  placeholder: 'Phone (Optional)',
-                  keyboardType: TextInputType.phone,
-                ),
-                const SizedBox(height: 8),
-                CupertinoTextField(
-                  controller: emailCtrl,
-                  placeholder: 'Email (Optional)',
-                  keyboardType: TextInputType.emailAddress,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            CupertinoDialogAction(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.pop(ctx),
-            ),
-            CupertinoDialogAction(
-              isDefaultAction: true,
-              child: const Text('Save'),
-              onPressed: () async {
-                if (nameCtrl.text.trim().isNotEmpty) {
-                  final updated = company.copyWith(
-                    name: nameCtrl.text.trim(),
-                    legalName: legalNameCtrl.text.trim().isNotEmpty
-                        ? legalNameCtrl.text.trim()
-                        : nameCtrl.text.trim(),
-                    gstin: !isExpense && gstinCtrl.text.trim().isNotEmpty
-                        ? gstinCtrl.text.trim().toUpperCase()
-                        : null,
-                    address: addressCtrl.text.trim().isNotEmpty
-                        ? addressCtrl.text.trim()
-                        : null,
-                    phoneNumber: phoneCtrl.text.trim().isNotEmpty
-                        ? phoneCtrl.text.trim()
-                        : null,
-                    email: emailCtrl.text.trim().isNotEmpty
-                        ? emailCtrl.text.trim()
-                        : null,
-                    updatedAt: DateTime.now(),
-                  );
-                  try {
-                    await ref.read(companyControllerProvider.notifier).updateCompany(updated);
-                    if (ctx.mounted) Navigator.pop(ctx);
-                  } catch (e) {
-                    if (context.mounted) {
-                      _showErrorMessage(context, 'Failed to update company: $e');
-                    }
-                  }
-                }
-              },
-            ),
-          ],
-        ),
-      );
-    } else {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Edit Company'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: TextEditingController(text: modeLabel),
-                  readOnly: true,
-                  enabled: false,
-                  decoration: const InputDecoration(
-                    labelText: 'Company Mode (Read-Only)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline_rounded),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Company Name *',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.business_rounded),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: legalNameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Legal Name',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.badge_outlined),
-                  ),
-                ),
-                if (!isExpense) ...[
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: gstinCtrl,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: 'GSTIN',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.receipt_long_outlined),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                TextField(
-                  controller: addressCtrl,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Address',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.location_on_outlined),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.phone_outlined),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () => Navigator.pop(ctx),
-            ),
-            FilledButton(
-              child: const Text('Save Changes'),
-              onPressed: () async {
-                if (nameCtrl.text.trim().isNotEmpty) {
-                  final updated = company.copyWith(
-                    name: nameCtrl.text.trim(),
-                    legalName: legalNameCtrl.text.trim().isNotEmpty
-                        ? legalNameCtrl.text.trim()
-                        : nameCtrl.text.trim(),
-                    gstin: !isExpense && gstinCtrl.text.trim().isNotEmpty
-                        ? gstinCtrl.text.trim().toUpperCase()
-                        : null,
-                    address: addressCtrl.text.trim().isNotEmpty
-                        ? addressCtrl.text.trim()
-                        : null,
-                    phoneNumber: phoneCtrl.text.trim().isNotEmpty
-                        ? phoneCtrl.text.trim()
-                        : null,
-                    email: emailCtrl.text.trim().isNotEmpty
-                        ? emailCtrl.text.trim()
-                        : null,
-                    updatedAt: DateTime.now(),
-                  );
-                  try {
-                    await ref.read(companyControllerProvider.notifier).updateCompany(updated);
-                    if (ctx.mounted) Navigator.pop(ctx);
-                  } catch (e) {
-                    if (context.mounted) {
-                      _showErrorMessage(context, 'Failed to update company: $e');
-                    }
-                  }
-                }
-              },
-            ),
-          ],
-        ),
-      );
-    }
+    showEditProfileSheet(context, company);
   }
 
   void _confirmDeleteCompany(BuildContext context, Company company) {
@@ -343,7 +116,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
         showCupertinoDialog(
           context: context,
           builder: (ctx) => CupertinoAlertDialog(
-            title: const Text('Cannot Delete Company'),
+            title: const Text('Cannot Delete Profile'),
             content: const Text(
               'At least one company must remain in your account. You cannot delete the only company.',
             ),
@@ -359,7 +132,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Cannot Delete Company'),
+            title: const Text('Cannot Delete Profile'),
             content: const Text(
               'At least one company must remain in your account. You cannot delete the only company.',
             ),
@@ -393,10 +166,15 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
               child: const Text('Delete'),
               onPressed: () async {
                 try {
-                  final success = await ref.read(companyControllerProvider.notifier).deleteCompany(company.id);
+                  final success = await ref
+                      .read(companyControllerProvider.notifier)
+                      .deleteCompany(company.id);
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (!success && context.mounted) {
-                    _showErrorMessage(context, 'Cannot delete the only company.');
+                    _showErrorMessage(
+                      context,
+                      'Cannot delete the only company.',
+                    );
                   }
                 } catch (e) {
                   if (ctx.mounted) Navigator.pop(ctx);
@@ -430,10 +208,15 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
               child: const Text('Delete'),
               onPressed: () async {
                 try {
-                  final success = await ref.read(companyControllerProvider.notifier).deleteCompany(company.id);
+                  final success = await ref
+                      .read(companyControllerProvider.notifier)
+                      .deleteCompany(company.id);
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (!success && context.mounted) {
-                    _showErrorMessage(context, 'Cannot delete the only company.');
+                    _showErrorMessage(
+                      context,
+                      'Cannot delete the only company.',
+                    );
                   }
                 } catch (e) {
                   if (ctx.mounted) Navigator.pop(ctx);
@@ -462,18 +245,19 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
           title: Text(company.name),
           message: Text(
             isSelected
-                ? 'Active Company'
+                ? 'Active Profile'
                 : (company.isExpense
-                    ? 'Personal Expense Tracker'
-                    : (company.gstin != null ? 'GSTIN: ${company.gstin}' : company.currencyCode)),
+                      ? 'Personal Expense Tracker'
+                      : (company.gstin != null
+                            ? 'GSTIN: ${company.gstin}'
+                            : company.currencyCode)),
           ),
           actions: [
             if (!isSelected)
               CupertinoActionSheetAction(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  ref.read(companyControllerProvider.notifier).selectCompany(company.id);
-                  Navigator.pop(context);
+                  _switchWorkspace(company);
                 },
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -494,7 +278,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 children: [
                   Icon(CupertinoIcons.pencil, size: 20),
                   SizedBox(width: 8),
-                  Text('Edit Details'),
+                  Text('Edit Profile'),
                 ],
               ),
             ),
@@ -509,7 +293,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 children: [
                   Icon(CupertinoIcons.trash, size: 20),
                   SizedBox(width: 8),
-                  Text('Delete Company'),
+                  Text('Delete Profile'),
                 ],
               ),
             ),
@@ -538,7 +322,10 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -553,8 +340,10 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                       const SizedBox(height: 2),
                       Text(
                         isSelected
-                            ? 'Active Company'
-                            : (company.gstin != null ? 'GSTIN: ${company.gstin}' : company.currencyCode),
+                            ? 'Active Profile'
+                            : (company.gstin != null
+                                  ? 'GSTIN: ${company.gstin}'
+                                  : company.currencyCode),
                         style: TextStyle(
                           fontSize: 13,
                           color: colorScheme.onSurfaceVariant,
@@ -573,19 +362,20 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                     children: [
                       if (!isSelected) ...[
                         ListTile(
-                          leading: const Icon(Icons.check_circle_outline_rounded),
+                          leading: const Icon(
+                            Icons.check_circle_outline_rounded,
+                          ),
                           title: const Text('Switch to this Profile'),
                           onTap: () {
                             Navigator.pop(ctx);
-                            ref.read(companyControllerProvider.notifier).selectCompany(company.id);
-                            Navigator.pop(context);
+                            _switchWorkspace(company);
                           },
                         ),
                         const Divider(height: 1),
                       ],
                       ListTile(
                         leading: const Icon(Icons.edit_outlined),
-                        title: const Text('Edit Company Details'),
+                        title: const Text('Edit Profile'),
                         onTap: () {
                           Navigator.pop(ctx);
                           _showEditCompanyDialog(context, company);
@@ -598,7 +388,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                           color: colorScheme.error,
                         ),
                         title: Text(
-                          'Delete Company',
+                          'Delete Profile',
                           style: TextStyle(
                             color: colorScheme.error,
                             fontWeight: FontWeight.w600,
@@ -634,27 +424,33 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Switch Profile',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isIos ? CupertinoColors.label : Theme.of(context).colorScheme.onSurface,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Switch Profile',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isIos
+                          ? CupertinoColors.label
+                          : Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Role: ${profile.role.displayName}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 2),
+                  Text(
+                    'Role: ${profile.role.displayName}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isIos
+                          ? CupertinoColors.secondaryLabel
+                          : Theme.of(context).colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             if (isIos)
               CupertinoButton(
@@ -666,7 +462,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
               IconButton(
                 icon: const Icon(Icons.add_business_rounded),
                 onPressed: () => _showAddCompanyDialog(context),
-                tooltip: 'Add Company',
+                tooltip: 'Add Profile',
               ),
           ],
         ),
@@ -682,10 +478,15 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 onLongPress: () => _showCompanyMenu(context, company),
                 child: LiquidGlassCard(
                   borderRadius: 16,
-                  borderColor: isSelected ? CupertinoColors.activeBlue : CupertinoColors.systemGrey4.withValues(alpha: 0.3),
+                  borderColor: isSelected
+                      ? CupertinoColors.activeBlue
+                      : CupertinoColors.systemGrey4.withValues(alpha: 0.3),
                   onTap: () => _switchWorkspace(company),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     child: Row(
                       children: [
                         Container(
@@ -772,7 +573,10 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: isSelected
-                  ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.5)
+                  ? BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 1.5,
+                    )
                   : BorderSide.none,
             ),
             margin: const EdgeInsets.only(bottom: 10),
@@ -792,12 +596,16 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
               ),
               title: Text(
                 company.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               subtitle: Text(
                 company.isExpense
                     ? 'Personal Expense Tracker'
-                    : (company.gstin != null ? 'GSTIN: ${company.gstin}' : company.currencyCode),
+                    : (company.gstin != null
+                          ? 'GSTIN: ${company.gstin}'
+                          : company.currencyCode),
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -805,11 +613,14 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                   if (isSelected)
                     Padding(
                       padding: const EdgeInsets.only(right: 4),
-                      child: Icon(Icons.check_circle_rounded, color: Theme.of(context).colorScheme.primary),
+                      child: Icon(
+                        Icons.check_circle_rounded,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   IconButton(
                     icon: const Icon(Icons.more_vert_rounded),
-                    tooltip: 'Company options',
+                    tooltip: 'Profile options',
                     onPressed: () => _showCompanyMenu(context, company),
                   ),
                 ],

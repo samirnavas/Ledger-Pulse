@@ -1,3 +1,4 @@
+import '../../core/widgets/app_pull_to_refresh.dart';
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -158,9 +159,8 @@ class _ReceivablesPayablesScreenState
                 }
               }
 
-              return RefreshIndicator.adaptive(
+              return AppPullToRefresh(
                 onRefresh: () async {
-                  HapticFeedback.lightImpact();
                   ref.invalidate(receivablesVouchersProvider);
                   ref.invalidate(payablesVouchersProvider);
                   ref.invalidate(partyListProvider);

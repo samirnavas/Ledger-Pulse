@@ -158,6 +158,121 @@ void main() {
   }
 
   group('Budgets - Period Math & Rollover', () {
+    test(
+      'Home and budget providers use the current week and track database changes',
+      () async {
+        final today = DateTime.now();
+        final wallet = await expenseRepo.createWallet(
+          name: 'Weekly cash',
+          type: AccountType.asset,
+        );
+        final category = await expenseRepo.createCategory(
+          name: 'Weekly food',
+          type: AccountType.expense,
+        );
+        await budgetRepo.createBudget(
+          categoryId: 'all',
+          amountInCents: 70000,
+          period: BudgetPeriodType.weekly,
+          startDate: today,
+        );
+        final txn = await expenseRepo.addExpense(
+          walletAccountId: wallet.id,
+          categoryAccountId: category.id,
+          amountInCents: 2500,
+          date: today,
+        );
+        final container = ProviderContainer(
+          overrides: [
+            activeCompanyProvider.overrideWithValue(enabledCompany),
+            budgetRepositoryProvider.overrideWithValue(budgetRepo),
+            expenseRepositoryProvider.overrideWithValue(expenseRepo),
+            selectedMonthProvider.overrideWith(
+              () => _TestMonthNotifier(DateTime(today.year, today.month)),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final bounds = DriftBudgetRepository.getPeriodBounds(
+          BudgetPeriodType.weekly,
+          today,
+        );
+        final home = await container.read(allCategoriesBudgetProvider.future);
+        expect(home!.periodStartDate, bounds.start);
+        expect(home.spentInCents, 2500);
+        expect(home.percentUsed, closeTo(2500 / 70000 * 100, 0.001));
+        expect(
+          (await container.read(
+            budgetsProgressListProvider.future,
+          )).single.spentInCents,
+          2500,
+        );
+        expect(
+          (await container.read(
+            overallMonthlyBudgetProvider.future,
+          )).totalSpentInCents,
+          2500,
+        );
+        // Sync writes directly to Drift, without expense repository notifications.
+        final changed = budgetRepo.repositoryUpdatesStream.first;
+        await (db.update(
+          db.expenseTransactions,
+        )..where((t) => t.id.equals(txn.id))).write(
+          const ExpenseTransactionsCompanion(amountInCents: Value(5000)),
+        );
+        await changed;
+        expect(
+          (await container.read(
+            allCategoriesBudgetProvider.future,
+          ))!.spentInCents,
+          5000,
+        );
+        expect(
+          (await container.read(
+            budgetsProgressListProvider.future,
+          )).single.spentInCents,
+          5000,
+        );
+        expect(
+          (await container.read(
+            overallMonthlyBudgetProvider.future,
+          )).totalSpentInCents,
+          5000,
+        );
+      },
+    );
+
+    test('Overall budgets include uncategorized expenses', () async {
+      final today = DateTime.now();
+      final wallet = await expenseRepo.createWallet(
+        name: 'Uncategorized cash',
+        type: AccountType.asset,
+      );
+      final budget = await budgetRepo.createBudget(
+        categoryId: 'all',
+        amountInCents: 10000,
+      );
+      await db
+          .into(db.expenseTransactions)
+          .insert(
+            ExpenseTransactionsCompanion.insert(
+              id: 'uncategorized_budget_expense',
+              profileId: testCompanyId,
+              transactionType: 'expense',
+              amountInCents: 1200,
+              walletId: wallet.id,
+              transactionDate: today,
+            ),
+          );
+      expect(
+        (await budgetRepo.calculateProgress(
+          budget,
+          asOfDate: today,
+        )).spentInCents,
+        1200,
+      );
+    });
+
     testWidgets('Budget progress refreshes after an expense changes', (
       tester,
     ) async {

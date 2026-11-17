@@ -1,3 +1,4 @@
+import '../../core/widgets/app_pull_to_refresh.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -92,7 +93,7 @@ class _AuditLogScreenState extends ConsumerState<AuditLogScreen> {
       ],
       body: _isLoading
           ? const Center(child: CircularProgressIndicator.adaptive())
-          : RefreshIndicator.adaptive(
+          : AppPullToRefresh(
               onRefresh: _loadLogs,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),

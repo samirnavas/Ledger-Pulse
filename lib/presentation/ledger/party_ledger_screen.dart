@@ -1,3 +1,4 @@
+import '../../core/widgets/app_pull_to_refresh.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -299,9 +300,8 @@ class PartyLedgerScreen extends ConsumerWidget {
                 child: Stack(
                   children: [
                     Positioned.fill(
-                      child: RefreshIndicator.adaptive(
+                      child: AppPullToRefresh(
                         onRefresh: () async {
-                          HapticFeedback.lightImpact();
                           ref.invalidate(partyLedgerEntriesProvider(partyId));
                           ref.invalidate(partyByIdProvider(partyId));
                           ref.invalidate(partyListProvider);

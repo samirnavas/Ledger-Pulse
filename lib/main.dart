@@ -10,6 +10,7 @@ import 'core/config/supabase_config.dart';
 import 'core/constants/strings.dart';
 import 'core/services/widget_sync_service.dart';
 import 'core/theme/android_theme.dart';
+import 'core/theme/app_color_theme.dart';
 import 'core/theme/ios_theme.dart';
 import 'data/models/company_mode.dart';
 import 'presentation/expense/quick_add_transaction_sheet.dart';
@@ -208,29 +209,27 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
     final dynamicColorEnabled = ref.watch(dynamicColorEnabledProvider);
 
     if (isIos) {
-      final isDark = themeMode == ThemeMode.dark;
+      final isDark = themeMode == ThemeMode.dark ||
+          (themeMode == ThemeMode.system && MediaQuery.platformBrightnessOf(context) == Brightness.dark);
       return CupertinoApp(
         navigatorKey: LedgerPulseApp.rootNavigatorKey,
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
         theme: isDark ? IosTheme.darkTheme : IosTheme.lightTheme,
+        builder: (context, child) => Theme(
+          data: AndroidTheme.getTheme(
+            dynamicColorScheme: isDark ? AppColorTheme.dark : AppColorTheme.light,
+          ).copyWith(platform: TargetPlatform.iOS),
+          child: child ?? const SizedBox.shrink(),
+        ),
         home: const SplashScreen(),
       );
     }
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        const Color fallbackSeed = Color(0xFF006C4C);
-        final lightScheme = (dynamicColorEnabled ? lightDynamic : null) ??
-            ColorScheme.fromSeed(
-              seedColor: fallbackSeed,
-              brightness: Brightness.light,
-            );
-        final darkScheme = (dynamicColorEnabled ? darkDynamic : null) ??
-            ColorScheme.fromSeed(
-              seedColor: fallbackSeed,
-              brightness: Brightness.dark,
-            );
+        final lightScheme = (dynamicColorEnabled ? lightDynamic : null) ?? AppColorTheme.light;
+        final darkScheme = (dynamicColorEnabled ? darkDynamic : null) ?? AppColorTheme.dark;
 
         return MaterialApp(
           navigatorKey: LedgerPulseApp.rootNavigatorKey,

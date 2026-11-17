@@ -1,3 +1,4 @@
+import '../../core/widgets/app_pull_to_refresh.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
@@ -434,7 +435,9 @@ class _ExpenseTransactionsScreenState
         (filters.categoryIds != null && filters.categoryIds!.isNotEmpty) ||
         (filters.walletIds != null && filters.walletIds!.isNotEmpty) ||
         filters.startDate != null ||
-        filters.endDate != null;
+        filters.endDate != null ||
+        filters.type != null ||
+        (filters.textQuery?.trim().isNotEmpty ?? false);
 
     final catMap = categoriesAsync.asData?.value != null
         ? <String, AccountModel>{
@@ -458,9 +461,8 @@ class _ExpenseTransactionsScreenState
       },
       child: Material(
         color: Colors.transparent,
-        child: RefreshIndicator.adaptive(
+        child: AppPullToRefresh(
           onRefresh: () async {
-            HapticFeedback.lightImpact();
             ref.invalidate(transactionsProvider);
             ref.invalidate(monthSummaryProvider);
             ref.invalidate(walletsProvider);
@@ -503,6 +505,7 @@ class _ExpenseTransactionsScreenState
                                   ? CupertinoIcons.slider_horizontal_3
                                   : Icons.filter_list_rounded,
                               isActive: hasActiveFilters,
+                              activeColor: themeColor,
                               tooltip: 'Filter Transactions',
                               onTap: () =>
                                   ExpenseTransactionsScreen.showFilterModal(
@@ -845,12 +848,22 @@ class _ExpenseTransactionsScreenState
               padding: const EdgeInsets.symmetric(horizontal: 8),
               onPressed: () =>
                   ExpenseTransactionsScreen.showFilterModal(context, ref),
-              child: const Icon(CupertinoIcons.slider_horizontal_3, size: 22),
+              child: Icon(
+                CupertinoIcons.slider_horizontal_3,
+                size: 22,
+                color: hasActiveFilters ? themeColor : null,
+              ),
             )
           else
             IconButton(
               key: const Key('transaction_filter_button'),
               icon: const Icon(Icons.filter_list_rounded),
+              style: hasActiveFilters
+                  ? IconButton.styleFrom(
+                      foregroundColor: themeColor,
+                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                    )
+                  : null,
               tooltip: 'Filter',
               onPressed: () =>
                   ExpenseTransactionsScreen.showFilterModal(context, ref),
@@ -1072,24 +1085,4 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                           .read(transactionFiltersProvider.notifier)
                           .updateFilters(cur.copyWith(walletIds: next));
                     },
-                  );
-                }),
-              ],
-            ),
-            loading: () => const LinearProgressIndicator(),
-            error: (err, _) => Text('Error: $err'),
-          ),
-          const SizedBox(height: 24),
-
-          if (!isIos)
-            AdaptiveButton(
-              onPressed: () => Navigator.of(context).pop(),
-              isFullWidth: true,
-              type: AdaptiveButtonType.primary,
-              child: const Text('Apply Filters'),
-            ),
-        ],
-      ),
-    );
-  }
-}
+          

@@ -36,12 +36,27 @@ import '../providers/profile_provider.dart';
 class ExpenseAccountsScreen extends ConsumerStatefulWidget {
   final int initialTab;
 
-  const ExpenseAccountsScreen({
-    super.key,
-    this.initialTab = 0,
-  });
+  const ExpenseAccountsScreen({super.key, this.initialTab = 0});
 
   /// Opens dialog to add a wallet or category.
+  /// Creates a category without leaving the current transaction form.
+  static Future<AccountModel?> showAddCategorySheet(
+    BuildContext context,
+    WidgetRef ref, {
+    required AccountType categoryType,
+  }) async {
+    final categories = await ref
+        .read(expenseRepositoryProvider)
+        .getCategories();
+    if (!context.mounted) return null;
+    return _ExpenseAccountsScreenState.showAddOrEditCategoryDialogStatic(
+      context,
+      ref,
+      categories,
+      categoryType: categoryType,
+    );
+  }
+
   static Future<void> showAddAccountOrCategoryDialog(
     BuildContext context,
     WidgetRef ref,
@@ -82,7 +97,9 @@ class ExpenseAccountsScreen extends ConsumerStatefulWidget {
                   Navigator.pop(ctx);
                   final cats = allCats.isNotEmpty
                       ? allCats
-                      : (await ref.read(expenseRepositoryProvider).getCategories());
+                      : (await ref
+                            .read(expenseRepositoryProvider)
+                            .getCategories());
                   if (context.mounted) {
                     _ExpenseAccountsScreenState.showAddOrEditCategoryDialogStatic(
                       context,
@@ -188,7 +205,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                       label: 'Asset (Cash/Bank)',
                       isSelected: walletType == AccountType.asset,
                       onSelected: (val) {
-                        if (val) setDialogState(() => walletType = AccountType.asset);
+                        if (val) {
+                          setDialogState(() => walletType = AccountType.asset);
+                        }
                       },
                     ),
                     const SizedBox(width: 8),
@@ -196,7 +215,11 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                       label: 'Liability (Card)',
                       isSelected: walletType == AccountType.liability,
                       onSelected: (val) {
-                        if (val) setDialogState(() => walletType = AccountType.liability);
+                        if (val) {
+                          setDialogState(
+                            () => walletType = AccountType.liability,
+                          );
+                        }
                       },
                     ),
                   ],
@@ -205,8 +228,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                 TextField(
                   key: const Key('wallet_opening_balance_input'),
                   controller: balanceController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: InputDecoration(
                     labelText: 'Opening Balance (Optional)',
                     prefixText:
@@ -241,7 +265,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
           : 'Set historical starting balance for this wallet.',
       initialValue: wallet.currentBalanceInCents > 0
           ? (wallet.currentBalanceInCents / 100.0).toStringAsFixed(2)
-      : '',
+          : '',
       labelText: 'Opening Balance',
       prefixText: '${CurrencyFormatter.getSymbol(company.currencyCode)} ',
       textFieldKey: const Key('edit_opening_balance_field'),
@@ -283,7 +307,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
       labelText: 'Wallet Name',
       confirmLabel: 'Save',
     );
-    if (result != null && result.trim().isNotEmpty && result.trim() != wallet.name) {
+    if (result != null &&
+        result.trim().isNotEmpty &&
+        result.trim() != wallet.name) {
       try {
         final repo = ref.read(expenseRepositoryProvider);
         await repo.updateWallet(id: wallet.id, name: result.trim());
@@ -303,7 +329,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
   // CATEGORY DIALOGS & ACTIONS
   // -------------------------------------------------------------
 
-  static Future<void> showAddOrEditCategoryDialogStatic(
+  static Future<AccountModel?> showAddOrEditCategoryDialogStatic(
     BuildContext context,
     WidgetRef ref,
     List<AccountModel> allCategories, {
@@ -318,10 +344,12 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
         : (await ref.read(expenseRepositoryProvider).getCategories());
 
     final potentialParents = effectiveCategories
-        .where((c) =>
-            c.type == categoryType &&
-            c.parentAccountId == null &&
-            c.id != initialCategory?.id)
+        .where(
+          (c) =>
+              c.type == categoryType &&
+              c.parentAccountId == null &&
+              c.id != initialCategory?.id,
+        )
         .toList();
 
     Future<void> doSave(BuildContext sheetCtx) async {
@@ -331,6 +359,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
       HapticFeedback.mediumImpact();
       try {
         final repo = ref.read(expenseRepositoryProvider);
+        AccountModel? createdCategory;
         if (initialCategory != null) {
           await repo.updateCategory(
             id: initialCategory.id,
@@ -338,14 +367,14 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
             parentAccountId: selectedParentId,
           );
         } else {
-          await repo.createCategory(
+          createdCategory = await repo.createCategory(
             name: name,
             type: categoryType,
             parentAccountId: selectedParentId,
           );
         }
         if (context.mounted) {
-          Navigator.of(sheetCtx).pop();
+          Navigator.of(sheetCtx).pop(createdCategory);
           showAppFeedback(
             context,
             initialCategory != null ? 'Category updated' : 'Category saved',
@@ -358,13 +387,14 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
       }
     }
 
-    if (!context.mounted) return;
-    await showAdaptiveFormSheet<void>(
+    if (!context.mounted) return null;
+    return await showAdaptiveFormSheet<AccountModel>(
       context: context,
       title: initialCategory != null
           ? 'Edit Category'
           : 'Add ${categoryType == AccountType.expense ? 'Expense' : 'Income'} Category',
       doneLabel: 'Save',
+      onDone: () => doSave(context),
       builder: (sheetContext) => StatefulBuilder(
         builder: (ctx, setDialogState) {
           final pickerItems = [
@@ -373,49 +403,53 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               label: 'None (Top Level)',
             ),
             ...potentialParents.map(
-              (p) => AdaptivePickerItem<String?>(
-                value: p.id,
-                label: p.name,
-              ),
+              (p) => AdaptivePickerItem<String?>(value: p.id, label: p.name),
             ),
           ];
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextField(
-                  key: const Key('category_name_input'),
-                  controller: nameController,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Category Name',
-                    hintText: 'e.g. Subscriptions, Groceries',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (potentialParents.isNotEmpty) ...[
-                  AdaptiveDropdownField<String?>(
-                    label: 'Parent Category',
-                    value: selectedParentId,
-                    hint: 'None (Top Level)',
-                    items: pickerItems,
-                    onChanged: (val) {
-                      setDialogState(() => selectedParentId = val);
-                    },
+          return Material(
+            type: MaterialType.transparency,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    key: const Key('category_name_input'),
+                    controller: nameController,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Category Name',
+                      hintText: 'e.g. Subscriptions, Groceries',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                   const SizedBox(height: 16),
+                  if (potentialParents.isNotEmpty) ...[
+                    AdaptiveDropdownField<String?>(
+                      label: 'Parent Category',
+                      value: selectedParentId,
+                      hint: 'None (Top Level)',
+                      items: pickerItems,
+                      onChanged: (val) {
+                        setDialogState(() => selectedParentId = val);
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  const SizedBox(height: 8),
+                  AdaptiveButton(
+                    key: const Key('save_category_button'),
+                    onPressed: () => doSave(sheetContext),
+                    child: Text(
+                      initialCategory != null
+                          ? 'Update Category'
+                          : 'Save Category',
+                    ),
+                  ),
                 ],
-                const SizedBox(height: 8),
-                AdaptiveButton(
-                  key: const Key('save_category_button'),
-                  onPressed: () => doSave(sheetContext),
-                  child: Text(initialCategory != null ? 'Update Category' : 'Save Category'),
-                ),
-              ],
+              ),
             ),
           );
         },
@@ -498,8 +532,12 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               child: _selectedTab == 0
                   ? _buildProfileTab(context, company, profile)
                   : (_selectedTab == 1
-                      ? _buildWalletsTab(context, company, walletsAsync)
-                      : _buildCategoriesTab(context, company, categoriesAsync)),
+                        ? _buildWalletsTab(context, company, walletsAsync)
+                        : _buildCategoriesTab(
+                            context,
+                            company,
+                            categoriesAsync,
+                          )),
             ),
           ],
         ),
@@ -551,7 +589,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          profile.name.isNotEmpty ? profile.name : 'User Profile',
+                          profile.name.isNotEmpty
+                              ? profile.name
+                              : 'User Profile',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -577,7 +617,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                         const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: primaryColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
@@ -595,10 +637,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(
-                      Icons.edit_outlined,
-                      color: primaryColor,
-                    ),
+                    icon: Icon(Icons.edit_outlined, color: primaryColor),
                     onPressed: () => _openEditProfileSheet(context, profile),
                   ),
                 ],
@@ -619,9 +658,14 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                 padding: const EdgeInsets.only(bottom: 12),
               ),
               AdaptiveListRow(
-                leading: Icon(Icons.person_outline_rounded, color: primaryColor),
+                leading: Icon(
+                  Icons.person_outline_rounded,
+                  color: primaryColor,
+                ),
                 title: 'Full Name',
-                subtitle: profile.name.isNotEmpty ? profile.name : 'Tap to set name',
+                subtitle: profile.name.isNotEmpty
+                    ? profile.name
+                    : 'Tap to set name',
                 onTap: () => _openEditProfileSheet(context, profile),
               ),
               const Divider(height: 1),
@@ -645,7 +689,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               if (profile.address.isNotEmpty) ...[
                 const Divider(height: 1),
                 AdaptiveListRow(
-                  leading: Icon(Icons.location_on_outlined, color: primaryColor),
+                  leading: Icon(
+                    Icons.location_on_outlined,
+                    color: primaryColor,
+                  ),
                   title: 'Address',
                   subtitle: profile.address,
                   onTap: () => _openEditProfileSheet(context, profile),
@@ -675,9 +722,13 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               ),
               const Divider(height: 1),
               AdaptiveListRow(
-                leading: Icon(Icons.currency_exchange_rounded, color: primaryColor),
+                leading: Icon(
+                  Icons.currency_exchange_rounded,
+                  color: primaryColor,
+                ),
                 title: 'Base Currency',
-                subtitle: '${company.currencyCode} (${CurrencyFormatter.getSymbol(company.currencyCode)})',
+                subtitle:
+                    '${company.currencyCode} (${CurrencyFormatter.getSymbol(company.currencyCode)})',
                 trailing: const Icon(Icons.chevron_right_rounded, size: 20),
                 onTap: () => _openCurrencyPicker(context, company),
               ),
@@ -705,7 +756,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               ),
               const Divider(height: 1),
               AdaptiveListRow(
-                leading: const Icon(Icons.logout_rounded, color: AppColors.payableRed),
+                leading: const Icon(
+                  Icons.logout_rounded,
+                  color: AppColors.payableRed,
+                ),
                 title: 'Sign Out / Switch Phone',
                 subtitle: 'Log out of current account',
                 onTap: () => _confirmSignOut(context),
@@ -804,9 +858,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     if (confirm && context.mounted) {
       ref.read(authControllerProvider.notifier).logout();
       Navigator.of(context).pushAndRemoveUntil(
-        createAdaptivePageRoute(
-          builder: (_) => const PhoneInputScreen(),
-        ),
+        createAdaptivePageRoute(builder: (_) => const PhoneInputScreen()),
         (route) => false,
       );
     }
@@ -903,7 +955,8 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
         if (wallets.isEmpty) {
           return const EmptyStateView(
             title: 'No Wallets Configured',
-            subtitle: 'Add a wallet to record cash, bank, or credit card transactions.',
+            subtitle:
+                'Add a wallet to record cash, bank, or credit card transactions.',
             icon: Icons.account_balance_wallet_outlined,
           );
         }
@@ -959,7 +1012,8 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               title: 'Your Wallets',
               padding: const EdgeInsets.only(bottom: 12),
               trailing: TextButton.icon(
-                onPressed: () => showAddWalletDialogStatic(context, ref, company),
+                onPressed: () =>
+                    showAddWalletDialogStatic(context, ref, company),
                 icon: const Icon(Icons.add_rounded, size: 18),
                 label: const Text('Add Wallet'),
               ),
@@ -968,15 +1022,19 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
             ...wallets.map((wallet) {
               final isLiability = wallet.type == AccountType.liability;
               final icon = _getWalletIcon(wallet);
-              final iconColor = isLiability ? AppColors.payableRed : primaryColor;
+              final iconColor = isLiability
+                  ? AppColors.payableRed
+                  : primaryColor;
               final iconBg = iconColor.withValues(alpha: 0.12);
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: AdaptiveSurfaceCard(
                   key: Key('wallet_card_${wallet.id}'),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       Container(
@@ -986,11 +1044,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                           color: iconBg,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          icon,
-                          color: iconColor,
-                          size: 22,
-                        ),
+                        child: Icon(icon, color: iconColor, size: 22),
                       ),
                       const SizedBox(width: 14),
 
@@ -1006,7 +1060,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              isLiability ? 'Credit Card / Liability' : 'Asset Wallet',
+                              isLiability
+                                  ? 'Credit Card / Liability'
+                                  : 'Asset Wallet',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -1021,7 +1077,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                           AmountText(
                             amountInCents: wallet.currentBalanceInCents,
                             currencyCode: company.currencyCode,
-                            overrideColor: isLiability ? AppColors.payableRed : null,
+                            overrideColor: isLiability
+                                ? AppColors.payableRed
+                                : null,
                             variant: AmountVariant.medium,
                           ),
                           if (isLiability && wallet.currentBalanceInCents > 0)
@@ -1035,7 +1093,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                           InkWell(
                             key: Key('edit_opening_btn_${wallet.id}'),
                             onTap: () => _showOpeningBalanceDialog(
-                                context, wallet, company),
+                              context,
+                              wallet,
+                              company,
+                            ),
                             child: Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(
@@ -1052,8 +1113,11 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                       ),
                       const SizedBox(width: 4),
                       PopupMenuButton<String>(
-                        icon: Icon(Icons.more_vert_rounded,
-                            size: 20, color: theme.colorScheme.onSurfaceVariant),
+                        icon: Icon(
+                          Icons.more_vert_rounded,
+                          size: 20,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                         onSelected: (val) {
                           if (val == 'rename') {
                             _renameWalletStatic(context, ref, wallet);
@@ -1078,7 +1142,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                             value: 'opening',
                             child: const Row(
                               children: [
-                                Icon(Icons.account_balance_wallet_outlined, size: 18),
+                                Icon(
+                                  Icons.account_balance_wallet_outlined,
+                                  size: 18,
+                                ),
                                 SizedBox(width: 8),
                                 Text('Set Opening Balance'),
                               ],
@@ -1116,12 +1183,14 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
 
     return categoriesAsync.when(
       data: (allCategories) {
-        final filtered =
-            allCategories.where((c) => c.type == _selectedCatType).toList();
+        final filtered = allCategories
+            .where((c) => c.type == _selectedCatType)
+            .toList();
 
         // Top level categories
-        final topLevel =
-            filtered.where((c) => c.parentAccountId == null).toList();
+        final topLevel = filtered
+            .where((c) => c.parentAccountId == null)
+            .toList();
 
         // Child categories grouped by parent
         final Map<String, List<AccountModel>> subCats = {};
@@ -1146,7 +1215,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               ),
             ),
 
-              Padding(
+            Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: AdaptiveSectionHeader(
                 title: _selectedCatType == AccountType.expense
@@ -1169,7 +1238,8 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               child: filtered.isEmpty
                   ? const EmptyStateView(
                       title: 'No Categories',
-                      subtitle: 'Create a category to organize your transactions.',
+                      subtitle:
+                          'Create a category to organize your transactions.',
                       icon: Icons.category_outlined,
                     )
                   : ListView(
@@ -1194,13 +1264,15 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                   background: const SizedBox.shrink(),
                                   secondaryBackground:
                                       AdaptiveSwipeBackgrounds.delete(
-                                    context,
-                                    label: 'Delete',
-                                    icon: Icons.delete_outline,
-                                  ),
+                                        context,
+                                        label: 'Delete',
+                                        icon: Icons.delete_outline,
+                                      ),
                                   child: AdaptiveListRow(
-                                    leading: Icon(_getCategoryIcon(parent.name),
-                                        color: primaryColor),
+                                    leading: Icon(
+                                      _getCategoryIcon(parent.name),
+                                      color: primaryColor,
+                                    ),
                                     title: parent.name,
                                     subtitle: children.isNotEmpty
                                         ? '${children.length} subcategories'
@@ -1208,7 +1280,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                     showDivider: children.isNotEmpty,
                                     onTap: () => _editCategory(parent),
                                     trailing: PopupMenuButton<String>(
-                                      icon: const Icon(Icons.more_vert, size: 18),
+                                      icon: const Icon(
+                                        Icons.more_vert,
+                                        size: 18,
+                                      ),
                                       onSelected: (val) {
                                         if (val == 'edit') {
                                           _editCategory(parent);
@@ -1222,7 +1297,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                           value: 'edit',
                                           child: const Row(
                                             children: [
-                                              Icon(Icons.edit_outlined, size: 18),
+                                              Icon(
+                                                Icons.edit_outlined,
+                                                size: 18,
+                                              ),
                                               SizedBox(width: 8),
                                               Text('Edit'),
                                             ],
@@ -1233,7 +1311,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                           value: 'delete',
                                           child: const Row(
                                             children: [
-                                              Icon(Icons.delete_outline, size: 18),
+                                              Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                              ),
                                               SizedBox(width: 8),
                                               Text('Delete'),
                                             ],
@@ -1257,21 +1338,32 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                       background: const SizedBox.shrink(),
                                       secondaryBackground:
                                           AdaptiveSwipeBackgrounds.delete(
-                                        context,
-                                        label: 'Delete',
-                                        icon: Icons.delete_outline,
-                                      ),
+                                            context,
+                                            label: 'Delete',
+                                            icon: Icons.delete_outline,
+                                          ),
                                       child: AdaptiveListRow(
                                         padding: const EdgeInsets.only(
-                                            left: 48, right: 16, top: 4, bottom: 4),
-                                        leading: Icon(_getCategoryIcon(sub.name),
-                                            size: 18,
-                                            color: primaryColor.withValues(alpha: 0.8)),
+                                          left: 48,
+                                          right: 16,
+                                          top: 4,
+                                          bottom: 4,
+                                        ),
+                                        leading: Icon(
+                                          _getCategoryIcon(sub.name),
+                                          size: 18,
+                                          color: primaryColor.withValues(
+                                            alpha: 0.8,
+                                          ),
+                                        ),
                                         title: sub.name,
                                         showDivider: false,
                                         onTap: () => _editCategory(sub),
                                         trailing: PopupMenuButton<String>(
-                                          icon: const Icon(Icons.more_vert, size: 18),
+                                          icon: const Icon(
+                                            Icons.more_vert,
+                                            size: 18,
+                                          ),
                                           onSelected: (val) {
                                             if (val == 'edit') {
                                               _editCategory(sub);
@@ -1285,7 +1377,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                               value: 'edit',
                                               child: const Row(
                                                 children: [
-                                                  Icon(Icons.edit_outlined, size: 18),
+                                                  Icon(
+                                                    Icons.edit_outlined,
+                                                    size: 18,
+                                                  ),
                                                   SizedBox(width: 8),
                                                   Text('Edit'),
                                                 ],
@@ -1296,7 +1391,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                               value: 'delete',
                                               child: const Row(
                                                 children: [
-                                                  Icon(Icons.delete_outline, size: 18),
+                                                  Icon(
+                                                    Icons.delete_outline,
+                                                    size: 18,
+                                                  ),
                                                   SizedBox(width: 8),
                                                   Text('Delete'),
                                                 ],

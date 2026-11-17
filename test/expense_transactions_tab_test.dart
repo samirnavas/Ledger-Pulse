@@ -187,7 +187,14 @@ void main() {
       expect(tester.widget<SpringMorphingFab>(fab).isExtended, isTrue);
       expect(tester.getSize(fab).width, expandedWidth);
       expect(summary.hitTestable(), findsNothing);
-      position.jumpTo(0);
+      tester
+          .state<ScrollableState>(
+            find
+                .descendant(of: scroll, matching: find.byType(Scrollable))
+                .first,
+          )
+          .position
+          .jumpTo(0);
       await tester.pumpAndSettle();
       expect(summary.hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);

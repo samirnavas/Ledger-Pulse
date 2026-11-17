@@ -1,3 +1,4 @@
+import '../../core/widgets/app_pull_to_refresh.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -350,9 +351,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final formContent = Form(
       key: _formKey,
       child: SafeArea(
-        child: RefreshIndicator.adaptive(
+        child: AppPullToRefresh(
           onRefresh: () async {
-            HapticFeedback.lightImpact();
             await ref.read(userProfileProvider.notifier).syncProfileToDatabase();
             await ref.read(syncControllerProvider.notifier).triggerSync();
           },

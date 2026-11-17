@@ -1,15 +1,17 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
+import 'app_color_theme.dart';
 
 class IosTheme {
   static CupertinoThemeData get lightTheme {
-    return const CupertinoThemeData(
+    return CupertinoThemeData(
       brightness: Brightness.light,
-      primaryColor: AppColors.primaryBlue,
-      scaffoldBackgroundColor: Color(0xFFF1F5F9),
-      barBackgroundColor: AppColors.cupertinoBarBackground,
-      textTheme: CupertinoTextThemeData(
+      primaryColor: AppColorTheme.light.primary,
+      primaryContrastingColor: AppColorTheme.light.onPrimary,
+      scaffoldBackgroundColor: AppColorTheme.light.surface,
+      barBackgroundColor: AppColorTheme.light.surface.withValues(alpha: 0.8),
+      textTheme: const CupertinoTextThemeData(
         primaryColor: AppColors.textPrimaryLight,
         textStyle: TextStyle(
           fontFamily: '.SF Pro Text',
@@ -35,12 +37,13 @@ class IosTheme {
   }
 
   static CupertinoThemeData get darkTheme {
-    return const CupertinoThemeData(
+    return CupertinoThemeData(
       brightness: Brightness.dark,
-      primaryColor: AppColors.primaryBlue,
+      primaryColor: AppColorTheme.dark.primary,
+      primaryContrastingColor: AppColorTheme.dark.onPrimary,
       scaffoldBackgroundColor: Colors.black,
-      barBackgroundColor: Color(0xCC000000),
-      textTheme: CupertinoTextThemeData(
+      barBackgroundColor: const Color(0xCC000000),
+      textTheme: const CupertinoTextThemeData(
         primaryColor: Colors.white,
         textStyle: TextStyle(
           fontFamily: '.SF Pro Text',

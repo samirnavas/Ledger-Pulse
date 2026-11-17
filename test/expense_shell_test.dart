@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:ledger_pulse/core/widgets/app_pull_to_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
@@ -499,7 +500,7 @@ void main() {
       await tester.pumpWidget(buildExpenseShellApp(platform: TargetPlatform.android));
       await tester.pumpAndSettle();
 
-      final refreshFinder = find.byType(RefreshIndicator);
+      final refreshFinder = find.byType(AppPullToRefresh);
       expect(refreshFinder, findsOneWidget);
 
       // Trigger pull to refresh gesture

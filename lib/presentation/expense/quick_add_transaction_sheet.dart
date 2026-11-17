@@ -25,6 +25,7 @@ import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import '../providers/recurring_providers.dart';
 import 'widgets/transaction_type_switcher.dart';
+import 'accounts_screen.dart';
 
 /// Modal bottom sheet for rapid transaction entry (Expense, Income, Transfer).
 /// Built on [DraggableModalSheet] with device keypad, amount display, presets,
@@ -32,10 +33,7 @@ import 'widgets/transaction_type_switcher.dart';
 class QuickAddTransactionSheet extends ConsumerStatefulWidget {
   final VoucherModel? initialVoucher;
 
-  const QuickAddTransactionSheet({
-    super.key,
-    this.initialVoucher,
-  });
+  const QuickAddTransactionSheet({super.key, this.initialVoucher});
 
   static bool _isSheetOpen = false;
   static bool get isSheetOpen => _isSheetOpen;
@@ -56,9 +54,8 @@ class QuickAddTransactionSheet extends ConsumerStatefulWidget {
         useSafeArea: true,
         backgroundColor: Colors.transparent,
         barrierColor: Colors.black.withValues(alpha: 0.35),
-        builder: (ctx) => QuickAddTransactionSheet(
-          initialVoucher: initialVoucher,
-        ),
+        builder: (ctx) =>
+            QuickAddTransactionSheet(initialVoucher: initialVoucher),
       );
     } finally {
       _isSheetOpen = false;
@@ -122,8 +119,9 @@ class _QuickAddTransactionSheetState
     if (v != null) {
       _selectedType = v.type;
       final double amt = v.totalAmountInCents / 100.0;
-      _amountString =
-          amt % 1 == 0 ? amt.toInt().toString() : amt.toStringAsFixed(2);
+      _amountString = amt % 1 == 0
+          ? amt.toInt().toString()
+          : amt.toStringAsFixed(2);
       _amountController = TextEditingController(text: _amountString);
       _noteController = TextEditingController(text: v.narration ?? '');
       _refController = TextEditingController(text: v.referenceNumber ?? '');
@@ -242,8 +240,10 @@ class _QuickAddTransactionSheetState
                     style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                   ),
                   CupertinoButton(
-                    child: const Text('Done',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     onPressed: () {
                       setState(() => _selectedDate = tempDate);
                       Navigator.of(ctx).pop();
@@ -326,8 +326,10 @@ class _QuickAddTransactionSheetState
         return;
       }
       if (_selectedWalletId == _selectedToWalletId) {
-        setState(() =>
-            _errorMessage = 'Destination wallet must differ from source wallet.');
+        setState(
+          () => _errorMessage =
+              'Destination wallet must differ from source wallet.',
+        );
         return;
       }
     } else {
@@ -421,7 +423,9 @@ class _QuickAddTransactionSheetState
                 : null,
             notes: note,
           );
-          await ref.read(recurringServiceProvider).createRule(
+          await ref
+              .read(recurringServiceProvider)
+              .createRule(
                 template: template,
                 interval: _recurringInterval,
                 nextRunDate: nextDate,
@@ -487,15 +491,41 @@ class _QuickAddTransactionSheetState
       context: context,
       title: 'Select Category',
       selectedValue: _selectedCategoryId,
-      items: categories.map((cat) {
-        return AdaptivePickerItem<String>(
-          value: cat.id,
-          label: cat.name,
-          subtitle: cat.description ?? cat.type.name,
-          icon: Icon(_getCategoryIcon(cat.name), size: 18),
-        );
-      }).toList(),
+      items: [
+        const AdaptivePickerItem<String>(
+          value: '__add_category__',
+          label: 'Add category',
+          icon: Icon(Icons.add_rounded, size: 18),
+        ),
+        ...categories.map((cat) {
+          return AdaptivePickerItem<String>(
+            value: cat.id,
+            label: cat.name,
+            subtitle: cat.description ?? cat.type.name,
+            icon: Icon(_getCategoryIcon(cat.name), size: 18),
+          );
+        }),
+      ],
     );
+    if (!mounted || !context.mounted) return;
+    if (picked == '__add_category__') {
+      final created = await ExpenseAccountsScreen.showAddCategorySheet(
+        context,
+        ref,
+        categoryType: _selectedType == VoucherType.expense
+            ? AccountType.expense
+            : AccountType.income,
+      );
+      if (!mounted || created == null) return;
+      ref.invalidate(categoriesProvider);
+      await ref.read(categoriesProvider.future);
+      if (!mounted) return;
+      setState(() {
+        _selectedCategoryId = created.id;
+        _errorMessage = null;
+      });
+      return;
+    }
     if (picked != null) {
       setState(() {
         _selectedCategoryId = picked;
@@ -514,17 +544,11 @@ class _QuickAddTransactionSheetState
         : AccountType.income;
     final filtered = allCategories.where((c) => c.type == targetType).toList();
 
-    if (filtered.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('No categories found.'),
-      );
-    }
-
     const maxDirectChips = 4;
     final List<AccountModel> displayed = [];
-    final selectedCat =
-        filtered.where((c) => c.id == _selectedCategoryId).firstOrNull;
+    final selectedCat = filtered
+        .where((c) => c.id == _selectedCategoryId)
+        .firstOrNull;
 
     for (int i = 0; i < filtered.length; i++) {
       if (i < maxDirectChips) {
@@ -578,17 +602,16 @@ class _QuickAddTransactionSheetState
                   ),
                 );
               }),
-              if (filtered.length > maxDirectChips)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: AdaptiveChip(
-                    key: const Key('cat_chip_more'),
-                    label: 'More',
-                    isSelected: false,
-                    icon: const Icon(Icons.more_horiz, size: 16),
-                    onSelected: (_) => _openCategoryPicker(context, filtered),
-                  ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: AdaptiveChip(
+                  key: const Key('cat_chip_more'),
+                  label: filtered.isEmpty ? 'Select category' : 'More',
+                  isSelected: false,
+                  icon: const Icon(Icons.more_horiz, size: 16),
+                  onSelected: (_) => _openCategoryPicker(context, filtered),
                 ),
+              ),
             ],
           ),
         ),
@@ -614,8 +637,8 @@ class _QuickAddTransactionSheetState
         final icon = isLiability
             ? Icons.credit_card_rounded
             : (w.name.toLowerCase().contains('bank')
-                ? Icons.account_balance_rounded
-                : Icons.account_balance_wallet_rounded);
+                  ? Icons.account_balance_rounded
+                  : Icons.account_balance_wallet_rounded);
         final balanceFormatted = CurrencyFormatter.format(
           w.currentBalanceInCents,
           currencyCode: currencyCode,
@@ -690,8 +713,8 @@ class _QuickAddTransactionSheetState
                 final icon = isLiability
                     ? Icons.credit_card_rounded
                     : (wallet.name.toLowerCase().contains('bank')
-                        ? Icons.account_balance_rounded
-                        : Icons.account_balance_wallet_rounded);
+                          ? Icons.account_balance_rounded
+                          : Icons.account_balance_wallet_rounded);
 
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
@@ -738,7 +761,8 @@ class _QuickAddTransactionSheetState
   @override
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark ||
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
     final company = ref.watch(activeCompanyProvider);
     final walletsAsync = ref.watch(walletsProvider);
@@ -748,11 +772,11 @@ class _QuickAddTransactionSheetState
 
     final containerColor = isIos
         ? (isDark
-            ? CupertinoColors.systemGroupedBackground.darkColor
-            : CupertinoColors.systemGroupedBackground)
+              ? CupertinoColors.systemGroupedBackground.darkColor
+              : CupertinoColors.systemGroupedBackground)
         : (isDark
-            ? AppColors.surfaceCardDark
-            : Theme.of(context).colorScheme.surfaceContainerHighest);
+              ? AppColors.surfaceCardDark
+              : Theme.of(context).colorScheme.surfaceContainerHighest);
 
     walletsAsync.whenData((wallets) {
       if (_selectedWalletId == null && wallets.isNotEmpty) {
@@ -804,7 +828,9 @@ class _QuickAddTransactionSheetState
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: themeColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
@@ -815,20 +841,21 @@ class _QuickAddTransactionSheetState
                           Icon(
                             widget.initialVoucher != null
                                 ? (isIos
-                                    ? CupertinoIcons.pencil
-                                    : Icons.edit_outlined)
+                                      ? CupertinoIcons.pencil
+                                      : Icons.edit_outlined)
                                 : (_selectedType == VoucherType.expense
-                                    ? (isIos
-                                        ? CupertinoIcons.arrow_up
-                                        : Icons.arrow_upward_rounded)
-                                    : (_selectedType == VoucherType.income
-                                        ? (isIos
-                                            ? CupertinoIcons.arrow_down
-                                            : Icons.arrow_downward_rounded)
-                                        : (isIos
-                                            ? CupertinoIcons
-                                                .arrow_right_arrow_left
-                                            : Icons.swap_horiz_rounded))),
+                                      ? (isIos
+                                            ? CupertinoIcons.arrow_up
+                                            : Icons.arrow_upward_rounded)
+                                      : (_selectedType == VoucherType.income
+                                            ? (isIos
+                                                  ? CupertinoIcons.arrow_down
+                                                  : Icons
+                                                        .arrow_downward_rounded)
+                                            : (isIos
+                                                  ? CupertinoIcons
+                                                        .arrow_right_arrow_left
+                                                  : Icons.swap_horiz_rounded))),
                             size: 15,
                             color: themeColor,
                           ),
@@ -837,10 +864,10 @@ class _QuickAddTransactionSheetState
                             widget.initialVoucher != null
                                 ? 'EDIT TRANSACTION'
                                 : (_selectedType == VoucherType.expense
-                                    ? 'NEW EXPENSE'
-                                    : (_selectedType == VoucherType.income
-                                        ? 'NEW INCOME'
-                                        : 'NEW TRANSFER')),
+                                      ? 'NEW EXPENSE'
+                                      : (_selectedType == VoucherType.income
+                                            ? 'NEW INCOME'
+                                            : 'NEW TRANSFER')),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
@@ -1000,16 +1027,15 @@ class _QuickAddTransactionSheetState
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color:
-                                Theme.of(sheetContext).colorScheme.onSurface,
+                            color: Theme.of(sheetContext).colorScheme.onSurface,
                           ),
                           decoration: InputDecoration(
                             labelText: 'Reference # (Optional)',
                             labelStyle: TextStyle(
                               fontSize: 12,
-                              color: Theme.of(sheetContext)
-                                  .colorScheme
-                                  .onSurfaceVariant,
+                              color: Theme.of(
+                                sheetContext,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                             hintText: 'e.g. INV-1002, TXN-5481',
                             prefixIcon: Icon(
@@ -1021,9 +1047,9 @@ class _QuickAddTransactionSheetState
                             fillColor: isDark
                                 ? AppColors.surfaceCardDark
                                 : Theme.of(sheetContext)
-                                    .colorScheme
-                                    .surfaceContainerHighest
-                                    .withValues(alpha: 0.4),
+                                      .colorScheme
+                                      .surfaceContainerHighest
+                                      .withValues(alpha: 0.4),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 14,
                               vertical: 8,
@@ -1033,9 +1059,9 @@ class _QuickAddTransactionSheetState
                               borderSide: BorderSide(
                                 color: isDark
                                     ? AppColors.borderDark
-                                    : Theme.of(sheetContext)
-                                        .colorScheme
-                                        .outlineVariant,
+                                    : Theme.of(
+                                        sheetContext,
+                                      ).colorScheme.outlineVariant,
                               ),
                             ),
                             isDense: true,
@@ -1101,9 +1127,11 @@ class _QuickAddTransactionSheetState
                                 Expanded(
                                   child: AdaptiveDateField(
                                     label: 'End Date (Optional)',
-                                    selectedDate: _endDate ??
-                                        _selectedDate
-                                            .add(const Duration(days: 365)),
+                                    selectedDate:
+                                        _endDate ??
+                                        _selectedDate.add(
+                                          const Duration(days: 365),
+                                        ),
                                     onDateSelected: (d) =>
                                         setState(() => _endDate = d),
                                   ),
@@ -1130,18 +1158,30 @@ class _QuickAddTransactionSheetState
                       height: 52,
                       isLoading: _isSubmitting,
                       type: AdaptiveButtonType.primary,
-                      onPressed: _isSubmitting ? null : () => _saveTransaction(company),
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => _saveTransaction(company),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
                             widget.initialVoucher != null
-                                ? (isIos ? CupertinoIcons.check_mark : Icons.check_rounded)
+                                ? (isIos
+                                      ? CupertinoIcons.check_mark
+                                      : Icons.check_rounded)
                                 : (_selectedType == VoucherType.expense
-                                    ? (isIos ? CupertinoIcons.arrow_up : Icons.arrow_upward_rounded)
-                                    : (_selectedType == VoucherType.income
-                                        ? (isIos ? CupertinoIcons.arrow_down : Icons.arrow_downward_rounded)
-                                        : (isIos ? CupertinoIcons.arrow_right_arrow_left : Icons.swap_horiz_rounded))),
+                                      ? (isIos
+                                            ? CupertinoIcons.arrow_up
+                                            : Icons.arrow_upward_rounded)
+                                      : (_selectedType == VoucherType.income
+                                            ? (isIos
+                                                  ? CupertinoIcons.arrow_down
+                                                  : Icons
+                                                        .arrow_downward_rounded)
+                                            : (isIos
+                                                  ? CupertinoIcons
+                                                        .arrow_right_arrow_left
+                                                  : Icons.swap_horiz_rounded))),
                             size: 20,
                             color: Colors.white,
                           ),
@@ -1150,10 +1190,10 @@ class _QuickAddTransactionSheetState
                             widget.initialVoucher != null
                                 ? 'Update Transaction'
                                 : (_selectedType == VoucherType.expense
-                                    ? 'Save Expense'
-                                    : (_selectedType == VoucherType.income
-                                        ? 'Save Income'
-                                        : 'Save Transfer')),
+                                      ? 'Save Expense'
+                                      : (_selectedType == VoucherType.income
+                                            ? 'Save Income'
+                                            : 'Save Transfer')),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,

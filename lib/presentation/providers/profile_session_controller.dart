@@ -556,6 +556,7 @@ class DriftProfileRepository implements IProfileRepository {
           'id': profileId,
           'name': name,
           'mode': type.canonicalValue,
+          'profile_type': type.canonicalValue,
           'currency_code': currencyCode,
           'owner_id': effectiveAccountId,
           'created_at': encodeTime(now),
@@ -1187,6 +1188,23 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
         profiles: curr.availableProfiles,
       );
     }
+  }
+
+  /// Keep visible profile headers synchronized after a local metadata edit.
+  void updateProfileDetails(Company company) {
+    final current = state;
+    if (current is! ActiveProfileReadySessionState) return;
+    WorkspaceProfileHeader updated(WorkspaceProfileHeader header) => header.id != company.id ? header :
+      header.copyWith(name: company.name, legalName: company.legalName,
+        currencyCode: company.currencyCode, gstin: company.gstin,
+        updatedAt: company.updatedAt);
+    _currentActiveProfile = updated(current.activeProfile);
+    _currentAvailableProfiles = current.availableProfiles.map(updated).toList();
+    state = ActiveProfileReadySessionState(
+      userId: current.userId, activeProfile: _currentActiveProfile!,
+      availableProfiles: _currentAvailableProfiles!,
+      isOffline: current.isOffline,
+    );
   }
 
   Future<void> switchProfile(WorkspaceProfileHeader profile) async {

@@ -362,6 +362,27 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
         ),
       );
 
+      // Keep canonical profile headers in step with company metadata.
+      final profileId = existing.profileId ?? updated.id;
+      final profile = await (db.select(db.profiles)..where((t) => t.id.equals(profileId))).getSingleOrNull();
+      if (profile != null) {
+        await (db.update(db.profiles)..where((t) => t.id.equals(profileId))).write(
+          ProfilesCompanion(name: Value(updated.name), currencyCode: Value(updated.currencyCode),
+            updatedAt: Value(updated.updatedAt), syncStatus: const Value(SyncRecordStatus.pending)),
+        );
+        await recordOutboxEntry(
+          targetTable: 'profiles', recordId: profileId, mutationType: 'UPSERT',
+          companyId: updated.id,
+          payload: {
+            'id': profileId, 'name': updated.name,
+            'profile_type': profile.profileType, 'currency_code': updated.currencyCode,
+            'owner_id': profile.ownerId, 'is_active': profile.isActive,
+            'is_deleted': profile.isDeleted, 'created_at': encodeTime(profile.createdAt),
+            'updated_at': encodeTime(updated.updatedAt),
+          },
+        );
+      }
+
       await recordOutboxEntry(
         targetTable: 'companies',
         recordId: updated.id,

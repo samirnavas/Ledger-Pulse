@@ -31,7 +31,8 @@ class AdaptiveSwitch extends StatelessWidget {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final theme = Theme.of(context);
 
-    final effectiveActiveColor = activeColor ??
+    final effectiveActiveColor =
+        activeColor ??
         (isIos ? CupertinoColors.activeGreen : theme.colorScheme.primary);
 
     final switchWidget = Switch.adaptive(
@@ -149,7 +150,12 @@ class AdaptiveDropdownField<T> extends StatelessWidget {
           onTap: () => _openPicker(context),
           borderRadius: BorderRadius.circular(14),
           child: LiquidGlassContainer(
-            height: 52,
+            height:
+                52 *
+                (MediaQuery.textScalerOf(context).scale(14) / 14).clamp(
+                  1.0,
+                  double.infinity,
+                ),
             borderRadius: 14,
             blur: 20,
             border: 1.2,
@@ -210,7 +216,12 @@ class AdaptiveDropdownField<T> extends StatelessWidget {
           onTap: () => _openPicker(context),
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            height: 56,
+            height:
+                56 *
+                (MediaQuery.textScalerOf(context).scale(14) / 14).clamp(
+                  1.0,
+                  double.infinity,
+                ),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHigh,

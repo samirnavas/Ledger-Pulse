@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../constants/typography.dart';
+import 'app_color_theme.dart';
 
 /// Material Design 3 (MD3) Android Theme
 ///
@@ -7,7 +8,7 @@ import '../constants/typography.dart';
 /// 15-scale typography, standard/expressive corner radii, and comprehensive component theming.
 class AndroidTheme {
   /// Default seed color for Material You ColorScheme generation
-  static const Color fallbackSeed = Color(0xFF006C4C);
+  static const Color fallbackSeed = AppColorTheme.seedColor;
 
   /// MD3 Shape Tokens
   static const double shapeCornerNone = 0.0;
@@ -27,11 +28,8 @@ class AndroidTheme {
     Brightness brightness = Brightness.light,
   }) {
     // Generate base color scheme from dynamic Wallpaper seed or fallback seed
-    final ColorScheme rawScheme = dynamicColorScheme ??
-        ColorScheme.fromSeed(
-          seedColor: fallbackSeed,
-          brightness: brightness,
-        );
+    final ColorScheme rawScheme =
+        dynamicColorScheme ?? AppColorTheme.forBrightness(brightness);
 
     final bool isDark = rawScheme.brightness == Brightness.dark;
 
@@ -93,41 +91,61 @@ class AndroidTheme {
       useMaterial3: true,
       brightness: scheme.brightness,
       colorScheme: scheme,
-      scaffoldBackgroundColor: isDark ? const Color(0xFF000000) : scheme.surfaceContainerLow,
-      canvasColor: isDark ? const Color(0xFF000000) : scheme.surfaceContainerLow,
+      scaffoldBackgroundColor: isDark
+          ? const Color(0xFF000000)
+          : scheme.surfaceContainerLow,
+      canvasColor: isDark
+          ? const Color(0xFF000000)
+          : scheme.surfaceContainerLow,
 
       // --- MD3 15-Scale Typography ---
       textTheme: TextTheme(
-        displayLarge: AppTypography.displayLarge.copyWith(color: scheme.onSurface),
-        displayMedium: AppTypography.displayMedium.copyWith(color: scheme.onSurface),
-        displaySmall: AppTypography.displaySmall.copyWith(color: scheme.onSurface),
-        headlineLarge: AppTypography.headlineLarge.copyWith(color: scheme.onSurface),
-        headlineMedium: AppTypography.headlineMedium.copyWith(color: scheme.onSurface),
-        headlineSmall: AppTypography.headlineSmall.copyWith(color: scheme.onSurface),
+        displayLarge: AppTypography.displayLarge.copyWith(
+          color: scheme.onSurface,
+        ),
+        displayMedium: AppTypography.displayMedium.copyWith(
+          color: scheme.onSurface,
+        ),
+        displaySmall: AppTypography.displaySmall.copyWith(
+          color: scheme.onSurface,
+        ),
+        headlineLarge: AppTypography.headlineLarge.copyWith(
+          color: scheme.onSurface,
+        ),
+        headlineMedium: AppTypography.headlineMedium.copyWith(
+          color: scheme.onSurface,
+        ),
+        headlineSmall: AppTypography.headlineSmall.copyWith(
+          color: scheme.onSurface,
+        ),
         titleLarge: AppTypography.titleLarge.copyWith(color: scheme.onSurface),
-        titleMedium: AppTypography.titleMedium.copyWith(color: scheme.onSurface),
+        titleMedium: AppTypography.titleMedium.copyWith(
+          color: scheme.onSurface,
+        ),
         titleSmall: AppTypography.titleSmall.copyWith(color: scheme.onSurface),
         bodyLarge: AppTypography.bodyLarge.copyWith(color: scheme.onSurface),
         bodyMedium: AppTypography.bodyMedium.copyWith(color: scheme.onSurface),
-        bodySmall: AppTypography.bodySmall.copyWith(color: scheme.onSurfaceVariant),
+        bodySmall: AppTypography.bodySmall.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
         labelLarge: AppTypography.labelLarge.copyWith(color: scheme.onSurface),
-        labelMedium: AppTypography.labelMedium.copyWith(color: scheme.onSurfaceVariant),
-        labelSmall: AppTypography.labelSmall.copyWith(color: scheme.onSurfaceVariant),
+        labelMedium: AppTypography.labelMedium.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
+        labelSmall: AppTypography.labelSmall.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
       ),
 
       // --- Icon Themes: MD3 Adaptive Scheme ---
-      iconTheme: IconThemeData(
-        color: scheme.onSurface,
-        size: 24,
-      ),
-      primaryIconTheme: IconThemeData(
-        color: scheme.primary,
-        size: 24,
-      ),
+      iconTheme: IconThemeData(color: scheme.onSurface, size: 24),
+      primaryIconTheme: IconThemeData(color: scheme.primary, size: 24),
 
       // --- App Bar: MD3 Tonal Surface (Level 0 resting, Level 2 scrolled) ---
       appBarTheme: AppBarTheme(
-        backgroundColor: isDark ? const Color(0xFF000000) : scheme.surfaceContainerLow,
+        backgroundColor: isDark
+            ? const Color(0xFF000000)
+            : scheme.surfaceContainerLow,
         foregroundColor: scheme.onSurface,
         elevation: 0,
         scrolledUnderElevation: isDark ? 0.0 : 2.0,
@@ -138,19 +156,26 @@ class AndroidTheme {
           fontWeight: FontWeight.w600,
         ),
         iconTheme: IconThemeData(color: scheme.onSurface, size: 24),
-        actionsIconTheme: IconThemeData(color: scheme.onSurfaceVariant, size: 24),
+        actionsIconTheme: IconThemeData(
+          color: scheme.onSurfaceVariant,
+          size: 24,
+        ),
       ),
 
       // --- Card Theme: MD3 Outlined & Tonal Container (Level 0/1) ---
       cardTheme: CardThemeData(
         elevation: 0,
-        shadowColor: isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.08),
+        shadowColor: isDark
+            ? Colors.transparent
+            : Colors.black.withValues(alpha: 0.08),
         color: scheme.surfaceContainer,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shapeCornerExtraLarge),
           side: BorderSide(
-            color: isDark ? const Color(0xFF27272A) : scheme.outlineVariant.withValues(alpha: 0.6),
+            color: isDark
+                ? const Color(0xFF27272A)
+                : scheme.outlineVariant.withValues(alpha: 0.6),
             width: 1,
           ),
         ),
@@ -179,7 +204,9 @@ class AndroidTheme {
           foregroundColor: scheme.onPrimary,
           shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          textStyle: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w600),
+          textStyle: AppTypography.labelLarge.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
           minimumSize: const Size(64, 44),
         ),
       ),
@@ -191,7 +218,9 @@ class AndroidTheme {
           surfaceTintColor: scheme.surfaceTint,
           shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          textStyle: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w600),
+          textStyle: AppTypography.labelLarge.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
           minimumSize: const Size(64, 44),
         ),
       ),
@@ -204,7 +233,9 @@ class AndroidTheme {
           foregroundColor: scheme.primary,
           shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          textStyle: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w600),
+          textStyle: AppTypography.labelLarge.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
           minimumSize: const Size(64, 44),
         ),
       ),
@@ -213,7 +244,9 @@ class AndroidTheme {
           foregroundColor: scheme.primary,
           shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          textStyle: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.w600),
+          textStyle: AppTypography.labelLarge.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
           minimumSize: const Size(48, 40),
         ),
       ),
@@ -221,7 +254,9 @@ class AndroidTheme {
       // --- Navigation Bar: MD3 Height 80dp, Pill Indicator ---
       navigationBarTheme: NavigationBarThemeData(
         height: 80,
-        backgroundColor: isDark ? const Color(0xFF000000) : scheme.surfaceContainer,
+        backgroundColor: isDark
+            ? const Color(0xFF000000)
+            : scheme.surfaceContainer,
         surfaceTintColor: isDark ? Colors.transparent : scheme.surfaceTint,
         elevation: 0,
         indicatorColor: scheme.secondaryContainer,
@@ -240,21 +275,17 @@ class AndroidTheme {
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return IconThemeData(
-              size: 24,
-              color: scheme.onSecondaryContainer,
-            );
+            return IconThemeData(size: 24, color: scheme.onSecondaryContainer);
           }
-          return IconThemeData(
-            size: 24,
-            color: scheme.onSurfaceVariant,
-          );
+          return IconThemeData(size: 24, color: scheme.onSurfaceVariant);
         }),
       ),
 
       // --- Navigation Drawer ---
       navigationDrawerTheme: NavigationDrawerThemeData(
-        backgroundColor: isDark ? const Color(0xFF000000) : scheme.surfaceContainerLow,
+        backgroundColor: isDark
+            ? const Color(0xFF000000)
+            : scheme.surfaceContainerLow,
         surfaceTintColor: isDark ? Colors.transparent : scheme.surfaceTint,
         indicatorColor: scheme.secondaryContainer,
         indicatorShape: const StadiumBorder(),
@@ -280,18 +311,24 @@ class AndroidTheme {
       // --- Input Decoration: MD3 Form Inputs ---
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? const Color(0xFF161616) : scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+        fillColor: isDark
+            ? const Color(0xFF161616)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.55),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(shapeCornerMedium),
           borderSide: BorderSide(
-            color: isDark ? const Color(0xFF27272A) : scheme.outlineVariant.withValues(alpha: 0.6),
+            color: isDark
+                ? const Color(0xFF27272A)
+                : scheme.outlineVariant.withValues(alpha: 0.6),
             width: 1,
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(shapeCornerMedium),
           borderSide: BorderSide(
-            color: isDark ? const Color(0xFF27272A) : scheme.outlineVariant.withValues(alpha: 0.6),
+            color: isDark
+                ? const Color(0xFF27272A)
+                : scheme.outlineVariant.withValues(alpha: 0.6),
             width: 1,
           ),
         ),
@@ -307,8 +344,13 @@ class AndroidTheme {
           borderRadius: BorderRadius.circular(shapeCornerMedium),
           borderSide: BorderSide(color: scheme.error, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        labelStyle: AppTypography.bodyMedium.copyWith(color: scheme.onSurfaceVariant),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 16,
+        ),
+        labelStyle: AppTypography.bodyMedium.copyWith(
+          color: scheme.onSurfaceVariant,
+        ),
         floatingLabelStyle: AppTypography.bodySmall.copyWith(
           color: scheme.primary,
           fontWeight: FontWeight.w600,
@@ -320,16 +362,15 @@ class AndroidTheme {
 
       // --- Dialog Theme: MD3 Extra-Large (28dp) ---
       dialogTheme: DialogThemeData(
-        backgroundColor: isDark ? const Color(0xFF161616) : scheme.surfaceContainerHigh,
+        backgroundColor: isDark
+            ? const Color(0xFF161616)
+            : scheme.surfaceContainerHigh,
         surfaceTintColor: isDark ? Colors.transparent : scheme.surfaceTint,
         elevation: isDark ? 0 : 3,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shapeCornerExtraLarge),
           side: isDark
-              ? const BorderSide(
-                  color: Color(0xFF27272A),
-                  width: 1,
-                )
+              ? const BorderSide(color: Color(0xFF27272A), width: 1)
               : BorderSide.none,
         ),
         titleTextStyle: AppTypography.headlineSmall.copyWith(
@@ -343,8 +384,12 @@ class AndroidTheme {
 
       // --- Bottom Sheet Theme: MD3 Extra-Large Top Corners (28dp / 32dp) ---
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: isDark ? const Color(0xFF141414) : scheme.surfaceContainerLow,
-        modalBackgroundColor: isDark ? const Color(0xFF141414) : scheme.surfaceContainerLow,
+        backgroundColor: isDark
+            ? const Color(0xFF141414)
+            : scheme.surfaceContainerLow,
+        modalBackgroundColor: isDark
+            ? const Color(0xFF141414)
+            : scheme.surfaceContainerLow,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         modalElevation: 0,
@@ -364,7 +409,9 @@ class AndroidTheme {
         backgroundColor: WidgetStateProperty.all(
           isDark ? const Color(0xFF161616) : scheme.surfaceContainerHigh,
         ),
-        surfaceTintColor: WidgetStateProperty.all(isDark ? Colors.transparent : scheme.surfaceTint),
+        surfaceTintColor: WidgetStateProperty.all(
+          isDark ? Colors.transparent : scheme.surfaceTint,
+        ),
         shape: WidgetStateProperty.all(const StadiumBorder()),
         hintStyle: WidgetStateProperty.all(
           AppTypography.bodyMedium.copyWith(color: scheme.onSurfaceVariant),
@@ -380,7 +427,9 @@ class AndroidTheme {
           shape: WidgetStateProperty.all(const StadiumBorder()),
           side: WidgetStateProperty.resolveWith((states) {
             return BorderSide(
-              color: scheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.6),
+              color: scheme.outlineVariant.withValues(
+                alpha: isDark ? 0.35 : 0.6,
+              ),
               width: 1,
             );
           }),
@@ -402,12 +451,16 @@ class AndroidTheme {
       // --- Chip Theme: MD3 Shape & State Fills ---
       chipTheme: ChipThemeData(
         shape: const StadiumBorder(),
-        backgroundColor: isDark ? const Color(0xFF141414) : scheme.surfaceContainerLow,
+        backgroundColor: isDark
+            ? const Color(0xFF141414)
+            : scheme.surfaceContainerLow,
         selectedColor: scheme.secondaryContainer,
         disabledColor: scheme.onSurface.withValues(alpha: 0.12),
         surfaceTintColor: Colors.transparent,
         side: BorderSide(
-          color: isDark ? const Color(0xFF27272A) : scheme.outlineVariant.withValues(alpha: 0.6),
+          color: isDark
+              ? const Color(0xFF27272A)
+              : scheme.outlineVariant.withValues(alpha: 0.6),
           width: 1,
         ),
         labelStyle: AppTypography.labelLarge.copyWith(color: scheme.onSurface),
@@ -501,16 +554,15 @@ class AndroidTheme {
           backgroundColor: WidgetStateProperty.all(
             isDark ? const Color(0xFF161616) : scheme.surfaceContainer,
           ),
-          surfaceTintColor: WidgetStateProperty.all(isDark ? Colors.transparent : scheme.surfaceTint),
+          surfaceTintColor: WidgetStateProperty.all(
+            isDark ? Colors.transparent : scheme.surfaceTint,
+          ),
           elevation: WidgetStateProperty.all(2),
           shape: WidgetStateProperty.all(
             RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(shapeCornerMedium),
               side: isDark
-                  ? const BorderSide(
-                      color: Color(0xFF27272A),
-                      width: 1,
-                    )
+                  ? const BorderSide(color: Color(0xFF27272A), width: 1)
                   : BorderSide.none,
             ),
           ),
@@ -523,10 +575,7 @@ class AndroidTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(shapeCornerMedium),
           side: isDark
-              ? const BorderSide(
-                  color: Color(0xFF27272A),
-                  width: 1,
-                )
+              ? const BorderSide(color: Color(0xFF27272A), width: 1)
               : BorderSide.none,
         ),
         textStyle: AppTypography.bodyLarge.copyWith(color: scheme.onSurface),
@@ -553,7 +602,9 @@ class AndroidTheme {
 
       // --- Divider Theme: Uses outlineVariant strictly ---
       dividerTheme: DividerThemeData(
-        color: isDark ? const Color(0xFF27272A) : scheme.outlineVariant.withValues(alpha: 0.6),
+        color: isDark
+            ? const Color(0xFF27272A)
+            : scheme.outlineVariant.withValues(alpha: 0.6),
         thickness: 1,
         space: 1,
       ),

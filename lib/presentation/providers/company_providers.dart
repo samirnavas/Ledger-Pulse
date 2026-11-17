@@ -41,14 +41,24 @@ final companiesProvider = FutureProvider<List<Company>>((ref) async {
   return await repo.getCompanies();
 });
 
-/// Derives user companies from the Companies table via [companiesProvider].
+/// Combines company details with canonical names and types from the profile session.
 final userCompaniesProvider = Provider<List<Company>>((ref) {
   final asyncCompanies = ref.watch(companiesProvider);
   final profileCompanies = ref.watch(userProfileProvider.select((p) => p.companies));
-  if (asyncCompanies.hasValue && asyncCompanies.value != null && asyncCompanies.value!.isNotEmpty) {
-    return asyncCompanies.value!;
-  }
-  return profileCompanies;
+  final companies = asyncCompanies.value?.isNotEmpty == true ? asyncCompanies.value! : profileCompanies;
+  final session = ref.watch(profileSessionProvider);
+  if (session is! ActiveProfileReadySessionState) return companies;
+  return session.availableProfiles.map((header) {
+    final company = companies.where((c) => c.id == header.id).firstOrNull;
+    return (company ?? Company(
+      id: header.id, name: header.name, legalName: header.legalName,
+      createdAt: header.updatedAt, updatedAt: header.updatedAt,
+    )).copyWith(
+      name: header.name, legalName: header.legalName,
+      mode: header.isExpense ? CompanyMode.expenseTracker : CompanyMode.ledger,
+      currencyCode: header.currencyCode, gstin: header.gstin,
+    );
+  }).toList();
 });
 
 /// Derives the active company from [userCompaniesProvider] and activeCompanyId from user profile.
@@ -79,6 +89,11 @@ final activeCompanyProvider = Provider<Company>((ref) {
       createdAt: DateTime.fromMillisecondsSinceEpoch(0),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(0),
     );
+  }
+
+  if (sessionState is ActiveProfileReadySessionState) {
+    final match = companies.where((c) => c.id == sessionState.activeProfile.id).firstOrNull;
+    if (match != null) return match;
   }
 
   // 1. Try to match currently set activeCompanyId
@@ -189,6 +204,7 @@ class CompanyController extends Notifier<void> {
     // 1. Write via the repository first
     final repo = ref.read(driftLedgerRepositoryProvider);
     await repo.updateCompany(updatedCompany);
+    ref.read(profileSessionProvider.notifier).updateProfileDetails(updatedCompany);
 
     ref.invalidate(companiesProvider);
 

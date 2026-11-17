@@ -1,3 +1,4 @@
+import '../../core/widgets/app_pull_to_refresh.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
@@ -652,9 +653,8 @@ class _ExpenseHomeView extends ConsumerWidget {
     final monthTitle = DateFormat('MMMM yyyy').format(selectedMonth);
 
     return SafeArea(
-      child: RefreshIndicator.adaptive(
+      child: AppPullToRefresh(
         onRefresh: () async {
-          HapticFeedback.lightImpact();
           ref.invalidate(monthSummaryProvider);
           ref.invalidate(walletsProvider);
           ref.invalidate(categoriesProvider);
