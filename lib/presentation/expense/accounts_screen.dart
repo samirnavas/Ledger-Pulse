@@ -31,6 +31,7 @@ import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import '../providers/profile_provider.dart';
+import 'providers/expense_tab_controller.dart';
 
 /// Screen managing My Profile (with sub-categories: Profile, Wallet, and Category).
 class ExpenseAccountsScreen extends ConsumerStatefulWidget {
@@ -129,6 +130,38 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
   void initState() {
     super.initState();
     _selectedTab = widget.initialTab;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final company = ref.read(activeCompanyProvider);
+      final accountsIndex = company.isModuleEnabled(AppModule.budgets) ? 3 : 2;
+      if (ref.read(expenseTabControllerProvider).currentIndex == accountsIndex) {
+        _updatePrimaryAction();
+      }
+    });
+  }
+
+  void _updatePrimaryAction() {
+    ref.read(expenseTabControllerProvider.notifier).setPrimaryAction(
+      () async {
+        if (!mounted) return;
+        switch (_selectedTab) {
+          case 0:
+            CompanySwitcherSheet.showAddCompanyDialog(context, ref);
+            break;
+          case 1:
+            await showAddWalletDialogStatic(
+              context, ref, ref.read(activeCompanyProvider),
+            );
+            break;
+          case 2:
+            await ExpenseAccountsScreen.showAddCategorySheet(
+              context, ref, categoryType: _selectedCatType,
+            );
+            break;
+        }
+      },
+      ['Add profile', 'Add wallet', 'Add category'][_selectedTab],
+    );
   }
 
   // -------------------------------------------------------------
@@ -525,7 +558,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                   1: Text('Wallet'),
                   2: Text('Category'),
                 },
-                onValueChanged: (tab) => setState(() => _selectedTab = tab),
+                onValueChanged: (tab) {
+                  setState(() => _selectedTab = tab);
+                  _updatePrimaryAction();
+                },
               ),
             ),
             Expanded(

@@ -208,7 +208,7 @@ void main() {
       expect(find.byIcon(CupertinoIcons.add), findsOneWidget);
     });
 
-    testWidgets('per-tab FAB labels on Android: Home -> Add transaction, Budgets -> Add budget, Accounts -> Add wallet/category', (tester) async {
+    testWidgets('per-tab FAB follows profile, wallet and category sections', (tester) async {
       final container = ProviderContainer(
         overrides: [
           appDatabaseProvider.overrideWithValue(db),
@@ -239,10 +239,24 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(SpringMorphingFab), findsNothing);
 
-      // Tab 3 (Accounts): 'Add wallet/category'
+      // Tab 3 defaults to Profile.
       container.read(expenseTabControllerProvider.notifier).setTab(3);
       await tester.pumpAndSettle();
-      expect(find.text('Add wallet/category'), findsOneWidget);
+      expect(find.text('Add profile'), findsOneWidget);
+      await tester.tap(find.text('Wallet').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Add wallet'), findsOneWidget);
+      await tester.tap(find.text('Add wallet'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('wallet_name_input')), findsOneWidget);
+      Navigator.of(tester.element(find.byKey(const Key('wallet_name_input')))).pop();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Category').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Add category'), findsOneWidget);
+      await tester.tap(find.text('Add category'));
+      await tester.pumpAndSettle();
+      expect(find.text('Add Category'), findsWidgets);
     });
 
     testWidgets('back navigation from tab 2 goes to tab 0', (tester) async {

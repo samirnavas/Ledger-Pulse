@@ -26,6 +26,7 @@ import '../../data/models/company_model.dart';
 import '../../data/models/sync_model.dart';
 import '../../data/models/voucher_model.dart';
 import '../home/sync_settings_sheet.dart';
+import '../home/company_switcher_sheet.dart';
 import '../widgets/active_profile_indicator_pill.dart';
 import '../providers/budget_providers.dart';
 import '../providers/company_providers.dart';
@@ -86,7 +87,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       BudgetsScreen.showAddBudgetSheet(context, ref);
     } else if ((hasBudgets && tabIndex == 3) ||
         (!hasBudgets && tabIndex == 2)) {
-      ExpenseAccountsScreen.showAddAccountOrCategoryDialog(context, ref);
+      CompanySwitcherSheet.showAddCompanyDialog(context, ref);
     }
   }
 
@@ -142,12 +143,12 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         isExtended: _fabExtended,
         key: const Key('accounts_add_fab'),
         icon: Icons.add,
-        label: 'Add wallet/category',
+        label: 'Add profile',
         backgroundColor: colorScheme.primaryContainer,
         foregroundColor: colorScheme.onPrimaryContainer,
         onPressed: () {
           HapticFeedback.lightImpact();
-          ExpenseAccountsScreen.showAddAccountOrCategoryDialog(context, ref);
+          CompanySwitcherSheet.showAddCompanyDialog(context, ref);
         },
       );
     }
