@@ -17,31 +17,6 @@ Route<T> createAdaptivePageRoute<T>({
   bool fullscreenDialog = false,
   bool isModal = false,
 }) {
-  final bool effectiveIsModal = fullscreenDialog || isModal;
-  if (useFadeThrough) {
-    return PageRouteBuilder<T>(
-      settings: settings,
-      fullscreenDialog: fullscreenDialog,
-      pageBuilder: (context, animation, secondaryAnimation) => builder(context),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final contrastAdjustedChild = ForegroundPageShadowTransition(
-          animation: animation,
-          enabled: !effectiveIsModal,
-          child: BackgroundExposureTransition(
-            secondaryAnimation: secondaryAnimation,
-            enabled: !effectiveIsModal,
-            child: child,
-          ),
-        );
-        return FadeThroughTransition(
-          animation: animation,
-          secondaryAnimation: secondaryAnimation,
-          child: contrastAdjustedChild,
-        );
-      },
-    );
-  }
-
   // Preserve native Cupertino edge-swipe and navigation on iOS
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
     return CupertinoPageRoute<T>(
@@ -52,6 +27,9 @@ Route<T> createAdaptivePageRoute<T>({
     );
   }
 
+  // Even fade-through requests must use MaterialRouteTransitionMixin so the
+  // theme can install Flutter's predictive-back gesture detector. Its official
+  // builder already uses a fade-forward transition for ordinary navigation.
   return AdaptivePageRoute<T>(
     builder: builder,
     settings: settings,

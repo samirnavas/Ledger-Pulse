@@ -37,8 +37,7 @@ void main() {
   }) async {
     final ByteData message = const StandardMethodCodec().encodeMethodCall(
       MethodCall('updateBackGestureProgress', <String, dynamic>{
-        'x': x,
-        'y': y,
+        'touchOffset': <double>[x, y],
         'progress': progress,
         'swipeEdge': swipeEdge,
       }),
@@ -73,6 +72,54 @@ void main() {
   }
 
   group('Android Native Predictive Back Navigation Tests', () {
+    for (final brightness in Brightness.values) {
+      for (final fadeThrough in [false, true]) {
+        testWidgets('interactive progress, cancellation and commit: $brightness, fade=$fadeThrough', (tester) async {
+          late PageRoute<void> route;
+          await tester.pumpWidget(MaterialApp(
+            theme: AndroidTheme.getTheme(brightness: brightness),
+            home: Builder(builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () {
+                  route = createAdaptivePageRoute<void>(
+                    useFadeThrough: fadeThrough,
+                    settings: const RouteSettings(name: '/detail', arguments: 'kept'),
+                    builder: (_) => const Scaffold(body: Text('Gesture destination')),
+                  ) as PageRoute<void>;
+                  Navigator.of(context).push(route);
+                },
+                child: const Text('Open gesture destination'),
+              ),
+            )),
+          ));
+          await tester.tap(find.text('Open gesture destination'));
+          await tester.pumpAndSettle();
+          expect(route.settings.arguments, 'kept');
+          expect(route.popGestureEnabled, isTrue);
+          await sendBackGestureStart(touchX: 5, touchY: 300, swipeEdge: 0);
+          await tester.pump();
+          expect(route.popGestureInProgress, isTrue);
+          await sendBackGestureUpdate(x: 160, y: 300, progress: 0.4, swipeEdge: 0);
+          await tester.pump();
+          expect(route.animation!.value, closeTo(0.6, 0.001));
+          await sendBackGestureCancel();
+          await tester.pumpAndSettle();
+          expect(route.isCurrent, isTrue);
+          expect(route.animation!.value, 1);
+          expect(route.popGestureInProgress, isFalse);
+          await sendBackGestureStart(touchX: 795, touchY: 300, swipeEdge: 1);
+          await tester.pump();
+          await sendBackGestureUpdate(x: 500, y: 300, progress: 0.6, swipeEdge: 1);
+          await tester.pump();
+          expect(route.animation!.value, closeTo(0.4, 0.001));
+          await sendBackGestureCommit();
+          await tester.pumpAndSettle();
+          expect(find.text('Gesture destination'), findsNothing);
+          expect(find.text('Open gesture destination'), findsOneWidget);
+        });
+      }
+    }
+
     testWidgets('Predictive back - slow back gesture commits pop and reveals previous route', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -448,6 +495,7 @@ void main() {
 
       try {
         final route = createAdaptivePageRoute<void>(
+          useFadeThrough: true,
           builder: (_) => const CupertinoPageScaffold(
             navigationBar: CupertinoNavigationBar(middle: Text('iOS Destination')),
             child: SafeArea(child: Center(child: Text('iOS Body'))),

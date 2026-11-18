@@ -21,13 +21,14 @@ void main() {
       expect(route, isA<AdaptivePageRoute<void>>());
     });
 
-    test('createAdaptivePageRoute with useFadeThrough returns PageRouteBuilder', () {
+    test('fade-through requests retain the Material predictive-back route', () {
       final route = createAdaptivePageRoute<void>(
         builder: (_) => const Scaffold(body: Text('Splash Target')),
         useFadeThrough: true,
       );
 
-      expect(route, isA<PageRouteBuilder<void>>());
+      expect(route, isA<MaterialPageRoute<void>>());
+      expect(route, isNot(isA<PageRouteBuilder<void>>()));
     });
 
     testWidgets('ForegroundPageShadowTransition applies elevation drop shadow when animation is active', (tester) async {

@@ -316,6 +316,11 @@ void main() {
 
       expect(scaffoldState.isDrawerOpen, isTrue);
 
+      // Rebuild the shell while the drawer is open. Closing it must not leave
+      // a stale PopScope veto that disables future native back gestures.
+      container.read(expenseTabControllerProvider.notifier).setTab(0);
+      await tester.pumpAndSettle();
+
       // Simulate back
       final dynamic widgetsAppState = tester.state(find.byType(WidgetsApp));
       await widgetsAppState.didPopRoute();
@@ -323,6 +328,9 @@ void main() {
 
       // Verify drawer closed
       expect(scaffoldState.isDrawerOpen, isFalse);
+      expect(tester.widget<PopScope>(
+        find.byWidgetPredicate((widget) => widget is PopScope).first,
+      ).canPop, isTrue);
     });
 
     testWidgets('Settings is reachable from the expense drawer', (tester) async {

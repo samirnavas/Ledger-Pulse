@@ -365,9 +365,10 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
     ];
 
     return PopScope(
-      canPop:
-          clampedIndex == 0 &&
-          !(_scaffoldKey.currentState?.isDrawerOpen ?? false),
+      // Scaffold's drawer adds a LocalHistoryEntry, which handles back and
+      // disables the page pop gesture while open. Only tab navigation needs
+      // an explicit veto here; reading isDrawerOpen during build can go stale.
+      canPop: clampedIndex == 0,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {

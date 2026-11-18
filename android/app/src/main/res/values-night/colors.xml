@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="widget_add_background">#A7C8FF</color>
+    <color name="widget_on_add">#003061</color>
     <!-- M3 Expressive Dark Mode Tokens for Ledger Pulse Widget -->
     <color name="widget_bg">#1E1B16</color>
     <color name="widget_container_tonal">#2B2822</color>

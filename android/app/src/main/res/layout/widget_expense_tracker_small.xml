@@ -38,8 +38,12 @@
 
             <ImageView
                 android:id="@+id/widget_expense_add_button"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="72dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/widget_add_pill"
+                android:paddingHorizontal="24dp"
+                android:paddingVertical="12dp"
                 android:clickable="true"
                 android:contentDescription="Add Expense"
                 android:focusable="true"

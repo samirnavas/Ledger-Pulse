@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="widget_add_background">@android:color/system_accent1_200</color>
+    <color name="widget_on_add">@android:color/system_accent1_800</color>
     <!-- Material You (Monet) Dynamic Dark Palette on Android 12+ (API 31+) -->
     <!-- Matches system widgets like Clock, Calendar, and themed app icons -->
     <color name="widget_bg">@android:color/system_accent2_800</color>
