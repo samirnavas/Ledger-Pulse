@@ -27,6 +27,63 @@ void main() {
     await db.close();
   });
 
+  test('Expense profile loads with missing or stale company details', () async {
+    final now = DateTime.now();
+    final header = WorkspaceProfileHeader(
+      id: 'expense_profile',
+      name: 'Expenses',
+      legalName: 'Expenses',
+      type: ProfileType.expense,
+      role: ProfileRole.owner,
+      updatedAt: now,
+    );
+    final staleCompany = Company(
+      id: header.id,
+      name: 'Stale company',
+      legalName: 'Stale company',
+      address: 'Saved address',
+      createdAt: now,
+      updatedAt: now,
+    );
+    final container = ProviderContainer(
+      overrides: [
+        companiesProvider.overrideWith((ref) async => [staleCompany]),
+        userProfileProvider.overrideWith(
+          () => _TestUserProfileNotifier(
+            UserProfile(
+              id: 'usr_test',
+              name: 'Account holder',
+              phoneNumber: '',
+              email: '',
+              companies: const [],
+              activeCompanyId: header.id,
+            ),
+          ),
+        ),
+        profileSessionProvider.overrideWith(
+          () => _TestSession(
+            ActiveProfileReadySessionState(
+              userId: 'usr_test',
+              activeProfile: header,
+              availableProfiles: [header],
+            ),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    expect(
+      container.read(activeCompanyProvider).mode,
+      CompanyMode.expenseTracker,
+    );
+    await container.read(companiesProvider.future);
+    final company = container.read(activeCompanyProvider);
+    expect(company.mode, CompanyMode.expenseTracker);
+    expect(company.name, header.name);
+    expect(company.address, staleCompany.address);
+  });
+
   test(
     'Canonical profile names win over stale companies and remain synchronized after edit',
     () async {

@@ -55,6 +55,8 @@
                 android:resource="@xml/ledger_pulse_widget_info" />
         </receiver>
 
+        <receiver android:name=".WidgetEntryReceiver" android:exported="false" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

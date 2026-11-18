@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_entry_key"
+    android:layout_width="0dp"
+    android:layout_height="match_parent"
+    android:layout_margin="2dp"
+    android:layout_weight="1"
+    android:ellipsize="end"
+    android:gravity="center"
+    android:maxLines="1"
+    android:paddingStart="2dp"
+    android:paddingEnd="2dp"
+    android:background="@drawable/widget_card_pill"
+    android:textColor="@color/widget_expense_text"
+    android:textSize="12sp"
+    android:textStyle="bold" />

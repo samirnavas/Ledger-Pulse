@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/config/supabase_config.dart';
 import 'core/constants/strings.dart';
 import 'core/services/widget_sync_service.dart';
+import 'core/services/widget_entry_service.dart';
 import 'core/theme/android_theme.dart';
 import 'core/theme/app_color_theme.dart';
 import 'core/theme/ios_theme.dart';
@@ -17,6 +18,8 @@ import 'presentation/expense/quick_add_transaction_sheet.dart';
 import 'package:home_widget/home_widget.dart';
 import 'presentation/providers/auth_providers.dart';
 import 'presentation/providers/company_providers.dart';
+import 'presentation/providers/expense_providers.dart';
+import 'presentation/providers/budget_providers.dart';
 import 'presentation/providers/profile_session_controller.dart';
 import 'presentation/providers/profile_session_state.dart';
 import 'presentation/providers/recurring_providers.dart';
@@ -24,6 +27,12 @@ import 'presentation/providers/sync_providers.dart';
 import 'presentation/providers/theme_provider.dart';
 import 'presentation/providers/widget_sync_provider.dart';
 import 'presentation/splash/splash_screen.dart';
+
+@pragma('vm:entry-point')
+Future<void> widgetEntryMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await WidgetEntryService.start();
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -81,6 +90,18 @@ class LedgerPulseApp extends ConsumerStatefulWidget {
 
 class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
   AppLifecycleListener? _lifecycleListener;
+  String? _widgetEntryRevision;
+
+  Future<void> _refreshWidgetEntries() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    final revision = await HomeWidget.getWidgetData<String>(
+      WidgetEntryService.revisionKey,
+    );
+    if (!mounted || revision == null || revision == _widgetEntryRevision) return;
+    _widgetEntryRevision = revision;
+    ref.invalidate(expenseRepositoryProvider);
+    ref.invalidate(budgetRepositoryProvider);
+  }
 
   Future<void> _processRecurringIfDue() async {
     try {
@@ -99,7 +120,9 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
     super.initState();
     // Setup app lifecycle listener to auto-sync each time app is opened / resumed from background
     _lifecycleListener = AppLifecycleListener(
-      onResume: () {
+      onResume: () async {
+        await _refreshWidgetEntries();
+        if (!mounted) return;
         ref.read(syncControllerProvider.notifier).autoSyncOnAppOpen();
         _processRecurringIfDue();
       },
@@ -201,6 +224,7 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
     });
     // Keep native home screen widget synced with active company & business totals
     ref.watch(widgetSyncProvider);
+    ref.watch(widgetEntryContextProvider);
     // Keep data synchronized automatically each time the app opens or switches company
     ref.watch(autoSyncProvider);
 

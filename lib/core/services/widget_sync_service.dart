@@ -2,7 +2,11 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
+import '../../data/local/drift_expense_repository.dart' show ExpenseMonthSummary;
+import '../../data/models/account_model.dart';
+import '../../data/models/budget_model.dart';
 import '../../data/models/company_model.dart';
+import '../../data/models/voucher_model.dart';
 import '../utils/currency_formatter.dart';
 
 /// Production service managing Home Screen Widgets synchronization for Android & iOS.
@@ -217,4 +221,93 @@ class WidgetSyncService {
       return false;
     }
   }
+}
+
+Future<void> syncExpenseWidgetData({
+  required Company company,
+  required ExpenseMonthSummary summary,
+  required List<AccountModel> categories,
+  required List<BudgetModel> budgets,
+  required List<VoucherModel> transactions,
+}) async {
+  final now = DateTime.now();
+
+  // 1. Calculate today's spend from today's expense transactions
+  final todayTxns = transactions.where(
+    (t) =>
+        t.date.year == now.year &&
+        t.date.month == now.month &&
+        t.date.day == now.day &&
+        t.type == VoucherType.expense,
+  );
+  int todaySpendCents = 0;
+  for (final t in todayTxns) {
+    todaySpendCents += t.totalAmountInCents;
+  }
+
+  // 2. Calculate budget from active budgets (overall allocated budget)
+  int totalBudgetCents = 0;
+  for (final b in budgets.where((b) => b.isActive && !b.isDeleted)) {
+    totalBudgetCents += b.amountInCents;
+  }
+
+  // 3. Calculate top 3 categories by monthly expense
+  final catNameMap = {for (final c in categories) c.id: c.name};
+  final sortedCats =
+      summary.expenseCategoryTotalsInCents.entries
+          .where((e) => e.value > 0)
+          .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+  final int totalExpenseInCents = summary.totalExpenseInCents;
+  final List<({String name, double percent})> topCategories = [];
+
+  if (sortedCats.isNotEmpty && totalExpenseInCents > 0) {
+    for (final entry in sortedCats.take(3)) {
+      final rawName = catNameMap[entry.key];
+      final name = (rawName != null && rawName.trim().isNotEmpty) ? rawName : 'Other';
+      final double pct = (entry.value / totalExpenseInCents) * 100.0;
+      topCategories.add((name: name, percent: pct));
+    }
+  }
+
+  // If fewer than 3 categories with spend, fallback to available category names
+  if (topCategories.length < 3) {
+    for (final cat in categories) {
+      if (!topCategories.any((c) => c.name == cat.name)) {
+        topCategories.add((name: cat.name, percent: 0.0));
+        if (topCategories.length == 3) break;
+      }
+    }
+  }
+
+  // Fallback defaults if still empty (brand new profile)
+  if (topCategories.isEmpty) {
+    topCategories.addAll([
+      (name: 'Food & Dining', percent: 45.0),
+      (name: 'Groceries', percent: 30.0),
+      (name: 'Travel', percent: 25.0),
+    ]);
+  }
+
+  // If all percentages are 0, distribute nicely for the chart
+  final allZero = topCategories.every((c) => c.percent <= 0.0);
+  final finalCategories = allZero
+      ? [
+          (name: topCategories[0].name, percent: 45.0),
+          if (topCategories.length > 1)
+            (name: topCategories[1].name, percent: 30.0),
+          if (topCategories.length > 2)
+            (name: topCategories[2].name, percent: 25.0),
+        ]
+      : topCategories;
+
+  await WidgetSyncService.syncWidgetData(
+    company: company,
+    monthSpendCents: summary.totalExpenseInCents,
+    monthIncomeCents: summary.totalIncomeInCents,
+    todaySpendCents: todaySpendCents,
+    budgetCents: totalBudgetCents > 0 ? totalBudgetCents : null,
+    topCategories: finalCategories,
+  );
 }

@@ -143,15 +143,14 @@
 
             <ImageView
                 android:id="@+id/widget_expense_add_button"
-                android:layout_width="48dp"
-                android:layout_height="21dp"
+                android:layout_width="40dp"
+                android:layout_height="28dp"
                 android:background="@drawable/widget_add_pill"
-                android:paddingHorizontal="24dp"
-                android:paddingVertical="12dp"
                 android:layout_gravity="end"
                 android:clickable="true"
                 android:contentDescription="Add Expense"
                 android:focusable="true"
+                android:scaleType="centerInside"
                 android:src="@drawable/ic_widget_add" />
         </FrameLayout>
 

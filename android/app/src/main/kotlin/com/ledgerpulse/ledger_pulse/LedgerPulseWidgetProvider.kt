@@ -18,6 +18,11 @@ import es.antonborri.home_widget.HomeWidgetProvider
 
 class LedgerPulseWidgetProvider : HomeWidgetProvider() {
 
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        appWidgetIds.forEach { WidgetEntry.delete(context, it) }
+        super.onDeleted(context, appWidgetIds)
+    }
+
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -57,8 +62,10 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
             val isMedium = minWidth >= 220
 
             val views = if (isExpense) {
-                buildExpenseWidget(context, widgetData, isMedium)
+                WidgetEntry.render(context, appWidgetId, widgetData)
+                    ?: buildExpenseWidget(context, widgetData, appWidgetId, isMedium)
             } else {
+                WidgetEntry.delete(context, appWidgetId)
                 buildLedgerWidget(context, widgetData, isMedium)
             }
 
@@ -104,6 +111,7 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
     private fun buildExpenseWidget(
         context: Context,
         widgetData: android.content.SharedPreferences,
+        appWidgetId: Int,
         isMedium: Boolean
     ): RemoteViews {
         val companyName = widgetData.getString("company_name", "Profile Name") ?: "Profile Name"
@@ -165,7 +173,8 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
                 MainActivity::class.java,
                 quickAddUri
             )
-            setOnClickPendingIntent(R.id.widget_expense_add_button, quickAddIntent)
+            val addIntent = WidgetEntry.openIntent(context, appWidgetId, widgetData)
+            setOnClickPendingIntent(R.id.widget_expense_add_button, addIntent ?: quickAddIntent)
 
             // Root click PendingIntent: opens dashboard for active company
             val deepLinkUri = Uri.parse("ledgerpulse://dashboard?company_id=$companyId")

@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/repositories/supabase_auth_repository.dart';
 import '../../domain/repositories/i_auth_repository.dart';
+import '../../core/services/widget_entry_service.dart';
 import 'database_providers.dart';
 
 final sharedPreferencesProvider = Provider<SharedPreferences?>((ref) {
@@ -292,6 +295,13 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> logout() async {
     state = state.copyWith(isLoading: true);
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        await WidgetEntryService.clear();
+      } catch (error) {
+        debugPrint('Could not clear widget entry context: $error');
+      }
+    }
     try {
       ref.read(syncEngineProvider).dispose();
       await ref.read(appDatabaseProvider).close();

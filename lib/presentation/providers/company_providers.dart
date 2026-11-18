@@ -50,13 +50,32 @@ final userCompaniesProvider = Provider<List<Company>>((ref) {
   if (session is! ActiveProfileReadySessionState) return companies;
   return session.availableProfiles.map((header) {
     final company = companies.where((c) => c.id == header.id).firstOrNull;
-    return (company ?? Company(
-      id: header.id, name: header.name, legalName: header.legalName,
-      createdAt: header.updatedAt, updatedAt: header.updatedAt,
-    )).copyWith(
-      name: header.name, legalName: header.legalName,
-      mode: header.isExpense ? CompanyMode.expenseTracker : CompanyMode.ledger,
-      currencyCode: header.currencyCode, gstin: header.gstin,
+    return Company(
+      id: header.id,
+      name: header.name,
+      legalName: header.legalName,
+      mode: header.type.toCompanyMode(),
+      currencyCode: header.currencyCode,
+      gstin: header.gstin ?? company?.gstin,
+      stateCode: company?.stateCode,
+      dealerType: company?.dealerType ?? 'regular',
+      address: company?.address,
+      email: company?.email,
+      phoneNumber: company?.phoneNumber,
+      logoUrl: company?.logoUrl,
+      signatureUrl: company?.signatureUrl,
+      signatoryName: company?.signatoryName,
+      bankName: company?.bankName,
+      bankAccountNumber: company?.bankAccountNumber,
+      bankIfsc: company?.bankIfsc,
+      upiId: company?.upiId,
+      isCloudSyncEnabled: company?.isCloudSyncEnabled ?? true,
+      isDropboxSyncEnabled: company?.isDropboxSyncEnabled ?? false,
+      isActive: company?.isActive ?? true,
+      enabledModules: company?.enabledModules ?? AppModule.allModules,
+      createdAt: company?.createdAt ?? header.updatedAt,
+      updatedAt: company?.updatedAt ?? header.updatedAt,
+      ownerId: company?.ownerId,
     );
   }).toList();
 });

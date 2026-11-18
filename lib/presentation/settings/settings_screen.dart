@@ -1,11 +1,15 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:home_widget/home_widget.dart';
 
 import '../../core/constants/colors.dart';
 import '../../core/constants/strings.dart';
+import '../../core/services/widget_entry_service.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_page_entrance.dart';
@@ -25,6 +29,7 @@ import '../../data/models/company_model.dart';
 import '../payments/cts2010_cheque_preview_screen.dart';
 import '../providers/sync_providers.dart';
 import '../providers/theme_provider.dart';
+import '../providers/widget_sync_provider.dart';
 import '../reports/audit_log_screen.dart';
 import '../reports/reporting_hub_screen.dart';
 import 'modules_screen.dart';
@@ -44,6 +49,10 @@ class SettingsScreen extends ConsumerWidget {
     final profile = ref.watch(userProfileProvider);
     final syncStatus = ref.watch(syncControllerProvider);
     final isSyncing = syncStatus == SyncStatus.syncing;
+    final showWidgetSettings = !kIsWeb && Platform.isAndroid;
+    final widgetKeypad = showWidgetSettings
+        ? ref.watch(widgetKeypadEnabledProvider).value
+        : null;
 
     return AdaptiveScaffold(
       title: 'Settings & Preferences',
@@ -60,6 +69,40 @@ class SettingsScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 _buildThemeSelectorCard(context, ref, themeMode, isDark, isIos),
 
+                if (showWidgetSettings) ...[
+                  const SizedBox(height: 24),
+                  _buildSectionHeader(context, 'HOME SCREEN WIDGET'),
+                  const SizedBox(height: 8),
+                  _buildCard(
+                    context,
+                    isDark,
+                    isIos,
+                    children: [
+                      SwitchListTile(
+                        title: const Text('Add from home screen'),
+                        subtitle: const Text(
+                          'Show a keypad on the Expense widget. Turn off to open Quick Add in the app.',
+                        ),
+                        value: widgetKeypad ?? false,
+                        onChanged: widgetKeypad == null ? null : (enabled) async {
+                          try {
+                            await HomeWidget.saveWidgetData(
+                              WidgetEntryService.enabledKey,
+                              enabled,
+                            );
+                            ref.invalidate(widgetKeypadEnabledProvider);
+                            await WidgetEntryService.refresh();
+                          } catch (_) {
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Could not update widget settings')),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 24),
 
                 // 2. ACTIVE COMPANY & PROFILE
