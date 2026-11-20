@@ -25,7 +25,7 @@ import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 
 /// Screen displaying category budgets, progress bars, rollover indicators,
-/// overall monthly budget summary, and warning/exceeded threshold banners.
+/// and an overall budget summary.
 class BudgetsScreen extends ConsumerStatefulWidget {
   const BudgetsScreen({super.key});
 
@@ -292,7 +292,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     }
 
     final progressListAsync = ref.watch(budgetsProgressListProvider);
-    final overallAsync = ref.watch(overallMonthlyBudgetProvider);
+    final overall = ref.watch(allCategoriesBudgetProvider).asData?.value;
 
     return AdaptivePageEntrance(
       child: Material(
@@ -311,13 +311,8 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
               children: [
-                // Overall Monthly Budget Hero Card
-                overallAsync.when(
-                  data: (overall) =>
-                      _buildOverallBudgetCard(theme, company, overall),
-                  loading: () => const SizedBox.shrink(),
-                  error: (err, stack) => const SizedBox.shrink(),
-                ),
+                if (overall != null)
+                  _buildOverallBudgetCard(theme, company, overall),
 
                 const SizedBox(height: 16),
                 Row(
@@ -360,68 +355,12 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     );
   }
 
-  // 80% Warning Banner
-  Widget _buildWarningBanner(
-    ThemeData theme,
-    List<BudgetProgress> warningBudgets,
-  ) {
-    final catNames = warningBudgets.map((b) => b.categoryName).join(', ');
-    return Container(
-      key: const Key('budget_warning_banner'),
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: theme.colorScheme.tertiary.withValues(alpha: 0.45),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.warning_amber_rounded,
-            color: theme.colorScheme.onTertiaryContainer,
-            size: 22,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Approaching Limit (80%+)',
-                  style: TextStyle(
-                    color: theme.colorScheme.onTertiaryContainer,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'You have reached 80% or more of your budget for $catNames.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onTertiaryContainer,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Overall Monthly Budget Card
   Widget _buildOverallBudgetCard(
     ThemeData theme,
     Company company,
-    OverallBudgetSummary overall,
+    BudgetProgress overall,
   ) {
-    final percentClamped = overall.totalAllocatedInCents > 0
-        ? (overall.percentUsed / 100)
-        : 0.0;
+    final percent = overall.percentUsed / 100;
     final progressColor = _getThresholdColor(context, overall.percentUsed);
 
     return AdaptiveSurfaceCard(
@@ -434,12 +373,15 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Overall Monthly Budget',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: Text(
+                  'Overall ${overall.budget.periodType.displayName} Budget',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -459,7 +401,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
           ),
           const SizedBox(height: 14),
           _AdaptiveProgressBar(
-            value: percentClamped.clamp(0.0, 1.0),
+            value: percent.clamp(0.0, 1.0),
             color: progressColor,
             height: 10,
           ),
@@ -477,7 +419,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     ),
                   ),
                   AmountText(
-                    amountInCents: overall.totalSpentInCents,
+                    amountInCents: overall.spentInCents,
                     overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.medium,
@@ -513,7 +455,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     ),
                   ),
                   AmountText(
-                    amountInCents: overall.totalAllocatedInCents,
+                    amountInCents: overall.effectiveAllocatedInCents,
                     overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.medium,

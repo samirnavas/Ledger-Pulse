@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -5,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
 import '../../core/services/widget_entry_service.dart';
 import '../../core/services/widget_sync_service.dart';
+import '../../data/models/budget_model.dart';
 import '../../data/models/company_model.dart';
+import '../../data/models/voucher_model.dart';
 import 'auth_providers.dart';
 import 'budget_providers.dart';
 import 'company_providers.dart';
@@ -17,6 +20,53 @@ final widgetKeypadEnabledProvider = FutureProvider<bool>((ref) async {
   return await HomeWidget.getWidgetData<bool>(WidgetEntryService.enabledKey) ??
       false;
 });
+
+final _widgetTodayExpensesProvider =
+    FutureProvider.autoDispose<List<VoucherModel>>((ref) async {
+      final repo = ref.watch(expenseRepositoryProvider);
+      final subscription = repo.repositoryUpdatesStream.listen((_) {
+        ref.invalidateSelf();
+      });
+      ref.onDispose(subscription.cancel);
+
+      final now = DateTime.now();
+      return repo.getTransactions(
+        startDate: DateTime(now.year, now.month, now.day),
+        endDate: DateTime(
+          now.year,
+          now.month,
+          now.day + 1,
+        ).subtract(const Duration(seconds: 1)),
+        type: VoucherType.expense,
+      );
+    });
+
+final _widgetMonthSummaryProvider =
+    FutureProvider.autoDispose<ExpenseMonthSummary>((ref) async {
+      final repo = ref.watch(expenseRepositoryProvider);
+      final subscription = repo.repositoryUpdatesStream.listen((_) {
+        ref.invalidateSelf();
+      });
+      ref.onDispose(subscription.cancel);
+      return repo.getMonthSummary(DateTime.now());
+    });
+
+final _widgetOverallBudgetProvider =
+    FutureProvider.autoDispose<BudgetProgress?>((ref) async {
+      final company = ref.watch(activeCompanyProvider);
+      if (!company.isModuleEnabled(AppModule.budgets)) return null;
+      final budgetRepo = ref.watch(budgetRepositoryProvider);
+      final expenseRepo = ref.watch(expenseRepositoryProvider);
+      final budgets = budgetRepo.repositoryUpdatesStream.listen((_) {
+        ref.invalidateSelf();
+      });
+      final expenses = expenseRepo.repositoryUpdatesStream.listen((_) {
+        ref.invalidateSelf();
+      });
+      ref.onDispose(budgets.cancel);
+      ref.onDispose(expenses.cancel);
+      return budgetRepo.getAllCategoriesBudget();
+    });
 
 final widgetEntryContextProvider = Provider<void>((ref) {
   if (kIsWeb || !Platform.isAndroid) return;
@@ -30,10 +80,20 @@ final widgetEntryContextProvider = Provider<void>((ref) {
   final wallets = isExpense ? ref.watch(walletsProvider).value : null;
   final categories = isExpense ? ref.watch(categoriesProvider).value : null;
   final enabled = ref.watch(widgetKeypadEnabledProvider).value;
+  final hasActiveCompany = ref.watch(
+    userCompaniesProvider.select(
+      (companies) => companies.any((candidate) => candidate.id == company.id),
+    ),
+  );
   Future.microtask(() async {
     if (!ref.mounted) return;
     try {
-      if (authLoading || !isExpense || enabled == false) {
+      if (enabled == false) {
+        await WidgetEntryService.clear();
+      } else if (authLoading || !hasActiveCompany) {
+        // A startup placeholder must not replace the last usable keypad context.
+        return;
+      } else if (!isExpense) {
         await WidgetEntryService.clear();
       } else if (enabled == true && wallets != null && categories != null) {
         await WidgetEntryService.publish(
@@ -54,36 +114,39 @@ final widgetEntryContextProvider = Provider<void>((ref) {
 /// native Home Screen Widgets continuously up to date in real time.
 final widgetSyncProvider = Provider<void>((ref) {
   final company = ref.watch(activeCompanyProvider);
+  final companies = ref.watch(userCompaniesProvider);
+  if (!companies.any((candidate) => candidate.id == company.id)) return;
 
   if (company.mode == CompanyMode.expenseTracker) {
-    // In expense mode, watch this month's expense summary, categories, budgets, and transactions
-    final summaryAsync = ref.watch(monthSummaryProvider);
+    // Widget spending is independent of the transaction screen's search and filters.
+    final summaryAsync = ref.watch(_widgetMonthSummaryProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
-    final budgetsAsync = ref.watch(budgetsListProvider);
-    final transactionsAsync = ref.watch(transactionsProvider);
+    final budget = ref.watch(_widgetOverallBudgetProvider).asData;
+    final transactionsAsync = ref.watch(_widgetTodayExpensesProvider);
 
     final summary = summaryAsync.value;
-    if (summary == null) return;
+    final transactions = transactionsAsync.value;
+    if (summary == null || transactions == null || budget == null) return;
 
     final categories = categoriesAsync.value ?? [];
-    final budgets = budgetsAsync.value ?? [];
-    final transactions = transactionsAsync.value ?? [];
 
-    Future.microtask(() {
+    final pendingUpdate = Timer(const Duration(milliseconds: 150), () {
       syncExpenseWidgetData(
         company: company,
         summary: summary,
         categories: categories,
-        budgets: budgets,
+        overallBudget: budget.value,
         transactions: transactions,
       );
     });
+    ref.onDispose(pendingUpdate.cancel);
     return;
   }
 
   final summaryAsync = ref.watch(businessSummaryProvider);
   summaryAsync.whenData((summary) {
     Future.microtask(() {
+      if (!ref.mounted) return;
       WidgetSyncService.syncWidgetData(
         company: company,
         totalReceivableCents: summary.$1,
@@ -104,7 +167,9 @@ final syncWidgetDataActionProvider = Provider<Future<void> Function()>((ref) {
         final now = DateTime.now();
         final summary = await repo.getMonthSummary(now);
         final categories = await repo.getCategories();
-        final budgets = await budgetRepo.getBudgets(includeInactive: false);
+        final budget = company.isModuleEnabled(AppModule.budgets)
+            ? await budgetRepo.getAllCategoriesBudget(month: now)
+            : null;
         final startOfMonth = DateTime(now.year, now.month, 1);
         final endOfMonth = DateTime(
           now.year,
@@ -124,7 +189,7 @@ final syncWidgetDataActionProvider = Provider<Future<void> Function()>((ref) {
           company: company,
           summary: summary,
           categories: categories,
-          budgets: budgets,
+          overallBudget: budget,
           transactions: transactions,
         );
         return;

@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart' hide isNull, isNotNull;
+import 'package:drift/drift.dart' hide Column, isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -162,27 +162,60 @@ void main() {
         await tester.tap(find.byType(AdaptiveListRow).first);
         await tester.pumpAndSettle();
         expect(find.byType(TransactionDetailsScreen), findsOneWidget);
+        final modal = find.byType(TransactionDetailsScreen);
+        final sheetHeight = tester.getSize(modal).height;
+        expect(find.text('Transaction Details'), findsOneWidget);
         expect(find.byType(QuickAddTransactionSheet), findsNothing);
-        expect(find.text('Dinner receipt'), findsOneWidget);
-        expect(find.text(txn.voucherNumber), findsOneWidget);
-        expect(find.text('Food & Dining'), findsOneWidget);
-        await tester.ensureVisible(
-          find.byKey(const Key('transaction_invoice_section')),
+        expect(
+          find.descendant(of: modal, matching: find.text('Dinner receipt')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: modal, matching: find.text(txn.voucherNumber)),
+          findsNothing,
+        );
+        expect(
+          find.descendant(of: modal, matching: find.text('Food & Dining')),
+          findsOneWidget,
+        );
+        final invoiceSection = find.byKey(
+          const Key('transaction_invoice_section'),
         );
         if (receipt != null) {
+          expect(sheetHeight, 1400);
+          expect(invoiceSection, findsOneWidget);
           await tester.runAsync(() async {
             await Future<void>.delayed(const Duration(milliseconds: 100));
           });
+          await tester.pumpAndSettle();
+          expect(
+            find.text('Invoice unavailable on this device'),
+            findsOneWidget,
+          );
+        } else {
+          expect(sheetHeight, lessThan(700));
+          expect(invoiceSection, findsNothing);
+          expect(find.text('Invoice / receipt'), findsNothing);
+
+          await tester.tap(find.text('Edit details'));
+          await tester.pumpAndSettle();
+          final editor = find.byType(QuickAddTransactionSheet);
+          expect(editor, findsOneWidget);
+          expect(
+            tester.widget<QuickAddTransactionSheet>(editor).initialVoucher?.id,
+            txn.id,
+          );
+          Navigator.of(tester.element(editor)).pop();
+          await tester.pumpAndSettle();
+
+          await tester.tap(find.byType(AdaptiveListRow).first);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Delete'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Delete'));
+          await tester.pumpAndSettle();
+          expect(await expenseRepo.getTransactions(), isEmpty);
         }
-        await tester.pumpAndSettle();
-        expect(
-          find.text(
-            receipt == null
-                ? 'No invoice attached'
-                : 'Invoice unavailable on this device',
-          ),
-          findsOneWidget,
-        );
         expect(tester.takeException(), isNull);
       });
     }
@@ -308,12 +341,16 @@ void main() {
         expect(find.byType(AdaptiveSectionHeader), findsOneWidget);
         expect(find.text('Today'), findsOneWidget);
         expect(find.byType(AdaptiveListRow), findsOneWidget);
-        expect(find.text('Food & Dining'), findsOneWidget);
-        expect(find.textContaining('Dinner with Team'), findsOneWidget);
+        final row = tester.widget<AdaptiveListRow>(
+          find.byType(AdaptiveListRow),
+        );
+        expect(row.title, 'Dinner with Team');
+        expect(row.subtitle, contains('Food & Dining'));
+        expect(row.subtitle, isNot(contains('Dinner with Team')));
       },
     );
 
-    testWidgets('filter button shows active tint when filters are set', (
+    testWidgets('parent category filter includes subcategory transactions', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(800, 1400);
@@ -336,6 +373,20 @@ void main() {
       );
       addTearDown(container.dispose);
 
+      final foodId = '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}';
+      final child = await expenseRepo.createCategory(
+        name: 'Chaya',
+        type: AccountType.expense,
+        parentAccountId: foodId,
+      );
+      await expenseRepo.addExpense(
+        categoryAccountId: child.id,
+        walletAccountId: '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}',
+        amountInCents: 1200,
+        narration: 'Afternoon tea',
+        date: DateTime.now(),
+      );
+
       await tester.pumpWidget(
         buildApp(platform: TargetPlatform.android, container: container),
       );
@@ -350,7 +401,7 @@ void main() {
       container
           .read(transactionFiltersProvider.notifier)
           .updateFilters(
-            const TransactionFilters(categoryIds: ['some_cat_id']),
+            TransactionFilters(categoryIds: [foodId, child.id]),
           );
       await tester.pumpAndSettle();
 
@@ -358,6 +409,13 @@ void main() {
         find.byKey(const Key('transaction_filter_button')),
       );
       expect(filterButton.isActive, true);
+      expect(find.text('Afternoon tea'), findsOneWidget);
+
+      container.read(transactionFiltersProvider.notifier).updateFilters(
+        TransactionFilters(categoryIds: [foodId]),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Afternoon tea'), findsOneWidget);
     });
 
     testWidgets('search filtering and PopScope predictive back clears search', (
@@ -453,13 +511,33 @@ void main() {
         // Swipe right to left (endToStart)
         final dismissibleFinder = find.byKey(ValueKey('txn_${txn.id}'));
         expect(dismissibleFinder, findsOneWidget);
+        final clip = find.ancestor(
+          of: dismissibleFinder,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is ClipRRect &&
+                widget.clipBehavior == Clip.antiAlias &&
+                widget.child is Column,
+          ),
+        );
+        expect(clip, findsOneWidget);
+        expect(
+          tester.getRect(clip).left,
+          tester.getRect(dismissibleFinder).left,
+        );
+        expect(
+          tester.getRect(clip).right,
+          tester.getRect(dismissibleFinder).right,
+        );
 
         await tester.drag(dismissibleFinder, const Offset(-500, 0));
         await tester.pumpAndSettle();
 
         // Confirm dialog appears
-        expect(find.text('Void Transaction?'), findsOneWidget);
-        final confirmBtn = find.widgetWithText(FilledButton, 'Void');
+        expect(find.text('Delete transaction?'), findsOneWidget);
+        expect(find.textContaining('₹ 12 expense from'), findsOneWidget);
+        expect(find.textContaining(txn.voucherNumber), findsNothing);
+        final confirmBtn = find.widgetWithText(FilledButton, 'Delete');
         expect(confirmBtn, findsOneWidget);
 
         await tester.tap(confirmBtn);
@@ -467,6 +545,7 @@ void main() {
 
         // Transaction is voided and removed from active list
         expect(find.textContaining('Quick Snack'), findsNothing);
+        expect(find.text('₹ 12 expense deleted'), findsOneWidget);
       },
     );
 

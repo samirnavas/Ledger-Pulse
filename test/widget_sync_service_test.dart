@@ -1,7 +1,10 @@
+import 'package:flutter/services.dart';
+import 'package:ledger_pulse/core/services/widget_sync_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ledger_pulse/core/utils/currency_formatter.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
+import 'package:ledger_pulse/data/models/budget_model.dart';
 import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
 import 'package:ledger_pulse/presentation/expense/quick_add_transaction_sheet.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
@@ -79,26 +82,56 @@ void main() {
       expect(activeCompany.isExpense, isTrue);
     });
 
-    test('Expense tracker budget calculation yields expected progress text and percentages', () {
-      const int todaySpendCents = 200000; // 2,000
-      const int dailyBudgetCents = 370000; // 3,700
+    test('Widget displays daily spend and monthly budget progress', () async {
+      const channel = MethodChannel('home_widget');
+      final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final widgetData = <String, Object?>{};
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'saveWidgetData') {
+          final args = call.arguments as Map;
+          widgetData[args['id'] as String] = args['data'];
+        }
+        return true;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
 
-      final todayFormatted = CurrencyFormatter.format(
-        todaySpendCents,
-        includeSymbol: false,
-        showDecimalsAlways: false,
-      ).trim();
-      final budgetFormatted = CurrencyFormatter.format(
-        dailyBudgetCents,
-        includeSymbol: false,
-        showDecimalsAlways: false,
-      ).trim();
+      expect(
+        await WidgetSyncService.syncWidgetData(
+          company: expenseProfile,
+          todaySpendCents: 15500,
+          monthSpendCents: 50000,
+          budgetCents: 79000,
+        ),
+        isTrue,
+      );
+      expect(widgetData['today_label'], 'Today');
+      expect(widgetData['today_spend_value'], '155');
+      expect(widgetData['spend_progress_text'], 'Month: 500/790');
+      expect(widgetData['spend_progress_percent'], 63);
+      expect(widgetData['spend_percent_text'], '63%');
 
-      final progressText = 'Spend - $todayFormatted/$budgetFormatted';
-      final percent = ((todaySpendCents / dailyBudgetCents) * 100).round();
+      await WidgetSyncService.syncWidgetData(
+        company: expenseProfile,
+        todaySpendCents: 15500,
+        monthSpendCents: 90000,
+        budgetCents: 80000,
+        budgetSpentCents: 84000,
+        budgetPeriod: BudgetPeriodType.weekly,
+      );
+      expect(widgetData['spend_progress_text'], 'Week: 840/800');
+      expect(widgetData['spend_progress_percent'], 100);
+      expect(widgetData['spend_percent_text'], '105%');
 
-      expect(progressText, equals('Spend - 2,000/3,700'));
-      expect(percent, equals(54)); // 2000 / 3700 ~ 54%
+      await WidgetSyncService.syncWidgetData(
+        company: expenseProfile,
+        todaySpendCents: 0,
+        monthSpendCents: 50000,
+      );
+      expect(widgetData['today_label'], 'Today');
+      expect(widgetData['today_spend_value'], '0');
+      expect(widgetData['spend_progress_text'], 'Month: 500');
+      expect(widgetData['spend_percent_text'], '');
+      expect(widgetData['spend_progress_percent'], 0);
     });
     test('QuickAddTransactionSheet.isSheetOpen tracks modal state accurately', () {
       expect(QuickAddTransactionSheet.isSheetOpen, isFalse);

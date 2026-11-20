@@ -82,9 +82,9 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
         val spendLabel = prefs.getString("spend_label", null)
             ?: prefs.getString("today_label", "Today")
             ?: "Today"
-        val spendProgress = prefs.getString("spend_progress_text", "Spend - 2000/3700") ?: "Spend - 2000/3700"
-        val spendPercent = prefs.getString("spend_percent_text", "58%") ?: "58%"
-        val progressInt = getSafeInt(prefs, "spend_progress_percent", 58)
+        val spendProgress = prefs.getString("spend_progress_text", "").orEmpty()
+        val spendPercent = prefs.getString("spend_percent_text", "").orEmpty()
+        val progressInt = getSafeInt(prefs, "spend_progress_percent", 0)
 
         val cat1 = prefs.getString("category_1_name", "Food & Dining") ?: "Food & Dining"
         val cat2 = prefs.getString("category_2_name", "Groceries") ?: "Groceries"

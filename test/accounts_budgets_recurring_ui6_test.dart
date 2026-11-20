@@ -484,8 +484,7 @@ void main() {
           find.byType(LinearProgressIndicator);
       expect(progressIndicators, findsWidgets);
 
-      // Overall monthly card hero is rendered
-      expect(find.byKey(const Key('overall_budget_card')), findsOneWidget);
+      expect(find.byKey(const Key('overall_budget_card')), findsNothing);
       expect(find.byType(AdaptiveSurfaceCard), findsWidgets);
     });
 
@@ -519,12 +518,12 @@ void main() {
 
       // On iOS, custom rounded capsule is used (not LinearProgressIndicator)
       expect(find.byType(LinearProgressIndicator), findsNothing);
-      expect(find.byKey(const Key('overall_budget_card')), findsOneWidget);
+      expect(find.byKey(const Key('overall_budget_card')), findsNothing);
     });
   });
 
   group('Prompt UI-6 - Recurring Transactions Screen', () {
-    testWidgets('RecurringScreen renders AdaptiveListRow with subtitle and active toggle',
+    testWidgets('RecurringScreen saves category edits and supports pausing',
         (tester) async {
       final wallet = await expenseRepo.createWallet(
         name: 'Bank',
@@ -532,6 +531,10 @@ void main() {
       );
       final cat = await expenseRepo.createCategory(
         name: 'Subscriptions',
+        type: AccountType.expense,
+      );
+      final newCategory = await expenseRepo.createCategory(
+        name: 'Software',
         type: AccountType.expense,
       );
 
@@ -544,7 +547,7 @@ void main() {
           notes: 'Cloud Storage',
         ),
         interval: RecurringIntervalType.monthly,
-        nextRunDate: DateTime(2026, 11, 1),
+        nextRunDate: DateTime(2026, 11, 1, 14, 30),
       );
 
       await tester.pumpWidget(buildTestScope(
@@ -556,7 +559,30 @@ void main() {
       expect(find.byKey(Key('recurring_rule_card_${rule.id}')), findsOneWidget);
       expect(find.text('Cloud Storage'), findsOneWidget);
       expect(find.textContaining('Next: Nov 1, 2026'), findsOneWidget);
+      expect(find.textContaining('2:30'), findsOneWidget);
+      expect(find.text('Category: Subscriptions'), findsOneWidget);
       expect(find.textContaining('Monthly'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('edit_rule_${rule.id}')));
+      await tester.pumpAndSettle();
+      final categoryField = find.byKey(const Key('recurring_category_field'));
+      await tester.ensureVisible(categoryField);
+      await tester.tap(categoryField);
+      await tester.pumpAndSettle();
+      final softwareOption = find.text('Software');
+      await tester.ensureVisible(softwareOption);
+      await tester.tap(softwareOption);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Category: Software'), findsOneWidget);
+      expect(
+        (await recurringService.getRuleById(rule.id)).template.categoryAccountId,
+        newCategory.id,
+      );
 
       // Toggle active state
       final toggleSwitch = find.byKey(Key('toggle_rule_${rule.id}'));

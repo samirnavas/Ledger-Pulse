@@ -97,9 +97,9 @@ struct LedgerPulseTimelineProvider: TimelineProvider {
             todaySpend = "\(currencySymbol)\(val)"
         }
 
-        let spendProgress = userDefaults?.string(forKey: "spend_progress_text") ?? "Spend - 2000/3700"
-        let spendPercent = userDefaults?.string(forKey: "spend_percent_text") ?? "58%"
-        let progressInt = Double(userDefaults?.integer(forKey: "spend_progress_percent") ?? 58)
+        let spendProgress = userDefaults?.string(forKey: "spend_progress_text") ?? ""
+        let spendPercent = userDefaults?.string(forKey: "spend_percent_text") ?? ""
+        let progressInt = Double(userDefaults?.integer(forKey: "spend_progress_percent") ?? 0)
 
         let cat1 = userDefaults?.string(forKey: "category_1_name") ?? "Food & Dining"
         let cat2 = userDefaults?.string(forKey: "category_2_name") ?? "Groceries"

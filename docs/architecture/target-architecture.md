@@ -268,7 +268,6 @@ The complete contract is divided into seven dedicated specifications:
 | **[`data-dictionary.md`](file:///c:/Programming/app/Ledger%20Pulse/docs/architecture/data-dictionary.md)** | Field Contracts | Comprehensive column-level specification, types, precision, nullability, defaults. |
 | **[`rls-matrix.md`](file:///c:/Programming/app/Ledger%20Pulse/docs/architecture/rls-matrix.md)** | Cloud Security | Exhaustive RLS policy matrix by table, operation, profile type, and role; emergency migration 0010. |
 | **[`legacy-migration-map.md`](file:///c:/Programming/app/Ledger%20Pulse/docs/architecture/legacy-migration-map.md)** | Data Migration | Non-destructive transformation rules, legacy column mappings, and verification checks. |
-| **[`implementation-sequence.md`](file:///c:/Programming/app/Ledger%20Pulse/docs/architecture/implementation-sequence.md)** | Phasing & Rollout | 8-phase execution roadmap, rollback plans, test baseline, and human approval gates. |
 
 ---
 *Contract frozen. Proceed to companion documents for exact schemas and matrix definitions.*

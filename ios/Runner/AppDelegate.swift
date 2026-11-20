@@ -12,5 +12,18 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    let appInfo = FlutterMethodChannel(
+      name: "com.ledgerpulse.ledger_pulse/app_info",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    )
+    appInfo.setMethodCallHandler { call, result in
+      guard call.method == "getVersion" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+      let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+      result(version.map { version in build.map { "\(version) (\($0))" } ?? version })
+    }
   }
 }

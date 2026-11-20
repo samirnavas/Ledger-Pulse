@@ -59,9 +59,8 @@ class WidgetSyncService {
     int? monthIncomeCents,
     int? todaySpendCents,
     int? budgetCents,
-    int? spendProgressPercent,
-    String? spendProgressText,
-    String? spendPercentText,
+    int? budgetSpentCents,
+    BudgetPeriodType budgetPeriod = BudgetPeriodType.monthly,
     List<({String name, double percent})>? topCategories,
   }) async {
     try {
@@ -124,7 +123,7 @@ class WidgetSyncService {
       await HomeWidget.saveWidgetData<double>('cash_out_raw', cashOutRaw);
 
       if (isExpense) {
-        final bool showToday = (todaySpendCents != null && todaySpendCents > 0);
+        final bool showToday = todaySpendCents != null;
         final String spendLabel = showToday ? 'Today' : 'This Month';
         final int displaySpendCents = showToday ? todaySpendCents : effectiveOutCents;
 
@@ -153,17 +152,23 @@ class WidgetSyncService {
               ).trim()
             : null;
 
-        final calculatedPercent = budgetCents != null && budgetCents > 0
-            ? ((displaySpendCents / budgetCents) * 100).round()
+        final budgetSpend = budgetSpentCents ?? effectiveOutCents;
+        final progressPercent = budgetCents != null && budgetCents > 0
+            ? ((budgetSpend / budgetCents) * 100).round()
             : 0;
-        final progressPercent = spendProgressPercent ?? calculatedPercent;
-
-        final progressText = spendProgressText ??
-            (budgetAmountOnly != null
-                ? 'Spend - $spendAmountOnly/$budgetAmountOnly'
-                : 'Spend - $spendAmountOnly');
-        final percentText = spendPercentText ??
-            (budgetCents != null && budgetCents > 0 ? '$progressPercent%' : '');
+        final budgetSpendText = CurrencyFormatter.format(
+          budgetSpend,
+          includeSymbol: false,
+          showDecimalsAlways: false,
+        ).trim();
+        final progressText = budgetAmountOnly == null
+            ? 'Month: $cashOutAmountOnly'
+            : '${switch (budgetPeriod) {
+                BudgetPeriodType.weekly => 'Week',
+                BudgetPeriodType.monthly => 'Month',
+                BudgetPeriodType.yearly => 'Year',
+              }}: $budgetSpendText/$budgetAmountOnly';
+        final percentText = budgetAmountOnly == null ? '' : '$progressPercent%';
 
         await HomeWidget.saveWidgetData<String>('spend_progress_text', progressText);
         await HomeWidget.saveWidgetData<String>('spend_percent_text', percentText);
@@ -227,7 +232,7 @@ Future<void> syncExpenseWidgetData({
   required Company company,
   required ExpenseMonthSummary summary,
   required List<AccountModel> categories,
-  required List<BudgetModel> budgets,
+  required BudgetProgress? overallBudget,
   required List<VoucherModel> transactions,
 }) async {
   final now = DateTime.now();
@@ -243,12 +248,6 @@ Future<void> syncExpenseWidgetData({
   int todaySpendCents = 0;
   for (final t in todayTxns) {
     todaySpendCents += t.totalAmountInCents;
-  }
-
-  // 2. Calculate budget from active budgets (overall allocated budget)
-  int totalBudgetCents = 0;
-  for (final b in budgets.where((b) => b.isActive && !b.isDeleted)) {
-    totalBudgetCents += b.amountInCents;
   }
 
   // 3. Calculate top 3 categories by monthly expense
@@ -307,7 +306,9 @@ Future<void> syncExpenseWidgetData({
     monthSpendCents: summary.totalExpenseInCents,
     monthIncomeCents: summary.totalIncomeInCents,
     todaySpendCents: todaySpendCents,
-    budgetCents: totalBudgetCents > 0 ? totalBudgetCents : null,
+    budgetCents: overallBudget?.effectiveAllocatedInCents,
+    budgetSpentCents: overallBudget?.spentInCents,
+    budgetPeriod: overallBudget?.budget.periodType ?? BudgetPeriodType.monthly,
     topCategories: finalCategories,
   );
 }

@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:home_widget/home_widget.dart';
 
 import '../../core/constants/colors.dart';
-import '../../core/constants/strings.dart';
 import '../../core/services/widget_entry_service.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
@@ -23,7 +22,6 @@ import '../home/sync_settings_sheet.dart';
 import '../profile/profile_screen.dart';
 import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
-import '../providers/ledger_providers.dart';
 import '../providers/profile_provider.dart';
 import '../../data/models/company_model.dart';
 import '../payments/cts2010_cheque_preview_screen.dart';
@@ -32,6 +30,8 @@ import '../providers/theme_provider.dart';
 import '../providers/widget_sync_provider.dart';
 import '../reports/audit_log_screen.dart';
 import '../reports/reporting_hub_screen.dart';
+import 'about_screen.dart';
+import 'help_screen.dart';
 import 'modules_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -574,131 +574,36 @@ class SettingsScreen extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // 5. APP INFO & BUILD
-                _buildSectionHeader(context, 'ABOUT LEDGER PULSE'),
+                _buildSectionHeader(context, 'HELP & ABOUT'),
                 const SizedBox(height: 8),
                 _buildCard(
                   context,
                   isDark,
                   isIos,
                   children: [
-                    ListTile(
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          'assets/icons/app_icon.png',
-                          width: 36,
-                          height: 36,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Icon(
-                            isIos
-                                ? CupertinoIcons.money_dollar_circle_fill
-                                : Icons.account_balance_wallet_rounded,
-                            color: AppColors.primaryBlue,
-                            size: 32,
-                          ),
-                        ),
-                      ),
-                      title: const Text(
-                        AppStrings.appName,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                      subtitle: const Text(
-                        'Version 1.0.0 (Build 2026.09)',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      trailing: isExpense
-                          ? null
-                          : Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryBlue.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Text(
-                                'PRO',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.primaryBlue,
-                                ),
-                              ),
-                            ),
+                    _buildInfoLink(
+                      context,
+                      isIos: isIos,
+                      icon: isIos
+                          ? CupertinoIcons.question_circle
+                          : Icons.help_outline_rounded,
+                      title: 'Help',
+                      subtitle: 'Getting started and common questions',
+                      page: HelpScreen(isExpense: isExpense),
+                    ),
+                    const Divider(height: 1),
+                    _buildInfoLink(
+                      context,
+                      isIos: isIos,
+                      icon: isIos
+                          ? CupertinoIcons.info_circle
+                          : Icons.info_outline_rounded,
+                      title: 'About',
+                      subtitle: 'App version and open-source licenses',
+                      page: const AboutScreen(),
                     ),
                   ],
                 ),
-
-                if (kDebugMode) ...[
-                  const SizedBox(height: 24),
-                  _buildSectionHeader(context, 'DEVELOPER & DEBUG'),
-                  const SizedBox(height: 8),
-                  _buildCard(
-                    context,
-                    isDark,
-                    isIos,
-                    children: [
-                      ListTile(
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            isIos
-                                ? CupertinoIcons.tray_arrow_down_fill
-                                : Icons.download_rounded,
-                            color: Colors.orange,
-                            size: 22,
-                          ),
-                        ),
-                        title: const Text(
-                          'Load sample data',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
-                        ),
-                        subtitle: const Text(
-                          'Populates sample parties and transactions for development testing',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                        onTap: () async {
-                          HapticFeedback.lightImpact();
-                          try {
-                            final repo = ref.read(driftLedgerRepositoryProvider);
-                            await repo.loadSampleData();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Sample data loaded successfully'),
-                                  duration: Duration(seconds: 2),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error loading sample data: $e'),
-                                  backgroundColor: AppColors.payableRed,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ],
 
                 const SizedBox(height: 32),
               ],
@@ -706,6 +611,40 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildInfoLink(
+    BuildContext context, {
+    required bool isIos,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Widget page,
+  }) {
+    final colors = Theme.of(context).colorScheme;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: colors.secondaryContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(icon, color: colors.onSecondaryContainer, size: 22),
+      ),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle),
+      trailing: Icon(
+        isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+        color: colors.onSurfaceVariant,
+      ),
+      onTap: () {
+        HapticFeedback.lightImpact();
+        Navigator.of(context).push(
+          createAdaptivePageRoute(builder: (_) => page),
+        );
+      },
     );
   }
 
@@ -821,8 +760,9 @@ class SettingsScreen extends ConsumerWidget {
       return LiquidGlassCard(
         borderRadius: 20,
         padding: EdgeInsets.zero,
-        child: Column(
-          children: children,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Column(children: children),
         ),
       );
     }

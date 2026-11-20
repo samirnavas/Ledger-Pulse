@@ -11,7 +11,6 @@ import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_chip.dart';
-import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_date_field.dart';
 import '../../core/widgets/adaptive_form_sheet.dart';
 import '../../core/widgets/adaptive_icon_surface_button.dart';
@@ -22,7 +21,6 @@ import '../../core/widgets/adaptive_search_field.dart';
 import '../../core/widgets/adaptive_section_header.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
 import '../../core/widgets/amount_text.dart';
-import '../../core/widgets/app_feedback.dart';
 import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
 import '../../core/widgets/spring_morphing_fab.dart';
@@ -44,7 +42,16 @@ import 'transaction_details_screen.dart';
 /// - Predictive Android back & focus dismissal via [PopScope].
 /// - One scroll view with a floating header and pull-to-refresh.
 class ExpenseTransactionsScreen extends ConsumerStatefulWidget {
-  const ExpenseTransactionsScreen({super.key});
+  final VoucherModel? initialTransaction;
+  final VoidCallback? onBackToHome;
+  final bool isActive;
+
+  const ExpenseTransactionsScreen({
+    super.key,
+    this.initialTransaction,
+    this.onBackToHome,
+    this.isActive = true,
+  });
 
   /// Opens the platform-adaptive transaction filters bottom sheet.
   static void showFilterModal(BuildContext context, WidgetRef ref) {
@@ -63,14 +70,13 @@ class ExpenseTransactionsScreen extends ConsumerStatefulWidget {
 
 class _ExpenseTransactionsScreenState
     extends ConsumerState<ExpenseTransactionsScreen> {
-  bool _fabExtended = true;
+  final _fabExtended = ValueNotifier(true);
 
   bool _handleScroll(UserScrollNotification notification) {
     if (notification.depth == 0 &&
         notification.metrics.axis == Axis.vertical &&
         notification.direction != ScrollDirection.idle) {
-      final extended = notification.direction == ScrollDirection.forward;
-      if (_fabExtended != extended) setState(() => _fabExtended = extended);
+      _fabExtended.value = notification.direction == ScrollDirection.forward;
     }
     return false;
   }
@@ -85,6 +91,15 @@ class _ExpenseTransactionsScreenState
     _searchController = TextEditingController(text: initialQuery);
     _searchFocusNode = FocusNode();
     _searchFocusNode.addListener(_onFocusChanged);
+
+    final transaction = widget.initialTransaction;
+    if (transaction != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && ModalRoute.of(context)?.isCurrent == true) {
+          TransactionDetailsScreen.show(context, transaction, ref);
+        }
+      });
+    }
   }
 
   void _onFocusChanged() {
@@ -96,6 +111,7 @@ class _ExpenseTransactionsScreenState
     _searchFocusNode.removeListener(_onFocusChanged);
     _searchFocusNode.dispose();
     _searchController.dispose();
+    _fabExtended.dispose();
     super.dispose();
   }
 
@@ -130,39 +146,6 @@ class _ExpenseTransactionsScreenState
         .updateFilters(
           currentFilters.copyWith(type: type, clearType: type == null),
         );
-  }
-
-  Future<bool> _voidTransaction(VoucherModel txn) async {
-    final confirmed = await showAdaptiveConfirmDialog(
-      context: context,
-      title: 'Void Transaction?',
-      message:
-          'Are you sure you want to void ${txn.voucherNumber}? This will reverse all wallet balances.',
-      confirmLabel: 'Void',
-      cancelLabel: 'Cancel',
-      isDestructive: true,
-    );
-
-    if (confirmed) {
-      try {
-        final repo = ref.read(expenseRepositoryProvider);
-        await repo.voidTransaction(txn.id);
-        if (mounted) {
-          showAppFeedback(context, '${txn.voucherNumber} voided successfully');
-        }
-        return true;
-      } catch (e) {
-        if (mounted) {
-          showAppFeedback(
-            context,
-            'Error voiding transaction: $e',
-            isError: true,
-          );
-        }
-        return false;
-      }
-    }
-    return false;
   }
 
   IconData _getCategoryIcon(
@@ -452,16 +435,25 @@ class _ExpenseTransactionsScreenState
           }
         : <String, AccountModel>{};
 
-    final canPop = ModalRoute.of(context)?.canPop ?? false;
+    final isStandalone =
+        widget.onBackToHome == null && (ModalRoute.of(context)?.canPop ?? false);
 
     final Widget innerContent = PopScope(
-      canPop: !_isSearchActive,
+      canPop: !widget.isActive || !_isSearchActive,
       onPopInvokedWithResult: (didPop, result) {
+        if (!widget.isActive) return;
         if (didPop) {
           ref.read(transactionFiltersProvider.notifier).reset();
           return;
         }
-        _clearSearch();
+        final scaffold = Scaffold.maybeOf(context);
+        if (widget.onBackToHome != null && (scaffold?.isDrawerOpen ?? false)) {
+          scaffold?.closeDrawer();
+        } else if (_isSearchActive) {
+          _clearSearch();
+        } else {
+          widget.onBackToHome?.call();
+        }
       },
       child: Material(
         color: Colors.transparent,
@@ -615,7 +607,7 @@ class _ExpenseTransactionsScreenState
                     );
                   }
 
-                  // Group transactions by day
+                  // The repository already sorts by transaction date and creation time.
                   final Map<DateTime, List<VoucherModel>> grouped = {};
                   for (final txn in transactions) {
                     final dayKey = DateTime(
@@ -626,25 +618,16 @@ class _ExpenseTransactionsScreenState
                     grouped.putIfAbsent(dayKey, () => []).add(txn);
                   }
 
-                  for (final dayKey in grouped.keys) {
-                    grouped[dayKey]!.sort((a, b) {
-                      final cmp = b.date.compareTo(a.date);
-                      if (cmp != 0) return cmp;
-                      return b.createdAt.compareTo(a.createdAt);
-                    });
-                  }
-
-                  final sortedDays = grouped.keys.toList()
-                    ..sort((a, b) => b.compareTo(a));
+                  final days = grouped.entries.toList();
 
                   return SliverPadding(
                     padding: const EdgeInsets.fromLTRB(0, 8, 0, 90),
                     sliver: SliverList.builder(
-                      itemCount: sortedDays.length,
+                      itemCount: days.length,
                       itemBuilder: (ctx, dayIndex) {
-                        final day = sortedDays[dayIndex];
-                        final dayTxns = grouped[day]!;
-                        final dayHeader = _formatDayHeader(day);
+                        final day = days[dayIndex];
+                        final dayTxns = day.value;
+                        final dayHeader = _formatDayHeader(day.key);
 
                         // Compute day total net
                         int dayTotal = 0;
@@ -663,6 +646,7 @@ class _ExpenseTransactionsScreenState
                           ),
                           child: AdaptiveSurfaceCard(
                             padding: EdgeInsets.zero,
+                            clipBehavior: Clip.antiAlias,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -717,12 +701,21 @@ class _ExpenseTransactionsScreenState
                                     isIos,
                                   );
 
-                                  final title = isTransfer
+                                  final note = txn.narration?.trim() ?? '';
+                                  final fallbackTitle = isTransfer
                                       ? 'Transfer'
                                       : (cat?.name ??
                                             (isIncome ? 'Income' : 'Expense'));
+                                  final title = note.isEmpty
+                                      ? fallbackTitle
+                                      : note;
 
                                   final subtitleParts = <String>[];
+                                  if (note.isNotEmpty &&
+                                      !isTransfer &&
+                                      cat != null) {
+                                    subtitleParts.add(cat.name);
+                                  }
                                   if (isTransfer) {
                                     subtitleParts.add(
                                       '${sourceWallet?.name ?? 'Wallet'} ➔ ${destWallet?.name ?? 'Wallet'}',
@@ -734,11 +727,6 @@ class _ExpenseTransactionsScreenState
                                   subtitleParts.add(
                                     DateFormatter.formatTime(txn.date),
                                   );
-
-                                  if (txn.narration != null &&
-                                      txn.narration!.trim().isNotEmpty) {
-                                    subtitleParts.add(txn.narration!.trim());
-                                  }
 
                                   final subtitle = subtitleParts.isNotEmpty
                                       ? subtitleParts.join(' • ')
@@ -784,7 +772,11 @@ class _ExpenseTransactionsScreenState
                                       } else if (direction ==
                                           DismissDirection.endToStart) {
                                         HapticFeedback.mediumImpact();
-                                        return await _voidTransaction(txn);
+                                        return confirmVoidExpenseTransaction(
+                                          this.context,
+                                          ref,
+                                          txn,
+                                        );
                                       }
                                       return false;
                                     },
@@ -805,8 +797,9 @@ class _ExpenseTransactionsScreenState
                                       showDivider: !isLast,
                                       onTap: () =>
                                           TransactionDetailsScreen.show(
-                                            context,
+                                            this.context,
                                             txn,
+                                            ref,
                                           ),
                                     ),
                                   );
@@ -843,24 +836,29 @@ class _ExpenseTransactionsScreenState
       ),
     );
 
-    if (canPop) {
+    if (isStandalone) {
       return AdaptiveScaffold(
         title: modeStrings.transactionsTab,
         floatingActionButton: isIos
             ? null
-            : SpringMorphingFab(
-                isExtended: _fabExtended,
-                key: const Key('transactions_quick_add_fab'),
-                icon: Icons.add,
-                label: 'Add transaction',
-                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                foregroundColor: Theme.of(
-                  context,
-                ).colorScheme.onPrimaryContainer,
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  QuickAddTransactionSheet.show(context);
-                },
+            : ValueListenableBuilder<bool>(
+                valueListenable: _fabExtended,
+                builder: (context, extended, _) => SpringMorphingFab(
+                  isExtended: extended,
+                  key: const Key('transactions_quick_add_fab'),
+                  icon: Icons.add,
+                  label: 'Add transaction',
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.primaryContainer,
+                  foregroundColor: Theme.of(
+                    context,
+                  ).colorScheme.onPrimaryContainer,
+                  onPressed: () {
+                    HapticFeedback.lightImpact();
+                    QuickAddTransactionSheet.show(context);
+                  },
+                ),
               ),
         body: NotificationListener<UserScrollNotification>(
           onNotification: _handleScroll,

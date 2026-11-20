@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.widget.RemoteViews
+import android.widget.Toast
 import es.antonborri.home_widget.HomeWidgetPlugin
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
@@ -24,6 +25,8 @@ private const val CHANNEL = "ledger_pulse/widget_entry"
 internal object WidgetEntry {
     private const val ENABLED = "widget_keypad_enabled"
     private const val ENTRY_CONTEXT = "widget_entry_context"
+    private const val CHOICES_PER_PAGE = 2
+    private val detailsPages = setOf("details", "wallet", "destination")
     private val saving = mutableSetOf<Int>()
 
     private data class Choice(val id: String, val name: String)
@@ -59,6 +62,11 @@ internal object WidgetEntry {
         }
     }
 
+    private fun choiceOffset(state: JSONObject, field: String, choices: List<Choice>): Int {
+        val lastPage = (choices.size - 1).coerceAtLeast(0) / CHOICES_PER_PAGE
+        return (state.optInt("${field}Page").coerceIn(0, lastPage)) * CHOICES_PER_PAGE
+    }
+
     private fun drafts(context: Context) =
         context.getSharedPreferences("widget_entry_drafts", Context.MODE_PRIVATE)
 
@@ -72,8 +80,8 @@ internal object WidgetEntry {
     fun delete(context: Context, id: Int) = store(context, id, null)
 
     fun openIntent(context: Context, id: Int, data: SharedPreferences): PendingIntent? {
-        val entry = entryContext(data) ?: return null
-        return actionIntent(context, id, entry.scope, "open")
+        if (!data.getBoolean(ENABLED, false)) return null
+        return actionIntent(context, id, "keypad", "open")
     }
 
     private fun actionIntent(
@@ -89,7 +97,7 @@ internal object WidgetEntry {
     fun render(context: Context, id: Int, data: SharedPreferences): RemoteViews? {
         val entry = entryContext(data)
         val state = draft(context, id) ?: return null
-        if (entry == null || entry.scope != state.optString("scope")) {
+        if (entry == null || entry.scope != state.optString("scope") || state.optString("page") == "receipt") {
             delete(context, id)
             return null
         }
@@ -108,6 +116,9 @@ internal object WidgetEntry {
                         "backspace" -> "Delete digit"
                         "." -> "Decimal point"
                         "review" -> "Review entry"
+                        "more:wallet" -> "More wallets"
+                        "more:destination" ->
+                            if (state.optString("type") == "transfer") "More destination wallets" else "More categories"
                         else -> label
                     }
                 )
@@ -117,6 +128,9 @@ internal object WidgetEntry {
                         R.id.widget_entry_key,
                         androidx.core.content.ContextCompat.getColor(context, R.color.widget_on_add)
                     )
+                }
+                if (action.isEmpty()) {
+                    key.setInt(R.id.widget_entry_key, "setBackgroundResource", 0)
                 }
                 if (action.isNotEmpty()) key.setOnClickPendingIntent(R.id.widget_entry_key, intent(action))
                 row.addView(R.id.widget_entry_row, key)
@@ -132,49 +146,34 @@ internal object WidgetEntry {
 
         val wallets = entry.choices("wallets")
         val destinations = destinations(entry, state)
-        fun name(choices: List<Choice>, key: String) =
-            choices.firstOrNull { it.id == state.optString(key) }?.name
         when {
             id in saving -> row("Saving…" to "")
-            state.optString("page") == "receipt" -> {
-                views.setTextViewText(R.id.widget_entry_title, "Entry saved")
-                row("$currency $amount".trim() to "")
-                row("Done" to "cancel")
-            }
             state.optBoolean("retry") -> row("Retry save" to "save")
-            state.optString("page") in listOf("wallet", "destination") -> {
-                val wallet = state.getString("page") == "wallet"
-                val choices = if (wallet) wallets else destinations
-                val offset = state.optInt("offset").coerceIn(0, (choices.size - 1).coerceAtLeast(0))
-                views.setTextViewText(R.id.widget_entry_title, when {
-                    wallet && type == "transfer" -> "From wallet"
-                    wallet -> "Choose wallet"
-                    type == "transfer" -> "To wallet"
-                    else -> "Choose category"
-                })
-                if (choices.isEmpty()) {
-                    row("Set up in the app" to "")
+            state.optString("page") in detailsPages -> {
+                fun heading(label: String, field: String, choices: List<Choice>) =
+                    if (choices.size > CHOICES_PER_PAGE) "$label ›" to "more:$field" else label to ""
+
+                fun choiceKey(field: String, choices: List<Choice>, index: Int): Pair<String, String> {
+                    if (choices.isEmpty() && index == 0) return "Set up in the app" to ""
+                    val choice = choices.getOrNull(choiceOffset(state, field, choices) + index)
+                        ?: return "" to ""
+                    val selected = choice.id == state.optString(field)
+                    return (if (selected) "✓ ${choice.name}" else choice.name) to "select:$field:${choice.id}"
                 }
-                choices.drop(offset).take(3).forEach { choice ->
-                    row(choice.name to "select:${state.getString("page")}:${choice.id}")
-                }
-                row(
-                    "Back" to "details",
-                    "‹" to if (offset > 0) "previous" else "",
-                    "›" to if (offset + 3 < choices.size) "next" else "",
-                )
-            }
-            state.optString("page") == "details" -> {
+
                 val transfer = type == "transfer"
-                val wallet = name(wallets, "wallet")
-                val destination = name(destinations, "destination")
-                row("${type.replaceFirstChar { it.uppercaseChar() }} ↻" to "type")
-                row((if (transfer) "From: ${wallet ?: "choose wallet"}" else wallet ?: "Choose wallet") to "wallet")
                 row(
-                    (if (transfer) "To: ${destination ?: "choose wallet"}"
-                    else destination ?: "Choose category") to "destination"
+                    heading(if (transfer) "From wallet" else "Wallet", "wallet", wallets),
+                    heading(if (transfer) "To wallet" else "Category", "destination", destinations),
                 )
-                row("Back" to "amount", "Save" to "save")
+                repeat(CHOICES_PER_PAGE) { index ->
+                    row(choiceKey("wallet", wallets, index), choiceKey("destination", destinations, index))
+                }
+                row(
+                    "Back" to "amount",
+                    "${type.replaceFirstChar { it.uppercaseChar() }} ↻" to "type",
+                    "Save" to "save",
+                )
             }
             else -> {
                 row("1" to "1", "2" to "2", "3" to "3")
@@ -193,13 +192,29 @@ internal object WidgetEntry {
         val manager = AppWidgetManager.getInstance(context)
         if (manager.getAppWidgetInfo(id)?.provider?.className != LedgerPulseWidgetProvider::class.java.name) return
         val data = HomeWidgetPlugin.getData(context)
-        val entry = entryContext(data) ?: return
         val action = parts[2]
         fun update() {
             LedgerPulseWidgetProvider().onUpdate(context, manager, intArrayOf(id), data)
         }
         if (id in saving) return
-        if (action == "open" && parts[1] == entry.scope) {
+        val entry = entryContext(data)
+        if (action == "open") {
+            if (entry == null) {
+                if (data.getBoolean(ENABLED, false)) {
+                    Toast.makeText(
+                        context,
+                        "Keypad unavailable. Open LedgerPulse to refresh your profile.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                update()
+                return
+            }
+            // The launcher may still hold the open intent from an earlier widget update.
+            if (parts[1] != "keypad" && parts[1] != entry.scope) {
+                update()
+                return
+            }
             val state = JSONObject().put("scope", entry.scope)
                 .put("id", "tx_widget_${UUID.randomUUID().toString().replace("-", "")}")
             store(context, id, state)
@@ -207,6 +222,7 @@ internal object WidgetEntry {
             return
         }
 
+        if (entry == null) return
         val state = draft(context, id) ?: return
         if (parts[1] != state.optString("id") || entry.scope != state.optString("scope")) return
         if (action == "cancel") {
@@ -220,7 +236,7 @@ internal object WidgetEntry {
         val amount = state.optString("amount")
         when (action) {
             "amount" -> state.remove("page")
-            "details", "review" -> state.put("page", "details")
+            "review" -> state.put("page", "details")
             "type" -> {
                 state.put("type", when (type) {
                     "expense" -> "income"
@@ -228,10 +244,17 @@ internal object WidgetEntry {
                     else -> "expense"
                 })
                 state.remove("destination")
+                state.remove("destinationPage")
             }
-            "wallet", "destination" -> state.put("page", action).put("offset", 0)
-            "previous" -> state.put("offset", (state.optInt("offset") - 3).coerceAtLeast(0))
-            "next" -> state.put("offset", state.optInt("offset") + 3)
+            "more:wallet", "more:destination" -> {
+                if (state.optString("page") !in detailsPages) return
+                val field = action.substringAfter(':')
+                val choices = if (field == "wallet") entry.choices("wallets") else destinations(entry, state)
+                val pageCount = (choices.size + CHOICES_PER_PAGE - 1) / CHOICES_PER_PAGE
+                if (pageCount <= 1) return
+                val nextPage = (choiceOffset(state, field, choices) / CHOICES_PER_PAGE + 1) % pageCount
+                state.put("${field}Page", nextPage)
+            }
             "backspace" -> state.put("amount", amount.dropLast(1))
             "." -> if ('.' !in amount) state.put("amount", amount.ifEmpty { "0" } + ".")
             "save" -> {
@@ -262,10 +285,11 @@ internal object WidgetEntry {
                     )) { message, uncertain ->
                         saving.remove(id)
                         if (draft(context, id)?.optString("id") == state.optString("id")) {
-                            state.put("retry", uncertain)
-                            if (message == null) state.put("page", "receipt")
-                            else state.put("error", message)
-                            store(context, id, state)
+                            if (message == null) {
+                                delete(context, id)
+                            } else {
+                                store(context, id, state.put("retry", uncertain).put("error", message))
+                            }
                         }
                         try {
                             update()
@@ -279,7 +303,8 @@ internal object WidgetEntry {
             }
             else -> {
                 if (action.startsWith("select:")) {
-                    val key = state.optString("page")
+                    if (state.optString("page") !in detailsPages) return
+                    val key = action.substringAfter(':').substringBefore(':')
                     if (key != "wallet" && key != "destination") return
                     val prefix = "select:$key:"
                     if (!action.startsWith(prefix)) return
@@ -287,7 +312,11 @@ internal object WidgetEntry {
                     val choices = if (key == "wallet") entry.choices("wallets") else destinations(entry, state)
                     val choice = choices
                         .firstOrNull { it.id == choiceId } ?: return
-                    state.put(key, choice.id).put("page", "details")
+                    state.put(key, choice.id)
+                    if (key == "wallet" && type == "transfer") {
+                        if (state.optString("destination") == choice.id) state.remove("destination")
+                        state.remove("destinationPage")
+                    }
                 } else if (action.length == 1 && action[0] in '0'..'9') {
                     val hasSpace = if ('.' in amount) amount.substringAfter('.').length < 2 else amount.length < 9
                     if (hasSpace) state.put("amount", (if (amount == "0") "" else amount) + action)

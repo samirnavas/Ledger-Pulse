@@ -2,11 +2,14 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ledger_pulse/core/widgets/app_pull_to_refresh.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
+import 'package:ledger_pulse/core/widgets/adaptive_bottom_nav.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_scaffold.dart';
+import 'package:ledger_pulse/core/widgets/adaptive_segmented_control.dart';
 import 'package:ledger_pulse/core/widgets/spring_morphing_fab.dart';
 import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
 import 'package:ledger_pulse/data/local/audit_service.dart';
@@ -17,6 +20,8 @@ import 'package:ledger_pulse/data/models/account_model.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/presentation/expense/expense_home_screen.dart';
+import 'package:ledger_pulse/presentation/expense/transaction_details_screen.dart';
+import 'package:ledger_pulse/presentation/expense/transactions_screen.dart';
 import 'package:ledger_pulse/core/constants/mode_strings.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_section_header.dart';
 import 'package:ledger_pulse/core/widgets/empty_state_view.dart';
@@ -152,15 +157,114 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(AdaptiveScaffold), findsOneWidget);
-      expect(find.byKey(const Key('expense_company_switcher_button')), findsOneWidget);
+      expect(find.byKey(const Key('active_profile_indicator_pill')), findsOneWidget);
+      expect(find.byTooltip('My Profile'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byTooltip('My Profile'),
+          matching: find.byType(CircleAvatar),
+        ),
+        findsOneWidget,
+      );
 
       // 2. iOS
       await tester.pumpWidget(buildExpenseShellApp(platform: TargetPlatform.iOS));
       await tester.pumpAndSettle();
 
       expect(find.byType(AdaptiveScaffold), findsOneWidget);
-      expect(find.byKey(const Key('expense_company_switcher_button')), findsOneWidget);
+      expect(find.byKey(const Key('active_profile_indicator_pill')), findsOneWidget);
+      expect(find.byTooltip('My Profile'), findsOneWidget);
     });
+
+    for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+      testWidgets('swipes and taps select the same tab on ${platform.name}', (
+        tester,
+      ) async {
+        await tester.pumpWidget(buildExpenseShellApp(platform: platform));
+        await tester.pumpAndSettle();
+
+        final pages = find.byType(PageView);
+        final nav = find.byType(AdaptiveBottomNav);
+        final bounds = tester.getRect(pages);
+        final swipeStart = Offset(
+          bounds.left + bounds.width * 0.8,
+          bounds.top + 30,
+        );
+        final swipeEnd = Offset(
+          bounds.left + bounds.width * 0.2,
+          bounds.top + 30,
+        );
+
+        for (var index = 1; index <= 3; index++) {
+          await tester.dragFrom(swipeStart, swipeEnd - swipeStart);
+          await tester.pumpAndSettle();
+          expect(tester.widget<AdaptiveBottomNav>(nav).currentIndex, index);
+        }
+        expect(find.byType(ExpenseTransactionsScreen), findsOneWidget);
+
+        // Start below the transaction search and filter controls.
+        await tester.dragFrom(
+          Offset(swipeEnd.dx, bounds.bottom - 60),
+          Offset(swipeStart.dx - swipeEnd.dx, 0),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.widget<AdaptiveBottomNav>(nav).currentIndex, 2);
+
+        await tester.tap(find.descendant(of: nav, matching: find.text('Home')));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(tester.widget<AdaptiveBottomNav>(nav).currentIndex, 0);
+        expect(
+          tester.widget<PageView>(pages).controller!.page,
+          inExclusiveRange(0, 2),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.widget<AdaptiveBottomNav>(nav).currentIndex, 0);
+        expect(tester.widget<PageView>(pages).controller!.page, 0);
+      });
+
+      testWidgets('profile sections swipe and slide on ${platform.name}', (
+        tester,
+      ) async {
+        await tester.pumpWidget(buildExpenseShellApp(platform: platform));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('My Profile'));
+        await tester.pumpAndSettle();
+
+        final sections = find.byType(AdaptiveSegmentedControl<int>);
+        final pages = find.byType(PageView);
+        final bounds = tester.getRect(pages);
+        final start = Offset(
+          bounds.left + bounds.width * 0.8,
+          bounds.top + 40,
+        );
+
+        for (var index = 1; index <= 2; index++) {
+          await tester.dragFrom(start, Offset(-bounds.width * 0.6, 0));
+          await tester.pumpAndSettle();
+          expect(
+            tester.widget<AdaptiveSegmentedControl<int>>(sections).groupValue,
+            index,
+          );
+        }
+
+        await tester.tap(
+          find.descendant(of: sections, matching: find.text('Profile')),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        expect(
+          tester.widget<PageView>(pages).controller!.page,
+          inExclusiveRange(0, 2),
+        );
+        expect(
+          tester.widget<AdaptiveSegmentedControl<int>>(sections).groupValue,
+          0,
+        );
+        await tester.pumpAndSettle();
+        expect(tester.widget<PageView>(pages).controller!.page, 0);
+      });
+    }
 
     testWidgets('no nested Scaffold under tab bodies (count equals 1 for shell)', (tester) async {
       final container = ProviderContainer(
@@ -239,8 +343,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(SpringMorphingFab), findsNothing);
 
-      // Tab 3 defaults to Profile.
-      container.read(expenseTabControllerProvider.notifier).setTab(3);
+      // Transactions replaces My Profile in the bottom navigation.
+      await tester.tap(find.text('Transactions'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ExpenseTransactionsScreen), findsOneWidget);
+      expect(find.text('Add transaction'), findsOneWidget);
+      expect(find.byTooltip('Sync & Backup'), findsNothing);
+
+      // The header opens My Profile above the current tab.
+      await tester.tap(find.byTooltip('My Profile'));
       await tester.pumpAndSettle();
       expect(find.text('Add profile'), findsOneWidget);
       await tester.tap(find.text('Wallet').first);
@@ -257,6 +368,11 @@ void main() {
       await tester.tap(find.text('Add category'));
       await tester.pumpAndSettle();
       expect(find.text('Add Category'), findsWidgets);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(ExpenseTransactionsScreen), findsOneWidget);
     });
 
     testWidgets('back navigation from tab 2 goes to tab 0', (tester) async {
@@ -333,40 +449,75 @@ void main() {
       ).canPop, isTrue);
     });
 
-    testWidgets('Settings is reachable from the expense drawer', (tester) async {
-      final container = ProviderContainer(
-        overrides: [
-          appDatabaseProvider.overrideWithValue(db),
-          syncEngineProvider.overrideWithValue(_FakeSyncEngine(db: db)),
-          activeCompanyProvider.overrideWithValue(testCompany),
-          userProfileProvider.overrideWith(() => _TestProfileNotifier(testProfile)),
-          expenseRepositoryProvider.overrideWithValue(expenseRepo),
-        ],
-      );
-      addTearDown(container.dispose);
+    for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+      testWidgets('Settings is reachable from the expense drawer on ${platform.name}', (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            syncEngineProvider.overrideWithValue(_FakeSyncEngine(db: db)),
+            activeCompanyProvider.overrideWithValue(testCompany),
+            userProfileProvider.overrideWith(() => _TestProfileNotifier(testProfile)),
+            expenseRepositoryProvider.overrideWithValue(expenseRepo),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      await tester.pumpWidget(buildExpenseShellApp(
-        platform: TargetPlatform.android,
-        container: container,
-      ));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(buildExpenseShellApp(
+          platform: platform,
+          container: container,
+        ));
+        await tester.pumpAndSettle();
 
-      // Open drawer
-      final scaffoldState = tester.state<ScaffoldState>(find.byType(Scaffold));
-      scaffoldState.openDrawer();
-      await tester.pumpAndSettle();
+        // Open drawer
+        final scaffoldState = tester.state<ScaffoldState>(find.byType(Scaffold));
+        scaffoldState.openDrawer();
+        await tester.pumpAndSettle();
 
-      expect(find.byType(ExpenseSidebarDrawer), findsOneWidget);
+        expect(find.byType(ExpenseSidebarDrawer), findsOneWidget);
 
-      // Tap Settings
-      final settingsTile = find.widgetWithText(ListTile, 'Settings');
-      expect(settingsTile, findsOneWidget);
-      await tester.tap(settingsTile);
-      await tester.pumpAndSettle();
+        // Tap Settings
+        final settingsTile = find.widgetWithText(ListTile, 'Settings');
+        expect(settingsTile, findsOneWidget);
+        await tester.tap(settingsTile);
+        await tester.pumpAndSettle();
 
-      // SettingsScreen is displayed
-      expect(find.byType(SettingsScreen), findsOneWidget);
-    });
+        // SettingsScreen is displayed
+        final settings = find.byType(SettingsScreen);
+        expect(settings, findsOneWidget);
+        final settingsList = find.descendant(
+          of: settings,
+          matching: find.byType(Scrollable),
+        );
+        await tester.scrollUntilVisible(
+          find.text('Help'),
+          240,
+          scrollable: settingsList,
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Load sample data'), findsNothing);
+        expect(find.text('DEVELOPER & DEBUG'), findsNothing);
+
+        await tester.tap(find.text('Help'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('How do I add or find a transaction?'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Expense, Income, or Transfer'), findsOneWidget);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+
+        const appInfo = MethodChannel('com.ledgerpulse.ledger_pulse/app_info');
+        final messenger = tester.binding.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(appInfo, (_) async => '2.4.1 (27)');
+        addTearDown(() => messenger.setMockMethodCallHandler(appInfo, null));
+        await tester.ensureVisible(find.text('About'));
+        await tester.tap(find.text('About'));
+        await tester.pumpAndSettle();
+        expect(find.text('Version 2.4.1 (27)'), findsOneWidget);
+        await tester.tap(find.text('Open-source licenses'));
+        await tester.pumpAndSettle();
+        expect(find.byType(LicensePage), findsOneWidget);
+      });
+    }
 
     testWidgets('Upgrade to Business Ledger is reachable from the expense drawer', (tester) async {
       tester.view.physicalSize = const Size(800, 1200);
@@ -441,6 +592,26 @@ void main() {
       expect(find.text('Recent Transactions'), findsOneWidget);
       expect(find.text('Lunch at Cafe'), findsOneWidget);
 
+      await tester.tap(find.text('Lunch at Cafe'));
+      await tester.pumpAndSettle();
+      final transactionsPage = find.byType(ExpenseTransactionsScreen);
+      final details = find.byType(TransactionDetailsScreen);
+      expect(transactionsPage, findsOneWidget);
+      expect(details, findsOneWidget);
+      expect(
+        find.descendant(of: details, matching: find.text('Lunch at Cafe')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      expect(details, findsNothing);
+      expect(transactionsPage, findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.byType(ExpenseHomeScreen), findsOneWidget);
+      expect(transactionsPage, findsNothing);
+
       // 2. iOS
       await tester.pumpWidget(buildExpenseShellApp(platform: TargetPlatform.iOS));
       await tester.pumpAndSettle();
@@ -452,6 +623,11 @@ void main() {
       expect(find.byType(CategoryBreakdownCard), findsOneWidget);
       expect(find.byType(AdaptiveSectionHeader), findsNWidgets(2));
       expect(find.text('RECENT TRANSACTIONS'), findsOneWidget);
+      expect(find.byTooltip('My Profile'), findsOneWidget);
+      await tester.tap(find.text('Transactions'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ExpenseTransactionsScreen), findsOneWidget);
+      expect(find.byKey(const Key('expense_ios_add_button')), findsOneWidget);
     });
 
     testWidgets('displays expanded spent card with daily average', (tester) async {

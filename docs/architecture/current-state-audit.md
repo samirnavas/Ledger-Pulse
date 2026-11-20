@@ -347,7 +347,7 @@ The repository contains only two versioned migration files in `supabase/migratio
 - However, **no policies** were created for these three tables. Consequently, any request from an authenticated user targeting these tables through PostgREST will fail with permission denied (default deny).
 
 #### Finding 4: Dangerous Re-Keying in Repair Script (HIGH)
-- **Exact File:** `supabase/repair/repair_legacy_data.sql` [Lines 5–17](file:///c:/Programming/app/Ledger%20Pulse/supabase/repair/repair_legacy_data.sql#L5-L17)
+- **Historical source:** Lines 5–17 of the retired `supabase/repair/repair_legacy_data.sql`.
 - **Vulnerability:**
   ```sql
   SELECT id INTO v_first_user FROM auth.users ORDER BY created_at ASC LIMIT 1;

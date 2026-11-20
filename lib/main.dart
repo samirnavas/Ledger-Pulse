@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/cupertino.dart';
@@ -90,6 +91,7 @@ class LedgerPulseApp extends ConsumerStatefulWidget {
 
 class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
   AppLifecycleListener? _lifecycleListener;
+  Timer? _recurringTimer;
   String? _widgetEntryRevision;
 
   Future<void> _refreshWidgetEntries() async {
@@ -115,6 +117,20 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
     }
   }
 
+  void _startRecurringChecks() {
+    _recurringTimer?.cancel();
+    _recurringTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _processRecurringIfDue(),
+    );
+    _processRecurringIfDue();
+  }
+
+  void _stopRecurringChecks() {
+    _recurringTimer?.cancel();
+    _recurringTimer = null;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -124,15 +140,20 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
         await _refreshWidgetEntries();
         if (!mounted) return;
         ref.read(syncControllerProvider.notifier).autoSyncOnAppOpen();
-        _processRecurringIfDue();
+        if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+          _startRecurringChecks();
+        }
       },
+      onHide: _stopRecurringChecks,
     );
 
     // Setup widget click handler for deep linking safely after the initial frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Trigger automatic synchronization on initial app launch (cold start)
       ref.read(syncControllerProvider.notifier).autoSyncOnAppOpen();
-      _processRecurringIfDue();
+      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        _startRecurringChecks();
+      }
 
       if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
         WidgetSyncService.initialize(
@@ -206,6 +227,7 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
 
   @override
   void dispose() {
+    _stopRecurringChecks();
     _lifecycleListener?.dispose();
     super.dispose();
   }

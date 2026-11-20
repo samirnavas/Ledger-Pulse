@@ -211,7 +211,9 @@ class WidgetEntryService {
         );
         final summary = await entries.getMonthSummary(now);
         final categories = await entries.getCategories();
-        final activeBudgets = await budgets.getBudgets(includeInactive: false);
+        final budget = company.isModuleEnabled(AppModule.budgets)
+            ? await budgets.getAllCategoriesBudget(month: now)
+            : null;
         final transactions = await entries.getTransactions(
           startDate: DateTime(now.year, now.month, 1),
           endDate: DateTime(
@@ -224,7 +226,7 @@ class WidgetEntryService {
             company: company,
             summary: summary,
             categories: categories,
-            budgets: activeBudgets,
+            overallBudget: budget,
             transactions: transactions,
           );
         }

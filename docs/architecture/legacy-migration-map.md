@@ -12,8 +12,7 @@
    Existing Expense vouchers and accounts are **copied** into the new dedicated tables (`exp_transactions`, `exp_wallets`, `exp_categories`). Legacy records in `vouchers`, `journals`, `journal_lines`, and `accounts` are **never deleted or modified** during migration. They remain read-only historical records, providing an absolute rollback guarantee.
 2. **Deterministic Mode Mapping (No Guessing):**  
    Every existing row in `companies` is mapped to an immutable `profile_type`. If a row has an ambiguous or null `mode`, it is classified strictly using the **Deterministic Evidence Rule** detailed below.
-3. **Ban on `repair_legacy_data.sql`:**  
-   The script `supabase/repair/repair_legacy_data.sql` contains logic that reassigns all NULL `owner_id` rows to `(SELECT id FROM auth.users ORDER BY created_at ASC LIMIT 1)`. **Execution of this script is strictly prohibited.**
+3. **Retired legacy repair script:** The former `supabase/repair/repair_legacy_data.sql` assigned records with missing owners to the first account. Keep ownership recovery tied to verified account identifiers.
 
 ---
 

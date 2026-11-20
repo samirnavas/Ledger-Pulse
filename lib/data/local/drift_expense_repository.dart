@@ -1588,12 +1588,22 @@ class DriftExpenseRepository {
     final start = DateTime(month.year, month.month, 1);
     final end = DateTime(month.year, month.month + 1, 0, 23, 59, 59, 999);
 
-    final txns = await (_db.select(_db.expenseTransactions)
-          ..where((t) =>
-              t.profileId.equals(_currentCompanyId) &
-              t.isDeleted.equals(false) &
-              t.transactionDate.isBiggerOrEqualValue(start) &
-              t.transactionDate.isSmallerOrEqualValue(end)))
+    final transactions = _db.expenseTransactions;
+    final amountTotal = transactions.amountInCents.sum();
+    final totals = await (_db.selectOnly(transactions)
+          ..addColumns([
+            transactions.transactionType,
+            transactions.categoryId,
+            amountTotal,
+          ])
+          ..where(
+            transactions.profileId.equals(_currentCompanyId) &
+                transactions.isDeleted.equals(false) &
+                transactions.transactionDate.isBiggerOrEqualValue(start) &
+                transactions.transactionDate.isSmallerOrEqualValue(end) &
+                transactions.transactionType.isIn(['expense', 'income']),
+          )
+          ..groupBy([transactions.transactionType, transactions.categoryId]))
         .get();
 
     int totalIncome = 0;
@@ -1602,23 +1612,18 @@ class DriftExpenseRepository {
     final incomeCatTotals = <String, int>{};
     final expenseCatTotals = <String, int>{};
 
-    for (final tx in txns) {
-      if (tx.transactionType == 'expense') {
-        totalExpense += tx.amountInCents;
-        if (tx.categoryId != null) {
-          categoryTotals[tx.categoryId!] =
-              (categoryTotals[tx.categoryId!] ?? 0) + tx.amountInCents;
-          expenseCatTotals[tx.categoryId!] =
-              (expenseCatTotals[tx.categoryId!] ?? 0) + tx.amountInCents;
-        }
-      } else if (tx.transactionType == 'income') {
-        totalIncome += tx.amountInCents;
-        if (tx.categoryId != null) {
-          categoryTotals[tx.categoryId!] =
-              (categoryTotals[tx.categoryId!] ?? 0) + tx.amountInCents;
-          incomeCatTotals[tx.categoryId!] =
-              (incomeCatTotals[tx.categoryId!] ?? 0) + tx.amountInCents;
-        }
+    for (final row in totals) {
+      final amount = row.read(amountTotal) ?? 0;
+      final categoryId = row.read(transactions.categoryId);
+      if (row.read(transactions.transactionType) == 'expense') {
+        totalExpense += amount;
+        if (categoryId != null) expenseCatTotals[categoryId] = amount;
+      } else {
+        totalIncome += amount;
+        if (categoryId != null) incomeCatTotals[categoryId] = amount;
+      }
+      if (categoryId != null) {
+        categoryTotals[categoryId] = (categoryTotals[categoryId] ?? 0) + amount;
       }
     }
 

@@ -1,8 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/colors.dart';
+import '../../core/constants/mode_strings.dart';
+import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
@@ -13,6 +16,7 @@ import '../../core/widgets/adaptive_form_sheet.dart';
 import '../../core/widgets/adaptive_list_row.dart';
 import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_picker.dart';
+import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_section_header.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
@@ -21,6 +25,7 @@ import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/app_feedback.dart';
 import '../../core/widgets/empty_state_view.dart';
 import '../../core/widgets/skeleton_list_tile.dart';
+import '../../core/widgets/spring_morphing_fab.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/user_profile_model.dart';
@@ -31,13 +36,18 @@ import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import '../providers/profile_provider.dart';
-import 'providers/expense_tab_controller.dart';
+import 'recurring_screen.dart';
 
 /// Screen managing My Profile (with sub-categories: Profile, Wallet, and Category).
 class ExpenseAccountsScreen extends ConsumerStatefulWidget {
   final int initialTab;
+  final bool isStandalone;
 
-  const ExpenseAccountsScreen({super.key, this.initialTab = 0});
+  const ExpenseAccountsScreen({
+    super.key,
+    this.initialTab = 0,
+    this.isStandalone = false,
+  });
 
   /// Opens dialog to add a wallet or category.
   /// Creates a category without leaving the current transaction form.
@@ -124,44 +134,66 @@ class ExpenseAccountsScreen extends ConsumerStatefulWidget {
 
 class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
   late int _selectedTab; // 0 = Profile, 1 = Wallet, 2 = Category
+  late final PageController _pageController;
+  Object? _sectionTransition;
   AccountType _selectedCatType = AccountType.expense;
 
   @override
   void initState() {
     super.initState();
     _selectedTab = widget.initialTab;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final company = ref.read(activeCompanyProvider);
-      final accountsIndex = company.isModuleEnabled(AppModule.budgets) ? 3 : 2;
-      if (ref.read(expenseTabControllerProvider).currentIndex == accountsIndex) {
-        _updatePrimaryAction();
-      }
-    });
+    _pageController = PageController(
+      initialPage: _selectedTab,
+      keepPage: false,
+    );
   }
 
-  void _updatePrimaryAction() {
-    ref.read(expenseTabControllerProvider.notifier).setPrimaryAction(
-      () async {
-        if (!mounted) return;
-        switch (_selectedTab) {
-          case 0:
-            CompanySwitcherSheet.showAddCompanyDialog(context, ref);
-            break;
-          case 1:
-            await showAddWalletDialogStatic(
-              context, ref, ref.read(activeCompanyProvider),
-            );
-            break;
-          case 2:
-            await ExpenseAccountsScreen.showAddCategorySheet(
-              context, ref, categoryType: _selectedCatType,
-            );
-            break;
-        }
-      },
-      ['Add profile', 'Add wallet', 'Add category'][_selectedTab],
-    );
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectSection(int index) async {
+    if (index == _selectedTab) return;
+    if (MediaQuery.disableAnimationsOf(context)) {
+      setState(() => _selectedTab = index);
+      _pageController.jumpToPage(index);
+      return;
+    }
+
+    final transition = Object();
+    setState(() {
+      _selectedTab = index;
+      _sectionTransition = transition;
+    });
+    try {
+      await _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutCubic,
+      );
+    } finally {
+      if (mounted && identical(_sectionTransition, transition)) {
+        setState(() => _sectionTransition = null);
+      }
+    }
+  }
+
+  Future<void> _addItem() async {
+    HapticFeedback.lightImpact();
+    switch (_selectedTab) {
+      case 0:
+        CompanySwitcherSheet.showAddCompanyDialog(context, ref);
+      case 1:
+        await showAddWalletDialogStatic(
+          context, ref, ref.read(activeCompanyProvider),
+        );
+      case 2:
+        await ExpenseAccountsScreen.showAddCategorySheet(
+          context, ref, categoryType: _selectedCatType,
+        );
+    }
   }
 
   // -------------------------------------------------------------
@@ -544,7 +576,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     final walletsAsync = ref.watch(walletsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
 
-    return AdaptivePageEntrance(
+    final body = AdaptivePageEntrance(
       child: Material(
         color: Colors.transparent,
         child: Column(
@@ -558,26 +590,90 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                   1: Text('Wallet'),
                   2: Text('Category'),
                 },
-                onValueChanged: (tab) {
-                  setState(() => _selectedTab = tab);
-                  _updatePrimaryAction();
-                },
+                onValueChanged: _selectSection,
               ),
             ),
             Expanded(
-              child: _selectedTab == 0
-                  ? _buildProfileTab(context, company, profile)
-                  : (_selectedTab == 1
-                        ? _buildWalletsTab(context, company, walletsAsync)
-                        : _buildCategoriesTab(
-                            context,
-                            company,
-                            categoriesAsync,
-                          )),
+              child: AbsorbPointer(
+                absorbing: _sectionTransition != null,
+                child: PageView.builder(
+                  controller: _pageController,
+                  itemCount: 3,
+                  onPageChanged: (index) {
+                    if (_sectionTransition == null && index != _selectedTab) {
+                      setState(() => _selectedTab = index);
+                    }
+                  },
+                  itemBuilder: (context, index) => KeyedSubtree(
+                    key: PageStorageKey<int>(index),
+                    child: switch (index) {
+                      0 => _buildProfileTab(context, company, profile),
+                      1 => _buildWalletsTab(context, company, walletsAsync),
+                      _ => _buildCategoriesTab(context, company, categoriesAsync),
+                    },
+                  ),
+                ),
+              ),
             ),
           ],
         ),
       ),
+    );
+    if (!widget.isStandalone) return body;
+
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final colors = Theme.of(context).colorScheme;
+    final addLabel = ['Add profile', 'Add wallet', 'Add category'][_selectedTab];
+
+    void openRecurringRules() {
+      Navigator.of(context).push(
+        createAdaptivePageRoute(builder: (_) => const RecurringScreen()),
+      );
+    }
+
+    return AdaptiveScaffold(
+      title: ModeStrings.of(company.mode).accountsTab,
+      actions: [
+        if (company.isModuleEnabled(AppModule.recurring))
+          if (isIos)
+            Tooltip(
+              message: 'Recurring Rules',
+              child: CupertinoButton(
+                key: const Key('accounts_recurring_rules_button'),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                onPressed: openRecurringRules,
+                child: const Icon(CupertinoIcons.repeat, size: 22),
+              ),
+            )
+          else
+            IconButton(
+              key: const Key('accounts_recurring_rules_button'),
+              icon: const Icon(Icons.update_rounded),
+              tooltip: 'Recurring Rules',
+              onPressed: openRecurringRules,
+            ),
+        if (isIos)
+          Tooltip(
+            message: addLabel,
+            child: CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: _addItem,
+              child: const Icon(CupertinoIcons.add, size: 22),
+            ),
+          ),
+      ],
+      floatingActionButton: isIos
+          ? null
+          : SpringMorphingFab(
+              key: ValueKey(addLabel),
+              isExtended: true,
+              icon: Icons.add,
+              label: addLabel,
+              backgroundColor: colors.primaryContainer,
+              foregroundColor: colors.onPrimaryContainer,
+              onPressed: _addItem,
+            ),
+      body: body,
     );
   }
 

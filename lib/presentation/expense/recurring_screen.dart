@@ -12,7 +12,6 @@ import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_controls.dart';
 import '../../core/widgets/adaptive_date_field.dart';
 import '../../core/widgets/adaptive_form_sheet.dart';
-import '../../core/widgets/adaptive_list_row.dart';
 import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_picker.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
@@ -74,12 +73,34 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
         existingRule?.template.walletAccountId ??
         (wallets.isNotEmpty ? wallets.first.id : null);
     String? selectedToWalletId = existingRule?.template.toWalletAccountId;
+    String? selectedCategoryId = existingRule?.template.categoryAccountId;
 
     RecurringIntervalType selectedInterval =
         existingRule?.interval ?? RecurringIntervalType.monthly;
-    DateTime nextRunDate = existingRule?.nextRunDate ?? DateTime.now();
+    final now = DateTime.now();
+    DateTime nextRunDate =
+        existingRule?.nextRunDate ??
+        DateTime(now.year, now.month, now.day, now.hour, now.minute);
 
-    Future<void> doSave(BuildContext sheetCtx, String? catId) async {
+    List<AccountModel> categoriesForType() => allCategories
+        .where(
+          (category) =>
+              category.type ==
+              (selectedType == VoucherType.expense
+                  ? AccountType.expense
+                  : AccountType.income),
+        )
+        .toList();
+
+    String? currentCategoryId(List<AccountModel> categories) =>
+        categories.any((category) => category.id == selectedCategoryId)
+        ? selectedCategoryId
+        : categories.firstOrNull?.id;
+
+    bool saving = false;
+    Future<void> doSave(BuildContext sheetCtx) async {
+      if (saving) return;
+      final catId = currentCategoryId(categoriesForType());
       final amount = double.tryParse(amountController.text.trim()) ?? 0;
       if (!amount.isFinite || (amount * 100).round() <= 0) {
         showAppFeedback(context, 'Please enter a valid amount', isError: true);
@@ -125,8 +146,11 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
         notes: notesController.text.trim().isEmpty
             ? null
             : notesController.text.trim(),
+        referenceNumber: existingRule?.template.referenceNumber,
+        receiptPhotoUrl: existingRule?.template.receiptPhotoUrl,
       );
 
+      saving = true;
       HapticFeedback.mediumImpact();
       try {
         if (existingRule == null) {
@@ -153,8 +177,12 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
           );
         }
         return;
+      } finally {
+        saving = false;
       }
-      if (context.mounted) {
+      if (context.mounted &&
+          sheetCtx.mounted &&
+          ModalRoute.of(sheetCtx)?.isCurrent == true) {
         Navigator.of(sheetCtx).pop();
         showAppFeedback(
           context,
@@ -166,28 +194,20 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
     }
 
     if (!context.mounted) return;
+    Future<void> Function()? saveFromHeader;
     await showAdaptiveFormSheet<void>(
       context: context,
       title: existingRule == null
           ? 'Add Recurring Rule'
           : 'Edit Recurring Rule',
-      doneLabel: 'Done',
+      doneLabel: 'Save',
+      onDone: () => saveFromHeader?.call(),
       builder: (sheetContext) {
+        saveFromHeader = () => doSave(sheetContext);
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            final filteredCategories = allCategories
-                .where(
-                  (c) => selectedType == VoucherType.expense
-                      ? c.type == AccountType.expense
-                      : c.type == AccountType.income,
-                )
-                .toList();
-
-            String? selectedCategoryId =
-                existingRule?.template.categoryAccountId ??
-                (filteredCategories.isNotEmpty
-                    ? filteredCategories.first.id
-                    : null);
+            final filteredCategories = categoriesForType();
+            final categoryId = currentCategoryId(filteredCategories);
 
             final walletPickerItems = wallets
                 .map(
@@ -286,7 +306,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
                     AdaptiveDropdownField<String>(
                       key: const Key('recurring_category_field'),
                       label: 'Category',
-                      value: selectedCategoryId,
+                      value: categoryId,
                       items: categoryPickerItems,
                       hint: 'Select Category',
                       onChanged: (val) {
@@ -314,7 +334,8 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
 
                   // Start / Next Run Date
                   AdaptiveDateField(
-                    label: 'Next Run Date',
+                    label: 'Next Run Date & Time',
+                    enableTime: true,
                     selectedDate: nextRunDate,
                     onDateSelected: (date) {
                       setSheetState(() => nextRunDate = date);
@@ -342,7 +363,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
                           ? 'Create Recurring Rule'
                           : 'Update Rule',
                     ),
-                    onPressed: () => doSave(sheetContext, selectedCategoryId),
+                    onPressed: () => doSave(sheetContext),
                   ),
                 ],
               ),
@@ -517,99 +538,156 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
         ? Icons.arrow_downward
         : Icons.swap_horiz;
 
-    String ruleTitle = template.type.displayName;
-    if (template.notes != null && template.notes!.isNotEmpty) {
-      ruleTitle = template.notes!;
-    } else if (template.type == VoucherType.transfer) {
-      final fromW = wallets
-          .where((w) => w.id == template.walletAccountId)
-          .firstOrNull;
-      final toW = wallets
-          .where((w) => w.id == template.toWalletAccountId)
-          .firstOrNull;
-      ruleTitle = '${fromW?.name ?? 'Wallet'} → ${toW?.name ?? 'Wallet'}';
-    } else if (template.categoryAccountId != null) {
-      final cat = categories
-          .where((c) => c.id == template.categoryAccountId)
-          .firstOrNull;
-      if (cat != null) ruleTitle = cat.name;
-    }
+    final isTransfer = template.type == VoucherType.transfer;
+    final wallet = wallets
+        .where((account) => account.id == template.walletAccountId)
+        .firstOrNull;
+    final destination = wallets
+        .where((account) => account.id == template.toWalletAccountId)
+        .firstOrNull;
+    final category = categories
+        .where((account) => account.id == template.categoryAccountId)
+        .firstOrNull;
+    final notes = template.notes?.trim() ?? '';
+    final nextRun = rule.nextRunDate.toLocal();
+    final timeFormat = MediaQuery.alwaysUse24HourFormatOf(context)
+        ? DateFormat.Hm()
+        : DateFormat.jm();
+    final frequency = rule.intervalCount == 1
+        ? rule.interval.displayName
+        : 'Every ${rule.intervalCount} ${switch (rule.interval) {
+            RecurringIntervalType.daily => 'days',
+            RecurringIntervalType.weekly => 'weeks',
+            RecurringIntervalType.monthly => 'months',
+            RecurringIntervalType.yearly => 'years',
+          }}';
+    final textTheme = Theme.of(context).textTheme;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AdaptiveSurfaceCard(
         key: Key('recurring_rule_card_${rule.id}'),
-        padding: EdgeInsets.zero,
-        child: AdaptiveListRow(
-          title: ruleTitle,
-          subtitle:
-              'Next: ${DateFormat.yMMMd().format(rule.nextRunDate)} • ${rule.interval.displayName}',
-          showDivider: false,
-          leading: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: typeColor.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: typeColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(typeIcon, color: typeColor, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        template.type.displayName,
+                        style: textTheme.labelLarge,
+                      ),
+                      if (notes.isNotEmpty)
+                        Text(notes, style: textTheme.titleMedium),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, size: 20),
+                  onSelected: (val) {
+                    if (val == 'edit') {
+                      _showAddEditRuleSheet(context, existingRule: rule);
+                    } else if (val == 'delete') {
+                      _deleteRule(rule);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      key: Key('edit_rule_${rule.id}'),
+                      value: 'edit',
+                      child: const Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Text('Edit'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      key: Key('delete_rule_${rule.id}'),
+                      value: 'delete',
+                      child: const Row(
+                        children: [
+                          Icon(
+                            Icons.delete_outline,
+                            size: 18,
+                            color: Colors.red,
+                          ),
+                          SizedBox(width: 8),
+                          Text('Delete', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            child: Icon(typeIcon, color: typeColor, size: 22),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AmountText(
-                amountInCents: template.amountInCents,
-                currencyCode: company.currencyCode,
-                overrideColor: typeColor,
-                variant: AmountVariant.medium,
-              ),
-              const SizedBox(width: 8),
-              AdaptiveSwitch(
-                key: Key('toggle_rule_${rule.id}'),
-                value: rule.isActive,
-                onChanged: (val) async {
-                  HapticFeedback.lightImpact();
-                  await ref
-                      .read(recurringServiceProvider)
-                      .toggleRuleActive(rule.id, val);
-                },
-              ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, size: 20),
-                onSelected: (val) {
-                  if (val == 'edit') {
-                    _showAddEditRuleSheet(context, existingRule: rule);
-                  } else if (val == 'delete') {
-                    _deleteRule(rule);
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    key: Key('edit_rule_${rule.id}'),
-                    value: 'edit',
-                    child: const Row(
-                      children: [
-                        Icon(Icons.edit_outlined, size: 18),
-                        SizedBox(width: 8),
-                        Text('Edit'),
-                      ],
-                    ),
+            const SizedBox(height: 12),
+            AmountText(
+              amountInCents: template.amountInCents,
+              currencyCode: company.currencyCode,
+              overrideColor: typeColor,
+              variant: AmountVariant.medium,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Next: ${DateFormat.yMMMd().format(nextRun)} at '
+              '${timeFormat.format(nextRun)}',
+              style: textTheme.titleSmall,
+            ),
+            const SizedBox(height: 4),
+            Text('Repeats: $frequency'),
+            Text(
+              'Ends: ${rule.endDate == null ? 'No end date' : DateFormat.yMMMd().add_jm().format(rule.endDate!.toLocal())}',
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '${isTransfer ? 'From wallet' : 'Wallet'}: ${wallet?.name ?? 'Unavailable'}',
+            ),
+            if (isTransfer)
+              Text('To wallet: ${destination?.name ?? 'Unavailable'}')
+            else
+              Text('Category: ${category?.name ?? 'Unavailable'}'),
+            if (template.referenceNumber case final reference?
+                when reference.isNotEmpty)
+              Text('Reference: $reference'),
+            if (template.receiptPhotoUrl?.isNotEmpty ?? false)
+              const Text('Receipt attached'),
+            const Divider(),
+            Row(
+              children: [
+                Expanded(child: Text(rule.isActive ? 'Active' : 'Paused')),
+                Semantics(
+                  label: 'Recurring rule active',
+                  child: AdaptiveSwitch(
+                    key: Key('toggle_rule_${rule.id}'),
+                    value: rule.isActive,
+                    onChanged: (value) async {
+                      HapticFeedback.lightImpact();
+                      await ref
+                          .read(recurringServiceProvider)
+                          .toggleRuleActive(rule.id, value);
+                    },
                   ),
-                  PopupMenuItem(
-                    key: Key('delete_rule_${rule.id}'),
-                    value: 'delete',
-                    child: const Row(
-                      children: [
-                        Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                        SizedBox(width: 8),
-                        Text('Delete', style: TextStyle(color: Colors.red)),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

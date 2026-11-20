@@ -10,7 +10,10 @@ QueryExecutor openConnection([String uid = 'usr_default']) {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
     final sanitizedUid = sanitizeDatabaseIdentifier(uid);
-    final targetPath = p.join(dbFolder.path, 'ledger_pulse_$sanitizedUid.sqlite');
+    final targetPath = p.join(
+      dbFolder.path,
+      'ledger_pulse_$sanitizedUid.sqlite',
+    );
     final targetFile = File(targetPath);
 
     if (!await targetFile.exists()) {
@@ -18,10 +21,14 @@ QueryExecutor openConnection([String uid = 'usr_default']) {
       if (sanitizedUid.startsWith('usr_')) {
         final legacyUnprefixed = sanitizedUid.substring(4);
         if (legacyUnprefixed.isNotEmpty && legacyUnprefixed != 'default') {
-          final legacyUserFile = File(p.join(dbFolder.path, 'ledger_pulse_$legacyUnprefixed.sqlite'));
+          final legacyUserFile = File(
+            p.join(dbFolder.path, 'ledger_pulse_$legacyUnprefixed.sqlite'),
+          );
           if (await legacyUserFile.exists()) {
             try {
-              debugPrint('Adopting legacy un-prefixed user database: ${legacyUserFile.path} -> $targetPath');
+              debugPrint(
+                'Adopting legacy un-prefixed user database: ${legacyUserFile.path} -> $targetPath',
+              );
               await legacyUserFile.rename(targetPath);
             } catch (e) {
               debugPrint('Could not rename legacy user file, copying: $e');
@@ -36,10 +43,17 @@ QueryExecutor openConnection([String uid = 'usr_default']) {
       final legacyFile = File(p.join(dbFolder.path, 'ledger_pulse.sqlite'));
       if (await legacyFile.exists()) {
         try {
-          final executor = NativeDatabase(legacyFile);
-          await executor.ensureOpen(const _DummyUser());
-          final result = await executor.runSelect('SELECT COUNT(DISTINCT id) as cnt FROM user_profiles WHERE is_deleted = 0;', []);
-          await executor.close();
+          final executor = NativeDatabase.createInBackground(legacyFile);
+          final List<Map<String, Object?>> result;
+          try {
+            await executor.ensureOpen(const _DummyUser());
+            result = await executor.runSelect(
+              'SELECT COUNT(DISTINCT id) as cnt FROM user_profiles WHERE is_deleted = 0;',
+              [],
+            );
+          } finally {
+            await executor.close();
+          }
 
           int count = 0;
           if (result.isNotEmpty) {
@@ -47,11 +61,15 @@ QueryExecutor openConnection([String uid = 'usr_default']) {
           }
 
           if (count <= 1) {
-            debugPrint('Migrating single-user legacy database ledger_pulse.sqlite -> $targetPath');
+            debugPrint(
+              'Migrating single-user legacy database ledger_pulse.sqlite -> $targetPath',
+            );
             await legacyFile.rename(targetPath);
           }
         } catch (e) {
-          debugPrint('Legacy DB check failed, copying legacy file to user DB: $e');
+          debugPrint(
+            'Legacy DB check failed, copying legacy file to user DB: $e',
+          );
           try {
             await legacyFile.copy(targetPath);
           } catch (_) {}
@@ -59,14 +77,17 @@ QueryExecutor openConnection([String uid = 'usr_default']) {
       }
     }
 
-    return NativeDatabase(targetFile);
+    return NativeDatabase.createInBackground(targetFile);
   });
 }
 
 class _DummyUser implements QueryExecutorUser {
   const _DummyUser();
   @override
-  Future<void> beforeOpen(QueryExecutor executor, OpeningDetails details) async {}
+  Future<void> beforeOpen(
+    QueryExecutor executor,
+    OpeningDetails details,
+  ) async {}
   @override
   int get schemaVersion => 9;
 }

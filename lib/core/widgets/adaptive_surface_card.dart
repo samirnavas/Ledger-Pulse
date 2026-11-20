@@ -17,6 +17,7 @@ class AdaptiveSurfaceCard extends StatelessWidget {
   final VoidCallback? onTap;
   final double? width;
   final double? height;
+  final Clip clipBehavior;
 
   const AdaptiveSurfaceCard({
     super.key,
@@ -29,12 +30,22 @@ class AdaptiveSurfaceCard extends StatelessWidget {
     this.onTap,
     this.width,
     this.height,
+    this.clipBehavior = Clip.none,
   });
 
   @override
   Widget build(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveRadius = borderRadius ?? (isIos ? 20.0 : 28.0);
+    final shape = BorderRadius.circular(effectiveRadius);
+    final content = clipBehavior == Clip.none
+        ? child
+        : ClipRRect(
+            borderRadius: shape,
+            clipBehavior: clipBehavior,
+            child: child,
+          );
 
     final lightShadows = !isDark
         ? [
@@ -57,19 +68,19 @@ class AdaptiveSurfaceCard extends StatelessWidget {
       Widget card = LiquidGlassCard(
         width: width,
         height: height,
-        borderRadius: borderRadius ?? 20,
+        borderRadius: effectiveRadius,
         padding: padding,
         margin: margin,
         color: color,
         borderColor: accentColor?.withValues(alpha: isDark ? 0.35 : 0.2),
         onTap: onTap,
-        child: child,
+        child: content,
       );
 
       if (!isDark && lightShadows != null) {
         card = Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(borderRadius ?? 20),
+            borderRadius: shape,
             boxShadow: lightShadows,
           ),
           child: card,
@@ -78,22 +89,19 @@ class AdaptiveSurfaceCard extends StatelessWidget {
 
       if (onTap == null) return card;
 
-      return _IosPressFadeWidget(
-        onTap: onTap,
-        child: card,
-      );
+      return _IosPressFadeWidget(onTap: onTap, child: card);
     }
 
-    final effectiveRadius = borderRadius ?? 28.0;
     final cardBorder = Border.all(
-      color: (accentColor ?? Theme.of(context).colorScheme.primary)
-          .withValues(alpha: isDark ? 0.22 : 0.16),
+      color: (accentColor ?? Theme.of(context).colorScheme.primary).withValues(
+        alpha: isDark ? 0.22 : 0.16,
+      ),
       width: 0.75,
     );
 
     final containerDecoration = BoxDecoration(
       color: color ?? Theme.of(context).colorScheme.surfaceContainer,
-      borderRadius: BorderRadius.circular(effectiveRadius),
+      borderRadius: shape,
       border: cardBorder,
       boxShadow: lightShadows,
     );
@@ -106,16 +114,16 @@ class AdaptiveSurfaceCard extends StatelessWidget {
         decoration: containerDecoration,
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(effectiveRadius),
+          borderRadius: shape,
           child: InkWell(
-            borderRadius: BorderRadius.circular(effectiveRadius),
+            borderRadius: shape,
             onTap: () {
               HapticFeedback.lightImpact();
               onTap!();
             },
             child: Padding(
               padding: padding ?? const EdgeInsets.all(16),
-              child: child,
+              child: content,
             ),
           ),
         ),
@@ -128,7 +136,7 @@ class AdaptiveSurfaceCard extends StatelessWidget {
       margin: margin,
       padding: padding ?? const EdgeInsets.all(16),
       decoration: containerDecoration,
-      child: child,
+      child: content,
     );
   }
 }
@@ -137,10 +145,7 @@ class _IosPressFadeWidget extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
 
-  const _IosPressFadeWidget({
-    required this.child,
-    required this.onTap,
-  });
+  const _IosPressFadeWidget({required this.child, required this.onTap});
 
   @override
   State<_IosPressFadeWidget> createState() => _IosPressFadeWidgetState();

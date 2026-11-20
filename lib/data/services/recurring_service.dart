@@ -346,12 +346,25 @@ class RecurringService {
     int intervalCount = 1,
   ]) {
     final count = intervalCount < 1 ? 1 : intervalCount;
+    // Add calendar days so local schedules keep their time across DST changes.
+    final buildDate = date.isUtc ? DateTime.utc : DateTime.new;
+    DateTime atScheduledTime(int year, int month, int day) => buildDate(
+      year,
+      month,
+      day,
+      date.hour,
+      date.minute,
+      date.second,
+      date.millisecond,
+      date.microsecond,
+    );
+
     switch (intervalType) {
       case RecurringIntervalType.daily:
-        return date.add(Duration(days: count));
+        return atScheduledTime(date.year, date.month, date.day + count);
 
       case RecurringIntervalType.weekly:
-        return date.add(Duration(days: 7 * count));
+        return atScheduledTime(date.year, date.month, date.day + 7 * count);
 
       case RecurringIntervalType.monthly:
         final nextMonth = date.month + count;
@@ -362,15 +375,7 @@ class RecurringService {
         final targetDay = date.day > daysInTargetMonth
             ? daysInTargetMonth
             : date.day;
-        return DateTime(
-          targetYear,
-          targetMonth,
-          targetDay,
-          date.hour,
-          date.minute,
-          date.second,
-          date.millisecond,
-        );
+        return atScheduledTime(targetYear, targetMonth, targetDay);
 
       case RecurringIntervalType.yearly:
         final targetYear = date.year + count;
@@ -380,15 +385,7 @@ class RecurringService {
         final targetDay = (date.month == 2 && date.day == 29 && !isLeapTarget)
             ? 28
             : date.day;
-        return DateTime(
-          targetYear,
-          date.month,
-          targetDay,
-          date.hour,
-          date.minute,
-          date.second,
-          date.millisecond,
-        );
+        return atScheduledTime(targetYear, date.month, targetDay);
     }
   }
 

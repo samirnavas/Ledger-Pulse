@@ -96,16 +96,44 @@ final transactionsProvider = FutureProvider<List<VoucherModel>>((ref) async {
       DateTime(selectedMonth.year, selectedMonth.month, 1);
   final end = filters.endDate ??
       DateTime(selectedMonth.year, selectedMonth.month + 1, 0, 23, 59, 59, 999);
+  final categoryIds = filters.categoryIds;
+  final expandedCategoryIds = categoryIds == null || categoryIds.isEmpty
+      ? categoryIds
+      : await _includeSubcategories(repo, categoryIds);
 
   return await repo.getTransactions(
     startDate: start,
     endDate: end,
-    categoryIds: filters.categoryIds,
+    categoryIds: expandedCategoryIds,
     walletIds: filters.walletIds,
     textQuery: filters.textQuery,
     type: filters.type,
   );
 });
+
+Future<List<String>> _includeSubcategories(
+  DriftExpenseRepository repo,
+  List<String> categoryIds,
+) async {
+  final categories = await repo.getCategories(includeArchived: true);
+  final childrenByParent = <String, List<String>>{};
+  for (final category in categories) {
+    final parent = category.parentAccountId;
+    if (parent != null) {
+      childrenByParent.putIfAbsent(parent, () => []).add(category.id);
+    }
+  }
+
+  final matchedIds = categoryIds.toSet();
+  final pending = matchedIds.toList();
+  while (pending.isNotEmpty) {
+    final children = childrenByParent[pending.removeLast()] ?? const <String>[];
+    for (final child in children) {
+      if (matchedIds.add(child)) pending.add(child);
+    }
+  }
+  return matchedIds.toList();
+}
 
 /// Reactive summary for the selected month (total income, total expense, net, wallet balances, category totals).
 /// Refreshed from repositoryUpdatesStream like partyListProvider.

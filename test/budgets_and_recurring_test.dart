@@ -131,7 +131,11 @@ void main() {
     await db.close();
   });
 
-  Widget buildTestScope({required Widget child, Company? companyOverride}) {
+  Widget buildTestScope({
+    required Widget child,
+    Company? companyOverride,
+    DateTime? selectedMonth,
+  }) {
     final company = companyOverride ?? enabledCompany;
     return ProviderScope(
       overrides: [
@@ -150,7 +154,7 @@ void main() {
         budgetRepositoryProvider.overrideWithValue(budgetRepo),
         recurringServiceProvider.overrideWithValue(recurringService),
         selectedMonthProvider.overrideWith(
-          () => _TestMonthNotifier(DateTime(now.year, now.month)),
+          () => _TestMonthNotifier(selectedMonth ?? DateTime(now.year, now.month)),
         ),
       ],
       child: MaterialApp(home: child),
@@ -473,9 +477,10 @@ void main() {
   });
 
   group('Budgets - Threshold Banners UI', () {
-    testWidgets('Shows 80% warning banner and 100% exceeded banner', (
+    testWidgets('Does not show 80% warning or 100% exceeded banners', (
       tester,
     ) async {
+      final today = DateTime.now();
       final wallet = await expenseRepo.createWallet(
         name: 'Cash',
         type: AccountType.asset,
@@ -495,13 +500,13 @@ void main() {
         categoryId: catWarning.id,
         amountInCents: 1000000,
         period: BudgetPeriodType.monthly,
-        startDate: now,
+        startDate: today,
       );
       await expenseRepo.addExpense(
         walletAccountId: wallet.id,
         categoryAccountId: catWarning.id,
         amountInCents: 850000,
-        date: now,
+        date: today,
       );
 
       // Shopping: 5,000 budget, spent 6,000 (120% -> exceeded)
@@ -509,21 +514,39 @@ void main() {
         categoryId: catExceeded.id,
         amountInCents: 500000,
         period: BudgetPeriodType.monthly,
-        startDate: now,
+        startDate: today,
       );
       await expenseRepo.addExpense(
         walletAccountId: wallet.id,
         categoryAccountId: catExceeded.id,
         amountInCents: 600000,
-        date: now,
+        date: today,
       );
 
-      await tester.pumpWidget(buildTestScope(child: const BudgetsScreen()));
+      await budgetRepo.createBudget(
+        categoryId: 'all',
+        amountInCents: 1000000,
+        period: BudgetPeriodType.weekly,
+        startDate: today,
+      );
+
+      await tester.pumpWidget(
+        buildTestScope(child: const BudgetsScreen(), selectedMonth: today),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('budget_warning_banner')), findsOneWidget);
-      expect(find.byKey(const Key('budget_exceeded_banner')), findsOneWidget);
-      expect(find.byKey(const Key('overall_budget_card')), findsOneWidget);
+      expect(find.byKey(const Key('budget_warning_banner')), findsNothing);
+      expect(find.byKey(const Key('budget_exceeded_banner')), findsNothing);
+      final card = find.byKey(const Key('overall_budget_card'));
+      expect(card, findsOneWidget);
+      expect(
+        find.descendant(of: card, matching: find.text('Overall Weekly Budget')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: card, matching: find.text('145.0%')),
+        findsOneWidget,
+      );
     });
   });
 
@@ -629,7 +652,7 @@ void main() {
     );
 
     test(
-      'generateDue is idempotent: multiple executions never duplicate vouchers',
+      'generateDue waits for the scheduled time and never duplicates vouchers',
       () async {
         final wallet = await expenseRepo.createWallet(
           name: 'Checking Wallet',
@@ -640,8 +663,8 @@ void main() {
           type: AccountType.expense,
         );
 
-        // Active rule due today
-        await recurringService.createRule(
+        final scheduled = DateTime(2026, 10, 1, 14, 30);
+        final rule = await recurringService.createRule(
           template: RecurringTemplate(
             type: VoucherType.expense,
             amountInCents: 1500000, // 15,000 INR
@@ -650,14 +673,21 @@ void main() {
             narration: 'Office Rent',
           ),
           interval: RecurringIntervalType.monthly,
-          nextRunDate: DateTime(2026, 10, 1),
+          nextRunDate: scheduled,
         );
 
-        // First run: should post 1 transaction and advance nextRunDate to 2026-11-01
-        final generated1 = await recurringService.generateDue(
-          DateTime(2026, 10, 15),
+        expect(
+          await recurringService.generateDue(
+            scheduled.subtract(const Duration(minutes: 1)),
+          ),
+          0,
         );
+        final generated1 = await recurringService.generateDue(scheduled);
         expect(generated1, 1);
+        expect(
+          (await recurringService.getRuleById(rule.id)).nextRunDate,
+          DateTime(2026, 11, 1, 14, 30),
+        );
 
         final vouchersAfterFirst = await expenseRepo.getTransactions();
         expect(vouchersAfterFirst.length, 1);

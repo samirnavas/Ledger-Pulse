@@ -12,7 +12,6 @@ import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_bottom_nav.dart';
 import '../../core/widgets/adaptive_list_row.dart';
-import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_section_header.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
@@ -23,10 +22,7 @@ import '../../core/widgets/smart_fab_switcher.dart';
 import '../../core/widgets/spring_morphing_fab.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
-import '../../data/models/sync_model.dart';
 import '../../data/models/voucher_model.dart';
-import '../home/sync_settings_sheet.dart';
-import '../home/company_switcher_sheet.dart';
 import '../widgets/active_profile_indicator_pill.dart';
 import '../providers/budget_providers.dart';
 import '../providers/company_providers.dart';
@@ -37,14 +33,13 @@ import 'budgets_screen.dart';
 import 'expense_reports_screen.dart';
 import 'providers/expense_tab_controller.dart';
 import 'quick_add_transaction_sheet.dart';
-import 'recurring_screen.dart';
-import 'transactions_screen.dart';
 import 'transaction_details_screen.dart';
+import 'transactions_screen.dart';
 import 'widgets/category_breakdown_card.dart';
 import 'widgets/expense_sidebar_drawer.dart';
 
 /// Adaptive Home Shell for Expense Tracker mode mirroring DashboardScreen.
-/// Uses AdaptiveScaffold with company-switcher title, cloud sync action,
+/// Uses AdaptiveScaffold with company-switcher title, profile action,
 /// drawer navigation, adaptive bottom nav, and back behaviour.
 class ExpenseHomeScreen extends ConsumerStatefulWidget {
   const ExpenseHomeScreen({super.key});
@@ -55,6 +50,26 @@ class ExpenseHomeScreen extends ConsumerStatefulWidget {
 
 class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
   bool _fabExtended = true;
+  late final PageController _pageController;
+  ({int index, Object token})? _navTransition;
+
+  @override
+  void initState() {
+    super.initState();
+    final company = ref.read(activeCompanyProvider);
+    final lastIndex = company.isModuleEnabled(AppModule.budgets) ? 3 : 2;
+    final initialIndex = ref.read(expenseTabControllerProvider).currentIndex;
+    _pageController = PageController(
+      initialPage: initialIndex.clamp(0, lastIndex),
+      keepPage: false,
+    );
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   bool _handleScroll(UserScrollNotification notification) {
     if (notification.depth == 0 &&
@@ -75,19 +90,10 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
     bool hasBudgets,
   ) {
     HapticFeedback.lightImpact();
-    final tabState = ref.read(expenseTabControllerProvider);
-    if (tabState.customPrimaryAction != null) {
-      tabState.customPrimaryAction!();
-      return;
-    }
-
-    if (tabIndex == 0) {
+    if (tabIndex == 0 || tabIndex == (hasBudgets ? 3 : 2)) {
       QuickAddTransactionSheet.show(context);
     } else if (hasBudgets && tabIndex == 1) {
       BudgetsScreen.showAddBudgetSheet(context, ref);
-    } else if ((hasBudgets && tabIndex == 3) ||
-        (!hasBudgets && tabIndex == 2)) {
-      CompanySwitcherSheet.showAddCompanyDialog(context, ref);
     }
   }
 
@@ -98,23 +104,14 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
     bool hasBudgets,
     ColorScheme colorScheme,
   ) {
-    final tabState = ref.watch(expenseTabControllerProvider);
     Widget? fabChild;
 
-    if (tabState.customPrimaryAction != null) {
+    if (tabIndex == 0 || tabIndex == (hasBudgets ? 3 : 2)) {
       fabChild = SpringMorphingFab(
         isExtended: _fabExtended,
-        key: const ValueKey('expense_custom_action_fab'),
-        icon: Icons.add,
-        label: tabState.customPrimaryLabel ?? 'Add',
-        backgroundColor: colorScheme.primaryContainer,
-        foregroundColor: colorScheme.onPrimaryContainer,
-        onPressed: tabState.customPrimaryAction!,
-      );
-    } else if (tabIndex == 0) {
-      fabChild = SpringMorphingFab(
-        isExtended: _fabExtended,
-        key: const Key('expense_quick_add_fab'),
+        key: tabIndex == 0
+            ? const Key('expense_quick_add_fab')
+            : const Key('transactions_quick_add_fab'),
         icon: Icons.add,
         label: 'Add transaction',
         backgroundColor: colorScheme.primaryContainer,
@@ -137,20 +134,6 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
           BudgetsScreen.showAddBudgetSheet(context, ref);
         },
       );
-    } else if ((hasBudgets && tabIndex == 3) ||
-        (!hasBudgets && tabIndex == 2)) {
-      fabChild = SpringMorphingFab(
-        isExtended: _fabExtended,
-        key: const Key('accounts_add_fab'),
-        icon: Icons.add,
-        label: 'Add profile',
-        backgroundColor: colorScheme.primaryContainer,
-        foregroundColor: colorScheme.onPrimaryContainer,
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          CompanySwitcherSheet.showAddCompanyDialog(context, ref);
-        },
-      );
     }
 
     return SmartFabSwitcher(fab: fabChild);
@@ -164,9 +147,65 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
     final company = ref.watch(activeCompanyProvider);
     final modeStrings = ModeStrings.of(company.mode);
     final hasBudgets = company.isModuleEnabled(AppModule.budgets);
-    final syncStatus = ref.watch(syncControllerProvider);
     final tabState = ref.watch(expenseTabControllerProvider);
     final currentTabIndex = tabState.currentIndex;
+    final transactionsIndex = hasBudgets ? 3 : 2;
+    final clampedIndex = currentTabIndex.clamp(0, transactionsIndex);
+
+    ref.listen(expenseTabControllerProvider.select((state) => state.currentIndex), (
+      previous,
+      next,
+    ) {
+      final index = next.clamp(0, transactionsIndex);
+      if (_navTransition?.index == index) return;
+      if (_pageController.hasClients &&
+          (_navTransition != null || _pageController.page?.round() != index)) {
+        _pageController.jumpToPage(index);
+      }
+    });
+
+    void selectTab(int index) {
+      HapticFeedback.lightImpact();
+      if (index != transactionsIndex && clampedIndex == transactionsIndex) {
+        FocusManager.instance.primaryFocus?.unfocus();
+        ref.read(transactionFiltersProvider.notifier).reset();
+      }
+      setState(() => _fabExtended = true);
+      ref.read(expenseTabControllerProvider.notifier).setTab(index);
+    }
+
+    Future<void> slideToTab(int index) async {
+      if (index == clampedIndex) return;
+      if (!_pageController.hasClients ||
+          MediaQuery.disableAnimationsOf(context)) {
+        selectTab(index);
+        return;
+      }
+
+      final transition = (index: index, token: Object());
+      _navTransition = transition;
+      selectTab(index);
+      try {
+        await _pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+        );
+      } finally {
+        if (mounted && _navTransition == transition) {
+          setState(() => _navTransition = null);
+        }
+      }
+    }
+
+    void openProfile() {
+      HapticFeedback.lightImpact();
+      Navigator.of(context).push(
+        createAdaptivePageRoute(
+          builder: (_) => const ExpenseAccountsScreen(isStandalone: true),
+        ),
+      );
+    }
 
     // Navigation destinations
     final List<NavigationDestination> androidDestinations = [
@@ -187,9 +226,9 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         label: modeStrings.reportsTab,
       ),
       NavigationDestination(
-        icon: const Icon(Icons.person_outline_rounded),
-        selectedIcon: const Icon(Icons.person_rounded),
-        label: modeStrings.accountsTab,
+        icon: const Icon(Icons.receipt_long_outlined),
+        selectedIcon: const Icon(Icons.receipt_long_rounded),
+        label: modeStrings.transactionsTab,
       ),
     ];
 
@@ -208,9 +247,8 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         label: modeStrings.reportsTab,
       ),
       BottomNavigationBarItem(
-        icon: const Icon(CupertinoIcons.person_crop_circle),
-        activeIcon: const Icon(CupertinoIcons.person_crop_circle_fill),
-        label: modeStrings.accountsTab,
+        icon: const Icon(CupertinoIcons.list_bullet),
+        label: modeStrings.transactionsTab,
       ),
     ];
 
@@ -218,71 +256,57 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
     final List<Widget> screens = [
       _ExpenseHomeView(
         key: const PageStorageKey('expense_tab_home'),
-        onViewAllTransactions: () {
-          Navigator.of(context).push(
-            createAdaptivePageRoute(
-              builder: (_) => const ExpenseTransactionsScreen(),
-            ),
-          );
+        onOpenTransactions: ({transaction}) {
+          selectTab(transactionsIndex);
+          if (transaction != null) {
+            TransactionDetailsScreen.show(context, transaction, ref);
+          }
         },
       ),
       if (hasBudgets)
         const BudgetsScreen(key: PageStorageKey('expense_tab_budgets')),
       const ExpenseReportsScreen(key: PageStorageKey('expense_tab_reports')),
-      const ExpenseAccountsScreen(key: PageStorageKey('expense_tab_accounts')),
+      ExpenseTransactionsScreen(
+        key: const PageStorageKey('expense_tab_transactions'),
+        isActive: clampedIndex == transactionsIndex,
+        onBackToHome: () {
+          if (ref.read(expenseTabControllerProvider).currentIndex
+              .clamp(0, transactionsIndex) == transactionsIndex) {
+            selectTab(0);
+          }
+        },
+      ),
     ];
 
-    final clampedIndex = currentTabIndex.clamp(0, screens.length - 1);
+    final profileIcon = CircleAvatar(
+      radius: 17,
+      backgroundColor: colorScheme.secondaryContainer,
+      foregroundColor: colorScheme.onSecondaryContainer,
+      child: Icon(
+        isIos ? CupertinoIcons.person_fill : Icons.person_rounded,
+        size: 20,
+      ),
+    );
 
     // Header Title Widget or String
     Widget? titleWidget;
     String? titleText;
     if (clampedIndex == 0) {
-      titleWidget = const ActiveProfileIndicatorPill();
+      titleWidget = const Material(
+        type: MaterialType.transparency,
+        child: ActiveProfileIndicatorPill(),
+      );
     } else if (hasBudgets && clampedIndex == 1) {
       titleText = modeStrings.budgetsTab;
     } else if ((hasBudgets && clampedIndex == 2) ||
         (!hasBudgets && clampedIndex == 1)) {
       titleText = modeStrings.reportsTab;
     } else {
-      titleText = modeStrings.accountsTab;
+      titleText = modeStrings.transactionsTab;
     }
 
     // Scaffold actions
     final List<Widget> actions = [
-      // 1. Sync & Backup button
-      if (isIos)
-        CupertinoButton(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            SyncSettingsSheet.show(context);
-          },
-          child: syncStatus == SyncStatus.syncing
-              ? const CupertinoActivityIndicator(radius: 9)
-              : const Icon(CupertinoIcons.cloud_upload_fill, size: 22),
-        )
-      else
-        IconButton(
-          icon: syncStatus == SyncStatus.syncing
-              ? SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colorScheme.primary,
-                  ),
-                )
-              : const Icon(Icons.cloud_sync_rounded),
-          tooltip: syncStatus == SyncStatus.syncing
-              ? 'Syncing...'
-              : 'Sync & Backup',
-          onPressed: () {
-            HapticFeedback.lightImpact();
-            SyncSettingsSheet.show(context);
-          },
-        ),
-
       if ((hasBudgets && clampedIndex == 2) ||
           (!hasBudgets && clampedIndex == 1))
         if (isIos)
@@ -324,43 +348,32 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
             },
           ),
 
-      if ((hasBudgets && clampedIndex == 3) ||
-          (!hasBudgets && clampedIndex == 2))
-        if (company.isModuleEnabled(AppModule.recurring))
-          if (isIos)
-            CupertinoButton(
-              key: const Key('accounts_recurring_rules_button'),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              onPressed: () => Navigator.of(context).push(
-                createAdaptivePageRoute(
-                  builder: (_) => const RecurringScreen(),
-                ),
-              ),
-              child: const Icon(CupertinoIcons.repeat, size: 22),
-            )
-          else
-            IconButton(
-              key: const Key('accounts_recurring_rules_button'),
-              icon: const Icon(Icons.update_rounded),
-              tooltip: 'Recurring Rules',
-              onPressed: () => Navigator.of(context).push(
-                createAdaptivePageRoute(
-                  builder: (_) => const RecurringScreen(),
-                ),
-              ),
-            ),
-
-      // 3. iOS '+' action button (no FAB on iOS)
+      // iOS '+' action button (no FAB on iOS)
       if (isIos &&
           (clampedIndex == 0 ||
               (hasBudgets && clampedIndex == 1) ||
-              (hasBudgets ? clampedIndex == 3 : clampedIndex == 2)))
+              clampedIndex == transactionsIndex))
         CupertinoButton(
           key: const Key('expense_ios_add_button'),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           onPressed: () =>
               _handlePrimaryAction(context, ref, clampedIndex, hasBudgets),
           child: const Icon(CupertinoIcons.add, size: 22),
+        ),
+      if (isIos)
+        Tooltip(
+          message: modeStrings.accountsTab,
+          child: CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            onPressed: openProfile,
+            child: profileIcon,
+          ),
+        )
+      else
+        IconButton(
+          icon: profileIcon,
+          tooltip: modeStrings.accountsTab,
+          onPressed: openProfile,
         ),
     ];
 
@@ -370,7 +383,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       // an explicit veto here; reading isDrawerOpen during build can go stale.
       canPop: clampedIndex == 0,
       onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
+        if (didPop || clampedIndex == transactionsIndex) return;
         if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
           _scaffoldKey.currentState?.closeDrawer();
           return;
@@ -398,30 +411,30 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
               ),
         bottomNavigationBar: AdaptiveBottomNav(
           currentIndex: clampedIndex,
-          onTap: (index) {
-            HapticFeedback.lightImpact();
-            setState(() => _fabExtended = true);
-            ref.read(expenseTabControllerProvider.notifier).setTab(index);
-          },
+          onTap: slideToTab,
           destinations: androidDestinations,
           iosItems: iosItems,
         ),
-        body: NotificationListener<UserScrollNotification>(
-          onNotification: _handleScroll,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            transitionBuilder: (child, animation) {
-              return FadeTransition(opacity: animation, child: child);
+        body: AbsorbPointer(
+          absorbing: _navTransition != null,
+          child: PageView(
+            controller: _pageController,
+            onPageChanged: (index) {
+              if (_navTransition != null) return;
+              final selectedIndex = ref
+                  .read(expenseTabControllerProvider)
+                  .currentIndex
+                  .clamp(0, transactionsIndex);
+              if (index != selectedIndex) selectTab(index);
             },
-            child: KeyedSubtree(
-              key: ValueKey<int>(clampedIndex),
-              child: AdaptivePageEntrance(
-                key: ValueKey<int>(clampedIndex),
-                child: screens[clampedIndex],
-              ),
-            ),
+            children: [
+              for (final screen in screens)
+                NotificationListener<UserScrollNotification>(
+                  key: screen.key,
+                  onNotification: _handleScroll,
+                  child: screen,
+                ),
+            ],
           ),
         ),
       ),
@@ -441,9 +454,9 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
 /// - (g) Recent transactions section with AdaptiveSectionHeader, See all, and AdaptiveListRow rows
 /// - Wrapped in RefreshIndicator.adaptive
 class _ExpenseHomeView extends ConsumerWidget {
-  final VoidCallback onViewAllTransactions;
+  final void Function({VoucherModel? transaction}) onOpenTransactions;
 
-  const _ExpenseHomeView({super.key, required this.onViewAllTransactions});
+  const _ExpenseHomeView({super.key, required this.onOpenTransactions});
 
   void _previousMonth(WidgetRef ref, DateTime current) {
     final prev = DateTime(current.year, current.month - 1);
@@ -943,7 +956,7 @@ class _ExpenseHomeView extends ConsumerWidget {
               title: 'Recent Transactions',
               padding: const EdgeInsets.fromLTRB(4, 12, 4, 8),
               trailing: TextButton(
-                onPressed: onViewAllTransactions,
+                onPressed: onOpenTransactions,
                 child: const Text('See all'),
               ),
             ),
@@ -1017,7 +1030,7 @@ class _ExpenseHomeView extends ConsumerWidget {
                         variant: AmountVariant.medium,
                         overrideColor: color,
                       ),
-                      onTap: () => TransactionDetailsScreen.show(context, t),
+                      onTap: () => onOpenTransactions(transaction: t),
                     );
                   }).toList(),
                 );

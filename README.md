@@ -15,3 +15,19 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## Android release packages
+
+For direct installs, build one APK per CPU architecture. The APKs are written to
+`build/app/outputs/flutter-apk/`.
+
+```sh
+flutter build apk --release --split-per-abi
+```
+
+For Google Play, build an Android App Bundle so Play can deliver the appropriate
+native libraries to each device.
+
+```sh
+flutter build appbundle --release
+```

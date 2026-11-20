@@ -127,9 +127,9 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
             todaySpend = "$currencySymbol$rawValue"
         }
 
-        val spendProgress = widgetData.getString("spend_progress_text", "Spend - 2000/3700") ?: "Spend - 2000/3700"
-        val spendPercent = widgetData.getString("spend_percent_text", "58%") ?: "58%"
-        val progressInt = getSafeInt(widgetData, "spend_progress_percent", 58)
+        val spendProgress = widgetData.getString("spend_progress_text", "").orEmpty()
+        val spendPercent = widgetData.getString("spend_percent_text", "").orEmpty()
+        val progressInt = getSafeInt(widgetData, "spend_progress_percent", 0)
 
         val layoutId = if (isMedium) {
             R.layout.widget_expense_tracker_medium
@@ -166,7 +166,7 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
                 setImageViewBitmap(R.id.widget_expense_donut_chart, donutBitmap)
             }
 
-            // Plus button PendingIntent: opens quick add transaction in app (on both Small and Medium widgets)
+            // Route enabled keypad taps through the receiver, which reads the current profile.
             val quickAddUri = Uri.parse("ledgerpulse://dashboard?company_id=$companyId&action=quick_add")
             val quickAddIntent = HomeWidgetLaunchIntent.getActivity(
                 context,
