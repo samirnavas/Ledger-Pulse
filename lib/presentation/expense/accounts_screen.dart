@@ -20,7 +20,6 @@ import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_section_header.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
-import '../../core/widgets/adaptive_text_field_dialog.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/app_feedback.dart';
 import '../../core/widgets/empty_state_view.dart';
@@ -37,6 +36,7 @@ import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import '../providers/profile_provider.dart';
 import 'recurring_screen.dart';
+import 'wallet_report_screen.dart';
 
 /// Screen managing My Profile (with sub-categories: Profile, Wallet, and Category).
 class ExpenseAccountsScreen extends ConsumerStatefulWidget {
@@ -317,75 +317,107 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     );
   }
 
-  Future<void> _showOpeningBalanceDialog(
-    BuildContext context,
-    AccountModel wallet,
-    Company company,
-  ) async {
-    final result = await showAdaptiveTextFieldDialog(
-      context: context,
-      title: 'Opening Balance: ${wallet.name}',
-      message: wallet.type == AccountType.liability
-          ? 'Set historical liability / debt owed on this credit card.'
-          : 'Set historical starting balance for this wallet.',
-      initialValue: wallet.currentBalanceInCents > 0
-          ? (wallet.currentBalanceInCents / 100.0).toStringAsFixed(2)
-          : '',
-      labelText: 'Opening Balance',
-      prefixText: '${CurrencyFormatter.getSymbol(company.currencyCode)} ',
-      textFieldKey: const Key('edit_opening_balance_field'),
-      confirmButtonKey: const Key('save_opening_balance_button'),
-      confirmLabel: 'Save Balance',
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-    );
-
-    if (result != null) {
-      final cents = CurrencyFormatter.parseToCents(result);
-      try {
-        HapticFeedback.mediumImpact();
-        final repo = ref.read(expenseRepositoryProvider);
-        await repo.setOpeningBalance(wallet.id, cents);
-        if (context.mounted) {
-          showAppFeedback(context, 'Opening balance updated');
-        }
-      } catch (e) {
-        if (context.mounted) {
-          showAppFeedback(
-            context,
-            'Error updating opening balance: $e',
-            isError: true,
-          );
-        }
+  Future<void> _editWallet(AccountModel wallet, Company company) async {
+    try {
+      final repo = ref.read(expenseRepositoryProvider);
+      final opening = await repo.getWalletOpeningBalance(wallet.id);
+      if (!mounted) return;
+      var name = wallet.name;
+      var balance = (opening / 100).toStringAsFixed(2);
+      final changes = await showAdaptiveFormSheet<(String, int)>(
+        context: context,
+        title: 'Edit Wallet',
+        builder: (sheetContext) => Material(
+          type: MaterialType.transparency,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  key: const Key('edit_wallet_name'),
+                  initialValue: name,
+                  onChanged: (value) => name = value,
+                  decoration: const InputDecoration(labelText: 'Wallet Name'),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  key: const Key('edit_opening_balance_field'),
+                  initialValue: balance,
+                  onChanged: (value) => balance = value,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Opening Balance',
+                    prefixText: '${CurrencyFormatter.getSymbol(company.currencyCode)} ',
+                  ),
+                ),
+                const SizedBox(height: 24),
+                AdaptiveButton(
+                  onPressed: () {
+                    final updatedName = name.trim();
+                    if (updatedName.isEmpty) return;
+                    Navigator.of(sheetContext).pop((
+                      updatedName,
+                      CurrencyFormatter.parseToCents(balance),
+                    ));
+                  },
+                  child: const Text('Save Changes'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (!mounted || changes == null) return;
+      final (updatedName, updatedOpening) = changes;
+      if (updatedName == wallet.name && updatedOpening == opening) return;
+      await repo.updateWallet(
+        id: wallet.id,
+        name: updatedName == wallet.name ? null : updatedName,
+        openingBalanceInCents: updatedOpening == opening ? null : updatedOpening,
+      );
+      if (mounted) showAppFeedback(context, 'Wallet updated');
+    } catch (e) {
+      if (mounted) {
+        showAppFeedback(context, 'Error editing wallet: $e', isError: true);
       }
     }
   }
 
-  static Future<void> _renameWalletStatic(
-    BuildContext context,
-    WidgetRef ref,
-    AccountModel wallet,
-  ) async {
-    final result = await showAdaptiveTextFieldDialog(
-      context: context,
-      title: 'Rename Wallet',
-      initialValue: wallet.name,
-      labelText: 'Wallet Name',
-      confirmLabel: 'Save',
-    );
-    if (result != null &&
-        result.trim().isNotEmpty &&
-        result.trim() != wallet.name) {
-      try {
-        final repo = ref.read(expenseRepositoryProvider);
-        await repo.updateWallet(id: wallet.id, name: result.trim());
-        HapticFeedback.lightImpact();
-        if (context.mounted) {
-          showAppFeedback(context, 'Wallet renamed');
+  Future<void> _deleteWallet(AccountModel wallet) async {
+    try {
+      final repo = ref.read(expenseRepositoryProvider);
+      if (!await repo.walletHasTransactions(wallet.id)) {
+        if (!mounted) return;
+        final confirmed = await showAdaptiveConfirmDialog(
+          context: context,
+          title: 'Delete Wallet?',
+          message: 'Delete ${wallet.name}?',
+          confirmLabel: 'Delete',
+          isDestructive: true,
+        );
+        if (!confirmed || !mounted) return;
+        final deleted = await repo.deleteWallet(wallet.id);
+        if (!mounted) return;
+        if (deleted) {
+          showAppFeedback(context, 'Wallet deleted');
+          return;
         }
-      } catch (e) {
-        if (context.mounted) {
-          showAppFeedback(context, 'Error renaming wallet: $e', isError: true);
-        }
+      }
+      if (!mounted) return;
+      await showAdaptiveInfoDialog(
+        context: context,
+        title: 'Wallet in use',
+        message: '${wallet.name} cannot be deleted because it is used by '
+            'one or more transactions.',
+      );
+    } catch (e) {
+      if (mounted) {
+        showAppFeedback(context, 'Error deleting wallet: $e', isError: true);
       }
     }
   }
@@ -1143,12 +1175,6 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
             AdaptiveSectionHeader(
               title: 'Your Wallets',
               padding: const EdgeInsets.only(bottom: 12),
-              trailing: TextButton.icon(
-                onPressed: () =>
-                    showAddWalletDialogStatic(context, ref, company),
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Add Wallet'),
-              ),
             ),
 
             ...wallets.map((wallet) {
@@ -1163,6 +1189,11 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: AdaptiveSurfaceCard(
                   key: Key('wallet_card_${wallet.id}'),
+                  onTap: () => Navigator.of(context).push(
+                    createAdaptivePageRoute<void>(
+                      builder: (_) => WalletReportScreen(wallet: wallet),
+                    ),
+                  ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 14,
@@ -1222,67 +1253,27 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                          InkWell(
-                            key: Key('edit_opening_btn_${wallet.id}'),
-                            onTap: () => _showOpeningBalanceDialog(
-                              context,
-                              wallet,
-                              company,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                'Set Opening',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: primaryColor,
-                                  fontWeight: FontWeight.w700,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ),
-                          ),
+
                         ],
                       ),
                       const SizedBox(width: 4),
                       PopupMenuButton<String>(
+                        key: Key('wallet_menu_${wallet.id}'),
                         icon: Icon(
                           Icons.more_vert_rounded,
                           size: 20,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                         onSelected: (val) {
-                          if (val == 'rename') {
-                            _renameWalletStatic(context, ref, wallet);
-                          } else if (val == 'opening') {
-                            _showOpeningBalanceDialog(context, wallet, company);
+                          if (val == 'edit') {
+                            _editWallet(wallet, company);
+                          } else if (val == 'delete') {
+                            _deleteWallet(wallet);
                           }
                         },
-                        itemBuilder: (ctx) => [
-                          PopupMenuItem(
-                            key: Key('rename_wallet_${wallet.id}'),
-                            value: 'rename',
-                            child: const Row(
-                              children: [
-                                Icon(Icons.edit_outlined, size: 18),
-                                SizedBox(width: 8),
-                                Text('Rename'),
-                              ],
-                            ),
-                          ),
-                          PopupMenuItem(
-                            key: Key('set_opening_wallet_${wallet.id}'),
-                            value: 'opening',
-                            child: const Row(
-                              children: [
-                                Icon(
-                                  Icons.account_balance_wallet_outlined,
-                                  size: 18,
-                                ),
-                                SizedBox(width: 8),
-                                Text('Set Opening Balance'),
-                              ],
-                            ),
-                          ),
+                        itemBuilder: (ctx) => const [
+                          PopupMenuItem(value: 'edit', child: Text('Edit')),
+                          PopupMenuItem(value: 'delete', child: Text('Delete')),
                         ],
                       ),
                     ],
@@ -1353,16 +1344,6 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                 title: _selectedCatType == AccountType.expense
                     ? 'Expense Categories'
                     : 'Income Categories',
-                trailing: TextButton.icon(
-                  onPressed: () => showAddOrEditCategoryDialogStatic(
-                    context,
-                    ref,
-                    allCategories,
-                    categoryType: _selectedCatType,
-                  ),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('Add Category'),
-                ),
               ),
             ),
 

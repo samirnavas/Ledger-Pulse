@@ -368,7 +368,7 @@ void main() {
       expect(find.text('Add category'), findsOneWidget);
       await tester.tap(find.text('Add category'));
       await tester.pumpAndSettle();
-      expect(find.text('Add Category'), findsWidgets);
+      expect(find.byKey(const Key('category_name_input')), findsOneWidget);
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await tester.binding.handlePopRoute();

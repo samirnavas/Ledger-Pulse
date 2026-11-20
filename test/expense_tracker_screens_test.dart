@@ -16,6 +16,7 @@ import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/data/models/voucher_model.dart';
 import 'package:ledger_pulse/presentation/expense/accounts_screen.dart';
 import 'package:ledger_pulse/presentation/expense/expense_home_screen.dart';
+import 'package:ledger_pulse/presentation/expense/expense_reports_screen.dart';
 import 'package:ledger_pulse/presentation/expense/quick_add_transaction_sheet.dart';
 import 'package:ledger_pulse/presentation/expense/transactions_screen.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
@@ -340,8 +341,100 @@ void main() {
   });
 
   group('Prompt 10 - Accounts & Wallets Screen Basics', () {
+    testWidgets('Wallet Balance History opens the selected wallet report',
+        (tester) async {
+      await tester.pumpWidget(buildTestApp(
+        child: const Scaffold(body: ExpenseReportsScreen()),
+      ));
+      await tester.pumpAndSettle();
+
+      final walletRow = find.text('Bank Account');
+      await tester.scrollUntilVisible(
+        walletRow,
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('View Profit & Loss Statement'), findsNothing);
+      await tester.tap(walletRow);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Remaining balance'), findsOneWidget);
+      expect(find.text(CurrencyFormatter.format(90000)), findsOneWidget);
+      expect(find.text('No wallet transactions'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
+
+    testWidgets('Wallet report shows all dates and both transfer directions',
+        (tester) async {
+      final cashId = '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}';
+      final bankId = '${expenseCompanyId}_${ExpenseTrackerDefaults.walletBankId}';
+      final foodId = '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}';
+      await expenseRepo.addExpense(
+        categoryAccountId: foodId,
+        walletAccountId: cashId,
+        amountInCents: 2400,
+        date: DateTime(2024, 1, 2),
+        narration: 'Cash purchase',
+      );
+      await expenseRepo.addExpense(
+        categoryAccountId: foodId,
+        walletAccountId: bankId,
+        amountInCents: 500,
+        narration: 'Bank purchase',
+      );
+      await expenseRepo.addTransfer(
+        walletAccountId: bankId,
+        toWalletAccountId: cashId,
+        amountInCents: 1500,
+        narration: 'Cash withdrawal',
+      );
+      await expenseRepo.addTransfer(
+        walletAccountId: cashId,
+        toWalletAccountId: bankId,
+        amountInCents: 1000,
+        narration: 'Cash deposit',
+      );
+
+      await tester.pumpWidget(buildTestApp(
+        child: const ExpenseAccountsScreen(initialTab: 1),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(
+        of: find.byKey(Key('wallet_card_$cashId')),
+        matching: find.text('Cash'),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Remaining balance'), findsOneWidget);
+      expect(find.text(CurrencyFormatter.format(38100)), findsOneWidget);
+      expect(find.text('Total spent'), findsOneWidget);
+      expect(find.text(CurrencyFormatter.format(2400)), findsOneWidget);
+      expect(find.text('Cash purchase'), findsOneWidget);
+      expect(find.text('Bank purchase'), findsNothing);
+      expect(find.textContaining('From Bank Account'), findsOneWidget);
+      expect(find.textContaining('To Bank Account'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    }, variant: TargetPlatformVariant({
+      TargetPlatform.android,
+      TargetPlatform.iOS,
+    }));
+
     testWidgets('AccountsScreen shows wallets list, net balance, and opening balance editor',
         (tester) async {
+      final cashWalletId =
+          '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}';
+      await expenseRepo.addExpense(
+        categoryAccountId:
+            '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}',
+        walletAccountId: cashWalletId,
+        amountInCents: 2400,
+        narration: 'Groceries',
+      );
       await tester.pumpWidget(
         buildTestApp(
           child: const ExpenseAccountsScreen(initialTab: 1),
@@ -354,30 +447,67 @@ void main() {
       expect(find.text('Bank Account'), findsOneWidget);
       expect(find.text('Total Liquid Assets'), findsOneWidget);
 
-      // Tap Set Opening Balance on Cash
-      final cashWalletId =
-          '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}';
-      final editOpeningBtn =
-          find.byKey(Key('edit_opening_btn_$cashWalletId'));
-      expect(editOpeningBtn, findsOneWidget);
-
-      await tester.tap(editOpeningBtn);
+      await tester.tap(find.byKey(Key('wallet_menu_$cashWalletId')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
 
-      // Opening balance dialog is visible
-      expect(find.text('Opening Balance: Cash'), findsOneWidget);
+      expect(find.text('Edit Wallet'), findsOneWidget);
+      await tester.enterText(find.byKey(const Key('edit_wallet_name')), 'Petty Cash');
       final field = find.byKey(const Key('edit_opening_balance_field'));
       expect(field, findsOneWidget);
+      expect(tester.widget<EditableText>(
+        find.descendant(of: field, matching: find.byType(EditableText)),
+      ).controller.text, '400.00');
 
       await tester.enterText(field, '750.00');
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('save_opening_balance_button')));
+      await tester.tap(find.text('Save Changes'));
       await tester.pumpAndSettle();
 
       // Verified updated balance in repository
       final updatedCash = await expenseRepo.getWalletById(cashWalletId);
-      expect(updatedCash.currentBalanceInCents, equals(75000));
+      expect(updatedCash.name, 'Petty Cash');
+      expect(updatedCash.currentBalanceInCents, equals(72600));
+    });
+
+    testWidgets('Wallet deletion blocks used wallets and removes unused wallets',
+        (tester) async {
+      final cashId = '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}';
+      await expenseRepo.addExpense(
+        categoryAccountId: '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}',
+        walletAccountId: cashId,
+        amountInCents: 2400,
+        narration: 'Groceries',
+        date: DateTime.now(),
+      );
+      final bankId = '${expenseCompanyId}_${ExpenseTrackerDefaults.walletBankId}';
+      await tester.pumpWidget(buildTestApp(
+        child: const ExpenseAccountsScreen(initialTab: 1),
+      ));
+      await tester.pumpAndSettle();
+
+      final cashMenu = find.byKey(Key('wallet_menu_$cashId'));
+      await tester.tap(cashMenu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(find.text('Wallet in use'), findsOneWidget);
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(cashMenu, findsOneWidget);
+
+      final unusedMenu = find.byKey(Key('wallet_menu_$bankId'));
+      await tester.ensureVisible(unusedMenu);
+      await tester.tap(unusedMenu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(find.text('Delete Wallet?'), findsOneWidget);
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(unusedMenu, findsNothing);
     });
 
     testWidgets('AccountsScreen switches to Categories tab and shows Expense & Income categories',

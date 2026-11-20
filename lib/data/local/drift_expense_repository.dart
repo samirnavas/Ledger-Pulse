@@ -969,21 +969,36 @@ class DriftExpenseRepository {
     return rows.map(_walletToAccount).toList();
   }
 
-  Future<AccountModel> getWalletById(String id) async {
+  Future<AccountModel> getWalletById(String id) async =>
+      _walletToAccount(await _getWalletRow(id));
+
+  Future<int> getWalletOpeningBalance(String id) async =>
+      (await _getWalletRow(id)).startingBalanceInCents;
+
+  Stream<AccountModel?> watchWallet(String id) {
+    AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
+    return _walletQuery(id)
+        .watchSingleOrNull()
+        .map((row) => row == null ? null : _walletToAccount(row));
+  }
+
+  Selectable<ExpenseWalletTableData> _walletQuery(String id) =>
+      _db.select(_db.expenseWallets)
+        ..where((t) =>
+            t.id.equals(id) &
+            t.profileId.equals(_currentCompanyId) &
+            t.isDeleted.equals(false));
+
+  Future<ExpenseWalletTableData> _getWalletRow(String id) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
 
-    final row = await (_db.select(_db.expenseWallets)
-          ..where((t) =>
-              t.id.equals(id) &
-              t.profileId.equals(_currentCompanyId) &
-              t.isDeleted.equals(false)))
-        .getSingleOrNull();
+    final row = await _walletQuery(id).getSingleOrNull();
 
     if (row == null) {
       throw AccountNotFoundException(id, 'Wallet account not found: $id');
     }
-    return _walletToAccount(row);
+    return row;
   }
 
   Future<AccountModel> createWallet({
@@ -1067,6 +1082,7 @@ class DriftExpenseRepository {
   Future<AccountModel> updateWallet({
     required String id,
     String? name,
+    int? openingBalanceInCents,
     String? description,
     bool? isActive,
     String? colorHex,
@@ -1076,75 +1092,38 @@ class DriftExpenseRepository {
     AccessControlService.verifyPermission(
         _currentRole, UserAction.manageWalletsAndCategories);
 
-    final existing = await getWalletById(id);
-    final now = DateTime.now();
+    final updated = await _db.transaction(() async {
+      final row = await _getWalletRow(id);
+      final existing = _walletToAccount(row);
+      final openingChanged = openingBalanceInCents != null &&
+          openingBalanceInCents != row.startingBalanceInCents;
+      final now = DateTime.now();
 
-    await (_db.update(_db.expenseWallets)..where((t) => t.id.equals(id))).write(
-      ExpenseWalletsCompanion(
-        name: name != null ? Value(name) : const Value.absent(),
-        colorHex: colorHex != null ? Value(colorHex) : const Value.absent(),
-        iconName: iconName != null ? Value(iconName) : const Value.absent(),
-        isArchived: isActive != null ? Value(!isActive) : const Value.absent(),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ),
-    );
-
-    final updated = await getWalletById(id);
-
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'wallet',
-      entityId: id,
-      action: AuditAction.update,
-      oldState: existing.toMap(),
-      newState: updated.toMap(),
-    );
-
-    await enqueueMutation(
-      db: _db,
-      table: 'exp_wallets',
-      recordId: id,
-      type: 'UPDATE',
-      fullRowMap: {
-        'id': id,
-        'profile_id': _currentCompanyId,
-        'name': updated.name,
-        'is_archived': !updated.isActive,
-        'updated_at': encodeTime(now),
-      },
-    );
-
-    _notifyUpdates();
-    return updated;
-  }
-
-  Future<bool> deleteWallet(String id) async {
-    await _ensureExpenseTrackerMode();
-    AccessControlService.verifyPermission(
-        _currentRole, UserAction.manageWalletsAndCategories);
-
-    final existing = await getWalletById(id);
-
-    // Check if wallet has transactions
-    final hasTxns = await (_db.select(_db.expenseTransactions)
-          ..where((t) =>
-              t.profileId.equals(_currentCompanyId) &
-              (t.walletId.equals(id) | t.toWalletId.equals(id)) &
-              t.isDeleted.equals(false)))
-        .get();
-
-    final now = DateTime.now();
-
-    if (hasTxns.isNotEmpty) {
-      // Archive instead of delete
       await (_db.update(_db.expenseWallets)..where((t) => t.id.equals(id))).write(
         ExpenseWalletsCompanion(
-          isArchived: const Value(true),
+          startingBalanceInCents: openingChanged
+              ? Value(openingBalanceInCents)
+              : const Value.absent(),
+          name: name != null ? Value(name) : const Value.absent(),
+          colorHex: colorHex != null ? Value(colorHex) : const Value.absent(),
+          iconName: iconName != null ? Value(iconName) : const Value.absent(),
+          isArchived: isActive != null ? Value(!isActive) : const Value.absent(),
           updatedAt: Value(now),
           syncStatus: const Value(SyncRecordStatus.pending),
         ),
+      );
+
+      if (openingChanged) await recalculateWalletBalances(id);
+      final updated = await getWalletById(id);
+
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'wallet',
+        entityId: id,
+        action: AuditAction.update,
+        oldState: existing.toMap(),
+        newState: updated.toMap(),
       );
 
       await enqueueMutation(
@@ -1155,48 +1134,76 @@ class DriftExpenseRepository {
         fullRowMap: {
           'id': id,
           'profile_id': _currentCompanyId,
-          'is_archived': true,
+          'name': updated.name,
+          if (openingChanged)
+            'starting_balance_in_cents': openingBalanceInCents,
+          'is_archived': !updated.isActive,
           'updated_at': encodeTime(now),
         },
       );
 
-      _notifyUpdates();
-      return false; // Archived, not deleted
-    }
-
-    // Soft delete
-    await (_db.update(_db.expenseWallets)..where((t) => t.id.equals(id))).write(
-      ExpenseWalletsCompanion(
-        isDeleted: const Value(true),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ),
-    );
-
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'wallet',
-      entityId: id,
-      action: AuditAction.delete,
-      oldState: existing.toMap(),
-    );
-
-    await enqueueMutation(
-      db: _db,
-      table: 'exp_wallets',
-      recordId: id,
-      type: 'DELETE',
-      fullRowMap: {
-        'id': id,
-        'profile_id': _currentCompanyId,
-        'is_deleted': true,
-        'updated_at': encodeTime(now),
-      },
-    );
-
+      return updated;
+    });
     _notifyUpdates();
-    return true;
+    return updated;
+  }
+
+  Future<bool> walletHasTransactions(String id) async {
+    await _getWalletRow(id);
+    final transaction = await (_db.select(_db.expenseTransactions)
+          ..where((t) =>
+              t.profileId.equals(_currentCompanyId) &
+              (t.walletId.equals(id) | t.toWalletId.equals(id)) &
+              t.isDeleted.equals(false))
+          ..limit(1))
+        .getSingleOrNull();
+    return transaction != null;
+  }
+
+  Future<bool> deleteWallet(String id) async {
+    await _ensureExpenseTrackerMode();
+    AccessControlService.verifyPermission(
+        _currentRole, UserAction.manageWalletsAndCategories);
+
+    final deleted = await _db.transaction(() async {
+      if (await walletHasTransactions(id)) return false;
+
+      final existing = await getWalletById(id);
+      final now = DateTime.now();
+      await (_db.update(_db.expenseWallets)..where((t) => t.id.equals(id))).write(
+        ExpenseWalletsCompanion(
+          isDeleted: const Value(true),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'wallet',
+        entityId: id,
+        action: AuditAction.delete,
+        oldState: existing.toMap(),
+      );
+
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_wallets',
+        recordId: id,
+        type: 'DELETE',
+        fullRowMap: {
+          'id': id,
+          'profile_id': _currentCompanyId,
+          'is_deleted': true,
+          'updated_at': encodeTime(now),
+        },
+      );
+
+      return true;
+    });
+    if (deleted) _notifyUpdates();
+    return deleted;
   }
 
   Future<void> setOpeningBalance(String walletId, int openingBalanceInCents) async {

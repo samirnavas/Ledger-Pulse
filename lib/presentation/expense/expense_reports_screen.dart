@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/adaptive_theme.dart';
+import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_chip.dart';
 import '../../core/widgets/adaptive_controls.dart';
@@ -16,13 +17,12 @@ import '../../core/widgets/adaptive_section_header.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
 import '../../core/widgets/amount_text.dart';
 import '../../core/widgets/app_feedback.dart';
-import '../../data/models/company_model.dart';
 import '../../data/models/voucher_model.dart';
 import '../../data/reporting/expense_report_engine.dart';
 import '../../data/reporting/report_export_service.dart';
-import '../../data/reporting/report_models.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
+import 'wallet_report_screen.dart';
 import 'widgets/category_breakdown_card.dart';
 
 enum ReportDateFilter {
@@ -203,24 +203,6 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
     }
   }
 
-  void _showProfitAndLoss(List<VoucherModel> txns) {
-    final company = ref.read(activeCompanyProvider);
-    final range = _getDateRange();
-    final report = ExpenseReportEngine.generateProfitAndLoss(
-      company: company,
-      vouchers: txns,
-      startDate: range.$1,
-      endDate: range.$2,
-    );
-
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _ProfitAndLossSheet(report: report, company: company),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final range = _getDateRange();
@@ -361,16 +343,18 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
                 const SizedBox(height: 16),
 
                 // 4. Wallet Balance History Card
-                _WalletDistributionCard(report: walletReport),
-                const SizedBox(height: 20),
-
-                // Quick P&L Statement Trigger
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () => _showProfitAndLoss(allTxns),
-                    icon: const Icon(Icons.analytics_outlined),
-                    label: const Text('View Profit & Loss Statement'),
-                  ),
+                _WalletDistributionCard(
+                  report: walletReport,
+                  onWalletTap: (id) {
+                    final wallet = wallets.firstWhere(
+                      (wallet) => wallet.id == id,
+                    );
+                    Navigator.of(context).push(
+                      createAdaptivePageRoute<void>(
+                        builder: (_) => WalletReportScreen(wallet: wallet),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 32),
               ],
@@ -980,8 +964,12 @@ class _IncomeVsExpenseCard extends StatelessWidget {
 
 class _WalletDistributionCard extends StatelessWidget {
   final WalletBalanceHistoryReport report;
+  final ValueChanged<String> onWalletTap;
 
-  const _WalletDistributionCard({required this.report});
+  const _WalletDistributionCard({
+    required this.report,
+    required this.onWalletTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1005,6 +993,7 @@ class _WalletDistributionCard extends StatelessWidget {
           const SizedBox(height: 12),
           ...report.wallets.map((w) {
             return AdaptiveListRow(
+              onTap: () => onWalletTap(w.walletId),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
               leading: const Icon(
                 Icons.account_balance_wallet_outlined,
@@ -1019,103 +1008,6 @@ class _WalletDistributionCard extends StatelessWidget {
               ),
             );
           }),
-        ],
-      ),
-    );
-  }
-}
-
-// ==========================================
-// PROFIT AND LOSS SHEET
-// ==========================================
-
-class _ProfitAndLossSheet extends StatelessWidget {
-  final ReportData report;
-  final Company company;
-
-  const _ProfitAndLossSheet({required this.report, required this.company});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Profit & Loss Statement',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    company.name,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-          const Divider(height: 24),
-          Expanded(
-            child: ListView.separated(
-              itemCount: report.rows.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, idx) {
-                final row = report.rows[idx];
-                final particulars = row.get('particulars')?.toString() ?? '';
-                final amount = row.get('amount')?.toString() ?? '';
-                final isNet = particulars.toLowerCase().contains('net profit');
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          particulars,
-                          style: TextStyle(
-                            fontWeight: isNet
-                                ? FontWeight.bold
-                                : FontWeight.w500,
-                            fontSize: isNet ? 15 : 13,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        amount,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: isNet ? 16 : 14,
-                          color: isNet ? theme.colorScheme.primary : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
         ],
       ),
     );
