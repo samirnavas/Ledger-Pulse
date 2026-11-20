@@ -25,7 +25,7 @@ import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 
 /// Screen displaying category budgets, progress bars, rollover indicators,
-/// and an overall budget summary.
+/// and an overall budget summary for each period.
 class BudgetsScreen extends ConsumerStatefulWidget {
   const BudgetsScreen({super.key});
 
@@ -292,7 +292,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     }
 
     final progressListAsync = ref.watch(budgetsProgressListProvider);
-    final overall = ref.watch(allCategoriesBudgetProvider).asData?.value;
+    final summaries = ref.watch(budgetSummariesByPeriodProvider);
 
     return AdaptivePageEntrance(
       child: Material(
@@ -311,8 +311,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
               children: [
-                if (overall != null)
-                  _buildOverallBudgetCard(theme, company, overall),
+                for (final summary
+                    in summaries.value ?? const <OverallBudgetSummary>[])
+                  _buildOverallBudgetCard(theme, company, summary),
 
                 const SizedBox(height: 16),
                 Row(
@@ -358,13 +359,17 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
   Widget _buildOverallBudgetCard(
     ThemeData theme,
     Company company,
-    BudgetProgress overall,
+    OverallBudgetSummary overall,
   ) {
+    final period = overall.items.first.budget.periodType;
+    final includesAll = overall.items.first.budget.isOverall;
+    final categories = overall.items.map((item) => item.categoryName).toList()
+      ..sort();
     final percent = overall.percentUsed / 100;
     final progressColor = _getThresholdColor(context, overall.percentUsed);
 
     return AdaptiveSurfaceCard(
-      key: const Key('overall_budget_card'),
+      key: ValueKey('overall_budget_card_${period.name}'),
       padding: const EdgeInsets.all(18),
       margin: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -375,7 +380,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Overall ${overall.budget.periodType.displayName} Budget',
+                  'Overall ${period.displayName} Budget',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -399,6 +404,11 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 4),
+          Text(
+            includesAll ? 'All Categories' : 'Includes ${categories.join(', ')}',
+            style: theme.textTheme.bodySmall,
+          ),
           const SizedBox(height: 14),
           _AdaptiveProgressBar(
             value: percent.clamp(0.0, 1.0),
@@ -419,7 +429,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     ),
                   ),
                   AmountText(
-                    amountInCents: overall.spentInCents,
+                    amountInCents: overall.totalSpentInCents,
                     overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.medium,
@@ -455,7 +465,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     ),
                   ),
                   AmountText(
-                    amountInCents: overall.effectiveAllocatedInCents,
+                    amountInCents: overall.totalAllocatedInCents,
                     overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.medium,

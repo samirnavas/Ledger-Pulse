@@ -86,6 +86,13 @@ final budgetsProgressListProvider = FutureProvider<List<BudgetProgress>>((
   return result;
 });
 
+final budgetSummariesByPeriodProvider =
+    FutureProvider.autoDispose<List<OverallBudgetSummary>>((ref) async {
+      final repo = ref.watch(budgetRepositoryProvider);
+      final progress = await ref.watch(budgetsProgressListProvider.future);
+      return repo.summarizeBudgetsByPeriod(progress);
+    });
+
 /// Overall monthly budget summary combining all active budgets.
 final overallMonthlyBudgetProvider = FutureProvider<OverallBudgetSummary>((
   ref,

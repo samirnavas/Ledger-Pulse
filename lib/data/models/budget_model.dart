@@ -63,6 +63,7 @@ class BudgetModel {
   int get allocatedInCents => amountInCents;
   BudgetPeriodType get period => periodType;
   String get categoryId => categoryAccountId;
+  bool get isOverall => categoryId == 'all' || categoryId == 'all_categories';
 
   BudgetModel copyWith({
     String? id,

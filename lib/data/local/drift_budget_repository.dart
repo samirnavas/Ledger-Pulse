@@ -826,16 +826,56 @@ class DriftBudgetRepository {
     );
   }
 
+  Future<List<OverallBudgetSummary>> summarizeBudgetsByPeriod(
+    List<BudgetProgress> progress,
+  ) async {
+    final byPeriod = <BudgetPeriodType, List<BudgetProgress>>{};
+    for (final item in progress) {
+      byPeriod.putIfAbsent(item.budget.periodType, () => []).add(item);
+    }
+
+    final summaries = <OverallBudgetSummary>[];
+    for (final period in BudgetPeriodType.values) {
+      final group = byPeriod[period];
+      if (group == null) continue;
+      final overall = group.where((item) => item.budget.isOverall).firstOrNull;
+      final items = overall == null ? group : [overall];
+      final allocated = items.fold<int>(
+        0,
+        (total, item) => total + item.effectiveAllocatedInCents,
+      );
+      var spent = items.first.spentInCents;
+      if (items.length > 1) {
+        // A parent budget and a subcategory budget may cover the same entry.
+        final categoryIds = <String>{};
+        for (final item in items) {
+          categoryIds.addAll(
+            await _getCategoryAndSubCategoryIds(item.budget.categoryId),
+          );
+        }
+        spent = await _calculateSpentInPeriod(
+          categoryIds.toList(),
+          items.first.periodStartDate,
+          items.first.periodEndDate,
+        );
+      }
+      summaries.add(
+        OverallBudgetSummary(
+          totalAllocatedInCents: allocated,
+          totalSpentInCents: spent,
+          totalRemainingInCents: allocated - spent,
+          overallPercentUsed: allocated > 0 ? spent / allocated * 100 : 0,
+          items: items,
+        ),
+      );
+    }
+    return summaries;
+  }
+
   Future<BudgetProgress?> getAllCategoriesBudget({DateTime? month}) async {
     final targetMonth = month ?? DateTime.now();
     final activeBudgets = await getBudgets(includeInactive: false);
-    final allCatBudget = activeBudgets
-        .where(
-          (b) =>
-              b.categoryAccountId == 'all' ||
-              b.categoryAccountId == 'all_categories',
-        )
-        .firstOrNull;
+    final allCatBudget = activeBudgets.where((b) => b.isOverall).firstOrNull;
 
     if (allCatBudget == null) {
       return null;

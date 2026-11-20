@@ -493,6 +493,7 @@ void main() {
       final catExceeded = await expenseRepo.createCategory(
         name: 'Shopping',
         type: AccountType.expense,
+        parentAccountId: catWarning.id,
       );
 
       // Groceries: 10,000 budget, spent 8,500 (85% -> warning)
@@ -529,6 +530,18 @@ void main() {
         period: BudgetPeriodType.weekly,
         startDate: today,
       );
+      await budgetRepo.createBudget(
+        categoryId: catExceeded.id,
+        amountInCents: 200000,
+        period: BudgetPeriodType.weekly,
+        startDate: today,
+      );
+      await budgetRepo.createBudget(
+        categoryId: catExceeded.id,
+        amountInCents: 3000000,
+        period: BudgetPeriodType.yearly,
+        startDate: today,
+      );
 
       await tester.pumpWidget(
         buildTestScope(child: const BudgetsScreen(), selectedMonth: today),
@@ -537,7 +550,7 @@ void main() {
 
       expect(find.byKey(const Key('budget_warning_banner')), findsNothing);
       expect(find.byKey(const Key('budget_exceeded_banner')), findsNothing);
-      final card = find.byKey(const Key('overall_budget_card'));
+      final card = find.byKey(const Key('overall_budget_card_weekly'));
       expect(card, findsOneWidget);
       expect(
         find.descendant(of: card, matching: find.text('Overall Weekly Budget')),
@@ -547,6 +560,24 @@ void main() {
         find.descendant(of: card, matching: find.text('145.0%')),
         findsOneWidget,
       );
+      final monthly = find.byKey(const Key('overall_budget_card_monthly'));
+      expect(
+        find.descendant(
+          of: monthly,
+          matching: find.text('Includes Groceries, Shopping'),
+        ),
+        findsOneWidget,
+      );
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(BudgetsScreen)),
+      );
+      final summaries = await container.read(budgetSummariesByPeriodProvider.future);
+      expect(summaries[0].totalAllocatedInCents, 1000000);
+      expect(summaries[1].totalAllocatedInCents, 1500000);
+      expect(summaries[1].totalSpentInCents, 1450000);
+      expect(summaries[2].items.single.budget.periodType, BudgetPeriodType.yearly);
+      expect(summaries[2].totalAllocatedInCents, 3000000);
+      expect(summaries[2].totalSpentInCents, 600000);
     });
   });
 

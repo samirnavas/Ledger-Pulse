@@ -484,7 +484,7 @@ void main() {
           find.byType(LinearProgressIndicator);
       expect(progressIndicators, findsWidgets);
 
-      expect(find.byKey(const Key('overall_budget_card')), findsNothing);
+      expect(find.byKey(const Key('overall_budget_card_monthly')), findsOneWidget);
       expect(find.byType(AdaptiveSurfaceCard), findsWidgets);
     });
 
@@ -518,7 +518,7 @@ void main() {
 
       // On iOS, custom rounded capsule is used (not LinearProgressIndicator)
       expect(find.byType(LinearProgressIndicator), findsNothing);
-      expect(find.byKey(const Key('overall_budget_card')), findsNothing);
+      expect(find.byKey(const Key('overall_budget_card_monthly')), findsOneWidget);
     });
   });
 
