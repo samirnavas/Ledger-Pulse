@@ -17,6 +17,7 @@ import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/sync_model.dart';
 import '../auth/profile_onboarding_screen.dart';
+import '../expense/accounts_screen.dart';
 import '../home/company_switcher_sheet.dart';
 import '../home/sync_settings_sheet.dart';
 import '../profile/profile_screen.dart';
@@ -47,6 +48,16 @@ class SettingsScreen extends ConsumerWidget {
     final activeCompany = ref.watch(activeCompanyProvider);
     final isExpense = activeCompany.mode == CompanyMode.expenseTracker;
     final profile = ref.watch(userProfileProvider);
+    final profileName = profile.name.trim();
+    final profileSubtitle = [
+      profile.phoneNumber.trim(),
+      profile.email.trim(),
+    ].firstWhere(
+      (value) => value.isNotEmpty,
+      orElse: () => isExpense
+          ? 'Personal details, wallets and categories'
+          : 'Personal details',
+    );
     final syncStatus = ref.watch(syncControllerProvider);
     final isSyncing = syncStatus == SyncStatus.syncing;
     final showWidgetSettings = !kIsWeb && Platform.isAndroid;
@@ -105,8 +116,13 @@ class SettingsScreen extends ConsumerWidget {
                 ],
                 const SizedBox(height: 24),
 
-                // 2. ACTIVE COMPANY & PROFILE
-                _buildSectionHeader(context, 'ACTIVE COMPANY & PROFILE'),
+                // 2. ACTIVE WORKSPACE & PROFILE
+                _buildSectionHeader(
+                  context,
+                  isExpense
+                      ? 'ACTIVE WORKSPACE & PROFILE'
+                      : 'ACTIVE COMPANY & PROFILE',
+                ),
                 const SizedBox(height: 8),
                 _buildCard(
                   context,
@@ -123,9 +139,13 @@ class SettingsScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          isIos
-                              ? CupertinoIcons.building_2_fill
-                              : Icons.corporate_fare_rounded,
+                          isExpense
+                              ? (isIos
+                                  ? CupertinoIcons.creditcard
+                                  : Icons.account_balance_wallet_outlined)
+                              : (isIos
+                                  ? CupertinoIcons.building_2_fill
+                                  : Icons.corporate_fare_rounded),
                           color: isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary,
                           size: 22,
                         ),
@@ -170,8 +190,8 @@ class SettingsScreen extends ConsumerWidget {
                         radius: 20,
                         backgroundColor: (isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary).withValues(alpha: 0.15),
                         child: Text(
-                          profile.name.isNotEmpty
-                              ? profile.name[0].toUpperCase()
+                          profileName.isNotEmpty
+                              ? profileName.characters.first.toUpperCase()
                               : 'U',
                           style: TextStyle(
                             color: isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary,
@@ -181,14 +201,14 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       ),
                       title: Text(
-                        profile.name.isNotEmpty ? profile.name : 'Owner Profile',
+                        profileName.isNotEmpty ? profileName : 'My Profile',
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),
                       ),
                       subtitle: Text(
-                        profile.phoneNumber,
+                        profileSubtitle,
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context)
@@ -205,7 +225,9 @@ class SettingsScreen extends ConsumerWidget {
                         HapticFeedback.lightImpact();
                         Navigator.of(context).push(
                           createAdaptivePageRoute(
-                            builder: (ctx) => const ProfileScreen(isStandalone: true),
+                            builder: (_) => isExpense
+                                ? const ExpenseAccountsScreen(isStandalone: true)
+                                : const ProfileScreen(isStandalone: true),
                           ),
                         );
                       },
@@ -853,8 +875,8 @@ class SettingsScreen extends ConsumerWidget {
             key: const Key('dynamic_color_switch'),
             label: 'Dynamic colors',
             subtitle: dynamicColorEnabled
-                ? 'On ? Use system colors when available'
-                : 'Off ? Use the default app colors',
+                ? 'Use system colors when available'
+                : 'Use the default app colors',
             value: dynamicColorEnabled,
             onChanged: (enabled) => ref.read(dynamicColorEnabledProvider.notifier).setEnabled(enabled),
           ),

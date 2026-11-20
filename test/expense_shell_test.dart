@@ -20,6 +20,7 @@ import 'package:ledger_pulse/data/models/account_model.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
 import 'package:ledger_pulse/presentation/expense/expense_home_screen.dart';
+import 'package:ledger_pulse/presentation/expense/accounts_screen.dart';
 import 'package:ledger_pulse/presentation/expense/transaction_details_screen.dart';
 import 'package:ledger_pulse/presentation/expense/transactions_screen.dart';
 import 'package:ledger_pulse/core/constants/mode_strings.dart';
@@ -456,7 +457,11 @@ void main() {
             appDatabaseProvider.overrideWithValue(db),
             syncEngineProvider.overrideWithValue(_FakeSyncEngine(db: db)),
             activeCompanyProvider.overrideWithValue(testCompany),
-            userProfileProvider.overrideWith(() => _TestProfileNotifier(testProfile)),
+            userProfileProvider.overrideWith(
+              () => _TestProfileNotifier(
+                testProfile.copyWith(phoneNumber: '', email: ''),
+              ),
+            ),
             expenseRepositoryProvider.overrideWithValue(expenseRepo),
           ],
         );
@@ -488,6 +493,15 @@ void main() {
           of: settings,
           matching: find.byType(Scrollable),
         );
+        final profile = find.text('Personal details, wallets and categories');
+        await tester.scrollUntilVisible(profile, 200, scrollable: settingsList);
+        await tester.tap(profile);
+        await tester.pumpAndSettle();
+        expect(find.byType(ExpenseAccountsScreen), findsOneWidget);
+        expect(find.text('Wallet'), findsOneWidget);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+
         await tester.scrollUntilVisible(
           find.text('Help'),
           240,

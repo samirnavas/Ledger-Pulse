@@ -308,6 +308,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
           ),
           error: (err, _) => Center(child: Text('Error loading budgets: $err')),
           data: (progressList) {
+            final categoryBudgets = progressList.where(
+              (item) => !item.budget.isOverall,
+            ).toList();
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
               children: [
@@ -315,25 +318,29 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                     in summaries.value ?? const <OverallBudgetSummary>[])
                   _buildOverallBudgetCard(theme, company, summary),
 
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Category Budgets',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                if (categoryBudgets.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Category Budgets',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    Text(
-                      '${progressList.length} Active',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+                      Text(
+                        '${categoryBudgets.length} Active',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  for (final progress in categoryBudgets)
+                    _buildBudgetCard(theme, company, progress),
+                ],
 
                 if (progressList.isEmpty)
                   EmptyStateView(
@@ -343,10 +350,6 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                         'Set category budgets to control spending and keep your finances on track.',
                     actionLabel: 'Set First Budget',
                     onAction: () => _showAddEditBudgetSheet(context),
-                  )
-                else
-                  ...progressList.map(
-                    (progress) => _buildBudgetCard(theme, company, progress),
                   ),
               ],
             );
@@ -356,13 +359,58 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     );
   }
 
+  Widget _buildBudgetMenu(ThemeData theme, BudgetModel budget) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, size: 20),
+      onSelected: (val) {
+        if (val == 'edit') {
+          _showAddEditBudgetSheet(context, existingBudget: budget);
+        } else if (val == 'delete') {
+          _deleteBudget(budget);
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          key: Key('edit_budget_${budget.id}'),
+          value: 'edit',
+          child: const Row(
+            children: [
+              Icon(Icons.edit_outlined, size: 18),
+              SizedBox(width: 8),
+              Text('Edit'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          key: Key('delete_budget_${budget.id}'),
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(
+                Icons.delete_outline,
+                size: 18,
+                color: theme.colorScheme.error,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Delete',
+                style: TextStyle(color: theme.colorScheme.error),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildOverallBudgetCard(
     ThemeData theme,
     Company company,
     OverallBudgetSummary overall,
   ) {
-    final period = overall.items.first.budget.periodType;
-    final includesAll = overall.items.first.budget.isOverall;
+    final budget = overall.items.first.budget;
+    final period = budget.periodType;
+    final includesAll = budget.isOverall;
     final categories = overall.items.map((item) => item.categoryName).toList()
       ..sort();
     final percent = overall.percentUsed / 100;
@@ -402,6 +450,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   ),
                 ),
               ),
+              if (includesAll) _buildBudgetMenu(theme, budget),
             ],
           ),
           const SizedBox(height: 4),
@@ -587,47 +636,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, size: 20),
-                onSelected: (val) {
-                  if (val == 'edit') {
-                    _showAddEditBudgetSheet(context, existingBudget: budget);
-                  } else if (val == 'delete') {
-                    _deleteBudget(budget);
-                  }
-                },
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    key: Key('edit_budget_${budget.id}'),
-                    value: 'edit',
-                    child: const Row(
-                      children: [
-                        Icon(Icons.edit_outlined, size: 18),
-                        SizedBox(width: 8),
-                        Text('Edit'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    key: Key('delete_budget_${budget.id}'),
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.delete_outline,
-                          size: 18,
-                          color: theme.colorScheme.error,
-                        ),
-                        SizedBox(width: 8),
-                        Text(
-                          'Delete',
-                          style: TextStyle(color: theme.colorScheme.error),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              _buildBudgetMenu(theme, budget),
             ],
           ),
           const SizedBox(height: 12),

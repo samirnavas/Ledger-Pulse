@@ -524,7 +524,7 @@ void main() {
         date: today,
       );
 
-      await budgetRepo.createBudget(
+      final overallBudget = await budgetRepo.createBudget(
         categoryId: 'all',
         amountInCents: 1000000,
         period: BudgetPeriodType.weekly,
@@ -578,6 +578,14 @@ void main() {
       expect(summaries[2].items.single.budget.periodType, BudgetPeriodType.yearly);
       expect(summaries[2].totalAllocatedInCents, 3000000);
       expect(summaries[2].totalSpentInCents, 600000);
+      expect(find.text('4 Active'), findsOneWidget);
+      expect(find.text('All Categories (Overall)'), findsNothing);
+      await tester.tap(
+        find.descendant(of: card, matching: find.byType(PopupMenuButton<String>)),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(Key('edit_budget_${overallBudget.id}')), findsOneWidget);
+      expect(find.byKey(Key('delete_budget_${overallBudget.id}')), findsOneWidget);
     });
   });
 
