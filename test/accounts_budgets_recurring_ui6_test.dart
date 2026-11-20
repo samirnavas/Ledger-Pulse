@@ -384,7 +384,13 @@ void main() {
 
       expect(find.text('Set Budget'), findsWidgets);
       expect(find.byKey(const Key('budget_category_field')), findsOneWidget);
-      expect(find.byKey(const Key('budget_amount_field')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('budget_amount_field')),
+          matching: find.text('\u20B9'),
+        ),
+        findsOneWidget,
+      );
       expect(find.byKey(const Key('budget_period_selector')), findsOneWidget);
       expect(find.byKey(const Key('budget_rollover_switch')), findsOneWidget);
 

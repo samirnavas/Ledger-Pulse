@@ -193,7 +193,17 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                       decimal: true,
                     ),
                     decoration: InputDecoration(
-                      prefixText: '${company.currencyCode} ',
+                      prefixIcon: Center(
+                        widthFactor: 1,
+                        heightFactor: 1,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text(
+                            CurrencyFormatter.getSymbol(company.currencyCode),
+                            style: theme.textTheme.bodyLarge,
+                          ),
+                        ),
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
