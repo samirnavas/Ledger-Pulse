@@ -43,8 +43,6 @@ class _ProfileOnboardingScreenState
   String _selectedCurrency = 'INR';
 
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _legalNameController = TextEditingController();
-  final TextEditingController _gstinController = TextEditingController();
 
   bool _isCreating = false;
   String? _errorMessage;
@@ -60,8 +58,6 @@ class _ProfileOnboardingScreenState
   @override
   void dispose() {
     _nameController.dispose();
-    _legalNameController.dispose();
-    _gstinController.dispose();
     super.dispose();
   }
 
@@ -103,14 +99,6 @@ class _ProfileOnboardingScreenState
         name: name,
         type: _selectedType,
         currencyCode: _selectedCurrency,
-        legalName: _selectedType == ProfileType.ledger &&
-                _legalNameController.text.trim().isNotEmpty
-            ? _legalNameController.text.trim()
-            : null,
-        gstin: _selectedType == ProfileType.ledger &&
-                _gstinController.text.trim().isNotEmpty
-            ? _gstinController.text.trim().toUpperCase()
-            : null,
         accountId: widget.userId,
       );
 
@@ -139,9 +127,6 @@ class _ProfileOnboardingScreenState
           email: accountEmail,
           businessName: drift.Value(name),
           address: const drift.Value(''),
-          gstin: drift.Value(_selectedType == ProfileType.ledger && _gstinController.text.trim().isNotEmpty
-              ? _gstinController.text.trim().toUpperCase()
-              : null),
           activeCompanyId: drift.Value(created.id),
           role: const drift.Value('admin'),
           updatedAt: drift.Value(now),
@@ -164,9 +149,6 @@ class _ProfileOnboardingScreenState
             'business_name': name,
             'businessName': name,
             'address': '',
-            'gstin': _selectedType == ProfileType.ledger && _gstinController.text.trim().isNotEmpty
-                ? _gstinController.text.trim().toUpperCase()
-                : null,
             'active_company_id': created.id,
             'activeCompanyId': created.id,
             'role': 'admin',
@@ -282,7 +264,7 @@ class _ProfileOnboardingScreenState
               Text(
                 _selectedType == ProfileType.expense
                     ? 'Track cash wallets, personal income, categories, and budgets.'
-                    : 'Full double-entry bookkeeping, GST invoicing, parties, and inventory.',
+                    : 'Track customer and supplier transactions, balances, and statements.',
                 style: AppTypography.bodySmall.copyWith(
                   color: secondaryText,
                   height: 1.35,
@@ -365,33 +347,6 @@ class _ProfileOnboardingScreenState
                   isIos: isIos,
                   textCapitalization: TextCapitalization.words,
                   textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 14),
-                _buildAdaptiveInputField(
-                  controller: _legalNameController,
-                  label: 'Legal Registered Name (Optional)',
-                  hint: 'e.g. Apex Traders Private Limited',
-                  icon: isIos
-                      ? CupertinoIcons.doc_text
-                      : Icons.description_outlined,
-                  isDark: isDark,
-                  isIos: isIos,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.next,
-                ),
-                const SizedBox(height: 14),
-                _buildAdaptiveInputField(
-                  controller: _gstinController,
-                  label: 'GSTIN (Optional)',
-                  hint: '15-digit GST identification number',
-                  icon: isIos
-                      ? CupertinoIcons.number
-                      : Icons.pin_outlined,
-                  isDark: isDark,
-                  isIos: isIos,
-                  textCapitalization: TextCapitalization.characters,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _handleCreate(),
                 ),
                 const SizedBox(height: 14),
                 AdaptiveDropdownField<String>(

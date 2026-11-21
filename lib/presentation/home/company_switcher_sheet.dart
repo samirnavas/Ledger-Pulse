@@ -248,9 +248,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 ? 'Active Profile'
                 : (company.isExpense
                       ? 'Personal Expense Tracker'
-                      : (company.gstin != null
-                            ? 'GSTIN: ${company.gstin}'
-                            : company.currencyCode)),
+                      : company.currencyCode),
           ),
           actions: [
             if (!isSelected)
@@ -341,9 +339,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                       Text(
                         isSelected
                             ? 'Active Profile'
-                            : (company.gstin != null
-                                  ? 'GSTIN: ${company.gstin}'
-                                  : company.currencyCode),
+                            : company.currencyCode,
                         style: TextStyle(
                           fontSize: 13,
                           color: colorScheme.onSurfaceVariant,
@@ -527,14 +523,6 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                                     fontSize: 12,
                                     color: CupertinoColors.secondaryLabel,
                                   ),
-                                )
-                              else if (company.gstin != null)
-                                Text(
-                                  'GSTIN: ${company.gstin}',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: CupertinoColors.secondaryLabel,
-                                  ),
                                 ),
                             ],
                           ),
@@ -603,9 +591,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
               subtitle: Text(
                 company.isExpense
                     ? 'Personal Expense Tracker'
-                    : (company.gstin != null
-                          ? 'GSTIN: ${company.gstin}'
-                          : company.currencyCode),
+                    : company.currencyCode,
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:uuid/uuid.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import '../models/company_model.dart';
 import '../models/inventory_item_model.dart';
@@ -40,6 +41,69 @@ class ImportParseResult {
 }
 
 class DataImportService {
+  static ImportParseResult parseLedgerPartyCsv(String text) {
+    final lines = const LineSplitter().convert(text.trim());
+    final errors = <String>[];
+    final parties = <Party>[];
+    final keys = <(String, PartyType)>{};
+    const header = ['name', 'type', 'phone', 'opening balance'];
+    final csvRow = RegExp(r'^("(?:[^"]|"")*"|[^",]*),("(?:[^"]|"")*"|[^",]*),("(?:[^"]|"")*"|[^",]*),("(?:[^"]|"")*"|[^",]*)$');
+    List<String>? fields(String line) {
+      final match = csvRow.firstMatch(line);
+      if (match == null) return null;
+      return List.generate(4, (index) {
+        final value = match[index + 1]!.trim();
+        return value.startsWith('"')
+            ? value.substring(1, value.length - 1).replaceAll('""', '"').trim()
+            : value;
+      });
+    }
+
+    final columns = lines.isEmpty ? null : fields(lines.first.replaceFirst('\uFEFF', ''));
+    if (columns == null || Iterable<int>.generate(4).any((i) => columns[i].toLowerCase() != header[i])) {
+      return const ImportParseResult(warnings: ['Use the header Name,Type,Phone,Opening Balance']);
+    }
+    if (lines.length > 501) {
+      return const ImportParseResult(warnings: ['Import up to 500 parties at a time']);
+    }
+
+    for (var i = 1; i < lines.length; i++) {
+      if (lines[i].trim().isEmpty) continue;
+      final values = fields(lines[i]);
+      if (values == null || values[0].isEmpty) {
+        errors.add('Row ${i + 1}: enter a name and four columns.');
+        continue;
+      }
+      final type = switch (values[1].toLowerCase()) {
+        'customer' => PartyType.customer,
+        'supplier' => PartyType.supplier,
+        _ => null,
+      };
+      final amount = values[3];
+      if (type == null || (amount.isNotEmpty && !RegExp(r'^\d{1,12}(?:\.\d{1,2})?$').hasMatch(amount))) {
+        errors.add('Row ${i + 1}: use Customer or Supplier and a positive opening amount with up to two decimals.');
+        continue;
+      }
+      if (!keys.add((values[0].toLowerCase(), type))) {
+        errors.add('Row ${i + 1}: duplicate name and party type.');
+        continue;
+      }
+      final pieces = amount.split('.');
+      final cents = (int.tryParse(pieces.first) ?? 0) * 100 +
+          (pieces.length == 2 ? int.parse(pieces.last.padRight(2, '0')) : 0);
+      parties.add(Party(
+        id: const Uuid().v4(),
+        name: values[0],
+        type: type,
+        phoneNumber: values[2],
+        netBalanceInCents: type == PartyType.customer ? cents : -cents,
+        lastUpdated: DateTime.now(),
+      ));
+    }
+    if (parties.isEmpty && errors.isEmpty) errors.add('Add at least one party row.');
+    return ImportParseResult(importedParties: parties, warnings: errors);
+  }
+
   /// Throws [ModuleDisabledException] if data import module is not enabled for company
   static void verifyModuleEnabled(Company company) {
     if (!company.isModuleEnabled(AppModule.dataImport)) {

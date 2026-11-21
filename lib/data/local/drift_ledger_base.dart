@@ -6,6 +6,7 @@ import '../models/audit_log_model.dart';
 import '../models/company_model.dart';
 import '../models/party_model.dart';
 import '../models/rbac_model.dart';
+import '../models/transaction_model.dart';
 import 'audit_service.dart';
 import 'database.dart';
 
@@ -46,7 +47,17 @@ abstract class DriftLedgerRepositoryBase {
     String? userId,
   });
 
+  Future<void> requireLedgerProfile() async {
+    final company = await (db.select(db.companies)
+          ..where((row) => row.id.equals(currentCompanyId)))
+        .getSingleOrNull();
+    if (company == null || company.mode != 'ledger' || company.isDeleted) {
+      throw StateError('A ledger profile is required');
+    }
+  }
+
   // Cross-domain declarations
+  Future<void> addEntry(LedgerEntry entry);
   Future<Party> getPartyById(String partyId);
   Future<List<Company>> getCompanies();
 }

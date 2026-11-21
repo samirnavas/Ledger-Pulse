@@ -22,7 +22,6 @@ import '../providers/profile_provider.dart';
 import '../providers/profile_session_controller.dart';
 import '../providers/profile_session_state.dart';
 import '../providers/sync_providers.dart';
-import '../inventory/inventory_screen.dart';
 import '../reports/audit_log_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -45,7 +44,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
   late TextEditingController _addressController;
-  late TextEditingController _gstinController;
   late TextEditingController _businessTypeController;
   late TextEditingController _bankNameController;
   late TextEditingController _bankAccountController;
@@ -74,7 +72,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _phoneController = TextEditingController(text: profile.phoneNumber);
     _emailController = TextEditingController(text: profile.email);
     _addressController = TextEditingController(text: profile.address);
-    _gstinController = TextEditingController(text: profile.gstin);
     _businessTypeController = TextEditingController(text: profile.businessType ?? '');
     _bankNameController = TextEditingController(text: profile.bankName ?? '');
     _bankAccountController = TextEditingController(text: profile.bankAccountNumber ?? '');
@@ -86,7 +83,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _phoneController.addListener(_onFieldChanged);
     _emailController.addListener(_onFieldChanged);
     _addressController.addListener(_onFieldChanged);
-    _gstinController.addListener(_onFieldChanged);
     _businessTypeController.addListener(_onFieldChanged);
     _bankNameController.addListener(_onFieldChanged);
     _bankAccountController.addListener(_onFieldChanged);
@@ -108,7 +104,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _phoneController.text != current.phoneNumber ||
         _emailController.text != current.email ||
         _addressController.text != current.address ||
-        _gstinController.text != current.gstin ||
         _businessTypeController.text != (current.businessType ?? '') ||
         _bankNameController.text != (current.bankName ?? '') ||
         _bankAccountController.text != (current.bankAccountNumber ?? '') ||
@@ -131,7 +126,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _phoneController.text = current.phoneNumber;
     _emailController.text = current.email;
     _addressController.text = current.address;
-    _gstinController.text = current.gstin;
     _businessTypeController.text = current.businessType ?? '';
     _bankNameController.text = current.bankName ?? '';
     _bankAccountController.text = current.bankAccountNumber ?? '';
@@ -160,7 +154,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
-    _gstinController.dispose();
     _businessTypeController.dispose();
     _bankNameController.dispose();
     _bankAccountController.dispose();
@@ -179,7 +172,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         phoneNumber: _phoneController.text.trim(),
         email: _emailController.text.trim(),
         address: _addressController.text.trim(),
-        gstin: _gstinController.text.trim(),
         businessType: _businessTypeController.text.trim(),
         bankName: _bankNameController.text.trim(),
         bankAccountNumber: _bankAccountController.text.trim(),
@@ -322,7 +314,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _phoneController.text = next.phoneNumber;
         _emailController.text = next.email;
         _addressController.text = next.address;
-        _gstinController.text = next.gstin;
         _businessTypeController.text = next.businessType ?? '';
         _bankNameController.text = next.bankName ?? '';
         _bankAccountController.text = next.bankAccountNumber ?? '';
@@ -335,9 +326,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!_isEditing && !_hasChanges && mounted) {
         if (_businessNameController.text.isEmpty && next.name.isNotEmpty) {
           _businessNameController.text = next.name;
-        }
-        if (_gstinController.text.isEmpty && next.gstin != null && next.gstin!.isNotEmpty) {
-          _gstinController.text = next.gstin!;
         }
         if (_addressController.text.isEmpty && next.address != null && next.address!.isNotEmpty) {
           _addressController.text = next.address!;
@@ -488,22 +476,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 10),
                 _buildActionTile(
                   context,
-                  title: 'Item Master & Inventory',
-                  subtitle: 'SKU tracking, stock valuation & alerts',
-                  icon: isIos ? CupertinoIcons.cube_box_fill : Icons.inventory_2_rounded,
-                  isIos: isIos,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      createAdaptivePageRoute(
-                        builder: (context) => const InventoryScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                _buildActionTile(
-                  context,
-                  title: 'Statutory Audit Trail',
+                  title: 'Audit log',
                   subtitle: 'Tamper-evident SHA-256 mutation log',
                   icon: isIos ? CupertinoIcons.shield_lefthalf_fill : Icons.verified_user_rounded,
                   isIos: isIos,
@@ -621,8 +594,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   if (!isExpense) ...[
                     const SizedBox(height: 16),
                     _buildReadOnlyRow(context, 'Business Type', profile.businessType ?? '', isIos ? CupertinoIcons.tag : Icons.category_outlined),
-                    const SizedBox(height: 16),
-                    _buildReadOnlyRow(context, 'GSTIN / Tax ID', profile.gstin, isIos ? CupertinoIcons.doc_text : Icons.badge_outlined),
                   ],
                   const SizedBox(height: 16),
                   _buildReadOnlyRow(context, isExpense ? 'Billing Address' : 'Business Address', profile.address, isIos ? CupertinoIcons.location : Icons.location_on_outlined),
@@ -647,14 +618,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           controller: _businessTypeController,
                           label: 'Business Type',
                           icon: isIos ? CupertinoIcons.tag : Icons.category_outlined,
-                          enabled: _isEditing,
-                        ),
-                        const SizedBox(height: 14),
-                        _buildInputField(
-                          context,
-                          controller: _gstinController,
-                          label: 'GSTIN / Tax ID',
-                          icon: isIos ? CupertinoIcons.doc_text : Icons.badge_outlined,
                           enabled: _isEditing,
                         ),
                       ],

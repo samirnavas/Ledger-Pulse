@@ -1,9 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     id("org.jetbrains.kotlin.plugin.compose")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+val releaseSigning = Properties()
+val releaseSigningFile = rootProject.file("key.properties")
+if (releaseSigningFile.isFile) {
+    releaseSigningFile.inputStream().use { releaseSigning.load(it) }
 }
 
 android {
@@ -36,11 +44,25 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (releaseSigningFile.isFile) {
+            create("production") {
+                fun setting(name: String): String =
+                    requireNotNull(releaseSigning.getProperty(name)?.takeIf { it.isNotBlank() }) {
+                        "Missing $name in android/key.properties"
+                    }
+                storeFile = rootProject.file(setting("storeFile"))
+                storePassword = setting("storePassword")
+                keyAlias = setting("keyAlias")
+                keyPassword = setting("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // A checkout without a private key can build an unsigned artifact.
+            signingConfig = signingConfigs.findByName("production")
         }
     }
 }

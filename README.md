@@ -1,33 +1,33 @@
-# ledger_pulse
+﻿# Ledger Pulse
 
-A new Flutter project.
+Ledger Pulse is an offline-first Flutter app with two profile types. Switch profiles from the top bar or drawer. Profile type is fixed at creation.
 
-## Getting Started
+- **Business ledger** has Home, Parties, Transactions, and Reports. Record customer and supplier credit, payments, opening balances, corrections, and voids. Archive settled parties while retaining their history. Reports include outstanding balances, the transaction register, statements, and posted cash or bank movements. Statements can be shared as PDF or CSV. Party CSV import validates and previews pasted rows.
+- **Expense tracker** provides wallets, expense and income transactions, transfers, categories, budgets, recurring rules, and reports.
 
-This project is a starting point for a Flutter application.
+Drift stores records locally. The sync outbox sends profile-scoped changes to Supabase. Ledger postings use integer minor units, internal double-entry journals, and an audit trail. Legacy accounting code and tables preserve historical compatibility. ERP screens, modes, and licensing are outside the release scope.
 
-A few resources to get you started if this is your first Flutter project:
+## Local checks
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```sh
+flutter pub get
+flutter analyze
+flutter test
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Flutter tests use local Drift or simulated remotes for most workflows. Verify live authentication delivery, authenticated Supabase policy enforcement, native receipt and share behavior, and device layouts in staging before release. Receipt references currently point to device files. Receipt images are not synchronized.
 
-## Android release packages
+## Android release builds
 
-For direct installs, build one APK per CPU architecture. The APKs are written to
-`build/app/outputs/flutter-apk/`.
+Use an ignored `android/key.properties` file with `storeFile`, `storePassword`, `keyAlias`, and `keyPassword` to sign a production build. Resolve relative keystore paths from the Android project directory. Keep the signing file and private key outside version control. A checkout without that file can compile an unsigned release artifact.
 
 ```sh
 flutter build apk --release --split-per-abi
-```
-
-For Google Play, build an Android App Bundle so Play can deliver the appropriate
-native libraries to each device.
-
-```sh
 flutter build appbundle --release
 ```
+
+APKs are written to `build/app/outputs/flutter-apk/`. Verify the signing certificate on the distribution artifact. Build and sign the iOS release on macOS with Xcode and the intended provisioning profile.
+
+## Release gate
+
+Run the [read-only ledger reconciliation](scripts/reconcile_ledger_postings.sql) on an approved snapshot before preparing or applying a data repair. Verify profile-mode enforcement, stale-write protection, and the role matrix on staging. The [architecture specification](docs/architecture/target-architecture.md) distinguishes the release implementation from future infrastructure work.

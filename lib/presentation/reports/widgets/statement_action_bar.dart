@@ -10,12 +10,14 @@ class StatementActionBar extends StatelessWidget {
   final bool isExporting;
   final VoidCallback onShareWhatsApp;
   final VoidCallback onExportPdf;
+  final VoidCallback? onExportCsv;
 
   const StatementActionBar({
     super.key,
     required this.isExporting,
     required this.onShareWhatsApp,
     required this.onExportPdf,
+    this.onExportCsv,
   });
 
   @override
@@ -31,16 +33,24 @@ class StatementActionBar extends StatelessWidget {
         border: Border(
           top: BorderSide(
             color: Theme.of(context).colorScheme.outlineVariant.withValues(
-                  alpha: Theme.of(context).brightness == Brightness.dark
-                      ? 0.35
-                      : 0.5,
-                ),
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.35
+                  : 0.5,
+            ),
             width: 1,
           ),
         ),
       ),
       child: Row(
         children: [
+          if (onExportCsv != null)
+            IconButton(
+              tooltip: 'Export CSV',
+              onPressed: isExporting ? null : onExportCsv,
+              icon: Icon(
+                isIos ? CupertinoIcons.table : Icons.table_view_outlined,
+              ),
+            ),
           // Share on WhatsApp
           Expanded(
             child: AdaptiveButton(
@@ -51,17 +61,22 @@ class StatementActionBar extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    isIos ? CupertinoIcons.chat_bubble_fill : Icons.chat_rounded,
+                    isIos
+                        ? CupertinoIcons.chat_bubble_fill
+                        : Icons.chat_rounded,
                     size: 18,
                     color: const Color(0xFF25D366),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    'WhatsApp',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF15803D),
+                  const Flexible(
+                    child: Text(
+                      'WhatsApp',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF15803D),
+                      ),
                     ),
                   ),
                 ],
@@ -95,12 +110,15 @@ class StatementActionBar extends StatelessWidget {
                           color: Colors.white,
                         ),
                         const SizedBox(width: 8),
-                        const Text(
-                          AppStrings.exportPdf,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                        const Flexible(
+                          child: Text(
+                            AppStrings.exportPdf,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],

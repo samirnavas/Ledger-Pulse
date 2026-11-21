@@ -1,11 +1,13 @@
 import 'package:drift/drift.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/rbac_model.dart';
+import '../models/transaction_model.dart';
 import '../../domain/exceptions/ledger_exceptions.dart';
 import '../models/audit_log_model.dart';
 import '../security/access_control_service.dart';
 import 'database.dart';
 import 'drift_ledger_base.dart';
+import 'ledger_entry_balance.dart';
 
 /// Mixin handling Party operations for DriftLedgerRepository.
 mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
@@ -23,6 +25,7 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
     }
 
     final rows = await query.get();
+    final balances = await readLedgerPartyBalances(db, currentCompanyId);
     return rows
         .map(
           (row) => Party(
@@ -30,7 +33,7 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
             name: row.name,
             phoneNumber: row.phoneNumber,
             type: row.type,
-            netBalanceInCents: row.netBalanceInCents,
+            netBalanceInCents: balances[row.id] ?? row.netBalanceInCents,
             lastUpdated: row.lastUpdated,
           ),
         )
@@ -49,12 +52,15 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
       throw Exception('Party not found with id: $partyId');
     }
 
+    final entries = await (db.select(db.ledgerEntries)
+          ..where((t) => t.companyId.equals(currentCompanyId) & t.partyId.equals(partyId)))
+        .get();
     return Party(
       id: row.id,
       name: row.name,
       phoneNumber: row.phoneNumber,
       type: row.type,
-      netBalanceInCents: row.netBalanceInCents,
+      netBalanceInCents: entries.isEmpty ? row.netBalanceInCents : calculatePartyBalanceFromRows(entries),
       lastUpdated: row.lastUpdated,
     );
   }
@@ -72,6 +78,7 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
     final effectiveParty = party.id == partyId ? party : party.copyWith(id: partyId);
 
     await db.transaction(() async {
+      await requireLedgerProfile();
       await db.into(db.parties).insertOnConflictUpdate(
             PartiesCompanion.insert(
               id: effectiveParty.id,
@@ -103,6 +110,16 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
         action: AuditAction.insert,
         newState: effectiveParty.toMap(),
       );
+      if (effectiveParty.netBalanceInCents != 0) {
+        await addEntry(LedgerEntry(
+          id: 'entry_init_${effectiveParty.id}',
+          partyId: effectiveParty.id,
+          amountInCents: effectiveParty.netBalanceInCents.abs(),
+          type: effectiveParty.netBalanceInCents > 0 ? EntryType.gave : EntryType.got,
+          date: effectiveParty.lastUpdated,
+          note: 'Opening Balance',
+        ));
+      }
     });
 
     updateStreamController.add(null);
@@ -135,6 +152,7 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
     };
 
     await db.transaction(() async {
+      await requireLedgerProfile();
       await (db.update(db.parties)..where((t) => t.id.equals(party.id) & t.companyId.equals(currentCompanyId))).write(
         PartiesCompanion(
           name: Value(party.name),
@@ -173,19 +191,19 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
     await ensureInitialized();
     AccessControlService.verifyPermission(currentRole, UserAction.deleteParty);
 
-    final party = await (db.select(db.parties)
-          ..where((t) => t.id.equals(partyId) & t.companyId.equals(currentCompanyId) & t.isDeleted.equals(false)))
-        .getSingleOrNull();
+    await db.transaction(() async {
+      await requireLedgerProfile();
+      final party = await (db.select(db.parties)..where((row) =>
+          row.id.equals(partyId) & row.companyId.equals(currentCompanyId) &
+          row.isDeleted.equals(false))).getSingleOrNull();
+      if (party == null) return;
 
-    if (party == null) {
-      return;
-    }
-
-    if (party.netBalanceInCents != 0) {
-      throw const ActiveBalanceException(
-        'Cannot delete a party with an active balance.',
-      );
-    }
+      final entries = await (db.select(db.ledgerEntries)..where((row) =>
+          row.partyId.equals(partyId) & row.companyId.equals(currentCompanyId))).get();
+      final balance = entries.isEmpty ? party.netBalanceInCents : calculatePartyBalanceFromRows(entries);
+      if (balance != 0) {
+        throw const ActiveBalanceException('Settle the balance before archiving this party.');
+      }
 
     final oldMap = {
       'id': party.id,
@@ -196,31 +214,33 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
       'isDeleted': false,
     };
 
-    await db.transaction(() async {
       // Soft-delete party to maintain referential integrity
       await (db.update(db.parties)..where((t) => t.id.equals(partyId) & t.companyId.equals(currentCompanyId))).write(
         PartiesCompanion(
           isDeleted: const Value(true),
+          revision: Value(party.revision + 1),
           updatedAt: Value(DateTime.now()),
           syncStatus: const Value(SyncRecordStatus.pending),
         ),
       );
 
-      // Void/archive associated entries
-      await (db.update(db.ledgerEntries)..where((t) => t.partyId.equals(partyId) & t.companyId.equals(currentCompanyId))).write(
-        LedgerEntriesCompanion(
-          isVoided: const Value(true),
-          isDeleted: const Value(true),
-          updatedAt: Value(DateTime.now()),
-          syncStatus: const Value(SyncRecordStatus.pending),
-        ),
-      );
-
+      final archived = await (db.select(db.parties)..where((row) => row.id.equals(partyId))).getSingle();
       await recordOutboxEntry(
         targetTable: 'parties',
         recordId: partyId,
-        mutationType: 'DELETE',
-        payload: {'id': partyId, 'isDeleted': true, 'companyId': currentCompanyId},
+        mutationType: 'UPSERT',
+        payload: {
+          'id': partyId,
+          'companyId': currentCompanyId,
+          'name': archived.name,
+          'phoneNumber': archived.phoneNumber,
+          'type': archived.type.name,
+          'netBalanceInCents': 0,
+          'isDeleted': true,
+          'lastUpdated': archived.lastUpdated.toUtc().toIso8601String(),
+          'updatedAt': archived.updatedAt.toUtc().toIso8601String(),
+          'revision': archived.revision,
+        },
       );
 
       await recordAuditLog(

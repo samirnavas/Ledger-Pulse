@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/constants/colors.dart';
 import '../../core/modules/module_catalog.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
@@ -42,7 +41,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
   int _currentStep = 0;
   bool _isSubmitting = false;
 
-  // Step (a) controllers: Name, Legal Name, Currency
+  // Step (a) controllers: Name and currency
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _legalNameCtrl = TextEditingController();
   String _currencyCode = 'INR';
@@ -50,16 +49,6 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
   // Step (b): Mode picker
   CompanyMode _selectedMode = CompanyMode.ledger;
 
-  // Step (c): Presets & Custom Modules for Ledger
-  String _selectedPreset = 'Billing & GST';
-  late Set<AppModule> _selectedModules;
-  bool _isCustomModulesExpanded = false;
-
-  // Step (d): GST Setup (for Ledger with GST enabled)
-  final TextEditingController _gstinCtrl = TextEditingController();
-  final TextEditingController _stateCodeCtrl = TextEditingController();
-
-  // Wallets opening balances (for Expense Tracker mode)
   final TextEditingController _cashOpeningCtrl = TextEditingController();
   final TextEditingController _bankOpeningCtrl = TextEditingController();
 
@@ -75,89 +64,19 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _selectedModules = ModuleCatalog.defaultsFor(
-      CompanyMode.ledger,
-      preset: _selectedPreset,
-    );
-
-    _gstinCtrl.addListener(() {
-      final text = _gstinCtrl.text.trim();
-      if (text.length >= 2) {
-        final prefix = text.substring(0, 2);
-        if (int.tryParse(prefix) != null && _stateCodeCtrl.text.isEmpty) {
-          _stateCodeCtrl.text = prefix;
-        }
-      }
-    });
-  }
-
-  @override
   void dispose() {
     _nameCtrl.dispose();
     _legalNameCtrl.dispose();
-    _gstinCtrl.dispose();
-    _stateCodeCtrl.dispose();
     _cashOpeningCtrl.dispose();
     _bankOpeningCtrl.dispose();
     super.dispose();
   }
 
-  int get _totalSteps {
-    if (_selectedMode == CompanyMode.expenseTracker) {
-      // Step 0: Name/Legal/Currency, Step 1: Mode, Step 2: Wallets Opening Balances
-      return 3;
-    }
-    // Ledger mode:
-    // Step 0: Name/Legal/Currency, Step 1: Mode, Step 2: Presets/Modules,
-    // Step 3 (if GST enabled): GST details
-    return _selectedModules.contains(AppModule.gst) ? 4 : 3;
-  }
+  int get _totalSteps => _selectedMode == CompanyMode.expenseTracker ? 3 : 2;
 
   void _onModeChanged(CompanyMode newMode) {
     HapticFeedback.selectionClick();
-    setState(() {
-      _selectedMode = newMode;
-      if (newMode == CompanyMode.expenseTracker) {
-        _selectedModules = ModuleCatalog.defaultsFor(CompanyMode.expenseTracker);
-      } else {
-        _selectedModules = ModuleCatalog.defaultsFor(
-          CompanyMode.ledger,
-          preset: _selectedPreset,
-        );
-      }
-    });
-  }
-
-  void _onPresetChanged(String preset) {
-    HapticFeedback.selectionClick();
-    setState(() {
-      _selectedPreset = preset;
-      _selectedModules = ModuleCatalog.defaultsFor(
-        CompanyMode.ledger,
-        preset: preset,
-      );
-    });
-  }
-
-  void _toggleModule(AppModule module, bool enable) {
-    HapticFeedback.lightImpact();
-    setState(() {
-      if (enable) {
-        _selectedModules = {..._selectedModules, module};
-        // Auto-enable missing dependencies
-        final missing = ModuleCatalog.missingDependencies(module, _selectedModules);
-        if (missing.isNotEmpty) {
-          _selectedModules = {..._selectedModules, ...missing};
-        }
-      } else {
-        _selectedModules = _selectedModules.where((m) => m != module).toSet();
-        // Auto-disable dependents
-        final dependents = ModuleCatalog.dependentsOf(module);
-        _selectedModules = _selectedModules.difference(dependents);
-      }
-    });
+    setState(() => _selectedMode = newMode);
   }
 
   bool _validateCurrentStep() {
@@ -196,7 +115,6 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
 
     try {
       final companyId = 'cmp_${DateTime.now().millisecondsSinceEpoch}';
-      final hasGst = _selectedMode == CompanyMode.ledger && _selectedModules.contains(AppModule.gst);
       final currentUid = ref.read(activeUserIdProvider);
       final uuidRegex = RegExp(
         r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -206,18 +124,13 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
       final newCompany = Company(
         id: companyId,
         name: _nameCtrl.text.trim(),
-        legalName: _legalNameCtrl.text.trim().isNotEmpty
+        legalName: _selectedMode == CompanyMode.expenseTracker &&
+                _legalNameCtrl.text.trim().isNotEmpty
             ? _legalNameCtrl.text.trim()
             : _nameCtrl.text.trim(),
         currencyCode: _currencyCode,
         mode: _selectedMode,
-        enabledModules: _selectedModules,
-        gstin: hasGst && _gstinCtrl.text.trim().isNotEmpty
-            ? _gstinCtrl.text.trim().toUpperCase()
-            : null,
-        stateCode: hasGst && _stateCodeCtrl.text.trim().isNotEmpty
-            ? _stateCodeCtrl.text.trim()
-            : null,
+        enabledModules: ModuleCatalog.defaultsFor(_selectedMode),
         dealerType: _selectedMode == CompanyMode.ledger ? 'regular' : '',
         ownerId: resolvedOwnerId,
         createdAt: DateTime.now(),
@@ -369,9 +282,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
       case 1:
         return 'Business Type';
       case 2:
-        return _selectedMode == CompanyMode.ledger ? 'Module Preset' : 'Wallet Balances';
-      case 3:
-        return 'Tax & GST Setup';
+        return 'Wallet Balances';
       default:
         return '';
     }
@@ -384,11 +295,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
       case 1:
         return _buildStepCompanyMode(isIos, isDark);
       case 2:
-        return _selectedMode == CompanyMode.ledger
-            ? _buildStepLedgerPresetsAndModules(isIos, isDark)
-            : _buildStepExpenseTrackerWallets(isIos, isDark);
-      case 3:
-        return _buildStepGstSetup(isIos, isDark);
+        return _buildStepExpenseTrackerWallets(isIos, isDark);
       default:
         return const SizedBox.shrink();
     }
@@ -424,14 +331,6 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
             placeholder: 'e.g. Skyline Logistics Pvt Ltd',
             padding: const EdgeInsets.all(12),
           ),
-          const SizedBox(height: 16),
-          const Text('Legal / Trade Name', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-          const SizedBox(height: 6),
-          CupertinoTextField(
-            controller: _legalNameCtrl,
-            placeholder: 'Optional registered legal name',
-            padding: const EdgeInsets.all(12),
-          ),
         ] else ...[
           TextField(
             controller: _nameCtrl,
@@ -440,16 +339,6 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
               hintText: 'e.g. Skyline Logistics Pvt Ltd',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.business_rounded),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _legalNameCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Legal / Trade Name (Optional)',
-              hintText: 'Registered business name',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.badge_outlined),
             ),
           ),
         ],
@@ -505,8 +394,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
           isDark: isDark,
           mode: CompanyMode.ledger,
           title: 'Business Ledger',
-          subtitle: 'Double-entry bookkeeping, GST compliance, vouchers, inventory, manufacturing, payroll, and audit trails.',
-          badge: 'Standard ERP',
+          subtitle: 'Customer and supplier transactions, balances, and statements.',
           icon: isIos ? CupertinoIcons.chart_bar_alt_fill : Icons.account_balance_rounded,
         ),
 
@@ -532,7 +420,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
     required CompanyMode mode,
     required String title,
     required String subtitle,
-    required String badge,
+    String? badge,
     required IconData icon,
   }) {
     final isSelected = _selectedMode == mode;
@@ -579,22 +467,24 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
                             color: isSelected ? primaryColor : null,
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isSelected ? primaryColor : (isDark ? Colors.white24 : Colors.black12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            badge,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                        if (badge != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isSelected ? primaryColor : (isDark ? Colors.white24 : Colors.black12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              badge,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -624,144 +514,6 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
   }
 
   // STEP (c) for Ledger: Presets & Expandable Module Checklist
-  Widget _buildStepLedgerPresetsAndModules(bool isIos, bool isDark) {
-    final presets = ['Simple Khata', 'Billing & GST', 'Full ERP'];
-    final ledgerModules = ModuleCatalog.ledgerModules;
-    final primaryColor = isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Choose your workflow preset',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Start with an optimized preset or customize the exact modules needed.',
-          style: TextStyle(
-            fontSize: 14,
-            color: isIos
-                ? CupertinoColors.secondaryLabel
-                : Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Preset Selector Chips
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: presets.map((preset) {
-            final isSelected = _selectedPreset == preset;
-            return ChoiceChip(
-              label: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                child: Text(
-                  preset,
-                  style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                  ),
-                ),
-              ),
-              selected: isSelected,
-              onSelected: (val) {
-                if (val) _onPresetChanged(preset);
-              },
-            );
-          }).toList(),
-        ),
-
-        const SizedBox(height: 24),
-
-        // Expandable Custom Module Checklist
-        Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              initiallyExpanded: _isCustomModulesExpanded,
-              onExpansionChanged: (val) => setState(() => _isCustomModulesExpanded = val),
-              title: Text(
-                'Customize Modules (${_selectedModules.length} enabled)',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              subtitle: Text(
-                'Configure individual ERP capabilities',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isIos
-                      ? CupertinoColors.secondaryLabel
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              children: [
-                const Divider(height: 1),
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: ledgerModules.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1),
-                  itemBuilder: (ctx, idx) {
-                    final module = ledgerModules[idx];
-                    final isEnabled = _selectedModules.contains(module);
-                    final missing = ModuleCatalog.missingDependencies(module, _selectedModules);
-
-                    return SwitchListTile.adaptive(
-                      value: isEnabled,
-                      activeTrackColor: primaryColor,
-                      title: Row(
-                        children: [
-                          Icon(ModuleCatalog.iconFor(module), size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            ModuleCatalog.labelFor(module),
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 2),
-                          Text(
-                            ModuleCatalog.descriptionFor(module),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isIos
-                                  ? CupertinoColors.secondaryLabel
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          if (missing.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              'Requires: ${missing.map(ModuleCatalog.labelFor).join(', ')}',
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.payableRed,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      onChanged: (val) => _toggleModule(module, val),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // STEP (c) for Expense Tracker: Initial Wallet Balances
   Widget _buildStepExpenseTrackerWallets(bool isIos, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -860,69 +612,24 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
             ],
           ),
         ),
-      ],
-    );
-  }
-
-  // STEP (d): GST Setup (only for Ledger mode with GST module enabled)
-  Widget _buildStepGstSetup(bool isIos, bool isDark) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'GST & State Tax Details',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Since the GST module is enabled, provide your 15-character GSTIN. State code will auto-populate.',
-          style: TextStyle(
-            fontSize: 14,
-            color: isIos
-                ? CupertinoColors.secondaryLabel
-                : Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 24),
-
         if (isIos) ...[
-          const Text('GSTIN (Optional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-          const SizedBox(height: 6),
-          CupertinoTextField(
-            controller: _gstinCtrl,
-            placeholder: '29ABCDE1234F1ZH',
-            textCapitalization: TextCapitalization.characters,
-            padding: const EdgeInsets.all(12),
-          ),
           const SizedBox(height: 16),
-          const Text('2-Digit State Code', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const Text('Legal / Trade Name', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
           const SizedBox(height: 6),
           CupertinoTextField(
-            controller: _stateCodeCtrl,
-            placeholder: 'e.g. 29',
-            keyboardType: TextInputType.number,
+            controller: _legalNameCtrl,
+            placeholder: 'Optional registered legal name',
             padding: const EdgeInsets.all(12),
           ),
         ] else ...[
-          TextField(
-            controller: _gstinCtrl,
-            textCapitalization: TextCapitalization.characters,
-            decoration: const InputDecoration(
-              labelText: 'GSTIN (Optional)',
-              hintText: '29ABCDE1234F1ZH',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.receipt_long_outlined),
-            ),
-          ),
           const SizedBox(height: 16),
           TextField(
-            controller: _stateCodeCtrl,
-            keyboardType: TextInputType.number,
+            controller: _legalNameCtrl,
             decoration: const InputDecoration(
-              labelText: 'State Code',
-              hintText: 'e.g. 29',
+              labelText: 'Legal / Trade Name (Optional)',
+              hintText: 'Registered business name',
               border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.map_outlined),
+              prefixIcon: Icon(Icons.badge_outlined),
             ),
           ),
         ],

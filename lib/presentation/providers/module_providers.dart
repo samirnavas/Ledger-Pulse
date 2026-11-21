@@ -13,13 +13,18 @@ enum ModuleLockReason {
 }
 
 /// Returns the lock reason for an [AppModule], or `null` if the module is unlocked and active.
-final moduleLockReasonProvider = Provider.family<ModuleLockReason?, AppModule>((ref, module) {
+final moduleLockReasonProvider = Provider.family<ModuleLockReason?, AppModule>((
+  ref,
+  module,
+) {
   final company = ref.watch(activeCompanyProvider);
 
   // 1. Check whether active company's mode allows this module
   if (!ModuleCatalog.isModeAllowed(company.mode, module)) {
     return ModuleLockReason.modeNotAllowed;
   }
+
+  if (company.isLedger) return null;
 
   // 2. Check subscription tier
   final tierAllowed = ref.watch(tierAllowsProvider(module));
@@ -33,7 +38,10 @@ final moduleLockReasonProvider = Provider.family<ModuleLockReason?, AppModule>((
   }
 
   // 4. Check if any required dependencies are missing
-  final missing = ModuleCatalog.missingDependencies(module, company.enabledModules);
+  final missing = ModuleCatalog.missingDependencies(
+    module,
+    company.enabledModules,
+  );
   if (missing.isNotEmpty) {
     return ModuleLockReason.missingDependency;
   }
@@ -41,8 +49,7 @@ final moduleLockReasonProvider = Provider.family<ModuleLockReason?, AppModule>((
   return null;
 });
 
-/// Indicates whether an [AppModule] is currently active and usable:
-/// mode allows AND company enabled AND dependencies satisfied.
+/// Indicates whether the active profile can use a module in this release.
 final moduleEnabledProvider = Provider.family<bool, AppModule>((ref, module) {
   ref.watch(activeCompanyProvider);
   return ref.watch(moduleLockReasonProvider(module)) == null;

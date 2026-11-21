@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/voucher_model.dart';
 import 'package:ledger_pulse/data/services/ecommerce_sync_service.dart';
+import 'helpers/legacy_module_test_company.dart';
 
 void main() {
   group('E-Commerce Sync Service Tests (FR-SYN-05)', () {
-    late Company testCompany;
+    late LegacyModuleTestCompany testCompany;
 
     setUp(() {
-      testCompany = Company(
+      testCompany = LegacyModuleTestCompany(
         id: 'cmp_ecommerce_01',
         name: 'OmniRetail Online Ltd',
         legalName: 'OmniRetail Online Ltd',

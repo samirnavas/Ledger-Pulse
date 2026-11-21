@@ -1,3 +1,4 @@
+import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/drift_ledger_repository.dart';
 import '../../data/models/account_model.dart';
@@ -51,7 +52,7 @@ final ledgerUpdatesStreamProvider = StreamProvider<void>((ref) {
 // Active party filter Notifier
 class PartyTypeFilterNotifier extends Notifier<PartyType?> {
   @override
-  PartyType? build() => PartyType.customer;
+  PartyType? build() => null;
 
   void setFilter(PartyType? filter) {
     state = filter;
@@ -210,31 +211,7 @@ final partyLedgerEntriesProvider =
   });
   ref.onDispose(sub.cancel);
 
-  final rawEntries = await repo.getEntriesForParty(partyId);
-
-  // Sort ascending by date & time to compute cumulative running balance chronologically
-  final sortedEntries = List<LedgerEntry>.from(rawEntries)
-    ..sort((a, b) {
-      final cmp = a.date.compareTo(b.date);
-      if (cmp != 0) return cmp;
-      return a.id.compareTo(b.id);
-    });
-
-  int runningBalance = 0;
-  final entriesWithBalance = <LedgerEntry>[];
-  for (final entry in sortedEntries) {
-    if (entry.type == EntryType.gave) {
-      runningBalance += entry.amountInCents;
-    } else {
-      runningBalance -= entry.amountInCents;
-    }
-    entriesWithBalance.add(
-      entry.copyWith(runningBalanceInCents: runningBalance),
-    );
-  }
-
-  // Return reverse chronological order (newest first) for ledger stream display
-  return entriesWithBalance.reversed.toList();
+  return (await repo.getEntriesForParty(partyId)).reversed.toList();
 });
 
 // Standard Aliases for domain & presentation layer consistency
@@ -278,19 +255,6 @@ class LedgerActionController {
     );
     await _repo.addParty(party);
 
-    // If there is an initial balance, add an opening ledger entry
-    if (initialBalanceInCents != 0) {
-      final entry = LedgerEntry(
-        id: 'entry_init_${DateTime.now().millisecondsSinceEpoch}',
-        partyId: partyId,
-        amountInCents: initialBalanceInCents.abs(),
-        type: initialBalanceInCents > 0 ? EntryType.gave : EntryType.got,
-        date: DateTime.now(),
-        note: 'Opening Balance',
-      );
-      await _repo.addEntry(entry);
-    }
-
     _invalidateProviders(partyId: partyId);
   }
 
@@ -311,9 +275,10 @@ class LedgerActionController {
     required DateTime date,
     String? note,
     String? receiptPhotoUrl,
+    String? requestId,
   }) async {
     final entry = LedgerEntry(
-      id: 'entry_${DateTime.now().millisecondsSinceEpoch}',
+      id: requestId ?? const Uuid().v4(),
       partyId: partyId,
       amountInCents: amountInCents,
       type: type,

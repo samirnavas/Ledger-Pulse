@@ -1,3 +1,4 @@
+import '../../data/local/ledger_entry_balance.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:drift/drift.dart';
@@ -102,7 +103,9 @@ class SupabaseGateway implements RemoteGateway {
           .maybeSingle();
       return response;
     } on PostgrestException catch (e) {
-      debugPrint('SupabaseGateway.upsertRow error on $table: ${e.message} (code: ${e.code})');
+      if (kDebugMode) {
+        debugPrint('SupabaseGateway.upsertRow error on $table: ${e.message} (code: ${e.code})');
+      }
       rethrow;
     }
   }
@@ -558,7 +561,9 @@ class SyncEngine {
         }
       }
     } catch (e) {
-      debugPrint('SyncEngine _cleanupCorruptedOutbox error: $e');
+      if (kDebugMode) {
+        debugPrint('SyncEngine _cleanupCorruptedOutbox error: $e');
+      }
     }
   }
 
@@ -643,7 +648,9 @@ class SyncEngine {
           fullRowMap: fullRowMap,
         );
       } catch (e) {
-        debugPrint('Failed to enqueue sync outbox mutation for $table:$recordId: $e');
+        if (kDebugMode) {
+          debugPrint('Failed to enqueue sync outbox mutation for $table:$recordId: $e');
+        }
         final key = '$table:$recordId';
         failedKeys.add(key);
         enqueueErrors[key] = e.toString();
@@ -1284,7 +1291,9 @@ class SyncEngine {
         );
       }
     } catch (e) {
-      debugPrint('SyncEngine _queueUnsyncedLocalRecords error: $e');
+      if (kDebugMode) {
+        debugPrint('SyncEngine _queueUnsyncedLocalRecords error: $e');
+      }
       enqueueErrors['outbox_queue'] = e.toString();
     }
     return _EnqueueOutcome(errors: enqueueErrors, failedKeys: failedKeys);
@@ -1688,7 +1697,9 @@ class SyncEngine {
         }
       }
     } catch (e) {
-      debugPrint('SyncEngine repair failed records notice: $e');
+      if (kDebugMode) {
+        debugPrint('SyncEngine repair failed records notice: $e');
+      }
     }
   }
 
@@ -1981,7 +1992,9 @@ class SyncEngine {
         if (_isDisposed || _sessionGeneration != currentGeneration) break;
 
         final errStr = e.toString();
-        debugPrint('SyncEngine pushOutbox ERROR on ${outboxRow.targetTable} (${outboxRow.recordId}): $e');
+        if (kDebugMode) {
+          debugPrint('SyncEngine pushOutbox ERROR on ${outboxRow.targetTable} (${outboxRow.recordId}): $e');
+        }
         tableErrors[outboxRow.targetTable] = errStr;
 
         final isPermanent4xx = _isPermanentError(e);
@@ -2516,7 +2529,9 @@ class SyncEngine {
     } on _SessionInvalidatedException {
       return false;
     } catch (e) {
-      debugPrint('Error marking record synced: $e');
+      if (kDebugMode) {
+        debugPrint('Error marking record synced: $e');
+      }
       return false;
     }
   }
@@ -2566,7 +2581,9 @@ class SyncEngine {
     } on _SessionInvalidatedException {
       // Rolled back cleanly due to stale session
     } catch (e) {
-      debugPrint('Error in _recordPermanentFailure: $e');
+      if (kDebugMode) {
+        debugPrint('Error in _recordPermanentFailure: $e');
+      }
     }
   }
 
@@ -2602,7 +2619,9 @@ class SyncEngine {
     } on _SessionInvalidatedException {
       // Rolled back cleanly due to stale session
     } catch (e) {
-      debugPrint('Error in _recordTemporaryFailure: $e');
+      if (kDebugMode) {
+        debugPrint('Error in _recordTemporaryFailure: $e');
+      }
     }
   }
 
@@ -2627,7 +2646,9 @@ class SyncEngine {
     } on _SessionInvalidatedException {
       // Rolled back cleanly
     } catch (e) {
-      debugPrint('Error in markRecordErrorForTesting: $e');
+      if (kDebugMode) {
+        debugPrint('Error in markRecordErrorForTesting: $e');
+      }
     }
   }
 
@@ -3625,7 +3646,9 @@ class SyncEngine {
                     remoteMap['is_deleted'] == true ||
                     remoteMap['is_deleted'] == 1;
 
-                if (isDeleted) {
+                final archivedPartyWithHistory = table.name == 'parties' &&
+                    remoteMap['name'] != null && remoteMap['company_id'] == companyId;
+                if (isDeleted && !archivedPartyWithHistory) {
                   await _applySoftDeleteLocally(
                     table.name,
                     recordId,
@@ -3688,6 +3711,21 @@ class SyncEngine {
               tablePullCompleted = false;
               rethrow;
             }
+          } else if (table.name == 'ledger_entries') {
+            await db.transaction(() async {
+              final balances = await readLedgerPartyBalances(db, companyId);
+              for (final entry in balances.entries) {
+                if (_isSessionStale(currentGeneration)) {
+                  throw const _SessionInvalidatedException();
+                }
+                await (db.update(db.parties)..where((row) =>
+                    row.id.equals(entry.key) & row.companyId.equals(companyId) &
+                    row.isDeleted.equals(false) &
+                    row.netBalanceInCents.equals(entry.value).not())).write(
+                  PartiesCompanion(netBalanceInCents: Value(entry.value)),
+                );
+              }
+            });
           } else if (table.name == 'exp_transactions') {
             try {
               await _recalculateWalletBalances(companyId, currentGeneration);
@@ -3749,7 +3787,9 @@ class SyncEngine {
           }
         }
       } catch (e) {
-        debugPrint('Error pulling table ${table.name}: $e');
+        if (kDebugMode) {
+          debugPrint('Error pulling table ${table.name}: $e');
+        }
         tableErrors[table.name] = e.toString();
         // Do NOT advance cursor for failed table
       }
@@ -4089,13 +4129,35 @@ class SyncEngine {
           .into(db.parties)
           .insertOnConflictUpdate(companion as PartiesCompanion);
     } else if (table == 'ledger_entries') {
-      await db
-          .into(db.ledgerEntries)
-          .insertOnConflictUpdate(companion as LedgerEntriesCompanion);
+      final incoming = companion as LedgerEntriesCompanion;
+      final existing = await (db.select(db.ledgerEntries)
+            ..where((row) => row.id.equals(incoming.id.value)))
+          .getSingleOrNull();
+      if (existing != null) {
+        if (existing.companyId != incoming.companyId.value ||
+            existing.isDeleted ||
+            (existing.isVoided && !incoming.isVoided.value &&
+                !existing.id.startsWith('vch_entry_')) ||
+            existing.revision > incoming.revision.value) {
+          return;
+        }
+      }
+      await db.into(db.ledgerEntries).insertOnConflictUpdate(incoming);
     } else if (table == 'journals') {
-      await db
-          .into(db.journals)
-          .insertOnConflictUpdate(companion as JournalsCompanion);
+      final incoming = companion as JournalsCompanion;
+      if (incoming.id.value.startsWith('jnl_entry_')) {
+        final existing = await (db.select(db.journals)
+              ..where((row) => row.id.equals(incoming.id.value)))
+            .getSingleOrNull();
+        if (existing != null &&
+            (existing.companyId != incoming.companyId.value ||
+                existing.isDeleted ||
+                existing.status == 'voided' ||
+                existing.revision > incoming.revision.value)) {
+          return;
+        }
+      }
+      await db.into(db.journals).insertOnConflictUpdate(incoming);
     } else if (table == 'journal_lines') {
       await db
           .into(db.journalLines)
@@ -4418,7 +4480,9 @@ class SyncEngine {
         ...pullResult.tableErrors,
       };
       if (combinedErrors.isNotEmpty) {
-        debugPrint('SyncEngine syncAll combinedErrors: $combinedErrors');
+        if (kDebugMode) {
+          debugPrint('SyncEngine syncAll combinedErrors: $combinedErrors');
+        }
       }
 
       final totalPushed = pushResult.pushedCount;

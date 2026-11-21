@@ -480,13 +480,13 @@ void main() {
 
   group('Prompt 8 - Party Ledger & Stock Untouched', () {
     test('party and stock are untouched for expense, income, and transfer vouchers', () async {
-      // 1. Create a dummy party
-      await ledgerRepo.addParty(Party(
+      // Simulate a record misplaced by an older release.
+      await db.into(db.parties).insert(PartiesCompanion.insert(
         id: 'pty_test_1',
+        companyId: Value(companyId),
         name: 'John Merchant',
         phoneNumber: '9876543210',
         type: PartyType.customer,
-        netBalanceInCents: 0,
         lastUpdated: DateTime(2026, 1, 1),
       ));
 

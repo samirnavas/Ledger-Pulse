@@ -384,6 +384,28 @@ void main() {
   });
 
   group('CSV Export Content & Round Trip', () {
+    test('CSV keeps notes as text and preserves numeric amounts', () async {
+      final voucher = testVouchers.first.copyWith(
+        narration: '=1+1',
+        referenceNumber: '@SUM(A1)',
+        totalAmountInCents: 1234,
+      );
+      final file = await ReportExportService.exportTransactionsCsv(
+        transactions: [voucher],
+        company: company,
+        categoryNames: const {},
+        walletNames: const {},
+        startDate: voucher.date,
+        endDate: voucher.date,
+        outputDirectory: Directory.systemTemp,
+      );
+      addTearDown(() => file.delete());
+      final csv = await file.readAsString();
+      expect(csv, contains('"\'=1+1"'));
+      expect(csv, contains('"\'@SUM(A1)"'));
+      expect(csv, contains('"12.34"'));
+    });
+
     test('exportTransactionsCsv produces UTF-8 BOM, valid header and summary', () async {
       final octVouchers = testVouchers
           .where((v) => v.date.month == 10 && v.status != VoucherStatus.voided)

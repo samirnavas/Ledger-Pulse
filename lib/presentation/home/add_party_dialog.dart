@@ -29,6 +29,7 @@ class AddPartyDialog extends ConsumerStatefulWidget {
 
 class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
   final _nameController = TextEditingController();
+  final _openingController = TextEditingController();
   final _phoneController = TextEditingController();
   final _nameFocusNode = FocusNode();
   final _phoneFocusNode = FocusNode();
@@ -109,6 +110,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
     _phoneController.removeListener(_onFieldChanged);
     _nameController.dispose();
     _phoneController.dispose();
+    _openingController.dispose();
     _sheetController.dispose();
     super.dispose();
   }
@@ -194,6 +196,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
   }
 
   void _submit() async {
+    if (_isSubmitting) return;
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
 
@@ -201,10 +204,15 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
       setState(() => _error = 'Please enter party name');
       return;
     }
-    if (phone.isEmpty) {
-      setState(() => _error = 'Please enter phone number');
+    final opening = _openingController.text.trim();
+    if (opening.isNotEmpty && !RegExp(r'^\d{1,12}(?:\.\d{1,2})?$').hasMatch(opening)) {
+      setState(() => _error = 'Enter an opening amount with up to two decimals');
       return;
     }
+    final parts = opening.split('.');
+    final cents = (int.tryParse(parts.first) ?? 0) * 100 +
+        (parts.length > 1 ? int.parse(parts.last.padRight(2, '0')) : 0);
+    final initialBalance = _type == PartyType.customer ? cents : -cents;
 
     setState(() {
       _error = null;
@@ -215,7 +223,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
       if (widget.partyToEdit != null) {
         final updatedParty = widget.partyToEdit!.copyWith(
           name: name,
-          phoneNumber: phone.startsWith('+') ? phone : '+91 $phone',
+          phoneNumber: phone.isEmpty || phone.startsWith('+') ? phone : '+91 $phone',
           type: _type,
           lastUpdated: DateTime.now(),
         );
@@ -223,9 +231,9 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
       } else {
         await ref.read(ledgerActionControllerProvider).addParty(
               name: name,
-              phoneNumber: phone.startsWith('+') ? phone : '+91 $phone',
+              phoneNumber: phone.isEmpty || phone.startsWith('+') ? phone : '+91 $phone',
               type: _type,
-              initialBalanceInCents: 0,
+              initialBalanceInCents: initialBalance,
             );
       }
 
@@ -410,7 +418,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                           fontWeight: FontWeight.w500,
                         ),
                         decoration: InputDecoration(
-                          labelText: 'Phone Number',
+                          labelText: 'Phone number (optional)',
                           prefixIcon: Icon(
                             isIos ? CupertinoIcons.phone : Icons.phone_outlined,
                             size: 20,
@@ -438,6 +446,19 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                         ),
                       ),
 
+                      if (widget.partyToEdit == null) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _openingController,
+                          onTap: _expandSheet,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText: _type == PartyType.customer
+                                ? 'Opening amount to receive (optional)'
+                                : 'Opening amount to pay (optional)',
+                          ),
+                        ),
+                      ],
                       if (_error != null) ...[
                         const SizedBox(height: 12),
                         Text(

@@ -3,6 +3,21 @@ import 'package:ledger_pulse/data/models/party_model.dart';
 import 'package:ledger_pulse/data/services/data_import_service.dart';
 
 void main() {
+  test('ledger CSV validates rows and applies opening balance direction', () {
+    const header = 'Name,Type,Phone,Opening Balance';
+    final valid = DataImportService.parseLedgerPartyCsv(
+      '$header\n"North, Inc.",Customer,,12.45\nSupplier A,Supplier,,20.01',
+    );
+    expect(valid.warnings, isEmpty);
+    expect(valid.importedParties.map((row) => row.name), ['North, Inc.', 'Supplier A']);
+    expect(valid.importedParties.map((row) => row.netBalanceInCents), [1245, -2001]);
+
+    final invalid = DataImportService.parseLedgerPartyCsv(
+      '$header\nNorth,Customer,,12.01\nnorth,Customer,,15\nSouth,Unknown,,1.234',
+    );
+    expect(invalid.warnings, hasLength(2));
+    expect(invalid.importedParties, hasLength(1));
+  });
   group('Third-Party Data Importer Tests (FR-SYN-03)', () {
     const companyId = 'cmp_import_test';
 

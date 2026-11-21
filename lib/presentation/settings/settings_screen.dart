@@ -25,12 +25,10 @@ import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
 import '../../data/models/company_model.dart';
-import '../payments/cts2010_cheque_preview_screen.dart';
 import '../providers/sync_providers.dart';
 import '../providers/theme_provider.dart';
 import '../providers/widget_sync_provider.dart';
 import '../reports/audit_log_screen.dart';
-import '../reports/reporting_hub_screen.dart';
 import 'about_screen.dart';
 import 'help_screen.dart';
 import 'modules_screen.dart';
@@ -160,9 +158,7 @@ class SettingsScreen extends ConsumerWidget {
                       subtitle: Text(
                         isExpense
                             ? 'Personal Expense Tracker'
-                            : (activeCompany.gstin?.isNotEmpty == true
-                                ? 'GSTIN: ${activeCompany.gstin}'
-                                : 'Personal / Sole Trader'),
+                            : 'Business Ledger',
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(context)
@@ -233,53 +229,54 @@ class SettingsScreen extends ConsumerWidget {
                       },
                     ),
                     const Divider(height: 1),
-                    ListTile(
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      leading: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: (isIos ? CupertinoColors.systemIndigo : Theme.of(context).colorScheme.tertiary).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          isIos
-                              ? CupertinoIcons.square_grid_2x2_fill
-                              : Icons.extension_rounded,
-                          color: isIos ? CupertinoColors.systemIndigo : Theme.of(context).colorScheme.tertiary,
-                          size: 22,
-                        ),
-                      ),
-                      title: const Text(
-                        'Company Modules & Features',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Configure ${activeCompany.enabledModules.length} enabled modules & presets',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant,
-                        ),
-                      ),
-                      trailing: Icon(
-                        isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
-                        size: isIos ? 14 : 20,
-                        color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                      ),
-                      onTap: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.of(context).push(
-                          createAdaptivePageRoute(
-                            builder: (ctx) => const ModulesScreen(),
+                    if (isExpense)
+                      ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: (isIos ? CupertinoColors.systemIndigo : Theme.of(context).colorScheme.tertiary).withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        );
-                      },
-                    ),
+                          child: Icon(
+                            isIos
+                                ? CupertinoIcons.square_grid_2x2_fill
+                                : Icons.extension_rounded,
+                            color: isIos ? CupertinoColors.systemIndigo : Theme.of(context).colorScheme.tertiary,
+                            size: 22,
+                          ),
+                        ),
+                        title: const Text(
+                          'Company Modules & Features',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Configure ${activeCompany.enabledModules.length} enabled modules & presets',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                        ),
+                        trailing: Icon(
+                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
+                          size: isIos ? 14 : 20,
+                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        ),
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          Navigator.of(context).push(
+                            createAdaptivePageRoute(
+                              builder: (ctx) => const ModulesScreen(),
+                            ),
+                          );
+                        },
+                      ),
                   ],
                 ),
 
@@ -392,208 +389,6 @@ class SettingsScreen extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                if (!isExpense) ...[
-                  // 4. REPORTS & EXPORTS
-                  _buildSectionHeader(context, 'REPORTING & COMPLIANCE'),
-                  const SizedBox(height: 8),
-                  _buildCard(
-                    context,
-                    isDark,
-                    isIos,
-                    children: [
-                      ListTile(
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: (isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            isIos
-                                ? CupertinoIcons.chart_pie_fill
-                                : Icons.analytics_rounded,
-                            color: isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary,
-                            size: 22,
-                          ),
-                        ),
-                        title: const Text(
-                          'Master Reporting Hub',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        subtitle: Text(
-                          '36 comprehensive reports, Daybook, P&L & GSTR JSON',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        trailing: Icon(
-                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
-                          size: isIos ? 14 : 20,
-                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                        ),
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.of(context).push(
-                            createAdaptivePageRoute(
-                              builder: (ctx) => const ReportingHubScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-
-                if (!isExpense) ...[
-                  const SizedBox(height: 24),
-                  _buildSectionHeader(context, 'INVOICING, BRANDING & STATUTORY'),
-                  const SizedBox(height: 8),
-                  _buildCard(
-                    context,
-                    isDark,
-                    isIos,
-                    children: [
-                      ListTile(
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: (isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            isIos ? CupertinoIcons.printer_fill : Icons.print_rounded,
-                            color: isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary,
-                            size: 22,
-                          ),
-                        ),
-                        title: const Text(
-                          'CTS-2010 Cheque Printing',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Bank cheque layout calibration, payee formatting & CTS alignment',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        trailing: Icon(
-                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
-                          size: isIos ? 14 : 20,
-                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                        ),
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.of(context).push(
-                            createAdaptivePageRoute(
-                              builder: (ctx) => const Cts2010ChequePreviewScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      const Divider(height: 1),
-                      ListTile(
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: (isIos ? CupertinoColors.systemIndigo : Theme.of(context).colorScheme.tertiary).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            isIos ? CupertinoIcons.signature : Icons.draw_rounded,
-                            color: isIos ? CupertinoColors.systemIndigo : Theme.of(context).colorScheme.tertiary,
-                            size: 22,
-                          ),
-                        ),
-                        title: const Text(
-                          'Signature & Company Branding',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Business logo, authorized signatory signature & invoice headers',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        trailing: Icon(
-                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
-                          size: isIos ? 14 : 20,
-                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                        ),
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.of(context).push(
-                            createAdaptivePageRoute(
-                              builder: (ctx) => const ProfileScreen(isStandalone: true),
-                            ),
-                          );
-                        },
-                      ),
-                      const Divider(height: 1),
-                      ListTile(
-                        contentPadding:
-                            const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: (isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            isIos ? CupertinoIcons.doc_checkmark_fill : Icons.verified_rounded,
-                            color: isIos ? CupertinoColors.systemGreen : Theme.of(context).colorScheme.secondary,
-                            size: 22,
-                          ),
-                        ),
-                        title: const Text(
-                          'e-Invoice & GST Compliance',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'IRP portal connection, e-Way bills & 2026 GSTN regulations',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: isIos ? CupertinoColors.secondaryLabel : Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        trailing: Icon(
-                          isIos ? CupertinoIcons.chevron_forward : Icons.chevron_right_rounded,
-                          size: isIos ? 14 : 20,
-                          color: isIos ? CupertinoColors.tertiaryLabel : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                        ),
-                        onTap: () {
-                          HapticFeedback.lightImpact();
-                          Navigator.of(context).push(
-                            createAdaptivePageRoute(
-                              builder: (ctx) => const ReportingHubScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-
                 const SizedBox(height: 24),
 
                 _buildSectionHeader(context, 'HELP & ABOUT'),
@@ -688,7 +483,7 @@ class SettingsScreen extends ConsumerWidget {
               'LedgerPulse enforces immutable workspace types:\n\n'
               '• A Personal Expense workspace cannot be converted into a Business Ledger.\n'
               '• Your existing expense wallets, categories, and transactions remain completely intact and untouched in this workspace.\n'
-              '• To use double-entry bookkeeping, GST invoicing, parties, and inventory, create a separate Business Ledger workspace for your account.',
+              '• Create a separate Business Ledger workspace to track customer and supplier balances.',
               style: TextStyle(fontSize: 13),
             ),
           ],

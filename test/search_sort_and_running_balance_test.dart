@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/data/mock/mock_ledger_repository.dart';
+import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/data/models/party_model.dart';
 import 'package:ledger_pulse/data/models/transaction_model.dart';
 import 'package:ledger_pulse/presentation/home/dashboard_screen.dart';
@@ -207,12 +209,15 @@ void main() {
     testWidgets('DashboardScreen back press in search mode exits search mode rather than popping',
         (WidgetTester tester) async {
       final repo = MockLedgerRepository();
+      final db = AppDatabase(NativeDatabase.memory());
       addTearDown(repo.dispose);
+      addTearDown(db.close);
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
             ledgerRepositoryProvider.overrideWithValue(repo),
+            appDatabaseProvider.overrideWithValue(db),
             activeCompanyProvider.overrideWithValue(
               Company(
                 id: 'comp_1',
@@ -250,6 +255,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
 
       // Enter search query
+      await tester.tap(find.text('Parties'));
+      await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'Sharma');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 200));
@@ -264,6 +271,11 @@ void main() {
 
       // Dashboard screen remains open, but search is reset
       expect(find.byType(DashboardScreen), findsOneWidget);
+      final search = tester.widget<TextField>(find.byType(TextField));
+      expect(search.controller?.text, isEmpty);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
     });
   });
 }

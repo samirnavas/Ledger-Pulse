@@ -43,7 +43,7 @@ void main() {
           id: companyId,
           name: 'Time Test Co 1',
           legalName: 'Time Test Co 1',
-          mode: CompanyMode.expenseTracker,
+          mode: CompanyMode.ledger,
           enabledModules: {AppModule.vouchers},
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
@@ -57,9 +57,22 @@ void main() {
           currentUserId: userId,
         );
         await ledgerRepo.createCompany(company);
+        final expenseId = 'expense_$companyId';
+        await ledgerRepo.createCompany(
+          Company(
+            id: expenseId,
+            name: company.name,
+            legalName: company.legalName,
+            mode: CompanyMode.expenseTracker,
+            createdAt: company.createdAt,
+            updatedAt: company.updatedAt,
+          ),
+        );
         await postingEngine.ensureCompanyAccounts(companyId);
 
-        await db.into(db.accounts).insertOnConflictUpdate(
+        await db
+            .into(db.accounts)
+            .insertOnConflictUpdate(
               AccountsCompanion.insert(
                 id: '${companyId}_acc_ar',
                 companyId: const Value(companyId),
@@ -73,7 +86,9 @@ void main() {
                 updatedAt: Value(DateTime.now()),
               ),
             );
-        await db.into(db.accounts).insertOnConflictUpdate(
+        await db
+            .into(db.accounts)
+            .insertOnConflictUpdate(
               AccountsCompanion.insert(
                 id: '${companyId}_acc_sales',
                 companyId: const Value(companyId),
@@ -89,26 +104,28 @@ void main() {
             );
 
         final partyId = 'party_time_1';
-        await ledgerRepo.addParty(Party(
-          id: partyId,
-          name: 'Time Test Party 1',
-          phoneNumber: '+91 90000 00000',
-          type: PartyType.customer,
-          netBalanceInCents: 0,
-          lastUpdated: DateTime.now(),
-        ));
+        await ledgerRepo.addParty(
+          Party(
+            id: partyId,
+            name: 'Time Test Party 1',
+            phoneNumber: '+91 90000 00000',
+            type: PartyType.customer,
+            netBalanceInCents: 0,
+            lastUpdated: DateTime.now(),
+          ),
+        );
 
         final expenseRepo = DriftExpenseRepository(
           db: db,
           auditService: auditService,
           postingEngine: postingEngine,
           syncEngine: syncEngine,
-          currentCompanyId: companyId,
+          currentCompanyId: expenseId,
           currentUserId: userId,
         );
 
-        final walletId = '${companyId}_${ExpenseTrackerDefaults.walletCashId}';
-        final categoryId = '${companyId}_${ExpenseTrackerDefaults.groceriesId}';
+        final walletId = '${expenseId}_${ExpenseTrackerDefaults.walletCashId}';
+        final categoryId = '${expenseId}_${ExpenseTrackerDefaults.groceriesId}';
 
         // Instant 1: 10:00 IST (04:30 UTC)
         final intended1 = DateTime.utc(2026, 11, 4, 4, 30).toLocal();
@@ -132,6 +149,7 @@ void main() {
         );
 
         await syncEngine.pushQueue(companyId: companyId);
+        await syncEngine.pushQueue(companyId: expenseId);
 
         await db.close();
         final freshDb = AppDatabase(NativeDatabase.memory());
@@ -142,28 +160,89 @@ void main() {
         );
 
         await freshSyncEngine.pullChanges(companyId: companyId);
+        await freshSyncEngine.pullChanges(companyId: expenseId);
 
-        final pulledEntries = await (freshDb.select(freshDb.ledgerEntries)
-          ..where((t) => t.id.equals('entry_time_1'))).get();
-        expect(pulledEntries.isNotEmpty, isTrue, reason: 'Ledger entry 1 should be pulled');
+        final pulledEntries = await (freshDb.select(
+          freshDb.ledgerEntries,
+        )..where((t) => t.id.equals('entry_time_1'))).get();
+        expect(
+          pulledEntries.isNotEmpty,
+          isTrue,
+          reason: 'Ledger entry 1 should be pulled',
+        );
         final pulledEntry = pulledEntries.first;
         expect(
           pulledEntry.date.millisecondsSinceEpoch ~/ 1000,
           equals(intended1.millisecondsSinceEpoch ~/ 1000),
-          reason: 'Ledger entry instant 1 (10:00 IST) should match original epoch seconds',
+          reason:
+              'Ledger entry instant 1 (10:00 IST) should match original epoch seconds',
         );
 
-        final pulledVouchers = await (freshDb.select(freshDb.expenseTransactions)
-          ..where((t) => t.id.equals(voucher.id))).get();
-        final pulledLegacyVouchers = await (freshDb.select(freshDb.vouchers)
-          ..where((t) => t.id.equals(voucher.id))).get();
-        expect(pulledVouchers.isNotEmpty || pulledLegacyVouchers.isNotEmpty, isTrue, reason: 'Expense transaction 1 should be pulled');
-        final txnDate1 = pulledVouchers.isNotEmpty ? pulledVouchers.first.transactionDate : pulledLegacyVouchers.first.date;
+        final pulledVouchers = await (freshDb.select(
+          freshDb.expenseTransactions,
+        )..where((t) => t.id.equals(voucher.id))).get();
+        final pulledLegacyVouchers = await (freshDb.select(
+          freshDb.vouchers,
+        )..where((t) => t.id.equals(voucher.id))).get();
+        expect(
+          pulledVouchers.isNotEmpty || pulledLegacyVouchers.isNotEmpty,
+          isTrue,
+          reason: 'Expense transaction 1 should be pulled',
+        );
+        final txnDate1 = pulledVouchers.isNotEmpty
+            ? pulledVouchers.first.transactionDate
+            : pulledLegacyVouchers.first.date;
         expect(
           txnDate1.millisecondsSinceEpoch ~/ 1000,
           equals(intended1.millisecondsSinceEpoch ~/ 1000),
-          reason: 'Expense voucher instant 1 (10:00 IST) should match original epoch seconds',
+          reason:
+              'Expense voucher instant 1 (10:00 IST) should match original epoch seconds',
         );
+
+        final secondDevice = DriftLedgerRepository(
+          db: freshDb,
+          syncEngine: freshSyncEngine,
+          currentCompanyId: companyId,
+          autoSync: false,
+        );
+        final oldRemote = Map<String, dynamic>.from(
+          fakeRemote
+              .getTableRows('ledger_entries', companyId: companyId)
+              .single,
+        );
+        expect(
+          pulledEntry.createdAt.millisecondsSinceEpoch ~/ 1000,
+          DateTime.parse(
+                oldRemote['created_at'] as String,
+              ).millisecondsSinceEpoch ~/
+              1000,
+        );
+        await secondDevice.deleteEntry(entry.id);
+        expect(
+          (await freshSyncEngine.pushQueue(companyId: companyId)).success,
+          isTrue,
+        );
+        final voidedRemote = fakeRemote
+            .getTableRows('ledger_entries', companyId: companyId)
+            .single;
+        expect(voidedRemote['is_voided'], isTrue);
+        expect(voidedRemote['date'], oldRemote['date']);
+        expect(voidedRemote['created_at'], oldRemote['created_at']);
+
+        fakeRemote.upsert('ledger_entries', entry.id, {
+          ...oldRemote,
+          'updated_at': DateTime.now()
+              .toUtc()
+              .add(const Duration(minutes: 1))
+              .toIso8601String(),
+        });
+        await freshSyncEngine.pullChanges(companyId: companyId);
+        expect(
+          (await secondDevice.getEntriesForParty(partyId)).single.isVoided,
+          isTrue,
+        );
+        expect((await secondDevice.getPartyById(partyId)).netBalanceInCents, 0);
+        secondDevice.dispose();
 
         await freshDb.close();
       },
@@ -190,7 +269,7 @@ void main() {
           id: companyId,
           name: 'Time Test Co 2',
           legalName: 'Time Test Co 2',
-          mode: CompanyMode.expenseTracker,
+          mode: CompanyMode.ledger,
           enabledModules: {AppModule.vouchers},
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
@@ -204,9 +283,22 @@ void main() {
           currentUserId: userId,
         );
         await ledgerRepo.createCompany(company);
+        final expenseId = 'expense_$companyId';
+        await ledgerRepo.createCompany(
+          Company(
+            id: expenseId,
+            name: company.name,
+            legalName: company.legalName,
+            mode: CompanyMode.expenseTracker,
+            createdAt: company.createdAt,
+            updatedAt: company.updatedAt,
+          ),
+        );
         await postingEngine.ensureCompanyAccounts(companyId);
 
-        await db.into(db.accounts).insertOnConflictUpdate(
+        await db
+            .into(db.accounts)
+            .insertOnConflictUpdate(
               AccountsCompanion.insert(
                 id: '${companyId}_acc_ar',
                 companyId: const Value(companyId),
@@ -220,7 +312,9 @@ void main() {
                 updatedAt: Value(DateTime.now()),
               ),
             );
-        await db.into(db.accounts).insertOnConflictUpdate(
+        await db
+            .into(db.accounts)
+            .insertOnConflictUpdate(
               AccountsCompanion.insert(
                 id: '${companyId}_acc_sales',
                 companyId: const Value(companyId),
@@ -236,26 +330,28 @@ void main() {
             );
 
         final partyId = 'party_time_2';
-        await ledgerRepo.addParty(Party(
-          id: partyId,
-          name: 'Time Test Party 2',
-          phoneNumber: '+91 90000 00001',
-          type: PartyType.customer,
-          netBalanceInCents: 0,
-          lastUpdated: DateTime.now(),
-        ));
+        await ledgerRepo.addParty(
+          Party(
+            id: partyId,
+            name: 'Time Test Party 2',
+            phoneNumber: '+91 90000 00001',
+            type: PartyType.customer,
+            netBalanceInCents: 0,
+            lastUpdated: DateTime.now(),
+          ),
+        );
 
         final expenseRepo = DriftExpenseRepository(
           db: db,
           auditService: auditService,
           postingEngine: postingEngine,
           syncEngine: syncEngine,
-          currentCompanyId: companyId,
+          currentCompanyId: expenseId,
           currentUserId: userId,
         );
 
-        final walletId = '${companyId}_${ExpenseTrackerDefaults.walletCashId}';
-        final categoryId = '${companyId}_${ExpenseTrackerDefaults.groceriesId}';
+        final walletId = '${expenseId}_${ExpenseTrackerDefaults.walletCashId}';
+        final categoryId = '${expenseId}_${ExpenseTrackerDefaults.groceriesId}';
 
         // Instant 2: 23:30 IST (18:00 UTC)
         final intended2 = DateTime.utc(2026, 11, 4, 18, 0).toLocal();
@@ -279,6 +375,7 @@ void main() {
         );
 
         await syncEngine.pushQueue(companyId: companyId);
+        await syncEngine.pushQueue(companyId: expenseId);
 
         await db.close();
         final freshDb = AppDatabase(NativeDatabase.memory());
@@ -289,27 +386,43 @@ void main() {
         );
 
         await freshSyncEngine.pullChanges(companyId: companyId);
+        await freshSyncEngine.pullChanges(companyId: expenseId);
 
-        final pulledEntries = await (freshDb.select(freshDb.ledgerEntries)
-          ..where((t) => t.id.equals('entry_time_2'))).get();
-        expect(pulledEntries.isNotEmpty, isTrue, reason: 'Ledger entry 2 should be pulled');
+        final pulledEntries = await (freshDb.select(
+          freshDb.ledgerEntries,
+        )..where((t) => t.id.equals('entry_time_2'))).get();
+        expect(
+          pulledEntries.isNotEmpty,
+          isTrue,
+          reason: 'Ledger entry 2 should be pulled',
+        );
         final pulledEntry = pulledEntries.first;
         expect(
           pulledEntry.date.millisecondsSinceEpoch ~/ 1000,
           equals(intended2.millisecondsSinceEpoch ~/ 1000),
-          reason: 'Ledger entry instant 2 (23:30 IST) should match original epoch seconds',
+          reason:
+              'Ledger entry instant 2 (23:30 IST) should match original epoch seconds',
         );
 
-        final pulledVouchers = await (freshDb.select(freshDb.expenseTransactions)
-          ..where((t) => t.id.equals(voucher.id))).get();
-        final pulledLegacyVouchers = await (freshDb.select(freshDb.vouchers)
-          ..where((t) => t.id.equals(voucher.id))).get();
-        expect(pulledVouchers.isNotEmpty || pulledLegacyVouchers.isNotEmpty, isTrue, reason: 'Expense transaction 2 should be pulled');
-        final txnDate2 = pulledVouchers.isNotEmpty ? pulledVouchers.first.transactionDate : pulledLegacyVouchers.first.date;
+        final pulledVouchers = await (freshDb.select(
+          freshDb.expenseTransactions,
+        )..where((t) => t.id.equals(voucher.id))).get();
+        final pulledLegacyVouchers = await (freshDb.select(
+          freshDb.vouchers,
+        )..where((t) => t.id.equals(voucher.id))).get();
+        expect(
+          pulledVouchers.isNotEmpty || pulledLegacyVouchers.isNotEmpty,
+          isTrue,
+          reason: 'Expense transaction 2 should be pulled',
+        );
+        final txnDate2 = pulledVouchers.isNotEmpty
+            ? pulledVouchers.first.transactionDate
+            : pulledLegacyVouchers.first.date;
         expect(
           txnDate2.millisecondsSinceEpoch ~/ 1000,
           equals(intended2.millisecondsSinceEpoch ~/ 1000),
-          reason: 'Expense voucher instant 2 (23:30 IST) should match original epoch seconds',
+          reason:
+              'Expense voucher instant 2 (23:30 IST) should match original epoch seconds',
         );
 
         await freshDb.close();

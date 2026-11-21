@@ -228,7 +228,7 @@ void main() {
           );
           expect(
             find.byKey(const Key('profile_gstin_field')),
-            mode == CompanyMode.ledger ? findsOneWidget : findsNothing,
+            findsNothing,
           );
           expect(
             find.byKey(const Key('profile_legal_name_field')),

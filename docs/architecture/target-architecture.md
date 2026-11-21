@@ -1,12 +1,22 @@
 # LedgerPulse Target Architecture Specification
 
 **Contract Version:** `v1.0.0-PROD-CONTRACT-20261106`  
-**Status:** Approved Architectural Target (Read-Only Specification)  
+**Status:** Architectural target with current release scope
 **Author:** Principal Architect, LedgerPulse  
 **Target Environments:** Android (Material 3 Expressive), iOS (iOS 27 Cupertino), Desktop (Windows), Web (LPWeb)  
 **Storage Backends:** SQLite / Drift (Local Offline-First) & Supabase / PostgreSQL (Remote Cloud)
 
 ---
+
+## Current release scope
+
+Business Ledger exposes Home, Parties, Transactions, and Reports. It supports customer and supplier credit, payment movements, opening balances, statements, and CSV import/export. Expense Tracker owns its wallet, category, recurring rule, budget, and transaction workflows. Profiles retain their existing immutable type and membership hierarchy.
+
+Local standalone ledger posting writes the entry, balanced journal, audit record, and outbox in one Drift transaction. Financial corrections void the prior posting and create one replacement. Ledger totals and running balances share the same treatment of voids and verified legacy offsets. Hosted sync still sends individual mutations, so local transaction atomicity does not imply remote atomicity.
+
+ERP presentation routes are removed or disabled. Legacy account, voucher, journal, inventory, GST, and related storage structures remain for historical records and migration compatibility. Legacy module flags cannot enable removed features.
+
+The hosted release gate requires approved historical reconciliation, profile-mode and same-profile foreign-reference enforcement, stale-write protection, and staging tests that use authenticated membership roles. The storage section below describes a target. The current receipt picker stores device file references and does not upload receipt images.
 
 ## 1. Domain Definitions & Terminology Disambiguation
 
@@ -63,7 +73,7 @@ To eliminate historical confusion between "user", "profile", "account", and "com
 - **Physical Table Naming Policy:** In the remote database and local Drift schema, to guarantee zero data loss and eliminate migration risk, the existing physical table `companies` is retained and aliased conceptually as `shared_profiles`. A database view `shared_profiles` maps `companies` directly.
 - **Profile Type:** **Strictly and permanently immutable upon creation.**
   - `expense`: Single-entry personal or freelance cash-flow tracker. Never touches double-entry ledgers, vouchers, or journals.
-  - `ledger`: Full statutory double-entry accounting engine with GST, inventory, journals, audit trail, and financial statements.
+  - `ledger`: Business ledger for parties, credit, payments, statements, and balances with internal double-entry journals and audit history.
 
 ### 1.4 Membership (`shared_memberships`)
 - **Definition:** The relational binding between an Account and a Workspace Profile.
@@ -72,7 +82,7 @@ To eliminate historical confusion between "user", "profile", "account", and "com
   - `owner`: Full administrative control, billing ownership, member management, profile deletion.
   - `admin`: Operational management, module configuration, user management (cannot delete profile or transfer ownership).
   - `accountant` (Ledger only): Full voucher and reporting access, audit trail viewing.
-  - `manager` (Ledger only): Sales/purchase entry, inventory adjustments, party management.
+  - `manager` (Ledger only): Ledger transactions and party management.
   - `data_entry` (Ledger only): Voucher creation only, restricted reporting.
   - `viewer`: Read-only access to transactions and reports.
 
@@ -136,18 +146,14 @@ graph TD
     end
 
     subgraph Domain_Ledger ["Domain: Business Ledger (Double-Entry)"]
-        LedShell["Ledger UI (Vouchers, Invoicing, Parties, Reports)"]
+        LedShell["Ledger UI (Home, Parties, Transactions, Reports)"]
         LedRepo["ILedgerRepository / DriftLedgerRepository"]
         VPE["VoucherPostingEngine (Strict Zero-Sum Debit/Credit)"]
-        GST["GSTTaxEngine (CGST, SGST, IGST Rules)"]
-        BOM["ManufacturingJournalEngine"]
         Audit["AuditService (SHA-256 Tamper-Evident Hash Chain)"]
         LedDrift["led_tables (Vouchers, Journals, Lines, Accounts, Inventory)"]
         
         LedShell --> LedRepo
         LedRepo --> VPE
-        LedRepo --> GST
-        LedRepo --> BOM
         LedRepo --> Audit
         VPE --> LedDrift
     end
@@ -223,7 +229,7 @@ To preserve clean architecture and ensure that Expense never depends on Ledger o
 
 ## 5. Storage Bucket & Path Authorization Contract
 
-All file attachments (receipt images, company logos, digital signatures, exported PDF statements) are organized in Supabase Storage with strict tenant isolation matching database RLS:
+The proposed private object layout for attachments and exports is shown below. It requires a client upload and download implementation, authenticated policy verification, and a migration from device-only references.
 
 ### 5.1 Bucket Definition
 - **Bucket ID:** `ledgerpulse_storage` (Private, public access disabled).

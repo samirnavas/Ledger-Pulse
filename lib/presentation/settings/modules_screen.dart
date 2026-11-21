@@ -145,6 +145,10 @@ class ModulesScreen extends ConsumerWidget {
 
     final activeCompany = ref.watch(activeCompanyProvider);
 
+    if (activeCompany.isLedger) {
+      return const AdaptiveScaffold(title: 'Company modules', body: SizedBox.shrink());
+    }
+
     // Filter to only modules allowed by the company's mode
     final allowedModules = AppModule.values
         .where((m) => ModuleCatalog.isModeAllowed(activeCompany.mode, m))
@@ -294,19 +298,10 @@ class ModulesScreen extends ConsumerWidget {
     bool isIos,
     bool isDark,
   ) {
-    final isExpense = company.mode == CompanyMode.expenseTracker;
-    final presets = isExpense
-        ? [ModulePresets.expenseTrackerDefaults]
-        : [
-            ModulePresets.simpleKhata,
-            ModulePresets.billingAndGst,
-            ModulePresets.fullErp,
-          ];
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: presets.map((preset) {
+        children: [ModulePresets.expenseTrackerDefaults].map((preset) {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ActionChip(

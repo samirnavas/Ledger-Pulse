@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/colors.dart';
@@ -15,7 +16,11 @@ import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
+import '../../data/reporting/report_export_service.dart';
+import '../../data/reporting/report_models.dart';
+import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
+import '../ledger/widgets/ledger_date_filter.dart';
 import 'pdf_export_modal.dart';
 import 'widgets/dynamic_report_view.dart';
 import 'widgets/statement_action_bar.dart';
@@ -39,11 +44,13 @@ enum StatementPeriod {
 class StatementPreviewScreen extends ConsumerStatefulWidget {
   final String partyId;
   final String? reportId;
+  final DateTimeRange? initialRange;
 
   const StatementPreviewScreen({
     super.key,
     this.partyId = '',
     this.reportId,
+    this.initialRange,
   });
 
   @override
@@ -53,8 +60,83 @@ class StatementPreviewScreen extends ConsumerStatefulWidget {
 
 class _StatementPreviewScreenState
     extends ConsumerState<StatementPreviewScreen> {
+  Future<void> _exportCsv(Party party, List<LedgerEntry> entries) async {
+    if (_isExporting) return;
+    final company = ref.read(activeCompanyProvider);
+    setState(() => _isExporting = true);
+    try {
+      String amount(int cents) => CurrencyFormatter.format(
+        cents,
+        currencyCode: company.currencyCode,
+        includeSymbol: false,
+      );
+      final file = await ReportExportService.exportToExcelCsv(
+        company: company,
+        report: ReportData(
+          metadata: ReportMetadata(
+            id: 'party_statement',
+            title: '${party.name} statement',
+            category: ReportCategory.financial,
+            description: 'Party transaction statement',
+          ),
+          columns: const [
+            ReportColumn(key: 'date', label: 'Date'),
+            ReportColumn(key: 'type', label: 'Direction'),
+            ReportColumn(key: 'amount', label: 'Amount'),
+            ReportColumn(key: 'balance', label: 'Running balance'),
+            ReportColumn(key: 'note', label: 'Note'),
+          ],
+          rows: [
+            for (final entry in entries.reversed)
+              ReportRow({
+                'date': entry.date.toLocal().toIso8601String().split('T').first,
+                'type': entry.type.displayName,
+                'amount': amount(entry.amountInCents),
+                'balance': entry.runningBalanceInCents == null
+                    ? ''
+                    : amount(entry.runningBalanceInCents!),
+                'note': entry.note ?? '',
+              }),
+          ],
+          generatedAt: DateTime.now(),
+          dateRangeLabel: _periodLabel,
+        ),
+      );
+      if (mounted) {
+        final render = context.findRenderObject();
+        final origin = render is RenderBox
+            ? render.localToGlobal(Offset.zero) & render.size
+            : null;
+        await SharePlus.instance.share(
+          ShareParams(files: [XFile(file.path)], sharePositionOrigin: origin),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not export the statement')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
   StatementPeriod _selectedPeriod = StatementPeriod.allTime;
+  late DateTimeRange? _statementDates = widget.initialRange;
   bool _isExporting = false;
+
+  String get _periodLabel {
+    final dates = _statementDates;
+    return dates == null
+        ? _selectedPeriod.label
+        : '${DateFormatter.formatShortDate(dates.start)} – ${DateFormatter.formatShortDate(dates.end)}';
+  }
+
+  Future<void> _selectDates() async {
+    final dates = await pickLedgerDates(context, initial: _statementDates);
+    if (mounted && dates != null) setState(() => _statementDates = dates);
+  }
 
   Future<void> _exportPdf({
     required Party party,
@@ -71,7 +153,7 @@ class _StatementPreviewScreenState
         entries: entries,
         totalGave: totalGave,
         totalGot: totalGot,
-        periodLabel: _selectedPeriod.label,
+        periodLabel: _periodLabel,
       );
 
       final safeName = party.name.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
@@ -87,7 +169,7 @@ class _StatementPreviewScreenState
           file: file,
           fileName: fileName,
           partyName: party.name,
-          periodLabel: _selectedPeriod.label,
+          periodLabel: _periodLabel,
         );
       }
     } catch (e) {
@@ -117,16 +199,20 @@ class _StatementPreviewScreenState
     final cleanPhone = party.phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
     final buffer = StringBuffer();
     buffer.writeln('📋 *Ledger Statement for ${party.name}*');
-    buffer.writeln('Period: ${_selectedPeriod.label}');
+    buffer.writeln('Period: $_periodLabel');
     buffer.writeln('---------------------------');
     buffer.writeln('• Total Gave: ₹${(totalGave / 100).toStringAsFixed(2)}');
     buffer.writeln('• Total Got: ₹${(totalGot / 100).toStringAsFixed(2)}');
 
     final net = party.netBalanceInCents;
     if (net > 0) {
-      buffer.writeln('*Net Receivable:* ₹${(net / 100).toStringAsFixed(2)} (You will get)');
+      buffer.writeln(
+        '*Net Receivable:* ₹${(net / 100).toStringAsFixed(2)} (You will get)',
+      );
     } else if (net < 0) {
-      buffer.writeln('*Net Payable:* ₹${(-net / 100).toStringAsFixed(2)} (You will give)');
+      buffer.writeln(
+        '*Net Payable:* ₹${(-net / 100).toStringAsFixed(2)} (You will give)',
+      );
     } else {
       buffer.writeln('*Net Balance:* ₹0.00 (Settled)');
     }
@@ -136,7 +222,9 @@ class _StatementPreviewScreenState
       final date = DateFormatter.formatShortDate(e.date);
       final type = e.type == EntryType.gave ? 'Gave (-)' : 'Got (+)';
       final note = (e.note != null && e.note!.isNotEmpty) ? ' [${e.note}]' : '';
-      buffer.writeln('• $date: $type ₹${(e.amountInCents / 100).toStringAsFixed(2)}$note');
+      buffer.writeln(
+        '• $date: $type ₹${(e.amountInCents / 100).toStringAsFixed(2)}$note',
+      );
     }
     if (entries.length > 8) {
       buffer.writeln('... and ${entries.length - 8} more transactions.');
@@ -145,7 +233,9 @@ class _StatementPreviewScreenState
 
     final prefilledText = buffer.toString();
     final encodedText = Uri.encodeComponent(prefilledText);
-    final uri = Uri.parse('whatsapp://send?phone=$cleanPhone&text=$encodedText');
+    final uri = Uri.parse(
+      'whatsapp://send?phone=$cleanPhone&text=$encodedText',
+    );
     final webUri = Uri.parse('https://wa.me/$cleanPhone?text=$encodedText');
 
     try {
@@ -207,11 +297,16 @@ class _StatementPreviewScreenState
                 final now = DateTime.now();
                 final thirtyDaysAgo = now.subtract(const Duration(days: 30));
 
-                final filteredEntries = _selectedPeriod == StatementPeriod.thirtyDays
-                    ? allEntries
-                        .where((e) => e.date.isAfter(thirtyDaysAgo))
-                        .toList()
-                    : allEntries;
+                final dates = _statementDates;
+                final filteredEntries = allEntries.where((entry) {
+                  if (entry.isVoided) return false;
+                  if (dates == null) {
+                    return _selectedPeriod != StatementPeriod.thirtyDays ||
+                        entry.date.isAfter(thirtyDaysAgo);
+                  }
+                  final day = DateUtils.dateOnly(entry.date.toLocal());
+                  return !day.isBefore(dates.start) && !day.isAfter(dates.end);
+                }).toList();
 
                 int totalGave = 0;
                 int totalGot = 0;
@@ -231,22 +326,42 @@ class _StatementPreviewScreenState
                       child: Column(
                         children: [
                           // Filter Segmented Toggle
-                          AdaptiveSegmentedControl<StatementPeriod>(
-                            groupValue: _selectedPeriod,
-                            children: const {
-                              StatementPeriod.allTime: Text(
-                                AppStrings.allTime,
-                                style: TextStyle(fontWeight: FontWeight.w600),
+                          Row(
+                            children: [
+                              Expanded(
+                                child:
+                                    AdaptiveSegmentedControl<StatementPeriod>(
+                                      groupValue: _selectedPeriod,
+                                      children: const {
+                                        StatementPeriod.allTime: Text(
+                                          AppStrings.allTime,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        StatementPeriod.thirtyDays: Text(
+                                          AppStrings.last30Days,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      },
+                                      onValueChanged: (val) {
+                                        setState(() {
+                                          _selectedPeriod = val;
+                                          _statementDates = null;
+                                        });
+                                      },
+                                    ),
                               ),
-                              StatementPeriod.thirtyDays: Text(
-                                AppStrings.last30Days,
-                                style: TextStyle(fontWeight: FontWeight.w600),
+                              IconButton(
+                                tooltip: 'Statement dates',
+                                onPressed: _selectDates,
+                                icon: const Icon(Icons.date_range_outlined),
                               ),
-                            },
-                            onValueChanged: (val) {
-                              setState(() => _selectedPeriod = val);
-                            },
+                            ],
                           ),
+                          if (dates != null) Text(_periodLabel),
                           const SizedBox(height: 12),
 
                           // Statement Header Card
@@ -262,9 +377,13 @@ class _StatementPreviewScreenState
                     // 2. Summary Table of Entries
                     Expanded(
                       child: filteredEntries.isEmpty
-                          ? const Center(child: Text('No entries in this period'))
+                          ? const Center(
+                              child: Text('No entries in this period'),
+                            )
                           : ListView.separated(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                              ),
                               itemCount: filteredEntries.length,
                               separatorBuilder: (_, _) =>
                                   const Divider(height: 1),
@@ -273,8 +392,9 @@ class _StatementPreviewScreenState
                                 final isGave = entry.type == EntryType.gave;
 
                                 return Container(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   child: Row(
                                     children: [
                                       // Date
@@ -286,14 +406,17 @@ class _StatementPreviewScreenState
                                           children: [
                                             Text(
                                               DateFormatter.formatShortDate(
-                                                  entry.date),
+                                                entry.date,
+                                              ),
                                               style: const TextStyle(
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                             Text(
-                                              DateFormatter.formatTime(entry.date),
+                                              DateFormatter.formatTime(
+                                                entry.date,
+                                              ),
                                               style: AppTypography.labelSmall,
                                             ),
                                           ],
@@ -303,7 +426,8 @@ class _StatementPreviewScreenState
                                       // Note / Description
                                       Expanded(
                                         child: Text(
-                                          entry.note ?? (isGave ? 'You Gave' : 'You Got'),
+                                          entry.note ??
+                                              (isGave ? 'You Gave' : 'You Got'),
                                           style: const TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w500,
@@ -319,7 +443,8 @@ class _StatementPreviewScreenState
                                         child: Text(
                                           isGave
                                               ? CurrencyFormatter.format(
-                                                  entry.amountInCents)
+                                                  entry.amountInCents,
+                                                )
                                               : '-',
                                           textAlign: TextAlign.right,
                                           style: TextStyle(
@@ -338,7 +463,8 @@ class _StatementPreviewScreenState
                                         child: Text(
                                           !isGave
                                               ? CurrencyFormatter.format(
-                                                  entry.amountInCents)
+                                                  entry.amountInCents,
+                                                )
                                               : '-',
                                           textAlign: TextAlign.right,
                                           style: TextStyle(
@@ -360,6 +486,7 @@ class _StatementPreviewScreenState
                     // 3. Persistent Action Bar: Share on WhatsApp & Export PDF
                     StatementActionBar(
                       isExporting: _isExporting,
+                      onExportCsv: () => _exportCsv(party, filteredEntries),
                       onShareWhatsApp: () => _shareOnWhatsApp(
                         party: party,
                         entries: filteredEntries,

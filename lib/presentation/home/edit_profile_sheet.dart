@@ -102,7 +102,6 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
   late final TextEditingController _legal;
-  late final TextEditingController _gstin;
   late final TextEditingController _address;
   late final TextEditingController _phone;
   late final TextEditingController _email;
@@ -116,7 +115,6 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
     final p = widget.profile;
     _name = TextEditingController(text: p.name);
     _legal = TextEditingController(text: p.legalName);
-    _gstin = TextEditingController(text: p.gstin);
     _address = TextEditingController(text: p.address);
     _phone = TextEditingController(text: p.phoneNumber);
     _email = TextEditingController(text: p.email);
@@ -128,7 +126,6 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
     for (final controller in [
       _name,
       _legal,
-      _gstin,
       _address,
       _phone,
       _email,
@@ -151,7 +148,6 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
           ? _name.text.trim()
           : _legal.text.trim(),
       currencyCode: _currency,
-      gstin: p.isExpense ? p.gstin : _gstin.text.trim().toUpperCase(),
       address: p.isExpense ? p.address : _address.text.trim(),
       phoneNumber: p.isExpense ? p.phoneNumber : _phone.text.trim(),
       email: p.isExpense ? p.email : _email.text.trim(),
@@ -251,7 +247,6 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
                       'Legal / trade name',
                       _legal,
                     ),
-                    _field('profile_gstin_field', 'GSTIN (optional)', _gstin),
                     _field(
                       'profile_address_field',
                       'Business address (optional)',

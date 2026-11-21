@@ -94,9 +94,7 @@ mixin DriftAccountsJournalsMixin on DriftLedgerRepositoryBase {
       final entries = await (db.select(db.ledgerEntries)
             ..where((t) =>
                 t.partyId.equals(p.id) &
-                t.companyId.equals(companyId) &
-                t.isDeleted.equals(false) &
-                t.isVoided.equals(false)))
+                t.companyId.equals(companyId)))
           .get();
 
       int netParty = calculatePartyBalanceFromRows(entries);

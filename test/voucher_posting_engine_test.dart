@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
@@ -21,6 +22,24 @@ void main() {
   late VoucherPostingEngine postingEngine;
 
   const testCompanyId = 'cmp_post_1';
+
+  // Simulate stock already stored by an older release.
+  Future<void> seedLegacyStock(InventoryItem item) async {
+    await db.into(db.inventoryItems).insert(
+      InventoryItemsCompanion.insert(
+        id: item.id,
+        companyId: Value(item.companyId),
+        sku: item.sku,
+        name: item.name,
+        unit: Value(item.unit),
+        purchasePriceInCents: Value(item.purchasePriceInCents),
+        sellingPriceInCents: Value(item.sellingPriceInCents),
+        currentStockQuantity: Value(item.currentStockQuantity),
+        createdAt: Value(item.createdAt),
+        updatedAt: Value(item.updatedAt),
+      ),
+    );
+  }
 
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
@@ -77,7 +96,7 @@ void main() {
         createdAt: now,
         updatedAt: now,
       );
-      await inventoryRepo.addItem(item);
+      await seedLegacyStock(item);
 
       // 2. Create Sales Voucher for 10 units @ 100.00 = 1000.00 (100000 cents)
       final voucher = VoucherModel(
@@ -110,6 +129,7 @@ void main() {
       );
 
       // 3. Post Voucher
+      await voucherRepo.createVoucher(voucher);
       await voucherRepo.createVoucher(voucher);
 
       // Verify Voucher Status
@@ -144,7 +164,7 @@ void main() {
         createdAt: now,
         updatedAt: now,
       );
-      await inventoryRepo.addItem(item);
+      await seedLegacyStock(item);
 
       final purchaseVoucher = VoucherModel(
         id: 'vch_pur_201',

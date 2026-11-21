@@ -1,9 +1,11 @@
 import 'package:drift/native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/core/constants/mode_strings.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
+import 'package:ledger_pulse/core/widgets/adaptive_bottom_nav.dart';
 import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/party_model.dart';
@@ -106,6 +108,81 @@ void main() {
   });
 
   group('HomeShell Routing & Company Switch Widget Tests', () {
+    for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+      testWidgets('ledger tabs and report links work on ${platform.name}', (tester) async {
+        final profile = UserProfile(
+          id: 'usr_test',
+          name: 'Business user',
+          phoneNumber: '',
+          email: '',
+          companies: [ledgerCompany],
+          activeCompanyId: ledgerCompany.id,
+        );
+        final container = ProviderContainer(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            syncEngineProvider.overrideWithValue(_FakeSyncEngine(db: db)),
+            userProfileProvider.overrideWith(() => _TestUserProfileNotifier(profile)),
+          ],
+        );
+        addTearDown(container.dispose);
+        await tester.pumpWidget(UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData(platform: platform,
+              brightness: platform == TargetPlatform.iOS ? Brightness.dark : Brightness.light),
+            home: const HomeShell(),
+          ),
+        ));
+        await tester.pumpAndSettle();
+        Finder tab(String label) => find.descendant(
+          of: find.byType(AdaptiveBottomNav), matching: find.text(label),
+        );
+        expect(find.text('Recent transactions'), findsOneWidget);
+        for (final label in ['Home', 'Parties', 'Transactions', 'Reports']) {
+          expect(tab(label), findsOneWidget);
+        }
+        await tester.tap(tab('Parties'));
+        await tester.pumpAndSettle();
+        expect(find.text('All'), findsOneWidget);
+        await tester.tap(find.text('Suppliers'));
+        await tester.pumpAndSettle();
+        expect(container.read(selectedPartyTypeFilterProvider), PartyType.supplier);
+        await tester.tap(tab('Transactions'));
+        await tester.pumpAndSettle();
+        expect(find.text('No transactions yet'), findsOneWidget);
+        await tester.tap(find.text('Dates'));
+        await tester.pumpAndSettle();
+        if (platform == TargetPlatform.iOS) {
+          expect(find.byType(CupertinoDatePicker), findsOneWidget);
+          await tester.tap(find.text('Apply'));
+        } else {
+          expect(find.byType(DateRangePickerDialog), findsOneWidget);
+          Navigator.of(tester.element(find.byType(DateRangePickerDialog))).pop();
+        }
+        await tester.pumpAndSettle();
+        await tester.tap(tab('Reports'));
+        await tester.pumpAndSettle();
+        expect(find.text('Payment summary'), findsOneWidget);
+        expect(find.text('Party statements'), findsOneWidget);
+        expect(find.text('Import parties from CSV'), findsOneWidget);
+        await tester.ensureVisible(find.text('Import parties from CSV'));
+        await tester.tap(find.text('Import parties from CSV'));
+        await tester.pumpAndSettle();
+        final csvField = platform == TargetPlatform.iOS
+            ? find.byType(CupertinoTextField) : find.byType(TextField);
+        await tester.enterText(csvField, 'bad header');
+        await tester.pumpAndSettle();
+        expect(find.text('Use the header Name,Type,Phone,Opening Balance'), findsOneWidget);
+        await tester.enterText(
+          csvField,
+          'Name,Type,Phone,Opening Balance\nNorth,Customer,,25.25',
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('North (Customer)'), findsOneWidget);
+      }, variant: TargetPlatformVariant({platform}));
+    }
+
     testWidgets('HomeShell renders DashboardScreen in ledger mode', (tester) async {
       final profile = UserProfile(
         id: 'usr_test',
@@ -139,6 +216,21 @@ void main() {
       expect(find.byType(DashboardScreen), findsOneWidget);
       expect(find.byType(ExpenseHomeScreen), findsNothing);
       expect(find.text('Acme Traders'), findsOneWidget);
+
+      tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
+      await tester.pumpAndSettle();
+      expect(find.text('Switch Profile'), findsOneWidget);
+      expect(find.text('Settings & Preferences'), findsOneWidget);
+      expect(find.text('Cash Flow & Intelligence'), findsNothing);
+      expect(find.text('ERP Modules & Licensing'), findsNothing);
+
+      tester.state<ScaffoldState>(find.byType(Scaffold).first).closeDrawer();
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(of: find.byType(AdaptiveBottomNav), matching: find.text('Reports')));
+      await tester.pumpAndSettle();
+      expect(find.text('Outstanding balances'), findsOneWidget);
+      expect(find.text('Transaction register'), findsOneWidget);
+      expect(find.text('Custom SQL Studio'), findsNothing);
     });
 
     testWidgets('HomeShell renders ExpenseHomeScreen in expense mode', (tester) async {
@@ -232,7 +324,7 @@ void main() {
       // 4. Verify mode-specific state was reset
       expect(container.read(partySearchQueryProvider), isEmpty);
       expect(container.read(isPartySearchActiveProvider), isFalse);
-      expect(container.read(selectedPartyTypeFilterProvider), equals(PartyType.customer));
+      expect(container.read(selectedPartyTypeFilterProvider), isNull);
 
       // 5. Switch back to Ledger company
       container.read(companyControllerProvider.notifier).selectCompany(ledgerCompany.id);
@@ -269,10 +361,7 @@ void main() {
           container: container,
           child: MaterialApp(
             home: Scaffold(
-              drawer: DashboardSidebarDrawer(
-                onOpenBiHub: () {},
-                onOpenErpModules: () {},
-              ),
+              drawer: const DashboardSidebarDrawer(),
               body: const Text('Main Body'),
             ),
           ),

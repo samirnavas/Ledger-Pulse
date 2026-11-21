@@ -10,7 +10,6 @@ import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
-import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_list_row.dart';
 import '../../core/widgets/amount_text.dart';
@@ -234,9 +233,9 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
       );
       await showAdaptiveInfoDialog(
         context: context,
-        title: 'Cannot Delete Party',
+        title: 'Cannot Archive Party',
         message:
-            'Cannot delete a party with an outstanding balance of $formattedBalance. Settle the dues first.',
+            'Cannot archive a party with an outstanding balance of $formattedBalance. Settle the dues first.',
         buttonLabel: 'OK',
       );
       return false;
@@ -245,10 +244,10 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
     // 2. Open Adaptive Confirmation Dialog for 0-balance party
     final shouldDelete = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Delete Party?',
+      title: 'Archive Party?',
       message:
-          'Are you sure you want to delete ${party.name}? All transaction records for this party will be archived.',
-      confirmLabel: 'Delete',
+          'Archive ${party.name}? Their transaction history stays in your ledger.',
+      confirmLabel: 'Archive',
       cancelLabel: 'Cancel',
       isDestructive: true,
     );
@@ -259,7 +258,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${party.name} deleted and archived.'),
+              content: Text('${party.name} archived.'),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -273,7 +272,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to delete party: $e'),
+              content: Text('Could not archive party: $e'),
               backgroundColor: AppColors.payableRed,
             ),
           );
@@ -326,7 +325,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                 children: [
                   Icon(CupertinoIcons.trash, size: 20),
                   SizedBox(width: 8),
-                  Text('Delete Party'),
+                  Text('Archive Party'),
                 ],
               ),
             ),
@@ -416,7 +415,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                           color: colorScheme.error,
                         ),
                         title: Text(
-                          'Delete Party',
+                          'Archive Party',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: colorScheme.error,
@@ -681,7 +680,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                   data: (parties) {
                     if (parties.isEmpty) {
                       final filter = ref.watch(selectedPartyTypeFilterProvider);
-                      final tabName = filter == PartyType.supplier ? 'Suppliers' : 'Customers';
+                      final tabName = switch (filter) { PartyType.supplier => 'Suppliers', PartyType.customer => 'Customers', null => 'Parties' };
 
                       return ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
@@ -784,7 +783,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              'Updated ${DateFormatter.formatRelative(party.lastUpdated)}',
+                              party.type == PartyType.customer ? 'Customer' : 'Supplier',
                               style: AppTypography.labelSmall.copyWith(
                                 color: Theme.of(context)
                                     .colorScheme
@@ -795,11 +794,20 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
                         ),
                       ),
 
-                      // Net Balance
-                      AmountText(
-                        amountInCents: party.netBalanceInCents,
-                        variant: AmountVariant.medium,
-                        absolute: true,
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          AmountText(
+                            amountInCents: party.netBalanceInCents,
+                            variant: AmountVariant.medium,
+                            absolute: true,
+                          ),
+                          Text(
+                            party.netBalanceInCents == 0 ? 'Settled'
+                              : party.netBalanceInCents > 0 ? 'To receive' : 'To pay',
+                            style: Theme.of(context).textTheme.labelSmall,
+                          ),
+                        ],
                       ),
                       IconButton(
                         icon: const Icon(Icons.more_vert_rounded),

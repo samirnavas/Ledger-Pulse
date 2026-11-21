@@ -1,3 +1,4 @@
+import '../local/ledger_entry_balance.dart';
 import 'dart:convert';
 import 'package:drift/drift.dart';
 import '../../core/network/sync_codec.dart';
@@ -390,6 +391,45 @@ class VoucherPostingEngine {
   }) async {
     return await _db.transaction(() async {
       final now = DateTime.now();
+      final existing = await (_db.select(_db.vouchers)
+            ..where((row) => row.id.equals(voucher.id)))
+          .getSingleOrNull();
+      if (existing != null) {
+        if (existing.companyId != voucher.companyId ||
+            existing.isDeleted ||
+            existing.status == 'voided') {
+          throw const VoucherValidationException('Voucher ID is unavailable');
+        }
+        final company = await (_db.select(_db.companies)
+              ..where((row) => row.id.equals(voucher.companyId)))
+            .getSingleOrNull();
+        if (company?.mode == 'ledger' && existing.status == 'posted' &&
+            VoucherType.values.any((type) =>
+                type.name == existing.type && type.isFinancialPosting)) {
+          final previous = _voucherFromRow(existing).copyWith(
+            items: (jsonDecode(existing.itemsJson ?? '[]') as List)
+                .map((item) => VoucherItemModel.fromMap(item as Map<String, dynamic>))
+                .toList(),
+          );
+          Map<String, dynamic> comparable(VoucherModel model) => model.toMap()
+            ..removeWhere((key, _) => const {
+              'createdAt', 'updatedAt', 'cgstInCents', 'sgstInCents',
+              'igstInCents', 'placeOfSupplyStateCode', 'irn', 'signedQrCode',
+              'eWayBillNumber', 'shipToAddress', 'shipToGstin',
+              'isBillToShipToDifferent',
+            }.contains(key))
+            ..['date'] = model.date.millisecondsSinceEpoch ~/ 1000
+            ..['dueDate'] = model.dueDate == null
+                ? null
+                : model.dueDate!.millisecondsSinceEpoch ~/ 1000;
+          if (jsonEncode(comparable(previous)) != jsonEncode(comparable(voucher))) {
+            throw const VoucherValidationException(
+              'Void the posted voucher and create a replacement to correct it',
+            );
+          }
+          return previous;
+        }
+      }
 
       // Ensure accounts exist for this company
       await ensureCompanyAccounts(voucher.companyId);
@@ -1394,6 +1434,11 @@ class VoucherPostingEngine {
     required String userId,
   }) async {
     await _db.transaction(() async {
+      final existing = await (_db.select(_db.vouchers)
+            ..where((row) => row.id.equals(voucherId) &
+                row.companyId.equals(companyId)))
+          .getSingleOrNull();
+      if (existing == null || existing.isDeleted || existing.status == 'voided') return;
       final now = DateTime.now();
 
       // 1. Mark voucher voided, updated, and pending sync
@@ -1431,6 +1476,24 @@ class VoucherPostingEngine {
           updatedAt: Value(now),
         ),
       );
+
+      final voidedEntry = await (_db.select(_db.ledgerEntries)
+            ..where((t) => t.id.equals(entryId) & t.companyId.equals(companyId)))
+          .getSingleOrNull();
+      if (voidedEntry != null) {
+        await enqueueMutation(
+          db: _db,
+          table: 'ledger_entries',
+          recordId: entryId,
+          type: 'UPSERT',
+          fullRowMap: {
+            ...voidedEntry.toJson(),
+            'date': encodeTime(voidedEntry.date),
+            'createdAt': encodeTime(voidedEntry.createdAt),
+            'updatedAt': encodeTime(voidedEntry.updatedAt),
+          },
+        );
+      }
 
       // 4. Void Stock Ledger Entry
       await (_db.update(_db.stockLedger)..where((t) => t.voucherId.equals(voucherId) & t.companyId.equals(companyId))).write(
@@ -1726,8 +1789,26 @@ class VoucherPostingEngine {
             receiptPhotoUrl: Value(voucher.receiptPhotoUrl),
             isVoided: const Value(false),
             createdAt: Value(voucher.createdAt),
+              updatedAt: Value(voucher.updatedAt),
           ),
         );
+
+    final row = await (_db.select(_db.ledgerEntries)
+          ..where((entry) => entry.id.equals(entryId) &
+              entry.companyId.equals(voucher.companyId)))
+        .getSingle();
+    await enqueueMutation(
+      db: _db,
+      table: 'ledger_entries',
+      recordId: entryId,
+      type: 'UPSERT',
+      fullRowMap: {
+        ...row.toJson(),
+        'date': encodeTime(row.date),
+        'createdAt': encodeTime(row.createdAt),
+        'updatedAt': encodeTime(row.updatedAt),
+      },
+    );
 
     // Recalculate party balance
     await _recalculatePartyBalance(voucher.partyId!, voucher.companyId);
@@ -1798,18 +1879,13 @@ class VoucherPostingEngine {
     if (party == null) return;
 
     final entriesQuery = _db.select(_db.ledgerEntries)
-      ..where((t) => t.partyId.equals(partyId) & t.companyId.equals(companyId) & t.isVoided.equals(false));
+      ..where((t) => t.partyId.equals(partyId) & t.companyId.equals(companyId));
     final entries = await entriesQuery.get();
 
-    int newBalance = 0;
+    final newBalance = calculatePartyBalanceFromRows(entries);
     DateTime latestDate = party.lastUpdated;
 
     for (final entry in entries) {
-      if (entry.type == EntryType.gave) {
-        newBalance += entry.amountInCents;
-      } else {
-        newBalance -= entry.amountInCents;
-      }
       if (entry.date.isAfter(latestDate)) {
         latestDate = entry.date;
       }

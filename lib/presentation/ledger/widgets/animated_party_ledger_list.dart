@@ -177,7 +177,7 @@ class _AnimatedPartyLedgerListState extends State<AnimatedPartyLedgerList> {
                 children: [
                   Flexible(
                     child: Text(
-                      entry.note ?? (isGave ? 'You Gave' : 'You Got'),
+                      LedgerPaymentMethod.strip(entry.note) ?? (isGave ? 'You Gave' : 'You Got'),
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,

@@ -1,3 +1,4 @@
+import '../../core/utils/currency_formatter.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,11 +12,11 @@ import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/party_model.dart';
 import '../../data/services/data_import_service.dart';
 import '../providers/company_providers.dart';
-import '../providers/inventory_providers.dart';
 import '../providers/ledger_providers.dart';
 
 class ThirdPartyImportScreen extends ConsumerStatefulWidget {
-  const ThirdPartyImportScreen({super.key});
+  const ThirdPartyImportScreen({super.key, this.csvOnly = false});
+  final bool csvOnly;
 
   @override
   ConsumerState<ThirdPartyImportScreen> createState() =>
@@ -27,12 +28,13 @@ class _ThirdPartyImportScreenState
   ImportSourceType _selectedSource = ImportSourceType.tallyXml;
   final TextEditingController _contentController = TextEditingController();
   ImportParseResult? _parsedResult;
+  String? _previewCompanyId;
   bool _isImporting = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSampleTemplate();
+    if (!widget.csvOnly) _loadSampleTemplate();
   }
 
   @override
@@ -72,7 +74,8 @@ class _ThirdPartyImportScreenState
 </ENVELOPE>''';
         break;
       case ImportSourceType.zohoCsv:
-        _contentController.text = '''Contact Name,Display Name,Contact Type,Phone,GST Identification Number (GSTIN)
+        _contentController.text =
+            '''Contact Name,Display Name,Contact Type,Phone,GST Identification Number (GSTIN)
 "BlueStar Logistics Pvt Ltd","BlueStar Logistics","Customer","9844011223","29AAACB1122D1Z5"
 "National Hardware Supplies","National Hardware","Vendor","9711099887","29BCCCD3344E1Z8"''';
         break;
@@ -128,23 +131,50 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
     }
 
     final company = ref.read(activeCompanyProvider);
+    if (widget.csvOnly) {
+      setState(() {
+        _previewCompanyId = company.id;
+        _parsedResult = DataImportService.parseLedgerPartyCsv(text);
+      });
+      return;
+    }
     ImportParseResult res;
 
     switch (_selectedSource) {
       case ImportSourceType.tallyXml:
-        res = DataImportService.parseTallyXml(xmlContent: text, companyId: company.id, company: company);
+        res = DataImportService.parseTallyXml(
+          xmlContent: text,
+          companyId: company.id,
+          company: company,
+        );
         break;
       case ImportSourceType.busyXml:
-        res = DataImportService.parseBusyXml(xmlContent: text, companyId: company.id, company: company);
+        res = DataImportService.parseBusyXml(
+          xmlContent: text,
+          companyId: company.id,
+          company: company,
+        );
         break;
       case ImportSourceType.zohoCsv:
-        res = DataImportService.parseZohoCsv(csvContent: text, companyId: company.id, company: company);
+        res = DataImportService.parseZohoCsv(
+          csvContent: text,
+          companyId: company.id,
+          company: company,
+        );
         break;
       case ImportSourceType.quickBooksIif:
-        res = DataImportService.parseQuickBooksIif(iifContent: text, companyId: company.id, company: company);
+        res = DataImportService.parseQuickBooksIif(
+          iifContent: text,
+          companyId: company.id,
+          company: company,
+        );
         break;
       case ImportSourceType.excelCsv:
-        res = DataImportService.parseExcelCsvAutoMapped(csvContent: text, companyId: company.id, company: company);
+        res = DataImportService.parseExcelCsvAutoMapped(
+          csvContent: text,
+          companyId: company.id,
+          company: company,
+        );
         break;
     }
 
@@ -153,11 +183,18 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
 
   Future<void> _commitImport() async {
     final result = _parsedResult;
-    if (result == null || (result.importedParties.isEmpty && result.importedItems.isEmpty)) {
+    if (_isImporting ||
+        result == null ||
+        result.importedParties.isEmpty ||
+        (widget.csvOnly && result.warnings.isNotEmpty)) {
       return;
     }
 
     final company = ref.read(activeCompanyProvider);
+    if (widget.csvOnly && company.id != _previewCompanyId) {
+      _runParse();
+      return;
+    }
     DataImportService.verifyModuleEnabled(company);
 
     HapticFeedback.mediumImpact();
@@ -165,26 +202,19 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
 
     try {
       final ledgerRepo = ref.read(ledgerRepositoryProvider);
-      final inventoryRepo = ref.read(inventoryRepositoryProvider);
 
       for (final party in result.importedParties) {
         await ledgerRepo.addParty(party);
       }
 
-      for (final item in result.importedItems) {
-        await inventoryRepo.addItem(item);
-      }
-
       ref.invalidate(partyListProvider);
-      ref.invalidate(inventoryItemsListProvider);
-      ref.invalidate(inventoryValuationProvider);
 
       if (mounted) {
         setState(() => _isImporting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Successfully imported ${result.importedParties.length} parties and ${result.importedItems.length} inventory items!',
+              'Successfully imported ${result.importedParties.length} parties!',
             ),
             backgroundColor: AppColors.receivableGreen,
           ),
@@ -211,73 +241,108 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
     final result = _parsedResult;
 
     return AdaptiveScaffold(
-      title: 'Third-Party ERP & Excel Import',
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Source Selector
-            DropdownButtonFormField<ImportSourceType>(
-              initialValue: _selectedSource,
-              decoration: InputDecoration(
-                labelText: 'Select Software or Format',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: Icon(
-                  isIos ? CupertinoIcons.arrow_2_circlepath : Icons.sync_alt_rounded,
+      title: 'Import parties',
+      body: Material(
+        type: MaterialType.transparency,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Source Selector
+              if (!widget.csvOnly)
+                DropdownButtonFormField<ImportSourceType>(
+                  initialValue: _selectedSource,
+                  decoration: InputDecoration(
+                    labelText: 'Select Software or Format',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: Icon(
+                      isIos
+                          ? CupertinoIcons.arrow_2_circlepath
+                          : Icons.sync_alt_rounded,
+                    ),
+                    isDense: true,
+                  ),
+                  items: ImportSourceType.values.map((src) {
+                    return DropdownMenuItem(
+                      value: src,
+                      child: Text(
+                        src.displayName,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) {
+                      setState(() => _selectedSource = val);
+                      _loadSampleTemplate();
+                    }
+                  },
                 ),
-                isDense: true,
-              ),
-              items: ImportSourceType.values.map((src) {
-                return DropdownMenuItem(
-                  value: src,
-                  child: Text(src.displayName, overflow: TextOverflow.ellipsis),
-                );
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() => _selectedSource = val);
-                  _loadSampleTemplate();
-                }
-              },
-            ),
-            const SizedBox(height: 14),
-
-            // Text Input / File Payload Area
-            TextField(
-              controller: _contentController,
-              maxLines: 8,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
-              decoration: InputDecoration(
-                labelText: 'Exported Payload (XML / CSV / IIF)',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                alignLabelWithHint: true,
-              ),
-              onChanged: (_) => _runParse(),
-            ),
-            const SizedBox(height: 14),
-
-            // Parse Summary Box
-            if (result != null) ...[
-              _buildParsePreview(isIos, isDark, result),
-              const SizedBox(height: 16),
-
-              SizedBox(
-                width: double.infinity,
-                child: AdaptiveButton(
-                  onPressed: _isImporting || (result.importedParties.isEmpty && result.importedItems.isEmpty)
-                      ? () {}
-                      : _commitImport,
-                  child: _isImporting
-                      ? const CupertinoActivityIndicator()
-                      : Text(
-                          'Import ${result.importedParties.length} Parties & ${result.importedItems.length} Items',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
+              if (widget.csvOnly)
+                const Text(
+                  'Paste CSV with the header Name,Type,Phone,Opening Balance. Phone and opening amount may be blank. A supplier opening amount is payable.',
                 ),
-              ),
+              const SizedBox(height: 14),
+
+              // Text Input / File Payload Area
+              if (isIos)
+                CupertinoTextField(
+                  controller: _contentController,
+                  readOnly: _isImporting,
+                  maxLines: 8,
+                  padding: const EdgeInsets.all(12),
+                  placeholder: widget.csvOnly
+                      ? 'Party CSV'
+                      : 'Paste import data',
+                  onChanged: (_) => _runParse(),
+                )
+              else
+                TextField(
+                  controller: _contentController,
+                  readOnly: _isImporting,
+                  maxLines: 8,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                  decoration: InputDecoration(
+                    labelText: widget.csvOnly
+                        ? 'Party CSV'
+                        : 'Exported Payload (XML / CSV / IIF)',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignLabelWithHint: true,
+                  ),
+                  onChanged: (_) => _runParse(),
+                ),
+              const SizedBox(height: 14),
+
+              // Parse Summary Box
+              if (result != null) ...[
+                _buildParsePreview(isIos, isDark, result),
+                const SizedBox(height: 16),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: AdaptiveButton(
+                    onPressed:
+                        _isImporting ||
+                            result.importedParties.isEmpty ||
+                            (widget.csvOnly && result.warnings.isNotEmpty)
+                        ? null
+                        : _commitImport,
+                    child: _isImporting
+                        ? const CupertinoActivityIndicator()
+                        : Text(
+                            'Import ${result.importedParties.length} Parties',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -292,7 +357,10 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Extraction Preview', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              const Text(
+                'Extraction Preview',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -300,8 +368,12 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '${result.importedParties.length} Parties • ${result.importedItems.length} Items',
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.receivableGreen, fontSize: 11),
+                  '${result.importedParties.length} Parties •',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.receivableGreen,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
@@ -309,53 +381,78 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
           const SizedBox(height: 10),
           const Divider(height: 1),
           const SizedBox(height: 8),
-          ...result.importedParties.take(3).map((p) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  children: [
-                    Icon(
-                      isIos ? CupertinoIcons.person : Icons.person_outline,
-                      size: 16,
-                      color: Colors.blue,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text('${p.name} (${p.type == PartyType.customer ? "Customer" : "Supplier"})',
-                          style: const TextStyle(fontSize: 12)),
-                    ),
-                    if (p.gstin != null) Text(p.gstin!, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
+          if (result.importedItems.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text('Stock records will be skipped.'),
+            ),
+          for (final warning in result.warnings)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                warning,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ...(widget.csvOnly
+                  ? result.importedParties
+                  : result.importedParties.take(3))
+              .map(
+                (p) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isIos ? CupertinoIcons.person : Icons.person_outline,
+                        size: 16,
+                        color: Colors.blue,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${p.name} (${p.type == PartyType.customer ? "Customer" : "Supplier"})',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      if (p.gstin != null)
+                        Text(
+                          p.gstin!,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      if (widget.csvOnly && p.netBalanceInCents != 0)
+                        Text(
+                          CurrencyFormatter.format(
+                            p.netBalanceInCents,
+                            currencyCode: ref
+                                .read(activeCompanyProvider)
+                                .currencyCode,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              )),
-          ...result.importedItems.take(3).map((it) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  children: [
-                    Icon(
-                      isIos ? CupertinoIcons.cube_box : Icons.inventory_2_outlined,
-                      size: 16,
-                      color: Colors.orange,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text('${it.name} (${it.sku})', style: const TextStyle(fontSize: 12)),
-                    ),
-                    Text('Stock: ${it.currentStockQuantity.toStringAsFixed(0)}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
-                ),
-              )),
+              ),
         ],
       ),
     );
 
     if (isIos) {
-      return LiquidGlassCard(borderRadius: 14, padding: EdgeInsets.zero, child: content);
+      return LiquidGlassCard(
+        borderRadius: 14,
+        padding: EdgeInsets.zero,
+        child: content,
+      );
     }
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
+        side: BorderSide(
+          color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+        ),
       ),
       child: content,
     );

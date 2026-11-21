@@ -102,7 +102,9 @@ class SupabaseAuthRepository implements IAuthRepository {
         await _clearAuthData();
       }
     } catch (e) {
-      debugPrint('Failed to load cached auth from SharedPreferences: $e');
+      if (kDebugMode) {
+        debugPrint('Failed to load cached auth from SharedPreferences: $e');
+      }
     }
 
     final client = _client;
@@ -173,7 +175,9 @@ class SupabaseAuthRepository implements IAuthRepository {
       if (email != null) await prefs.setString(_keyEmail, email);
       if (userName != null) await prefs.setString(_keyUserName, userName);
     } catch (e) {
-      debugPrint('Error persisting Supabase auth: $e');
+      if (kDebugMode) {
+        debugPrint('Error persisting Supabase auth: $e');
+      }
     }
   }
 
@@ -186,7 +190,9 @@ class SupabaseAuthRepository implements IAuthRepository {
       await prefs.remove(_keyEmail);
       await prefs.remove(_keyUserName);
     } catch (e) {
-      debugPrint('Error clearing Supabase auth: $e');
+      if (kDebugMode) {
+        debugPrint('Error clearing Supabase auth: $e');
+      }
     }
   }
 
@@ -312,7 +318,9 @@ class SupabaseAuthRepository implements IAuthRepository {
           return true;
         }
       } catch (e) {
-        debugPrint('Supabase verifyOtp error: $e');
+        if (kDebugMode) {
+          debugPrint('Supabase verifyOtp error: $e');
+        }
         rethrow;
       }
     }
@@ -382,7 +390,9 @@ class SupabaseAuthRepository implements IAuthRepository {
         );
       }
     } catch (e) {
-      debugPrint('Supabase signUpWithEmailAndPassword error: $e');
+      if (kDebugMode) {
+        debugPrint('Supabase signUpWithEmailAndPassword error: $e');
+      }
       rethrow;
     }
   }
@@ -426,7 +436,9 @@ class SupabaseAuthRepository implements IAuthRepository {
       }
       return false;
     } catch (e) {
-      debugPrint('Supabase signInWithEmailAndPassword error: $e');
+      if (kDebugMode) {
+        debugPrint('Supabase signInWithEmailAndPassword error: $e');
+      }
       rethrow;
     }
   }
@@ -438,7 +450,9 @@ class SupabaseAuthRepository implements IAuthRepository {
       try {
         await client.auth.signOut();
       } catch (e) {
-        debugPrint('Remote signOut failed (clearing local session anyway): $e');
+        if (kDebugMode) {
+          debugPrint('Remote signOut failed (clearing local session anyway): $e');
+        }
       }
     }
     _cachedUserId = null;

@@ -59,7 +59,10 @@ class Company {
     this.ownerId,
   });
 
-  bool isModuleEnabled(AppModule module) => enabledModules.contains(module);
+  /// Effective availability for this release. Saved flags remain serializable.
+  bool isModuleEnabled(AppModule module) => isLedger
+      ? AppModule.ledgerEssentials.contains(module)
+      : enabledModules.contains(module);
   bool get isExpense => mode == CompanyMode.expenseTracker;
   bool get isLedger => mode == CompanyMode.ledger;
 

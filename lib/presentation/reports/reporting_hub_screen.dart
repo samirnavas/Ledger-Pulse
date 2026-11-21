@@ -1,205 +1,45 @@
-import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/theme/adaptive_theme.dart';
-import '../../core/constants/colors.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_page_entrance.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
-import '../../data/models/company_mode.dart';
-import '../../data/reporting/gstr_json_engine.dart';
 import '../../data/reporting/report_models.dart';
 import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
-import '../providers/module_providers.dart';
+import '../integrations/third_party_import_screen.dart';
+import '../ledger/ledger_workspace_views.dart';
 import '../providers/reporting_providers.dart';
-import '../providers/voucher_providers.dart';
-import 'desktop_custom_report_studio.dart';
-import 'receivables_payables_screen.dart';
 import 'statement_preview_screen.dart';
 
-class ReportingHubScreen extends ConsumerStatefulWidget {
-  const ReportingHubScreen({super.key});
-
-  @override
-  ConsumerState<ReportingHubScreen> createState() => _ReportingHubScreenState();
-}
-
-class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
-  String _searchQuery = '';
-  ReportCategory? _selectedCategory;
-
-  Future<void> _exportGstrJson(BuildContext context, ReportMetadata report) async {
-    HapticFeedback.lightImpact();
-    final company = ref.read(activeCompanyProvider);
-    final vouchers = await ref.read(vouchersListProvider(null).future);
-    final parties = await ref.read(partyListProvider.future);
-
-    Map<String, dynamic> jsonPayload;
-    String filePrefix;
-
-    try {
-      if (report.id == 'rpt_gstr1') {
-        jsonPayload = GstrJsonEngine.generateGstr1Json(
-          company: company,
-          salesVouchers: vouchers,
-          parties: parties,
-          returnPeriod: '092026',
-        );
-        filePrefix = 'GSTR1_Returns';
-      } else if (report.id == 'rpt_gstr2') {
-        jsonPayload = GstrJsonEngine.generateGstr2Json(
-          company: company,
-          purchaseVouchers: vouchers,
-          parties: parties,
-          returnPeriod: '092026',
-        );
-        filePrefix = 'GSTR2_Inward';
-      } else if (report.id == 'rpt_gstr3b') {
-        jsonPayload = GstrJsonEngine.generateGstr3bJson(
-          company: company,
-          salesVouchers: vouchers,
-          purchaseVouchers: vouchers,
-          returnPeriod: '092026',
-        );
-        filePrefix = 'GSTR3B_Monthly';
-      } else if (report.id == 'rpt_gstr4') {
-        jsonPayload = GstrJsonEngine.generateGstr4Json(
-          company: company,
-          vouchers: vouchers,
-          financialYear: '2026-27',
-        );
-        filePrefix = 'GSTR4_Composition';
-      } else if (report.id == 'rpt_gstr9') {
-        jsonPayload = GstrJsonEngine.generateGstr9Json(
-          company: company,
-          salesVouchers: vouchers,
-          purchaseVouchers: vouchers,
-          financialYear: '2026-27',
-        );
-        filePrefix = 'GSTR9_Annual';
-      } else {
-        jsonPayload = GstrJsonEngine.generateGstr2aReconciliationJson(
-          booksPurchases: vouchers,
-          portal2aFeed: [],
-        );
-        filePrefix = 'GSTR2A_Reconciliation';
-      }
-    } on GstrValidationException catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            backgroundColor: AppColors.payableRed,
-          ),
-        );
-      }
-      return;
-    }
-
-    final formattedJson = GstrJsonEngine.formatJson(jsonPayload);
-    final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}/${filePrefix}_${company.gstin ?? "GSTN"}.json');
-    await file.writeAsString(formattedJson);
-
-    if (context.mounted) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('${report.title} JSON'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Generated JSON formatted strictly for Indian GST Portal upload:'),
-              const SizedBox(height: 10),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 180),
-                padding: const EdgeInsets.all(8),
-                color: Colors.grey.shade200,
-                child: SingleChildScrollView(
-                  child: Text(formattedJson, style: const TextStyle(fontFamily: 'monospace', fontSize: 10)),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
-            ),
-            FilledButton.icon(
-              icon: Icon(
-                AdaptiveThemeHelper.isIos(ctx)
-                    ? CupertinoIcons.share
-                    : Icons.share_rounded,
-                size: 18,
-              ),
-              label: const Text('Share / Save JSON'),
-              onPressed: () {
-                Navigator.pop(ctx);
-                // ignore: deprecated_member_use
-                Share.shareXFiles([XFile(file.path, mimeType: 'application/json')]);
-              },
-            ),
-          ],
-        ),
-      );
-    }
-  }
+class ReportingHubScreen extends ConsumerWidget {
+  const ReportingHubScreen({super.key, this.embedded = false});
+  final bool embedded;
 
   void _openReport(BuildContext context, ReportMetadata report) {
     HapticFeedback.lightImpact();
 
-    if (report.category == ReportCategory.gstCompliance) {
-      _exportGstrJson(context, report);
-      return;
-    }
-
-    if (report.id == 'rpt_receivables_aging') {
-      Navigator.of(context).push(
-        createAdaptivePageRoute(builder: (ctx) => const ReceivablesPayablesScreen(initialIsPayables: false)),
-      );
-      return;
-    }
-
-    if (report.id == 'rpt_payables_aging') {
-      Navigator.of(context).push(
-        createAdaptivePageRoute(builder: (ctx) => const ReceivablesPayablesScreen(initialIsPayables: true)),
-      );
-      return;
-    }
-
-    if (report.category == ReportCategory.customSql || report.isCustomSql) {
-      Navigator.of(context).push(
-        createAdaptivePageRoute(builder: (ctx) => const DesktopCustomReportStudio()),
-      );
-      return;
-    }
-
     Navigator.of(context).push(
       createAdaptivePageRoute(
-        builder: (ctx) => StatementPreviewScreen(
-          partyId: '',
-          reportId: report.id,
+        builder: (ctx) => Material(
+          type: MaterialType.transparency,
+          child: StatementPreviewScreen(partyId: '', reportId: report.id),
         ),
       ),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final isAdvancedReportsEnabled = ref.watch(moduleEnabledProvider(AppModule.advancedReports));
-    if (!isAdvancedReportsEnabled) {
+    final company = ref.watch(activeCompanyProvider);
+    if (company.isExpense) {
       return AdaptiveScaffold(
         title: 'Reporting & Analytics Hub',
         body: Center(
@@ -211,7 +51,9 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
                 Icon(
                   isIos ? CupertinoIcons.lock_circle_fill : Icons.lock_rounded,
                   size: 56,
-                  color: isIos ? CupertinoColors.systemOrange : Theme.of(context).colorScheme.tertiary,
+                  color: isIos
+                      ? CupertinoColors.systemOrange
+                      : Theme.of(context).colorScheme.tertiary,
                 ),
                 const SizedBox(height: 16),
                 const Text(
@@ -231,136 +73,72 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
       );
     }
 
-    final isGstEnabled = ref.watch(moduleEnabledProvider(AppModule.gst));
-    final isInventoryEnabled = ref.watch(moduleEnabledProvider(AppModule.inventory));
-    final isSqlStudioEnabled = ref.watch(moduleEnabledProvider(AppModule.sqlStudio));
-    final isVouchersEnabled = ref.watch(moduleEnabledProvider(AppModule.vouchers));
-
-    bool isCategoryEnabled(ReportCategory cat) {
-      switch (cat) {
-        case ReportCategory.gstCompliance:
-          return isGstEnabled;
-        case ReportCategory.inventoryWarehouse:
-          return isInventoryEnabled;
-        case ReportCategory.customSql:
-          return isSqlStudioEnabled;
-        case ReportCategory.salesReceivables:
-        case ReportCategory.purchasesPayables:
-          return isVouchersEnabled;
-        default:
-          return true;
-      }
-    }
-
-    final enabledCategories = ReportCategory.values.where(isCategoryEnabled).toList();
-
-    final allReports = ref.watch(reportCatalogProvider);
-
-    final filteredReports = allReports.where((r) {
-      if (!isCategoryEnabled(r.category)) return false;
-      final matchesCat = _selectedCategory == null || r.category == _selectedCategory;
-      final matchesSearch = _searchQuery.isEmpty ||
-          r.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          r.description.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCat && matchesSearch;
-    }).toList();
-
-    return AdaptiveScaffold(
-      title: 'Reporting & Analytics Hub',
-      actions: [
-        if (isSqlStudioEnabled)
-          IconButton(
-            tooltip: 'Custom SQL Studio',
-            icon: Icon(
-              isIos ? CupertinoIcons.chevron_left_slash_chevron_right : Icons.terminal_rounded,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            onPressed: () {
-              Navigator.of(context).push(
-                createAdaptivePageRoute(builder: (ctx) => const DesktopCustomReportStudio()),
-              );
-            },
+    final body = AdaptivePageEntrance(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          for (final report in ref.watch(reportCatalogProvider))
+            _buildReportCard(context, report, isIos, isDark),
+          ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('Party statements'),
+            onTap: () => _selectStatement(context, ref),
           ),
-      ],
-      body: AdaptivePageEntrance(
-        child: Column(
-          children: [
-          // 1. Search Bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search across 35+ financial & statutory reports...',
-                prefixIcon: Icon(
-                  isIos ? CupertinoIcons.search : Icons.search_rounded,
+          ListTile(
+            leading: const Icon(Icons.file_download_outlined),
+            title: const Text('Import parties from CSV'),
+            onTap: () => Navigator.of(context).push(
+              createAdaptivePageRoute(
+                builder: (_) => const Material(
+                  type: MaterialType.transparency,
+                  child: ThirdPartyImportScreen(csvOnly: true),
                 ),
-                isDense: true,
-                filled: true,
-                fillColor: isIos
-                    ? (isDark
-                        ? CupertinoColors.systemGrey6.darkColor
-                        : CupertinoColors.systemGrey6)
-                    : Theme.of(context).colorScheme.surfaceContainerHighest,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(28),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
-              onChanged: (val) => setState(() => _searchQuery = val.trim()),
-            ),
-          ),
-
-          // 2. Category Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Row(
-              children: [
-                ChoiceChip(
-                  label: Text('All Reports (${filteredReports.length})'),
-                  selected: _selectedCategory == null,
-                  shape: const StadiumBorder(),
-                  onSelected: (_) => setState(() => _selectedCategory = null),
-                ),
-                const SizedBox(width: 8),
-                ...enabledCategories.map((cat) {
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(cat.displayName),
-                      selected: _selectedCategory == cat,
-                      shape: const StadiumBorder(),
-                      onSelected: (_) => setState(() => _selectedCategory = cat),
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-
-          // 3. Reports List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: filteredReports.length,
-              itemBuilder: (context, index) {
-                final report = filteredReports[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildReportCard(context, report, isIos, isDark),
-                );
-              },
             ),
           ),
         ],
       ),
-    ),
     );
+    return embedded
+        ? body
+        : AdaptiveScaffold(title: 'Ledger reports', body: body);
   }
 
-  Widget _buildReportCard(BuildContext context, ReportMetadata report, bool isIos, bool isDark) {
+  Future<void> _selectStatement(BuildContext context, WidgetRef ref) async {
+    final company = ref.read(activeCompanyProvider).id;
+    try {
+      final parties = await ref.read(ledgerRepositoryProvider).getParties();
+      if (!context.mounted || ref.read(activeCompanyProvider).id != company) {
+        return;
+      }
+      final selected = await showLedgerPartyPicker(context, parties);
+      if (selected != null &&
+          context.mounted &&
+          ref.read(activeCompanyProvider).id == company) {
+        Navigator.of(context).push(
+          createAdaptivePageRoute(
+            builder: (_) => Material(
+              type: MaterialType.transparency,
+              child: StatementPreviewScreen(partyId: selected.id),
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not load parties')));
+      }
+    }
+  }
+
+  Widget _buildReportCard(
+    BuildContext context,
+    ReportMetadata report,
+    bool isIos,
+    bool isDark,
+  ) {
     final cardContent = InkWell(
       onTap: () => _openReport(context, report),
       borderRadius: BorderRadius.circular(20),
@@ -371,7 +149,9 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.6),
+                color: Theme.of(
+                  context,
+                ).colorScheme.primaryContainer.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
@@ -398,9 +178,14 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -408,7 +193,9 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -429,7 +216,9 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
             ),
             const SizedBox(width: 8),
             Icon(
-              isIos ? CupertinoIcons.chevron_forward : Icons.arrow_forward_ios_rounded,
+              isIos
+                  ? CupertinoIcons.chevron_forward
+                  : Icons.arrow_forward_ios_rounded,
               size: 16,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -441,8 +230,12 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
     if (isIos) {
       return LiquidGlassCard(
         borderRadius: 20,
-        color: isDark ? const Color(0xFF1E293B).withValues(alpha: 0.5) : Colors.white.withValues(alpha: 0.7),
-        borderColor: isDark ? Colors.white.withValues(alpha: 0.1) : Colors.black.withValues(alpha: 0.06),
+        color: isDark
+            ? const Color(0xFF1E293B).withValues(alpha: 0.5)
+            : Colors.white.withValues(alpha: 0.7),
+        borderColor: isDark
+            ? Colors.white.withValues(alpha: 0.1)
+            : Colors.black.withValues(alpha: 0.06),
         child: cardContent,
       );
     } else {
@@ -450,7 +243,11 @@ class _ReportingHubScreenState extends ConsumerState<ReportingHubScreen> {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5)),
+          side: BorderSide(
+            color: Theme.of(
+              context,
+            ).colorScheme.outlineVariant.withValues(alpha: isDark ? 0.35 : 0.5),
+          ),
         ),
         color: Theme.of(context).colorScheme.surfaceContainer,
         child: cardContent,

@@ -47,7 +47,7 @@ void showPartyContextMenu({
               children: [
                 Icon(CupertinoIcons.trash, size: 20),
                 SizedBox(width: 8),
-                Text('Delete Party'),
+                Text('Archive Party'),
               ],
             ),
           ),
@@ -134,7 +134,7 @@ void showPartyContextMenu({
                         color: colorScheme.error,
                       ),
                       title: Text(
-                        'Delete Party',
+                        'Archive Party',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           color: colorScheme.error,

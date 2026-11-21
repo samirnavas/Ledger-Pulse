@@ -9,6 +9,7 @@ import 'package:ledger_pulse/data/local/drift_voucher_repository.dart';
 import 'package:ledger_pulse/data/models/inventory_item_model.dart';
 import 'package:ledger_pulse/data/models/party_model.dart';
 import 'package:ledger_pulse/data/models/voucher_model.dart';
+import 'helpers/legacy_module_test_company.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,8 @@ void main() {
     ledgerRepo = DriftLedgerRepository(db: db, currentCompanyId: testCompanyId);
     voucherRepo = DriftVoucherRepository(db: db, auditService: auditService, postingEngine: postingEngine, currentCompanyId: testCompanyId);
     inventoryRepo = DriftInventoryRepository(db: db, auditService: auditService, currentCompanyId: testCompanyId);
+
+    await postingEngine.ensureCompanyAccounts(testCompanyId);
 
     final party = Party(
       id: 'party_client_1',
@@ -62,7 +65,7 @@ void main() {
         createdAt: now,
         updatedAt: now,
       );
-      await inventoryRepo.addItem(item);
+      await inventoryRepo.addItem(item, company: LegacyModuleTestCompany(id: testCompanyId));
 
       // 2. Create Sales Order (non-accounting document)
       final salesOrder = VoucherModel(

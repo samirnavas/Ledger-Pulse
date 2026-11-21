@@ -24,6 +24,7 @@ import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
 import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
 
 import '../generated_migrations/schema.dart';
+import '../helpers/legacy_module_test_company.dart';
 
 class FailingRemoteGateway implements RemoteGateway {
   @override
@@ -434,7 +435,7 @@ void main() {
         unit: 'pcs',
         createdAt: now,
         updatedAt: now,
-      ));
+      ), company: LegacyModuleTestCompany(id: ledgerProfile.id));
 
       // Post Sales Voucher for 5 units @ 100.00 = 500.00 (50000 cents)
       final voucher = VoucherModel(

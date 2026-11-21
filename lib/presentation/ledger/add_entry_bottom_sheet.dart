@@ -1,18 +1,15 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:uuid/uuid.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/theme/adaptive_theme.dart';
-import '../../core/utils/adaptive_page_route.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../data/models/transaction_model.dart';
-import '../payments/cts2010_cheque_preview_screen.dart';
 import '../providers/ledger_providers.dart';
 import 'widgets/entry_amount_display.dart';
 import 'widgets/entry_attachment_picker_sheet.dart';
@@ -47,20 +44,20 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
   late EntryType _entryType;
   DateTime _selectedDate = DateTime.now();
   String? _receiptUrl;
+  LedgerPaymentMethod? _paymentMethod;
   bool _isSubmitting = false;
   String? _errorMessage;
 
   bool get _isClean {
     if (widget.entryToEdit != null) {
       final entry = widget.entryToEdit!;
-      final initialAmt = (entry.amountInCents % 100 == 0)
-          ? (entry.amountInCents ~/ 100).toString()
-          : (entry.amountInCents / 100.0).toStringAsFixed(2);
-      final initialNote = entry.note ?? '';
+      final initialAmt = _amountInputFromCents(entry.amountInCents);
+      final initialNote = LedgerPaymentMethod.strip(entry.note) ?? '';
       return _amountString == initialAmt &&
           _noteController.text.trim() == initialNote.trim() &&
           _selectedDate == entry.date &&
           _entryType == entry.type &&
+          _paymentMethod == LedgerPaymentMethod.read(entry.note) &&
           _receiptUrl == entry.receiptPhotoUrl;
     }
     return (_amountString == '0' || _amountString.isEmpty) &&
@@ -74,12 +71,9 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     if (widget.entryToEdit != null) {
       final entry = widget.entryToEdit!;
       _entryType = entry.type;
-      if (entry.amountInCents % 100 == 0) {
-        _amountString = (entry.amountInCents ~/ 100).toString();
-      } else {
-        _amountString = (entry.amountInCents / 100.0).toStringAsFixed(2);
-      }
-      _noteController.text = entry.note ?? '';
+      _amountString = _amountInputFromCents(entry.amountInCents);
+      _paymentMethod = LedgerPaymentMethod.read(entry.note);
+      _noteController.text = LedgerPaymentMethod.strip(entry.note) ?? '';
       _selectedDate = entry.date;
       _receiptUrl = entry.receiptPhotoUrl;
     } else {
@@ -154,13 +148,7 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     FocusScope.of(context).unfocus();
     setState(() {
       _errorMessage = null;
-      final current = double.tryParse(_amountString) ?? 0.0;
-      final updated = current + amount;
-      if (updated == updated.roundToDouble()) {
-        _amountString = updated.toInt().toString();
-      } else {
-        _amountString = updated.toStringAsFixed(2);
-      }
+      _amountString = _amountInputFromCents(_amountInCents + amount * 100);
     });
   }
 
@@ -259,9 +247,24 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     );
   }
 
+  int get _amountInCents {
+    final parts = _amountString.split('.');
+    final whole = int.tryParse(parts.first) ?? 0;
+    final fraction = parts.length == 1 ? 0 : int.parse(parts.last.padRight(2, '0'));
+    return whole * 100 + fraction;
+  }
+
+  static String _amountInputFromCents(int cents) {
+    final whole = cents ~/ 100;
+    final fraction = cents % 100;
+    return fraction == 0 ? '$whole' : '$whole.${fraction.toString().padLeft(2, '0')}';
+  }
+
+  final _saveRequestId = const Uuid().v4();
+
   void _saveEntry() async {
-    final amountDouble = double.tryParse(_amountString) ?? 0.0;
-    final amountCents = (amountDouble * 100).round();
+    if (_isSubmitting) return;
+    final amountCents = _amountInCents;
     if (amountCents <= 0) {
       setState(() => _errorMessage = 'Please enter an amount greater than ₹0');
       return;
@@ -272,82 +275,53 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
       _isSubmitting = true;
     });
 
-    if (widget.entryToEdit != null) {
-      final updated = widget.entryToEdit!.copyWith(
-        amountInCents: amountCents,
-        type: _entryType,
-        date: _selectedDate,
-        note: _noteController.text.trim().isEmpty
-            ? null
-            : _noteController.text.trim(),
-        receiptPhotoUrl: _receiptUrl,
-      );
-      await ref.read(ledgerActionControllerProvider).updateEntry(updated);
+    final party = ref.read(partyDetailProvider(widget.partyId)).value;
+    final payment = party != null && isLedgerPayment(party.type, _entryType) &&
+        !(widget.entryToEdit?.id.startsWith('entry_init_') ?? false);
+    final text = _noteController.text.trim();
+    final note = payment && _paymentMethod != null
+        ? _paymentMethod!.encode(text)
+        : text.isEmpty ? null : text;
 
-      if (mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Updated ${_entryType == EntryType.gave ? "You Gave" : "You Got"} ${CurrencyFormatter.format(amountCents)}',
-            ),
-            backgroundColor: _entryType == EntryType.gave
-                ? AppColors.payableRed
-                : AppColors.receivableGreen,
-            duration: const Duration(seconds: 2),
-          ),
+    try {
+      if (widget.entryToEdit != null) {
+        final updated = widget.entryToEdit!.copyWith(
+          amountInCents: amountCents,
+          type: _entryType,
+          date: _selectedDate,
+          note: note,
+          receiptPhotoUrl: _receiptUrl,
         );
-      }
-    } else {
-      await ref.read(ledgerActionControllerProvider).addEntry(
-            partyId: widget.partyId,
-            amountInCents: amountCents,
-            type: _entryType,
-            date: _selectedDate,
-            note: _noteController.text.trim().isEmpty
-                ? null
-                : _noteController.text.trim(),
-            receiptPhotoUrl: _receiptUrl,
-          );
+        await ref.read(ledgerActionControllerProvider).updateEntry(updated);
 
-      if (mounted) {
-        Navigator.of(context).pop();
-
-        final isWindows = !kIsWeb && Platform.isWindows;
-        if (isWindows && _entryType == EntryType.gave) {
-          // Automatic trigger for Windows desktop CTS-2010 Cheque Printing
+        if (mounted) {
+          Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'Saved You Gave ${CurrencyFormatter.format(amountCents)} • Opening Cheque Print Preview...',
+                'Updated ${_entryType == EntryType.gave ? "You Gave" : "You Got"} ${CurrencyFormatter.format(amountCents)}',
               ),
-              backgroundColor: AppColors.payableRed,
-              duration: const Duration(seconds: 3),
-              action: SnackBarAction(
-                label: 'PRINT CHEQUE',
-                textColor: Colors.white,
-                onPressed: () {
-                  Navigator.of(context).push(
-                    createAdaptivePageRoute(
-                      builder: (_) => Cts2010ChequePreviewScreen(
-                        initialPayeeName: widget.partyName,
-                        initialAmountInCents: amountCents,
-                      ),
-                    ),
-                  );
-                },
-              ),
+              backgroundColor: _entryType == EntryType.gave
+                  ? AppColors.payableRed
+                  : AppColors.receivableGreen,
+              duration: const Duration(seconds: 2),
             ),
           );
-          Navigator.of(context).push(
-            createAdaptivePageRoute(
-              builder: (_) => Cts2010ChequePreviewScreen(
-                initialPayeeName: widget.partyName,
-                initialAmountInCents: amountCents,
-              ),
-            ),
-          );
-        } else {
+        }
+      } else {
+        await ref.read(ledgerActionControllerProvider).addEntry(
+              partyId: widget.partyId,
+              requestId: _saveRequestId,
+              amountInCents: amountCents,
+              type: _entryType,
+              date: _selectedDate,
+              note: note,
+              receiptPhotoUrl: _receiptUrl,
+            );
+
+        if (mounted) {
+          Navigator.of(context).pop();
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -361,11 +335,21 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           );
         }
       }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = error.toString();
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final party = ref.watch(partyDetailProvider(widget.partyId)).value;
+    final opening = widget.entryToEdit?.id.startsWith('entry_init_') ?? false;
+    final payment = party != null && isLedgerPayment(party.type, _entryType) && !opening;
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
@@ -452,6 +436,27 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                         },
                       ),
                       const SizedBox(height: 12),
+
+                      if (party != null)
+                        Text(
+                          opening ? 'Opening balance' : payment
+                              ? 'Payment movement' : 'Credit entry',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
+                      if (payment)
+                        DropdownButton<LedgerPaymentMethod>(
+                          value: _paymentMethod,
+                          hint: const Text('Payment method (optional)'),
+                          menuMaxHeight: 280,
+                          items: [
+                            const DropdownMenuItem<LedgerPaymentMethod>(
+                              child: Text('Unspecified'),
+                            ),
+                            for (final method in LedgerPaymentMethod.values)
+                              DropdownMenuItem(value: method, child: Text(method.label)),
+                          ],
+                          onChanged: _isSubmitting ? null : (value) => setState(() => _paymentMethod = value),
+                        ),
 
                       // Giant Typographic Amount Display (No system keyboard popup)
                       EntryAmountDisplay(

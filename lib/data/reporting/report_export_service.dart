@@ -13,6 +13,16 @@ import '../models/voucher_model.dart';
 import 'report_models.dart';
 
 class ReportExportService {
+  static String _csvCell(Object? value) {
+    var text = value?.toString() ?? '';
+    final trimmed = text.trimLeft();
+    final numeric = RegExp(r'^[+-]?\d+(?:[.,]\d+)*$').hasMatch(trimmed);
+    if (!numeric && RegExp(r'^[=+\-@\t\r\n]').hasMatch(trimmed)) {
+      text = "'$text";
+    }
+    return '"${text.replaceAll('"', '""')}"';
+  }
+
   /// Generates a Microsoft Excel-compatible CSV file with UTF-8 BOM and standard table structure
   static Future<File> exportToExcelCsv({
     required ReportData report,
@@ -25,8 +35,8 @@ class ReportExportService {
     buffer.write('\uFEFF');
 
     // Header block
-    buffer.writeln('"${company.legalName}"');
-    buffer.writeln('"${report.metadata.title}"');
+    buffer.writeln(_csvCell(company.legalName));
+    buffer.writeln(_csvCell(report.metadata.title));
     buffer.writeln('"Generated on: ${DateFormatter.formatShortDate(report.generatedAt)}"');
     if (report.dateRangeLabel != null) {
       buffer.writeln('"Period: ${report.dateRangeLabel}"');
@@ -41,7 +51,7 @@ class ReportExportService {
     for (final row in report.rows) {
       final line = report.columns.map((c) {
         final val = row.get(c.key)?.toString() ?? '';
-        return '"${val.replaceAll('"', '""')}"';
+        return _csvCell(val);
       }).join(',');
       buffer.writeln(line);
     }
@@ -51,7 +61,7 @@ class ReportExportService {
       buffer.writeln();
       buffer.writeln('"--- SUMMARY ---"');
       for (final entry in report.summary.entries) {
-        buffer.writeln('"${entry.key}","${entry.value.toString().replaceAll('"', '""')}"');
+        buffer.writeln('${_csvCell(entry.key)},${_csvCell(entry.value)}');
       }
     }
 
@@ -227,7 +237,7 @@ class ReportExportService {
     // UTF-8 BOM
     buffer.write('\uFEFF');
 
-    buffer.writeln('"${company.legalName}"');
+    buffer.writeln(_csvCell(company.legalName));
     buffer.writeln('"Transaction Statement"');
     buffer.writeln('"Generated on: ${DateFormatter.formatShortDate(DateTime.now())}"');
     if (startDate != null && endDate != null) {
@@ -257,16 +267,8 @@ class ReportExportService {
       if (txn.type == VoucherType.expense) totalExpense += txn.totalAmountInCents;
 
       buffer.writeln(
-        '"${dateStr.replaceAll('"', '""')}",'
-        '"${voucherNo.replaceAll('"', '""')}",'
-        '"${typeStr.replaceAll('"', '""')}",'
-        '"${catName.replaceAll('"', '""')}",'
-        '"${walletName.replaceAll('"', '""')}",'
-        '"${toWalletName.replaceAll('"', '""')}",'
-        '"$amountFormatted",'
-        '"${narration.replaceAll('"', '""')}",'
-        '"${ref.replaceAll('"', '""')}",'
-        '"$status"',
+        [dateStr, voucherNo, typeStr, catName, walletName, toWalletName,
+          amountFormatted, narration, ref, status].map(_csvCell).join(','),
       );
     }
 

@@ -55,6 +55,7 @@ final trialDaysRemainingProvider = Provider<int>((ref) {
 
 /// Checks whether a subscription tier entitles access to an [AppModule].
 bool tierAllows(SubscriptionTier tier, AppModule module) {
+  if (!ModuleCatalog.all.containsKey(module)) return false;
   final minTier = ModuleCatalog.minTierFor(module);
   return tier.index >= minTier.index;
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/company_model.dart';
-import '../../data/models/party_model.dart';
 import '../expense/expense_home_screen.dart';
 import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
@@ -66,7 +65,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   /// Resets mode-specific state (selected tab, search, filters)
   static void resetModeSpecificState(dynamic ref) {
-    // 1. Reset dashboard tab to 0 (default to customers/overview)
+    // 1. Reset dashboard tab to 0 (Home)
     try {
       ref.invalidate(dashboardTabProvider);
     } catch (_) {
@@ -83,7 +82,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     // 3. Reset party filters & sorting
     try {
-      ref.read(selectedPartyTypeFilterProvider.notifier).setFilter(PartyType.customer);
+      ref.read(selectedPartyTypeFilterProvider.notifier).setFilter(null);
       ref.read(partySortOptionProvider.notifier).setSort(PartySortOption.mostRecent);
     } catch (_) {
       // Ignored if filter providers are unmounted

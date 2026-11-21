@@ -13,6 +13,7 @@ import 'package:ledger_pulse/data/models/party_model.dart';
 import 'package:ledger_pulse/data/models/stock_ledger_model.dart';
 import 'package:ledger_pulse/data/models/voucher_model.dart';
 import 'package:ledger_pulse/data/reporting/financial_statement_engine.dart';
+import 'helpers/legacy_module_test_company.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -94,7 +95,7 @@ void main() {
       createdAt: now,
       updatedAt: now,
     );
-    await inventoryRepo.addItem(productItem);
+    await inventoryRepo.addItem(productItem, company: LegacyModuleTestCompany(id: testCompanyId));
 
     final initialItem = await inventoryRepo.getItemById(testItemId);
     expect(initialItem.currentStockQuantity, equals(10.0));

@@ -1,8 +1,9 @@
+import 'party_model.dart';
 import '../../core/network/sync_codec.dart';
 
 enum EntryType {
   gave, // Debit / You Gave (Receivable increase for Customer, Payable decrease for Supplier)
-  got;  // Credit / You Got (Receivable decrease for Customer, Payable increase for Supplier)
+  got; // Credit / You Got (Receivable decrease for Customer, Payable increase for Supplier)
 
   String get displayName {
     switch (this) {
@@ -65,7 +66,8 @@ class LedgerEntry {
       date: date ?? this.date,
       note: note ?? this.note,
       receiptPhotoUrl: receiptPhotoUrl ?? this.receiptPhotoUrl,
-      runningBalanceInCents: runningBalanceInCents ?? this.runningBalanceInCents,
+      runningBalanceInCents:
+          runningBalanceInCents ?? this.runningBalanceInCents,
       isVoided: isVoided ?? this.isVoided,
     );
   }
@@ -114,13 +116,47 @@ class LedgerEntry {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        partyId,
-        amountInCents,
-        type,
-        date,
-        note,
-        receiptPhotoUrl,
-        isVoided,
-      );
+    id,
+    partyId,
+    amountInCents,
+    type,
+    date,
+    note,
+    receiptPhotoUrl,
+    isVoided,
+  );
+}
+
+bool isLedgerPayment(PartyType partyType, EntryType direction) =>
+    partyType == PartyType.customer
+    ? direction == EntryType.got
+    : direction == EntryType.gave;
+
+/// Payment metadata travels with the existing synced note so older clients can
+/// still display the method and no profile data migration is required.
+enum LedgerPaymentMethod {
+  cash('Cash'),
+  bank('Bank transfer'),
+  upi('UPI'),
+  cheque('Cheque');
+
+  const LedgerPaymentMethod(this.label);
+  final String label;
+
+  static LedgerPaymentMethod? read(String? note) {
+    for (final method in values) {
+      final line = '[Payment method: ${method.label}]';
+      if (note == line || note?.startsWith('$line\n') == true) return method;
+    }
+    return null;
+  }
+
+  static String? strip(String? note) {
+    if (read(note) == null) return note;
+    final newline = note!.indexOf('\n');
+    return newline < 0 ? null : note.substring(newline + 1);
+  }
+
+  String encode(String note) =>
+      '[Payment method: $label]${note.isEmpty ? '' : '\n$note'}';
 }

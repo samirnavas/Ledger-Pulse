@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,7 +18,6 @@ import 'package:ledger_pulse/data/services/payroll_service.dart';
 import 'package:ledger_pulse/domain/exceptions/ledger_exceptions.dart';
 import 'package:ledger_pulse/presentation/home/dashboard_screen.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/module_providers.dart';
 
 Company _createTestCompany({
   required String id,
@@ -217,37 +215,6 @@ void main() {
       );
     });
 
-    test('DataImportService throws ModuleDisabledException when dataImport is disabled', () {
-      final disabledCompany = _createTestCompany(
-        id: 'cmp_no_import',
-        name: 'No Import Co',
-        enabledModules: {AppModule.parties, AppModule.vouchers},
-      );
-
-      expect(
-        () => DataImportService.verifyModuleEnabled(disabledCompany),
-        throwsA(isA<ModuleDisabledException>().having((e) => e.module, 'module', AppModule.dataImport)),
-      );
-
-      expect(
-        () => DataImportService.parseTallyXml(
-          xmlContent: '<ENVELOPE></ENVELOPE>',
-          companyId: disabledCompany.id,
-          company: disabledCompany,
-        ),
-        throwsA(isA<ModuleDisabledException>().having((e) => e.module, 'module', AppModule.dataImport)),
-      );
-
-      expect(
-        () => DataImportService.parseExcelCsvAutoMapped(
-          csvContent: 'name,phone\nAcme,9999999999',
-          companyId: disabledCompany.id,
-          company: disabledCompany,
-        ),
-        throwsA(isA<ModuleDisabledException>().having((e) => e.module, 'module', AppModule.dataImport)),
-      );
-    });
-
     test('CustomSqlReportEngine throws ModuleDisabledException when sqlStudio is disabled', () async {
       final disabledCompany = _createTestCompany(
         id: 'cmp_no_sql',
@@ -286,159 +253,24 @@ void main() {
     });
   });
 
-  group('Legacy Company Invariance Tests (All Modules Enabled by Default)', () {
-    test('legacy company with null enabledModulesJson has all 13 modules enabled', () {
-      final legacyCompany = Company.fromMap({
-        'id': 'cmp_legacy',
-        'name': 'Legacy Enterprise',
-        'legalName': 'Legacy Enterprise Ltd',
-        'mode': 'ledger',
-        'enabledModules': null, // legacy DB row has null enabledModules
-        'createdAt': DateTime.now().toIso8601String(),
-        'updatedAt': DateTime.now().toIso8601String(),
-      });
-
-      for (final module in AppModule.values) {
-        expect(
-          legacyCompany.isModuleEnabled(module),
-          isTrue,
-          reason: 'Legacy company must have ${module.name} enabled',
-        );
-      }
-    });
-
-    test('legacy company executes writes without throwing ModuleDisabledException', () async {
-      final legacyCompany = _createTestCompany(
-        id: 'cmp_legacy_full',
-        name: 'Legacy Co',
-        enabledModules: AppModule.allModules,
-      );
-
-      // 1. Payroll write
-      final employee = Employee(
-        id: 'emp_leg_1',
-        companyId: legacyCompany.id,
-        employeeCode: 'LEG01',
-        fullName: 'Jane Doe',
-        phoneNumber: '9123456789',
-        designation: 'Manager',
-        department: 'Operations',
-        dateOfJoining: DateTime.now(),
-        basicMonthlySalaryInCents: 4000000,
-        hraAllowanceInCents: 1500000,
-        specialAllowanceInCents: 500000,
-        conveyanceAllowanceInCents: 200000,
-      );
-
-      final batch = PayrollService.processBulkPayroll(
-        company: legacyCompany,
-        employees: [employee],
-        monthYear: '102026',
-      );
-      expect(batch.totalEmployeesProcessed, equals(1));
-
-      final voucher = PayrollService.createPayrollJournalVoucher(
-        company: legacyCompany,
-        batchResult: batch,
-      );
-      expect(voucher.companyId, equals(legacyCompany.id));
-
-      // 2. Inventory write
-      final invRepo = DriftInventoryRepository(
-        db: db,
-        currentCompanyId: legacyCompany.id,
-      );
-      invRepo.setContext(company: legacyCompany);
-
-      final item = InventoryItem(
-        id: 'itm_legacy_1',
-        companyId: legacyCompany.id,
-        sku: 'LEG-SKU',
-        name: 'Legacy Product',
-        purchasePriceInCents: 2000,
-        sellingPriceInCents: 3000,
-        currentStockQuantity: 50,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      final added = await invRepo.addItem(item, company: legacyCompany);
-      expect(added.id, equals(item.id));
-
-      // 3. E-commerce write
-      final syncResult = EcommerceSyncService.syncAmazonIndiaOrders(
-        jsonPayload: jsonEncode({
-          'Orders': [
-            {
-              'AmazonOrderId': '402-1234567-1234567',
-              'OrderTotal': {'Amount': '1500.00'},
-              'BuyerInfo': {'BuyerName': 'Test Buyer'},
-              'PurchaseDate': '2026-10-27T10:00:00Z',
-            }
-          ]
-        }),
-        company: legacyCompany,
-      );
-      expect(syncResult.totalOrdersFetched, equals(1));
-
-      // 4. Data Import check
-      expect(() => DataImportService.verifyModuleEnabled(legacyCompany), returnsNormally);
-
-      // 5. Cheque PDF write
-      final pdfBytes = await Cts2010ChequePrinterService.generateChequePdf(
-        payeeName: 'Legacy Supplier',
-        amountInCents: 125000,
-        chequeDate: DateTime.now(),
-        companyName: legacyCompany.name,
-        company: legacyCompany,
-      );
-      expect(pdfBytes.isNotEmpty, isTrue);
-    });
+  test('legacy imports remain available while ERP services are disabled', () {
+    final company = _createTestCompany(id: 'legacy', name: 'Legacy', enabledModules: AppModule.allModules);
+    expect(() => DataImportService.verifyModuleEnabled(company), returnsNormally);
+    expect(() => EcommerceSyncService.syncAmazonIndiaOrders(jsonPayload: '{}', company: company), throwsA(isA<ModuleDisabledException>()));
   });
 
   group('UI and Deep Link Gating Tests', () {
-    test('DashboardTabNotifier resolves to 2 (Profile tab) when parties module is disabled', () {
+    test('ledger navigation defaults to Home and has four destinations', () {
       final container = ProviderContainer(
-        overrides: [
-          activeCompanyProvider.overrideWithValue(
-            _createTestCompany(
-              id: 'cmp_no_parties',
-              name: 'No Parties Co',
-              enabledModules: {AppModule.vouchers, AppModule.inventory},
-            ),
-          ),
-          moduleEnabledProvider(AppModule.parties).overrideWithValue(false),
-        ],
+        overrides: [activeCompanyIdProvider.overrideWithValue('ledger-test')],
       );
-
-      final tab = container.read(dashboardTabProvider);
-      expect(tab, equals(2), reason: 'When parties is disabled, default tab must be 2 (Profile)');
-
-      // Attempting to switch to tab 0 (customers) clamps to tab 2
-      container.read(dashboardTabProvider.notifier).setTab(0);
-      expect(container.read(dashboardTabProvider), equals(2));
-
-      container.dispose();
-    });
-
-    test('DashboardTabNotifier resolves to 0 when parties module is enabled', () {
-      final container = ProviderContainer(
-        overrides: [
-          activeCompanyProvider.overrideWithValue(
-            _createTestCompany(
-              id: 'cmp_with_parties',
-              name: 'With Parties Co',
-              enabledModules: {AppModule.parties, AppModule.vouchers},
-            ),
-          ),
-          moduleEnabledProvider(AppModule.parties).overrideWithValue(true),
-        ],
-      );
-
-      final tab = container.read(dashboardTabProvider);
-      expect(tab, equals(0), reason: 'When parties is enabled, default tab should be 0');
-
-      container.dispose();
+      addTearDown(container.dispose);
+      expect(container.read(dashboardTabProvider), 0);
+      final tabs = container.read(dashboardTabProvider.notifier);
+      tabs.setTab(3);
+      expect(container.read(dashboardTabProvider), 3);
+      tabs.setTab(9);
+      expect(container.read(dashboardTabProvider), 3);
     });
 
     test('AppModule.fromName parses correctly and validates enabled state', () {

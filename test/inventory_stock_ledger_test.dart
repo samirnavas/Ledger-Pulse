@@ -5,6 +5,7 @@ import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/data/local/drift_inventory_repository.dart';
 import 'package:ledger_pulse/data/models/inventory_item_model.dart';
 import 'package:ledger_pulse/data/models/stock_ledger_model.dart';
+import 'helpers/legacy_module_test_company.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -64,8 +65,8 @@ void main() {
         updatedAt: now,
       );
 
-      await inventoryRepo.addItem(item1);
-      await inventoryRepo.addItem(item2);
+      await inventoryRepo.addItem(item1, company: LegacyModuleTestCompany(id: testCompanyId));
+      await inventoryRepo.addItem(item2, company: LegacyModuleTestCompany(id: testCompanyId));
 
       // Verify listing
       final items = await inventoryRepo.getItems();
@@ -92,10 +93,11 @@ void main() {
         createdAt: now,
         updatedAt: now,
       );
-      await inventoryRepo.addItem(item);
+      await inventoryRepo.addItem(item, company: LegacyModuleTestCompany(id: testCompanyId));
 
       // Perform stock adjustment: +20
       await inventoryRepo.adjustStock(
+        company: LegacyModuleTestCompany(id: testCompanyId),
         itemId: 'item_adj_1',
         quantityDelta: 20.0,
         type: StockTransactionType.adjustment,
@@ -138,8 +140,8 @@ void main() {
         updatedAt: now,
       );
 
-      await inventoryRepo.addItem(item1);
-      await inventoryRepo.addItem(item2);
+      await inventoryRepo.addItem(item1, company: LegacyModuleTestCompany(id: testCompanyId));
+      await inventoryRepo.addItem(item2, company: LegacyModuleTestCompany(id: testCompanyId));
 
       final (totalItems, totalStockQty, totalValuationInCents) = await inventoryRepo.getInventoryValuation();
       expect(totalItems, equals(2));

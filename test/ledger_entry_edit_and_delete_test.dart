@@ -32,7 +32,7 @@ void main() {
 
   group('Ledger Transaction Edit & Delete Flow Tests', () {
     testWidgets(
-      'Tapping transaction row opens Transaction Voucher sheet with Edit and Delete options',
+      'Tapping transaction row opens Transaction details sheet with Edit and Delete options',
       (tester) async {
         final mockRepo = MockLedgerRepository();
         addTearDown(mockRepo.dispose);
@@ -63,15 +63,15 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
-        // Verify Transaction Voucher bottom sheet is open
-        expect(find.text('Transaction Voucher'), findsOneWidget);
-        expect(find.text('Edit Note / Details'), findsOneWidget);
-        expect(find.text('Delete / Void Entry'), findsOneWidget);
+        // Verify Transaction details bottom sheet is open
+        expect(find.text('Transaction details'), findsOneWidget);
+        expect(find.text('Edit transaction'), findsOneWidget);
+        expect(find.text('Void transaction'), findsOneWidget);
       },
     );
 
     testWidgets(
-      'Tapping Edit Note / Details opens AddEntryBottomSheet in Edit Mode pre-populated',
+      'Tapping Edit transaction opens AddEntryBottomSheet in Edit Mode pre-populated',
       (tester) async {
         final mockRepo = MockLedgerRepository();
         addTearDown(mockRepo.dispose);
@@ -101,8 +101,8 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
-        // Tap Edit Note / Details
-        await tester.tap(find.text('Edit Note / Details'));
+        // Tap Edit transaction
+        await tester.tap(find.text('Edit transaction'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
@@ -122,7 +122,7 @@ void main() {
     );
 
     testWidgets(
-      'Tapping Delete / Void Entry prompts AdaptiveConfirmDialog and voids entry on confirmation',
+      'Tapping Void transaction prompts AdaptiveConfirmDialog and voids entry on confirmation',
       (tester) async {
         final mockRepo = MockLedgerRepository();
         addTearDown(mockRepo.dispose);
@@ -152,8 +152,8 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
-        // Tap Delete / Void Entry
-        await tester.tap(find.text('Delete / Void Entry'));
+        // Tap Void transaction
+        await tester.tap(find.text('Void transaction'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
@@ -161,7 +161,7 @@ void main() {
         expect(find.text('Void Transaction?'), findsOneWidget);
         expect(
           find.text(
-            'Void this entry? A reversing entry will be added to balance the ledger.',
+            'The transaction will be excluded from balances and kept in the audit history.',
           ),
           findsOneWidget,
         );
@@ -173,7 +173,7 @@ void main() {
 
         // Verify transaction voided notification
         expect(
-          find.text('Transaction voided. Reversing entry recorded.'),
+          find.text('Transaction voided.'),
           findsOneWidget,
         );
       },
@@ -211,9 +211,9 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 300));
 
-        // Verify party context menu opens with Edit Details and Delete Party
+        // Verify party context menu opens with Edit Details and Archive Party
         expect(find.text('Edit Details'), findsOneWidget);
-        expect(find.text('Delete Party'), findsOneWidget);
+        expect(find.text('Archive Party'), findsOneWidget);
       },
     );
   });

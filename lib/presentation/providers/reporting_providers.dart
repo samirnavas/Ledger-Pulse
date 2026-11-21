@@ -1,4 +1,7 @@
+import '../../data/local/ledger_entry_balance.dart';
 import 'package:drift/drift.dart';
+import '../../core/utils/date_formatter.dart';
+import '../../core/utils/currency_formatter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/voucher_model.dart';
@@ -17,8 +20,31 @@ final customSqlReportEngineProvider = Provider<CustomSqlReportEngine>((ref) {
   return CustomSqlReportEngine(db);
 });
 
+const ledgerReports = [
+  ReportMetadata(
+    id: 'rpt_party_balances',
+    title: 'Outstanding balances',
+    category: ReportCategory.financial,
+    description: 'Amounts to receive or pay, by party.',
+  ),
+  ReportMetadata(
+    id: 'rpt_day_book',
+    title: 'Transaction register',
+    category: ReportCategory.financial,
+    description: 'Ledger transaction history by date, including voids.',
+  ),
+  ReportMetadata(
+    id: 'rpt_payments',
+    title: 'Payment summary',
+    category: ReportCategory.financial,
+    description: 'Payments received and paid, based on posted cash or bank movements.',
+  ),
+];
+
 final reportCatalogProvider = Provider<List<ReportMetadata>>((ref) {
-  return ReportCatalog.allReports;
+  return ref.watch(activeCompanyProvider).isLedger
+      ? ledgerReports
+      : ReportCatalog.allReports;
 });
 
 class SelectedReportCategoryNotifier extends Notifier<ReportCategory?> {
@@ -38,6 +64,136 @@ final selectedReportCategoryProvider =
 /// Generates ReportData for a selected report ID
 final dynamicReportDataProvider = FutureProvider.family<ReportData, String>((ref, reportId) async {
   final company = ref.watch(activeCompanyProvider);
+  if (company.isLedger) {
+    final metadata = ledgerReports.where((report) => report.id == reportId).firstOrNull;
+    if (metadata == null) throw ArgumentError.value(reportId, 'reportId');
+
+    ref.watch(ledgerUpdatesStreamProvider);
+    final db = ref.watch(appDatabaseProvider);
+    final parties = await (db.select(db.parties)
+          ..where((t) => t.companyId.equals(company.id))
+          ..orderBy([(t) => OrderingTerm.asc(t.name), (t) => OrderingTerm.asc(t.id)]))
+        .get();
+
+    if (reportId == 'rpt_party_balances') {
+      final balances = await readLedgerPartyBalances(db, company.id);
+      final outstanding = {
+        for (final party in parties) party.id: balances[party.id] ?? party.netBalanceInCents,
+      };
+      return ReportData(
+        metadata: metadata,
+        columns: const [
+          ReportColumn(key: 'party', label: 'Party'),
+          ReportColumn(key: 'receive', label: 'To receive', isCurrency: true),
+          ReportColumn(key: 'pay', label: 'To pay', isCurrency: true),
+        ],
+        rows: [
+          for (final party in parties.where((party) => !party.isDeleted && outstanding[party.id] != 0))
+            ReportRow({
+              'party': party.name,
+              'receive': outstanding[party.id]! > 0
+                  ? CurrencyFormatter.format(outstanding[party.id]!, currencyCode: company.currencyCode)
+                  : '',
+              'pay': outstanding[party.id]! < 0
+                  ? CurrencyFormatter.format(-outstanding[party.id]!, currencyCode: company.currencyCode)
+                  : '',
+            }),
+        ],
+        generatedAt: DateTime.now(),
+      );
+    }
+
+    final names = {for (final party in parties) party.id: party.name};
+    final entries = await (db.select(db.ledgerEntries)
+          ..where((t) => t.companyId.equals(company.id))
+          ..orderBy([(t) => OrderingTerm.desc(t.date), (t) => OrderingTerm.desc(t.createdAt), (t) => OrderingTerm.asc(t.id)]))
+        .get();
+    final balance = LedgerEntryBalance(entries);
+    if (reportId == 'rpt_payments') {
+      final journals = db.journals;
+      final lines = db.journalLines;
+      final vouchers = db.vouchers;
+      final posted = journals.companyId.equals(company.id) &
+          journals.status.equals('posted') & journals.isDeleted.equals(false);
+      final standalone = await (db.select(lines).join([
+        innerJoin(journals, journals.id.equalsExp(lines.journalId)),
+      ])..where(posted & lines.companyId.equals(company.id) &
+          lines.isDeleted.equals(false) & lines.accountId.isIn([
+        '${company.id}_${DefaultAccounts.cashId}',
+        '${company.id}_${DefaultAccounts.bankId}',
+      ]))).get();
+      final voucherPayments = await (db.select(vouchers).join([
+        innerJoin(journals, journals.voucherId.equalsExp(vouchers.id)),
+      ])..where(posted & vouchers.companyId.equals(company.id) &
+          vouchers.isDeleted.equals(false) & vouchers.status.equals('posted') &
+          vouchers.type.isIn(['receipt', 'payment']))).get();
+      final ids = {
+        for (final item in standalone)
+          if (item.readTable(journals).id.startsWith('jnl_entry_'))
+            item.readTable(journals).id.substring('jnl_entry_'.length),
+        for (final item in voucherPayments)
+          'vch_entry_${item.readTable(vouchers).id}',
+      };
+      final payments = entries.where((entry) => ids.contains(entry.id) &&
+          !entry.isVoided && !entry.isDeleted && !balance.isLegacyOffset(entry)).toList();
+      int received = 0;
+      int paid = 0;
+      for (final payment in payments) {
+        if (payment.type == EntryType.got) {
+          received += payment.amountInCents;
+        } else {
+          paid += payment.amountInCents;
+        }
+      }
+      String amount(int cents) => CurrencyFormatter.format(cents, currencyCode: company.currencyCode);
+      return ReportData(
+        metadata: metadata,
+        columns: const [
+          ReportColumn(key: 'date', label: 'Date'),
+          ReportColumn(key: 'party', label: 'Party'),
+          ReportColumn(key: 'type', label: 'Movement'),
+          ReportColumn(key: 'method', label: 'Method'),
+          ReportColumn(key: 'amount', label: 'Amount', isCurrency: true),
+        ],
+        rows: [
+          for (final payment in payments)
+            ReportRow({
+              'date': DateFormatter.formatShortDate(payment.date),
+              'party': names[payment.partyId] ?? 'Archived party',
+              'type': payment.type == EntryType.got ? 'Payment received' : 'Payment paid',
+              'method': LedgerPaymentMethod.read(payment.note)?.label ?? '',
+              'amount': amount(payment.amountInCents),
+            }),
+        ],
+        summary: {'Received': amount(received), 'Paid': amount(paid)},
+        generatedAt: DateTime.now(),
+      );
+    }
+    return ReportData(
+      metadata: metadata,
+      columns: const [
+        ReportColumn(key: 'date', label: 'Date'),
+        ReportColumn(key: 'party', label: 'Party'),
+        ReportColumn(key: 'direction', label: 'Transaction'),
+        ReportColumn(key: 'amount', label: 'Amount', isCurrency: true),
+        ReportColumn(key: 'note', label: 'Note'),
+        ReportColumn(key: 'status', label: 'Status'),
+      ],
+      rows: [
+        for (final entry in entries.where((entry) => !entry.isDeleted && !balance.isLegacyOffset(entry) && names.containsKey(entry.partyId)))
+          ReportRow({
+            'date': DateFormatter.formatShortDate(entry.date),
+            'party': names[entry.partyId],
+            'direction': entry.type == EntryType.gave ? 'You gave' : 'You got',
+            'amount': CurrencyFormatter.format(entry.amountInCents, currencyCode: company.currencyCode),
+            'note': entry.note ?? '',
+            'status': entry.isVoided ? 'Voided' : 'Recorded',
+          }),
+      ],
+      generatedAt: DateTime.now(),
+    );
+  }
+
   final parties = await ref.watch(partyListProvider.future);
   final vouchers = await ref.watch(vouchersListProvider(null).future);
   final items = await ref.watch(inventoryItemsListProvider.future);

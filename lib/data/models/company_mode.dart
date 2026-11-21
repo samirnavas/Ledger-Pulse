@@ -97,6 +97,12 @@ enum AppModule {
   budgets,
   recurring;
 
+  static const Set<AppModule> ledgerEssentials = {
+    AppModule.parties,
+    AppModule.vouchers,
+    AppModule.dataImport,
+  };
+
   static const Set<AppModule> allModules = {
     AppModule.parties,
     AppModule.vouchers,

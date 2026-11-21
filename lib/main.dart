@@ -42,7 +42,9 @@ void main() async {
   try {
     sharedPreferences = await SharedPreferences.getInstance();
   } catch (e) {
-    debugPrint('SharedPreferences init notice: $e');
+    if (kDebugMode) {
+      debugPrint('SharedPreferences init notice: $e');
+    }
   }
 
   // Initialize Home Screen Widget bridge & App Groups
@@ -54,7 +56,9 @@ void main() async {
         SplashScreen.skipHold = true;
       }
     } catch (e) {
-      debugPrint('WidgetSyncService init notice: $e');
+      if (kDebugMode) {
+        debugPrint('WidgetSyncService init notice: $e');
+      }
     }
   }
 
@@ -66,7 +70,9 @@ void main() async {
         anonKey: SupabaseConfig.anonKey,
       );
     } catch (e) {
-      debugPrint('Supabase init notice: $e');
+      if (kDebugMode) {
+        debugPrint('Supabase init notice: $e');
+      }
     }
   }
   runApp(
@@ -113,7 +119,9 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
         await ref.read(recurringServiceProvider).generateDue(DateTime.now());
       }
     } catch (e) {
-      debugPrint('Background recurring check failed: $e');
+      if (kDebugMode) {
+        debugPrint('Background recurring check failed: $e');
+      }
     }
   }
 
@@ -214,7 +222,9 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
               if (module != null) {
                 final company = ref.read(activeCompanyProvider);
                 if (!company.isModuleEnabled(module)) {
-                  debugPrint('Deep link ignored: module ${module.name} is disabled');
+                  if (kDebugMode) {
+                    debugPrint('Deep link ignored: module ${module.name} is disabled');
+                  }
                   return;
                 }
               }

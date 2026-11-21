@@ -9,6 +9,7 @@ import 'package:ledger_pulse/data/local/drift_voucher_repository.dart';
 import 'package:ledger_pulse/data/models/inventory_item_model.dart';
 import 'package:ledger_pulse/data/models/party_model.dart';
 import 'package:ledger_pulse/data/models/voucher_model.dart';
+import 'helpers/legacy_module_test_company.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +43,8 @@ void main() {
       currentCompanyId: testCompanyId,
     );
 
+    await postingEngine.ensureCompanyAccounts(testCompanyId);
+
     // Setup Test Customer and Test Supplier
     await ledgerRepo.addParty(Party(
       id: 'party_cust_1',
@@ -61,7 +64,6 @@ void main() {
       lastUpdated: DateTime.now(),
     ));
 
-    await postingEngine.ensureCompanyAccounts(testCompanyId);
   });
 
   tearDown(() async {
@@ -125,7 +127,7 @@ void main() {
         unit: 'PCS',
         createdAt: now,
         updatedAt: now,
-      ));
+      ), company: LegacyModuleTestCompany(id: testCompanyId));
 
       // Create posted Sales Invoice with 1 Goods item and 1 Service item
       final invoice = VoucherModel(
@@ -206,7 +208,7 @@ void main() {
         unit: 'PCS',
         createdAt: now,
         updatedAt: now,
-      ));
+      ), company: LegacyModuleTestCompany(id: testCompanyId));
 
       final draftInvoice = VoucherModel(
         id: 'vch_draft_inv',
@@ -267,7 +269,7 @@ void main() {
         unit: 'PCS',
         createdAt: now,
         updatedAt: now,
-      ));
+      ), company: LegacyModuleTestCompany(id: testCompanyId));
 
       final salesOrder = VoucherModel(
         id: 'vch_so_100',
@@ -348,7 +350,7 @@ void main() {
         unit: 'PCS',
         createdAt: now,
         updatedAt: now,
-      ));
+      ), company: LegacyModuleTestCompany(id: testCompanyId));
 
       // Estimate 1: Convert to Sales Order
       final estimate1 = VoucherModel(
@@ -465,7 +467,7 @@ void main() {
         unit: 'PCS',
         createdAt: now,
         updatedAt: now,
-      ));
+      ), company: LegacyModuleTestCompany(id: testCompanyId));
 
       final purchase = VoucherModel(
         id: 'vch_pur_100',

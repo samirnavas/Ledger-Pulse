@@ -206,7 +206,7 @@ void main() {
       await freshDb.close();
     });
 
-    test('Old-style company row without mode or enabled_modules pulls as ledger company with all modules', () async {
+    test('legacy company sync preserves stored flags and activates only ledger essentials', () async {
       final fakeRemote = StrictFakeRemoteSyncBackend();
 
       // Seed legacy row in fake remote (no mode, no enabled_modules)
@@ -244,6 +244,10 @@ void main() {
       expect(pulledCompany.mode, equals(CompanyMode.ledger));
       expect(pulledCompany.enabledModules.length, equals(AppModule.allModules.length));
       expect(pulledCompany.enabledModules, containsAll(AppModule.allModules));
+      expect(
+        AppModule.values.where(pulledCompany.isModuleEnabled).toSet(),
+        AppModule.ledgerEssentials,
+      );
 
       await db.close();
     });

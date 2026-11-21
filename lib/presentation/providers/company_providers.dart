@@ -326,6 +326,14 @@ class CompanyController extends Notifier<void> {
       },
     );
 
+    if (existing.isLedger) {
+      if (existing.isModuleEnabled(module) == enabled) return {};
+      if (throwOnError) {
+        throw ModuleDependencyException('Ledger modules are fixed for this release');
+      }
+      return {module};
+    }
+
     if (enabled) {
       if (!ModuleCatalog.isModeAllowed(existing.mode, module)) {
         if (throwOnError) {

@@ -1,17 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/payroll_model.dart';
 import 'package:ledger_pulse/data/models/voucher_model.dart';
 import 'package:ledger_pulse/data/services/payroll_service.dart';
+import 'helpers/legacy_module_test_company.dart';
 
 void main() {
   group('Payroll Module & Statutory Deduction Tests (FR-PAY-01, FR-PAY-02, FR-PAY-03)', () {
-    late Company testCompany;
+    late LegacyModuleTestCompany testCompany;
     late Employee emp1;
     late Employee emp2;
 
     setUp(() {
-      testCompany = Company(
+      testCompany = LegacyModuleTestCompany(
         id: 'cmp_test_1',
         name: 'TechMatrix Global Pvt Ltd',
         legalName: 'TechMatrix Global Pvt Ltd',
