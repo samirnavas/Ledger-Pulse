@@ -10,7 +10,7 @@
 
 ## Current release scope
 
-Business Ledger exposes Home, Parties, Transactions, and Reports. It supports customer and supplier credit, payment movements, opening balances, statements, and CSV import/export. Expense Tracker owns its wallet, category, recurring rule, budget, and transaction workflows. Profiles retain their existing immutable type and membership hierarchy.
+Business Ledger exposes Home, Parties, Transactions, and Reports. It supports customer and supplier credit, payments, refunds, non-cash adjustments, opening balances, and statements. Transaction history loads in increments. Parties can be archived and restored, and the ledger previews and validates party CSV batches before committing them. Expense Tracker owns its wallet, category, recurring rule, budget, and transaction workflows. Profiles retain their existing immutable type and membership hierarchy.
 
 Local standalone ledger posting writes the entry, balanced journal, audit record, and outbox in one Drift transaction. Financial corrections void the prior posting and create one replacement. Ledger totals and running balances share the same treatment of voids and verified legacy offsets. Hosted sync still sends individual mutations, so local transaction atomicity does not imply remote atomicity.
 

@@ -246,7 +246,7 @@ void main() {
         id: companyId,
         name: 'Resurrect Entry Co',
         legalName: 'Resurrect Entry Co',
-        mode: CompanyMode.expenseTracker,
+        mode: CompanyMode.ledger,
         enabledModules: {AppModule.vouchers},
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),

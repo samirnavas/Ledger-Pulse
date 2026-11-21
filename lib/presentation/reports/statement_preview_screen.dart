@@ -95,7 +95,7 @@ class _StatementPreviewScreenState
                 'balance': entry.runningBalanceInCents == null
                     ? ''
                     : amount(entry.runningBalanceInCents!),
-                'note': entry.note ?? '',
+                'note': LedgerPaymentMethod.strip(entry.note) ?? '',
               }),
           ],
           generatedAt: DateTime.now(),
@@ -426,7 +426,7 @@ class _StatementPreviewScreenState
                                       // Note / Description
                                       Expanded(
                                         child: Text(
-                                          entry.note ??
+                                          LedgerPaymentMethod.strip(entry.note) ??
                                               (isGave ? 'You Gave' : 'You Got'),
                                           style: const TextStyle(
                                             fontSize: 13,

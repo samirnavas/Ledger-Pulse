@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
+import 'package:ledger_pulse/data/models/transaction_model.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -226,6 +227,7 @@ void main() {
         periodType: BudgetPeriodType.monthly,
         amountInCents: 20000,
         startDate: DateTime.now(),
+        rolloverEnabled: true,
       );
       expect(budget.id, isNotEmpty);
 
@@ -233,8 +235,10 @@ void main() {
       final expBudgets = await (db.select(db.expenseBudgets)..where((b) => b.profileId.equals(expProfile.id))).get();
       expect(expBudgets.length, equals(1));
       expect(expBudgets.first.amountInCents, equals(20000));
+      expect(expBudgets.first.rolloverEnabled, isTrue);
+      expect(expBudgets.first.isActive, isTrue);
 
-      // CRITICAL INVARIANT: Zero writes to legacy `budgets` table
+      // Expense budget values and settings belong to the canonical expense row.
       final legacyBudgets = await (db.select(db.budgets)..where((b) => b.companyId.equals(expProfile.id))).get();
       expect(legacyBudgets, isEmpty, reason: 'Expense budgets must never be written to legacy budgets table');
 
@@ -299,7 +303,7 @@ void main() {
       failingSyncEngine.dispose();
     });
 
-    test('5. Drift migration from v11 to v12 populates profiles table and backfills companies.profile_id', () async {
+    test('5. Drift migration from v11 adds ledger metadata columns and backfills profiles', () async {
       final verifier = SchemaVerifier(GeneratedHelper());
 
       final schema = await verifier.schemaAt(11);
@@ -322,10 +326,29 @@ void main() {
         );
       ''');
 
-      // Migrate to latest v12
+      schema.rawDatabase.execute('''
+        INSERT INTO companies (id, name, legal_name, mode, owner_id, created_at, updated_at)
+        VALUES ('legacy-ledger', 'Legacy', 'Legacy Ltd', 'ledger', '$testUserId', $nowSeconds, $nowSeconds);
+        INSERT INTO parties (id, company_id, name, phone_number, type, last_updated)
+        VALUES ('legacy-party', 'legacy-ledger', 'Customer', '', 'customer', $nowSeconds);
+        INSERT INTO ledger_entries (id, company_id, party_id, amount_in_cents, type, date, note)
+        VALUES ('legacy-payment', 'legacy-ledger', 'legacy-party', 425, 'got', $nowSeconds,
+          '[Payment method: Bank transfer]' || char(10) || 'Paid online');
+      ''');
+
       final migratedDb = AppDatabase(schema.newConnection());
-      // Trigger opening which executes drift onUpgrade (from11To12)
       await migratedDb.customSelect('SELECT 1').get();
+      expect(migratedDb.schemaVersion, 14);
+      final entryColumns = await migratedDb.customSelect('PRAGMA table_info(ledger_entries)').get();
+      expect(entryColumns.map((row) => row.read<String>('name')),
+          containsAll(['note', 'payment_method', 'entry_kind']));
+      final legacy = await (migratedDb.select(migratedDb.ledgerEntries)
+        ..where((entry) => entry.id.equals('legacy-payment'))).getSingle();
+      expect(legacy.amountInCents, 425);
+      expect(legacy.paymentMethod, isNull);
+      expect(legacy.entryKind, isNull);
+      expect(legacy.note, '[Payment method: Bank transfer]\nPaid online');
+      expect(LedgerPaymentMethod.read(legacy.note), LedgerPaymentMethod.bank);
 
       // Verify canonical profiles table has the migrated profile
       final profileRows = await (migratedDb.select(migratedDb.profiles)..where((p) => p.id.equals('cmp_v11_test'))).get();

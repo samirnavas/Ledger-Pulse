@@ -1,16 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/accounting/manufacturing_journal_engine.dart';
 import '../../data/local/audit_service.dart';
 import '../../data/local/drift_inventory_repository.dart';
 import '../../data/models/inventory_item_model.dart';
 import '../../data/models/stock_ledger_model.dart';
 import 'ledger_providers.dart';
 import 'profile_provider.dart';
-
-final manufacturingJournalEngineProvider = Provider<ManufacturingJournalEngine>((ref) {
-  final db = ref.watch(appDatabaseProvider);
-  return ManufacturingJournalEngine(db, AuditService(db));
-});
 
 final inventoryRepositoryProvider = Provider<DriftInventoryRepository>((ref) {
   final db = ref.watch(appDatabaseProvider);

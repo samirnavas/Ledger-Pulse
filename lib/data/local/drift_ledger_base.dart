@@ -57,7 +57,7 @@ abstract class DriftLedgerRepositoryBase {
   }
 
   // Cross-domain declarations
-  Future<void> addEntry(LedgerEntry entry);
+  Future<void> addEntry(LedgerEntry entry, {bool notify = true});
   Future<Party> getPartyById(String partyId);
   Future<List<Company>> getCompanies();
 }

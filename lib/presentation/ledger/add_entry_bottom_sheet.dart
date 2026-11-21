@@ -10,6 +10,8 @@ import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../data/models/transaction_model.dart';
+import '../../data/models/party_model.dart';
+import '../../core/widgets/adaptive_picker.dart';
 import '../providers/ledger_providers.dart';
 import 'widgets/entry_amount_display.dart';
 import 'widgets/entry_attachment_picker_sheet.dart';
@@ -45,6 +47,10 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
   DateTime _selectedDate = DateTime.now();
   String? _receiptUrl;
   LedgerPaymentMethod? _paymentMethod;
+  LedgerEntryKind? _kind;
+
+  bool _isPayment(Party party) =>
+      _kind == null ? isLedgerPayment(party.type, _entryType) : _kind == LedgerEntryKind.payment;
   bool _isSubmitting = false;
   String? _errorMessage;
 
@@ -57,7 +63,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           _noteController.text.trim() == initialNote.trim() &&
           _selectedDate == entry.date &&
           _entryType == entry.type &&
-          _paymentMethod == LedgerPaymentMethod.read(entry.note) &&
+          _paymentMethod == entry.effectivePaymentMethod &&
+          _kind == entry.kind &&
           _receiptUrl == entry.receiptPhotoUrl;
     }
     return (_amountString == '0' || _amountString.isEmpty) &&
@@ -72,7 +79,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
       final entry = widget.entryToEdit!;
       _entryType = entry.type;
       _amountString = _amountInputFromCents(entry.amountInCents);
-      _paymentMethod = LedgerPaymentMethod.read(entry.note);
+      _paymentMethod = entry.effectivePaymentMethod;
+      _kind = entry.kind;
       _noteController.text = LedgerPaymentMethod.strip(entry.note) ?? '';
       _selectedDate = entry.date;
       _receiptUrl = entry.receiptPhotoUrl;
@@ -276,12 +284,11 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     });
 
     final party = ref.read(partyDetailProvider(widget.partyId)).value;
-    final payment = party != null && isLedgerPayment(party.type, _entryType) &&
+    final payment = party != null && _isPayment(party) &&
         !(widget.entryToEdit?.id.startsWith('entry_init_') ?? false);
     final text = _noteController.text.trim();
-    final note = payment && _paymentMethod != null
-        ? _paymentMethod!.encode(text)
-        : text.isEmpty ? null : text;
+    final note = text.isEmpty ? null : text;
+    final method = payment ? _paymentMethod : null;
 
     try {
       if (widget.entryToEdit != null) {
@@ -290,6 +297,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
           type: _entryType,
           date: _selectedDate,
           note: note,
+          paymentMethod: method,
+          kind: _kind,
           receiptPhotoUrl: _receiptUrl,
         );
         await ref.read(ledgerActionControllerProvider).updateEntry(updated);
@@ -316,6 +325,8 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
               type: _entryType,
               date: _selectedDate,
               note: note,
+              paymentMethod: method,
+              kind: _kind,
               receiptPhotoUrl: _receiptUrl,
             );
 
@@ -345,11 +356,43 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
     }
   }
 
+  Widget _optionPicker<T>({
+    required String title,
+    required Map<T?, String> options,
+    required T? selected,
+    required ValueChanged<T?> onChanged,
+  }) {
+    final label = Text('$title: ${options[selected]}');
+    final VoidCallback? open = _isSubmitting ? null : () async {
+      final choice = await showAdaptivePicker<({T? value})>(
+        context: context,
+        title: title,
+        selectedValue: (value: selected),
+        items: [
+          for (final option in options.entries)
+            AdaptivePickerItem<({T? value})>(
+              value: (value: option.key),
+              label: option.value,
+            ),
+        ],
+      );
+      if (mounted && choice != null) setState(() => onChanged(choice.value));
+    };
+    if (AdaptiveThemeHelper.isIos(context)) {
+      return CupertinoButton(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        onPressed: open,
+        child: label,
+      );
+    }
+    return TextButton(onPressed: open, child: label);
+  }
+
   @override
   Widget build(BuildContext context) {
     final party = ref.watch(partyDetailProvider(widget.partyId)).value;
     final opening = widget.entryToEdit?.id.startsWith('entry_init_') ?? false;
-    final payment = party != null && isLedgerPayment(party.type, _entryType) && !opening;
+    final payment = party != null && _isPayment(party) && !opening;
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
@@ -437,25 +480,30 @@ class _AddEntryBottomSheetState extends ConsumerState<AddEntryBottomSheet> {
                       ),
                       const SizedBox(height: 12),
 
-                      if (party != null)
-                        Text(
-                          opening ? 'Opening balance' : payment
-                              ? 'Payment movement' : 'Credit entry',
-                          style: Theme.of(context).textTheme.labelLarge,
+                      if (opening)
+                        const Text('Opening balance')
+                      else if (party != null)
+                        _optionPicker<LedgerEntryKind>(
+                          title: 'Transaction type',
+                          selected: _kind,
+                          options: {
+                            null: isLedgerPayment(party.type, _entryType)
+                                ? 'Payment (default)' : 'Credit (default)',
+                            LedgerEntryKind.credit: 'Credit or adjustment',
+                            LedgerEntryKind.payment: 'Payment or refund',
+                          },
+                          onChanged: (value) => _kind = value,
                         ),
                       if (payment)
-                        DropdownButton<LedgerPaymentMethod>(
-                          value: _paymentMethod,
-                          hint: const Text('Payment method (optional)'),
-                          menuMaxHeight: 280,
-                          items: [
-                            const DropdownMenuItem<LedgerPaymentMethod>(
-                              child: Text('Unspecified'),
-                            ),
+                        _optionPicker<LedgerPaymentMethod>(
+                          title: 'Payment method',
+                          selected: _paymentMethod,
+                          options: {
+                            null: 'Unspecified',
                             for (final method in LedgerPaymentMethod.values)
-                              DropdownMenuItem(value: method, child: Text(method.label)),
-                          ],
-                          onChanged: _isSubmitting ? null : (value) => setState(() => _paymentMethod = value),
+                              method: method.label,
+                          },
+                          onChanged: (value) => _paymentMethod = value,
                         ),
 
                       // Giant Typographic Amount Display (No system keyboard popup)

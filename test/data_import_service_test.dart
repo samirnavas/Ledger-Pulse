@@ -18,6 +18,24 @@ void main() {
     expect(invalid.warnings, hasLength(2));
     expect(invalid.importedParties, hasLength(1));
   });
+  test('ledger CSV handles BOM, CRLF, escaped quotes and multiline records', () {
+    final result = DataImportService.parseLedgerPartyCsv(
+      '\uFEFFName,Type,Phone,Opening Balance\r\n'
+      ' "North ""Trading""\r\nLtd" , Customer ,,12.3\r\n'
+      'North   "Trading" Ltd,Customer,,1',
+    );
+    expect(result.importedParties, isEmpty);
+    expect(result.warnings.single, contains('Record 3'));
+
+    final valid = DataImportService.parseLedgerPartyCsv(
+      '\uFEFFName,Type,Phone,Opening Balance\r\n'
+      ' "North ""Trading""\r\nLtd" , Customer ,,12.3\r\n'
+      '"north ""trading"" ltd",Customer,,1',
+    );
+    expect(valid.importedParties.single.netBalanceInCents, 1230);
+    expect(valid.warnings.single, contains('duplicate'));
+  });
+
   group('Third-Party Data Importer Tests (FR-SYN-03)', () {
     const companyId = 'cmp_import_test';
 

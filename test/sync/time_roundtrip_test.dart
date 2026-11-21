@@ -135,6 +135,8 @@ void main() {
           partyId: partyId,
           amountInCents: 15000,
           type: EntryType.gave,
+          kind: LedgerEntryKind.payment,
+          paymentMethod: LedgerPaymentMethod.upi,
           date: intended1,
           note: 'Instant 1 ledger entry',
         );
@@ -171,6 +173,9 @@ void main() {
           reason: 'Ledger entry 1 should be pulled',
         );
         final pulledEntry = pulledEntries.first;
+        expect(pulledEntry.paymentMethod, 'upi');
+        expect(pulledEntry.entryKind, LedgerEntryKind.payment);
+        expect(pulledEntry.note, 'Instant 1 ledger entry');
         expect(
           pulledEntry.date.millisecondsSinceEpoch ~/ 1000,
           equals(intended1.millisecondsSinceEpoch ~/ 1000),

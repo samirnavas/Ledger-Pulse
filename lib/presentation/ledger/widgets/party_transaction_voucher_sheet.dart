@@ -27,7 +27,7 @@ void showTransactionDetailSheet({
   HapticFeedback.lightImpact();
   final isIos = AdaptiveThemeHelper.isIos(context);
   final isDark = Theme.of(context).brightness == Brightness.dark;
-  final method = LedgerPaymentMethod.read(entry.note);
+  final method = entry.effectivePaymentMethod;
   final note = LedgerPaymentMethod.strip(entry.note);
   final isGave = entry.type == EntryType.gave;
   final color = isGave ? AppColors.payableRed : AppColors.receivableGreen;

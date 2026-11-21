@@ -589,12 +589,14 @@ void main() {
     });
 
     // 17. Expense domain: exp_budgets synced correctly
-    test('17. Expense domain: exp_budgets synced correctly', () async {
+    test('17. Expense domain: budget amount and settings sync to a fresh database', () async {
       await db.into(db.expenseBudgets).insert(
         ExpenseBudgetsCompanion(
           id: const drift.Value('b_exp_17'),
           profileId: const drift.Value(testCompanyId),
           amountInCents: const drift.Value(50000),
+          rolloverEnabled: const drift.Value(true),
+          isActive: const drift.Value(false),
           startDate: drift.Value(DateTime.now()),
           syncStatus: const drift.Value(SyncRecordStatus.pending),
         ),
@@ -606,6 +608,48 @@ void main() {
       final remoteBudget = gateway.tables['exp_budgets']?['b_exp_17'];
       expect(remoteBudget, isNotNull);
       expect(remoteBudget?['amount_in_cents'], 50000);
+      expect(remoteBudget?['rollover_enabled'], isTrue);
+      expect(remoteBudget?['is_active'], isFalse);
+      expect(remoteBudget!.keys, isNot(contains('end_date')));
+      expect(remoteBudget.keys, isNot(contains('alert_threshold_percent')));
+
+      final freshDb = AppDatabase(NativeDatabase.memory());
+      final freshSync = SyncEngine(db: freshDb, fakeRemoteStore: gateway,
+        simulateSyncForTesting: true, activeUserId: testUserId);
+      addTearDown(() async {
+        freshSync.dispose();
+        await freshDb.close();
+      });
+      await freshDb.into(freshDb.profiles).insert(
+        (await db.select(db.profiles).getSingle()).toCompanion(false),
+      );
+      final pull = await freshSync.pullChanges(companyId: testCompanyId);
+      expect(pull.status, SyncEngineStatus.success);
+      final restored = await freshDb.select(freshDb.expenseBudgets).getSingle();
+      expect(restored.amountInCents, 50000);
+      expect(restored.rolloverEnabled, isTrue);
+      expect(restored.isActive, isFalse);
+
+      // Simulate settings that were backfilled after this remote snapshot.
+      await freshDb.update(freshDb.expenseBudgets).write(
+        const ExpenseBudgetsCompanion(
+          rolloverEnabled: drift.Value(false), isActive: drift.Value(true),
+        ),
+      );
+      await freshSync.pullChanges(companyId: testCompanyId);
+      final replayed = await freshDb.select(freshDb.expenseBudgets).getSingle();
+      expect(replayed.rolloverEnabled, isFalse);
+      expect(replayed.isActive, isTrue);
+
+      gateway.upsertDirect('exp_budgets', restored.id, {
+        ...remoteBudget,
+        'updated_at': encodeTime(restored.remoteUpdatedAt!.add(const Duration(seconds: 1))),
+        'revision': restored.revision + 1,
+      });
+      await freshSync.pullChanges(companyId: testCompanyId);
+      final newer = await freshDb.select(freshDb.expenseBudgets).getSingle();
+      expect(newer.rolloverEnabled, isTrue);
+      expect(newer.isActive, isFalse);
 
       final localBudget = await (db.select(db.expenseBudgets)..where((t) => t.id.equals('b_exp_17'))).getSingle();
       expect(localBudget.syncStatus, SyncRecordStatus.synced);

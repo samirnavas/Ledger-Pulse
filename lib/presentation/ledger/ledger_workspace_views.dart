@@ -10,7 +10,7 @@ import '../../core/utils/date_formatter.dart';
 import '../../core/widgets/adaptive_confirm_dialog.dart';
 import '../../core/widgets/adaptive_segmented_control.dart';
 import '../../core/widgets/liquid_glass_card.dart';
-import '../../data/local/ledger_entry_balance.dart';
+import '../../data/local/database.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../providers/company_providers.dart';
@@ -18,49 +18,114 @@ import '../providers/ledger_providers.dart';
 import 'add_entry_bottom_sheet.dart';
 import 'widgets/party_transaction_voucher_sheet.dart';
 
-final ledgerActivityProvider =
-    StreamProvider.autoDispose<
-      List<({Party party, LedgerEntry entry, bool archived})>
-    >((ref) {
+typedef _ActivityRow = ({Party party, LedgerEntry entry, bool archived});
+typedef _ActivityFilter = ({
+  int limit,
+  bool includeVoids,
+  String? partyId,
+  EntryType? type,
+  DateTime? start,
+  DateTime? end,
+  String search,
+});
+
+final ledgerActivityProvider = StreamProvider.autoDispose<List<_ActivityRow>>((
+  ref,
+) {
+  final company = ref.watch(activeCompanyProvider);
+  if (!company.isLedger) return Stream.value(const []);
+  return _watchActivity(ref.watch(appDatabaseProvider), company.id, const (
+    limit: 5,
+    includeVoids: false,
+    partyId: null,
+    type: null,
+    start: null,
+    end: null,
+    search: '',
+  ));
+});
+
+final ledgerActivityPageProvider = StreamProvider.autoDispose
+    .family<List<_ActivityRow>, _ActivityFilter>((ref, filter) {
       final company = ref.watch(activeCompanyProvider);
       if (!company.isLedger) return Stream.value(const []);
       final db = ref.watch(appDatabaseProvider);
-      final entries = db.ledgerEntries;
-      final parties = db.parties;
-      final query =
-          db.select(entries).join([
-              innerJoin(parties, parties.id.equalsExp(entries.partyId)),
-            ])
-            ..where(
-              entries.companyId.equals(company.id) &
-                  parties.companyId.equals(company.id),
-            )
-            ..orderBy([
-              OrderingTerm.asc(entries.date),
-              OrderingTerm.asc(entries.createdAt),
-              OrderingTerm.asc(entries.id),
-            ]);
+      return _watchActivity(db, company.id, filter);
+    });
 
-      return query.watch().map((result) {
-        final rows = result.map((item) => item.readTable(entries)).toList();
-        final balances = LedgerEntryBalance(rows);
-        final running = <String, int>{};
-        final history = <({Party party, LedgerEntry entry, bool archived})>[];
-        for (final item in result) {
-          final row = item.readTable(entries);
-          if (row.isDeleted || balances.isLegacyOffset(row)) continue;
-          final p = item.readTable(parties);
-          final runningBalance = (running[p.id] ?? 0) + balances.delta(row);
-          running[p.id] = runningBalance;
-          history.add((
-            archived: p.isDeleted,
+Stream<List<_ActivityRow>> _watchActivity(
+  AppDatabase db,
+  String companyId,
+  _ActivityFilter filter,
+) {
+  return db
+      .customSelect(
+        '''
+    WITH visible AS (
+      SELECT e.*, SUM(CASE WHEN e.is_voided THEN 0
+          WHEN e.type = 'gave' THEN e.amount_in_cents ELSE -e.amount_in_cents END)
+        OVER (PARTITION BY e.party_id ORDER BY e.date, e.created_at, e.id)
+        AS running_balance
+      FROM ledger_entries e
+      WHERE e.company_id = ? AND NOT e.is_deleted
+        AND NOT EXISTS (
+          SELECT 1 FROM ledger_entries original
+          WHERE original.id = CASE
+            WHEN substr(e.note, 1, 24) = 'Reversal: Voided entry #'
+              THEN substr(e.note, 25)
+            WHEN substr(e.note, 1, 22) = 'Offset: Voided entry #' THEN
+              CASE WHEN instr(substr(e.note, 23), ' (') > 0 AND substr(e.note, -1) = ')'
+                THEN substr(e.note, 23, instr(substr(e.note, 23), ' (') - 1)
+                ELSE substr(e.note, 23) END
+            END
+            AND instr(original.id, ' ') = 0
+            AND original.company_id = e.company_id
+            AND original.party_id = e.party_id
+            AND (original.is_voided OR original.is_deleted)
+            AND original.type <> e.type
+            AND original.amount_in_cents = e.amount_in_cents
+        )
+    )
+    SELECT visible.*, p.name AS party_name, p.phone_number AS party_phone,
+      p.type AS party_type, p.net_balance_in_cents AS party_balance,
+      p.last_updated AS party_updated, p.is_deleted AS archived
+    FROM visible JOIN parties p ON visible.party_id = p.id AND p.company_id = visible.company_id
+    WHERE ${filter.includeVoids ? '1 = 1' : 'NOT visible.is_voided'}
+      ${filter.partyId == null ? '' : 'AND visible.party_id = ?'}
+      ${filter.type == null ? '' : 'AND visible.type = ?'}
+      ${filter.start == null ? '' : 'AND visible.date >= ?'}
+      ${filter.end == null ? '' : 'AND visible.date < ?'}
+      ${filter.search.isEmpty ? '' : "AND (instr(lower(p.name), ?) > 0 OR instr(lower(coalesce(visible.note, '')), ?) > 0)"}
+    ORDER BY visible.date DESC, visible.created_at DESC, visible.id DESC
+    LIMIT ?
+    ''',
+        variables: [
+          Variable.withString(companyId),
+          if (filter.partyId != null) Variable.withString(filter.partyId!),
+          if (filter.type != null) Variable.withString(filter.type!.name),
+          if (filter.start != null) Variable.withDateTime(filter.start!),
+          if (filter.end != null) Variable.withDateTime(filter.end!),
+          if (filter.search.isNotEmpty) ...[
+            Variable.withString(filter.search),
+            Variable.withString(filter.search),
+          ],
+          Variable.withInt(filter.limit),
+        ],
+        readsFrom: {db.ledgerEntries, db.parties},
+      )
+      .watch()
+      .map(
+        (result) => result.map((item) {
+          final row = db.ledgerEntries.map(item.data);
+          return (
+            archived: item.read<bool>('archived'),
             party: Party(
-              id: p.id,
-              name: p.name,
-              phoneNumber: p.phoneNumber,
-              type: p.type,
-              netBalanceInCents: p.netBalanceInCents,
-              lastUpdated: p.lastUpdated,
+              id: row.partyId,
+              name: item.read<String>('party_name'),
+              phoneNumber: item.read<String>('party_phone'),
+              type: PartyType.values.byName(item.read<String>('party_type')),
+              netBalanceInCents: item.read<int>('party_balance'),
+              lastUpdated: item.read<DateTime>('party_updated'),
             ),
             entry: LedgerEntry(
               id: row.id,
@@ -69,15 +134,27 @@ final ledgerActivityProvider =
               amountInCents: row.amountInCents,
               date: row.date,
               note: row.note,
+              paymentMethod: LedgerPaymentMethod.fromName(row.paymentMethod),
+              kind: row.entryKind,
               receiptPhotoUrl: row.receiptPhotoUrl,
               isVoided: row.isVoided,
-              runningBalanceInCents: runningBalance,
+              runningBalanceInCents: item.read<int>('running_balance'),
             ),
-          ));
-        }
-        return history.reversed.toList();
-      });
-    });
+          );
+        }).toList(),
+      );
+}
+
+final _transactionParties = StreamProvider.autoDispose<Map<String, String>>((
+  ref,
+) {
+  final company = ref.watch(activeCompanyProvider);
+  final db = ref.watch(appDatabaseProvider);
+  final query = db.select(db.parties)
+    ..where((p) => p.companyId.equals(company.id))
+    ..orderBy([(p) => OrderingTerm.asc(p.name)]);
+  return query.watch().map((rows) => {for (final p in rows) p.id: p.name});
+});
 
 Future<void> openLedgerTransaction(
   BuildContext context,
@@ -230,6 +307,117 @@ class LedgerPartyFilters extends ConsumerWidget {
   }
 }
 
+Future<void> showArchivedLedgerParties(
+  BuildContext context,
+  WidgetRef ref,
+) async {
+  final repo = ref.read(driftLedgerRepositoryProvider);
+  final company = ref.read(activeCompanyProvider);
+  try {
+    final parties = await repo.getParties(archived: true);
+    if (!context.mounted || ref.read(activeCompanyProvider).id != company.id) {
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      useSafeArea: true,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => FractionallySizedBox(
+        heightFactor: 0.8,
+        child: Column(
+          children: [
+            Text(
+              'Archived parties',
+              style: Theme.of(sheetContext).textTheme.titleLarge,
+            ),
+            Expanded(
+              child: parties.isEmpty
+                  ? const Center(child: Text('No archived parties'))
+                  : ListView.builder(
+                      itemCount: parties.length,
+                      itemBuilder: (context, index) {
+                        final party = parties[index];
+                        return ListTile(
+                          title: Text(party.name),
+                          subtitle: Text(party.type.name),
+                          trailing: TextButton(
+                            onPressed: () async {
+                              try {
+                                await repo.restoreParty(party.id);
+                                if (sheetContext.mounted) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                              } catch (_) {
+                                if (sheetContext.mounted) {
+                                  ScaffoldMessenger.of(
+                                    sheetContext,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Could not restore the party.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            child: const Text('Restore'),
+                          ),
+                          onTap: () => showModalBottomSheet<void>(
+                            context: sheetContext,
+                            useSafeArea: true,
+                            isScrollControlled: true,
+                            showDragHandle: true,
+                            builder: (_) => FractionallySizedBox(
+                              heightFactor: 0.8,
+                              child: FutureBuilder<List<LedgerEntry>>(
+                                future: repo.getEntriesForParty(party.id),
+                                builder: (_, snapshot) {
+                                  if (snapshot.hasError) {
+                                    return const Center(
+                                      child: Text(
+                                        'Could not load transactions.',
+                                      ),
+                                    );
+                                  }
+                                  final entries = snapshot.data?.reversed
+                                      .toList();
+                                  if (entries == null) return const _Loading();
+                                  if (entries.isEmpty) {
+                                    return const Center(
+                                      child: Text('No transactions yet'),
+                                    );
+                                  }
+                                  return ListView.builder(
+                                    itemCount: entries.length,
+                                    itemBuilder: (_, i) => _TransactionTile(
+                                      party: party,
+                                      entry: entries[i],
+                                      archived: true,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load archived parties.')),
+      );
+    }
+  }
+}
+
 class LedgerHomeView extends ConsumerWidget {
   const LedgerHomeView({
     super.key,
@@ -325,7 +513,7 @@ class LedgerHomeView extends ConsumerWidget {
           ),
           activity.when(
             data: (rows) {
-              final recent = rows.where((row) => !row.entry.isVoided).take(5);
+              final recent = rows;
               return recent.isEmpty
                   ? const ListTile(
                       title: Text('No transactions yet'),
@@ -393,6 +581,8 @@ class LedgerTransactionsView extends ConsumerStatefulWidget {
 
 class _LedgerTransactionsViewState
     extends ConsumerState<LedgerTransactionsView> {
+  static const _pageSize = 50;
+  int _limit = _pageSize;
   String _query = '';
   String? _partyId;
   EntryType? _type;
@@ -400,24 +590,26 @@ class _LedgerTransactionsViewState
 
   @override
   Widget build(BuildContext context) {
-    final activity = ref.watch(ledgerActivityProvider);
+    final parties =
+        ref.watch(_transactionParties).value ?? const <String, String>{};
+    final activeParty = parties.containsKey(_partyId) ? _partyId : null;
+    final companyId = ref.watch(activeCompanyIdProvider);
+    final end = _range?.end;
+    final page = ledgerActivityPageProvider((
+      limit: _limit + 1,
+      includeVoids: true,
+      partyId: activeParty,
+      type: _type,
+      start: _range?.start,
+      end: end == null ? null : DateTime(end.year, end.month, end.day + 1),
+      search: _query,
+    ));
+    final activity = ref.watch(page);
     return activity.when(
       loading: () => const _Loading(),
-      error: (_, _) =>
-          _Retry(onRetry: () => ref.invalidate(ledgerActivityProvider)),
+      error: (_, _) => _Retry(onRetry: () => ref.invalidate(page)),
       data: (rows) {
-        final parties = {for (final row in rows) row.party.id: row.party.name};
-        final activeParty = parties.containsKey(_partyId) ? _partyId : null;
-        final filtered = rows.where((row) {
-          final day = DateUtils.dateOnly(row.entry.date.toLocal());
-          return (activeParty == null || row.party.id == activeParty) &&
-              (_type == null || row.entry.type == _type) &&
-              (_range == null ||
-                  (!day.isBefore(_range!.start) &&
-                      !day.isAfter(_range!.end))) &&
-              (row.party.name.toLowerCase().contains(_query) ||
-                  (row.entry.note ?? '').toLowerCase().contains(_query));
-        }).toList();
+        final filtered = rows.take(_limit).toList();
         return Column(
           children: [
             Padding(
@@ -452,7 +644,10 @@ class _LedgerTransactionsViewState
                           ),
                         ),
                     ],
-                    onChanged: (value) => setState(() => _partyId = value),
+                    onChanged: (value) => setState(() {
+                      _partyId = value;
+                      _limit = _pageSize;
+                    }),
                   ),
                   DropdownButton<String>(
                     value: _type?.name ?? '',
@@ -492,21 +687,38 @@ class _LedgerTransactionsViewState
               child: filtered.isEmpty
                   ? Center(
                       child: Text(
-                        rows.isEmpty
+                        activeParty == null &&
+                                _type == null &&
+                                _range == null &&
+                                _query.isEmpty
                             ? 'No transactions yet'
                             : 'No matching transactions',
                       ),
                     )
                   : ListView.separated(
+                      key: PageStorageKey((
+                        companyId,
+                        activeParty,
+                        _type,
+                        _range,
+                        _query,
+                      )),
                       padding: const EdgeInsets.only(bottom: 88),
-                      itemCount: filtered.length,
+                      itemCount:
+                          filtered.length + (rows.length > _limit ? 1 : 0),
                       separatorBuilder: (_, _) =>
                           const Divider(height: 1, indent: 64),
-                      itemBuilder: (_, index) => _TransactionTile(
-                        party: filtered[index].party,
-                        entry: filtered[index].entry,
-                        archived: filtered[index].archived,
-                      ),
+                      itemBuilder: (_, index) => index == filtered.length
+                          ? TextButton(
+                              onPressed: () =>
+                                  setState(() => _limit += _pageSize),
+                              child: const Text('Load more'),
+                            )
+                          : _TransactionTile(
+                              party: filtered[index].party,
+                              entry: filtered[index].entry,
+                              archived: filtered[index].archived,
+                            ),
                     ),
             ),
           ],
@@ -515,12 +727,19 @@ class _LedgerTransactionsViewState
     );
   }
 
-  void _search(String value) =>
-      setState(() => _query = value.trim().toLowerCase());
+  void _search(String value) => setState(() {
+    _query = value.trim().toLowerCase();
+    _limit = _pageSize;
+  });
 
   Future<void> _pickDates() async {
     final range = await pickLedgerDates(context, initial: _range);
-    if (mounted && range != null) setState(() => _range = range);
+    if (mounted && range != null) {
+      setState(() {
+        _range = range;
+        _limit = _pageSize;
+      });
+    }
   }
 }
 

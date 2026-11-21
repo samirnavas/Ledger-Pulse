@@ -41,36 +41,54 @@ class ImportParseResult {
 }
 
 class DataImportService {
+  static String normalizePartyName(String name) =>
+      name.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
   static ImportParseResult parseLedgerPartyCsv(String text) {
-    final lines = const LineSplitter().convert(text.trim());
+    final source = text.replaceFirst(RegExp(r'^\uFEFF'), '');
+    if (source.length > 250000) {
+      return const ImportParseResult(warnings: ['CSV must be 250,000 characters or fewer.']);
+    }
     final errors = <String>[];
     final parties = <Party>[];
     final keys = <(String, PartyType)>{};
     const header = ['name', 'type', 'phone', 'opening balance'];
-    final csvRow = RegExp(r'^("(?:[^"]|"")*"|[^",]*),("(?:[^"]|"")*"|[^",]*),("(?:[^"]|"")*"|[^",]*),("(?:[^"]|"")*"|[^",]*)$');
-    List<String>? fields(String line) {
-      final match = csvRow.firstMatch(line);
-      if (match == null) return null;
-      return List.generate(4, (index) {
-        final value = match[index + 1]!.trim();
-        return value.startsWith('"')
-            ? value.substring(1, value.length - 1).replaceAll('""', '"').trim()
-            : value;
-      });
+    const field = r'[ \t]*("(?:[^"]|"")*"|[^",\r\n]*)[ \t]*';
+    final rowPattern = RegExp('$field,$field,$field,$field' r'[ \t]*(?:\r\n|\r|\n|$)');
+    final blankPattern = RegExp(r'[ \t]*(?:\r\n|\r|\n|$)');
+    final records = <List<String>>[];
+    var offset = 0;
+    while (offset < source.length) {
+      final blank = blankPattern.matchAsPrefix(source, offset);
+      if (blank != null && blank.end > offset) {
+        offset = blank.end;
+        continue;
+      }
+      final row = rowPattern.matchAsPrefix(source, offset);
+      if (row == null) {
+        return ImportParseResult(warnings: [
+          'Record ${records.length + 1}: expected four CSV columns with valid quoting.',
+        ]);
+      }
+      records.add(List.generate(4, (index) {
+        final field = row[index + 1]!.trim();
+        return field.startsWith('"')
+            ? field.substring(1, field.length - 1).replaceAll('""', '"').trim()
+            : field;
+      }));
+      if (records.length > 501) {
+        return const ImportParseResult(warnings: ['Import up to 500 parties at a time']);
+      }
+      offset = row.end;
     }
 
-    final columns = lines.isEmpty ? null : fields(lines.first.replaceFirst('\uFEFF', ''));
+    final columns = records.firstOrNull;
     if (columns == null || Iterable<int>.generate(4).any((i) => columns[i].toLowerCase() != header[i])) {
       return const ImportParseResult(warnings: ['Use the header Name,Type,Phone,Opening Balance']);
     }
-    if (lines.length > 501) {
-      return const ImportParseResult(warnings: ['Import up to 500 parties at a time']);
-    }
-
-    for (var i = 1; i < lines.length; i++) {
-      if (lines[i].trim().isEmpty) continue;
-      final values = fields(lines[i]);
-      if (values == null || values[0].isEmpty) {
+    for (var i = 1; i < records.length; i++) {
+      final values = records[i];
+      if (values[0].isEmpty) {
         errors.add('Row ${i + 1}: enter a name and four columns.');
         continue;
       }
@@ -84,7 +102,7 @@ class DataImportService {
         errors.add('Row ${i + 1}: use Customer or Supplier and a positive opening amount with up to two decimals.');
         continue;
       }
-      if (!keys.add((values[0].toLowerCase(), type))) {
+      if (!keys.add((normalizePartyName(values[0]), type))) {
         errors.add('Row ${i + 1}: duplicate name and party type.');
         continue;
       }

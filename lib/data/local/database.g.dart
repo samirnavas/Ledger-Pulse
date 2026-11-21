@@ -5767,6 +5767,26 @@ class $LedgerEntriesTable extends LedgerEntries
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _paymentMethodMeta = const VerificationMeta(
+    'paymentMethod',
+  );
+  @override
+  late final GeneratedColumn<String> paymentMethod = GeneratedColumn<String>(
+    'payment_method',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  late final GeneratedColumnWithTypeConverter<LedgerEntryKind?, String>
+  entryKind = GeneratedColumn<String>(
+    'entry_kind',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  ).withConverter<LedgerEntryKind?>($LedgerEntriesTable.$converterentryKindn);
   static const VerificationMeta _receiptPhotoUrlMeta = const VerificationMeta(
     'receiptPhotoUrl',
   );
@@ -5875,6 +5895,8 @@ class $LedgerEntriesTable extends LedgerEntries
     type,
     date,
     note,
+    paymentMethod,
+    entryKind,
     receiptPhotoUrl,
     isVoided,
     createdAt,
@@ -5938,6 +5960,15 @@ class $LedgerEntriesTable extends LedgerEntries
       context.handle(
         _noteMeta,
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('payment_method')) {
+      context.handle(
+        _paymentMethodMeta,
+        paymentMethod.isAcceptableOrUnknown(
+          data['payment_method']!,
+          _paymentMethodMeta,
+        ),
       );
     }
     if (data.containsKey('receipt_photo_url')) {
@@ -6027,6 +6058,16 @@ class $LedgerEntriesTable extends LedgerEntries
         DriftSqlType.string,
         data['${effectivePrefix}note'],
       ),
+      paymentMethod: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payment_method'],
+      ),
+      entryKind: $LedgerEntriesTable.$converterentryKindn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}entry_kind'],
+        ),
+      ),
       receiptPhotoUrl: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}receipt_photo_url'],
@@ -6071,6 +6112,12 @@ class $LedgerEntriesTable extends LedgerEntries
 
   static JsonTypeConverter2<EntryType, String, String> $convertertype =
       const EnumNameConverter<EntryType>(EntryType.values);
+  static JsonTypeConverter2<LedgerEntryKind, String, String>
+  $converterentryKind = const EnumNameConverter<LedgerEntryKind>(
+    LedgerEntryKind.values,
+  );
+  static JsonTypeConverter2<LedgerEntryKind?, String?, String?>
+  $converterentryKindn = JsonTypeConverter2.asNullable($converterentryKind);
   static JsonTypeConverter2<SyncRecordStatus, String, String>
   $convertersyncStatus = const EnumNameConverter<SyncRecordStatus>(
     SyncRecordStatus.values,
@@ -6086,6 +6133,8 @@ class LedgerEntryTableData extends DataClass
   final EntryType type;
   final DateTime date;
   final String? note;
+  final String? paymentMethod;
+  final LedgerEntryKind? entryKind;
   final String? receiptPhotoUrl;
   final bool isVoided;
   final DateTime createdAt;
@@ -6102,6 +6151,8 @@ class LedgerEntryTableData extends DataClass
     required this.type,
     required this.date,
     this.note,
+    this.paymentMethod,
+    this.entryKind,
     this.receiptPhotoUrl,
     required this.isVoided,
     required this.createdAt,
@@ -6126,6 +6177,14 @@ class LedgerEntryTableData extends DataClass
     map['date'] = Variable<DateTime>(date);
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || paymentMethod != null) {
+      map['payment_method'] = Variable<String>(paymentMethod);
+    }
+    if (!nullToAbsent || entryKind != null) {
+      map['entry_kind'] = Variable<String>(
+        $LedgerEntriesTable.$converterentryKindn.toSql(entryKind),
+      );
     }
     if (!nullToAbsent || receiptPhotoUrl != null) {
       map['receipt_photo_url'] = Variable<String>(receiptPhotoUrl);
@@ -6155,6 +6214,12 @@ class LedgerEntryTableData extends DataClass
       type: Value(type),
       date: Value(date),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      paymentMethod: paymentMethod == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentMethod),
+      entryKind: entryKind == null && nullToAbsent
+          ? const Value.absent()
+          : Value(entryKind),
       receiptPhotoUrl: receiptPhotoUrl == null && nullToAbsent
           ? const Value.absent()
           : Value(receiptPhotoUrl),
@@ -6185,6 +6250,10 @@ class LedgerEntryTableData extends DataClass
       ),
       date: serializer.fromJson<DateTime>(json['date']),
       note: serializer.fromJson<String?>(json['note']),
+      paymentMethod: serializer.fromJson<String?>(json['paymentMethod']),
+      entryKind: $LedgerEntriesTable.$converterentryKindn.fromJson(
+        serializer.fromJson<String?>(json['entryKind']),
+      ),
       receiptPhotoUrl: serializer.fromJson<String?>(json['receiptPhotoUrl']),
       isVoided: serializer.fromJson<bool>(json['isVoided']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -6210,6 +6279,10 @@ class LedgerEntryTableData extends DataClass
       ),
       'date': serializer.toJson<DateTime>(date),
       'note': serializer.toJson<String?>(note),
+      'paymentMethod': serializer.toJson<String?>(paymentMethod),
+      'entryKind': serializer.toJson<String?>(
+        $LedgerEntriesTable.$converterentryKindn.toJson(entryKind),
+      ),
       'receiptPhotoUrl': serializer.toJson<String?>(receiptPhotoUrl),
       'isVoided': serializer.toJson<bool>(isVoided),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -6231,6 +6304,8 @@ class LedgerEntryTableData extends DataClass
     EntryType? type,
     DateTime? date,
     Value<String?> note = const Value.absent(),
+    Value<String?> paymentMethod = const Value.absent(),
+    Value<LedgerEntryKind?> entryKind = const Value.absent(),
     Value<String?> receiptPhotoUrl = const Value.absent(),
     bool? isVoided,
     DateTime? createdAt,
@@ -6247,6 +6322,10 @@ class LedgerEntryTableData extends DataClass
     type: type ?? this.type,
     date: date ?? this.date,
     note: note.present ? note.value : this.note,
+    paymentMethod: paymentMethod.present
+        ? paymentMethod.value
+        : this.paymentMethod,
+    entryKind: entryKind.present ? entryKind.value : this.entryKind,
     receiptPhotoUrl: receiptPhotoUrl.present
         ? receiptPhotoUrl.value
         : this.receiptPhotoUrl,
@@ -6271,6 +6350,10 @@ class LedgerEntryTableData extends DataClass
       type: data.type.present ? data.type.value : this.type,
       date: data.date.present ? data.date.value : this.date,
       note: data.note.present ? data.note.value : this.note,
+      paymentMethod: data.paymentMethod.present
+          ? data.paymentMethod.value
+          : this.paymentMethod,
+      entryKind: data.entryKind.present ? data.entryKind.value : this.entryKind,
       receiptPhotoUrl: data.receiptPhotoUrl.present
           ? data.receiptPhotoUrl.value
           : this.receiptPhotoUrl,
@@ -6298,6 +6381,8 @@ class LedgerEntryTableData extends DataClass
           ..write('type: $type, ')
           ..write('date: $date, ')
           ..write('note: $note, ')
+          ..write('paymentMethod: $paymentMethod, ')
+          ..write('entryKind: $entryKind, ')
           ..write('receiptPhotoUrl: $receiptPhotoUrl, ')
           ..write('isVoided: $isVoided, ')
           ..write('createdAt: $createdAt, ')
@@ -6319,6 +6404,8 @@ class LedgerEntryTableData extends DataClass
     type,
     date,
     note,
+    paymentMethod,
+    entryKind,
     receiptPhotoUrl,
     isVoided,
     createdAt,
@@ -6339,6 +6426,8 @@ class LedgerEntryTableData extends DataClass
           other.type == this.type &&
           other.date == this.date &&
           other.note == this.note &&
+          other.paymentMethod == this.paymentMethod &&
+          other.entryKind == this.entryKind &&
           other.receiptPhotoUrl == this.receiptPhotoUrl &&
           other.isVoided == this.isVoided &&
           other.createdAt == this.createdAt &&
@@ -6357,6 +6446,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
   final Value<EntryType> type;
   final Value<DateTime> date;
   final Value<String?> note;
+  final Value<String?> paymentMethod;
+  final Value<LedgerEntryKind?> entryKind;
   final Value<String?> receiptPhotoUrl;
   final Value<bool> isVoided;
   final Value<DateTime> createdAt;
@@ -6374,6 +6465,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
     this.type = const Value.absent(),
     this.date = const Value.absent(),
     this.note = const Value.absent(),
+    this.paymentMethod = const Value.absent(),
+    this.entryKind = const Value.absent(),
     this.receiptPhotoUrl = const Value.absent(),
     this.isVoided = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -6392,6 +6485,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
     required EntryType type,
     required DateTime date,
     this.note = const Value.absent(),
+    this.paymentMethod = const Value.absent(),
+    this.entryKind = const Value.absent(),
     this.receiptPhotoUrl = const Value.absent(),
     this.isVoided = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -6414,6 +6509,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
     Expression<String>? type,
     Expression<DateTime>? date,
     Expression<String>? note,
+    Expression<String>? paymentMethod,
+    Expression<String>? entryKind,
     Expression<String>? receiptPhotoUrl,
     Expression<bool>? isVoided,
     Expression<DateTime>? createdAt,
@@ -6432,6 +6529,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
       if (type != null) 'type': type,
       if (date != null) 'date': date,
       if (note != null) 'note': note,
+      if (paymentMethod != null) 'payment_method': paymentMethod,
+      if (entryKind != null) 'entry_kind': entryKind,
       if (receiptPhotoUrl != null) 'receipt_photo_url': receiptPhotoUrl,
       if (isVoided != null) 'is_voided': isVoided,
       if (createdAt != null) 'created_at': createdAt,
@@ -6452,6 +6551,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
     Value<EntryType>? type,
     Value<DateTime>? date,
     Value<String?>? note,
+    Value<String?>? paymentMethod,
+    Value<LedgerEntryKind?>? entryKind,
     Value<String?>? receiptPhotoUrl,
     Value<bool>? isVoided,
     Value<DateTime>? createdAt,
@@ -6470,6 +6571,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
       type: type ?? this.type,
       date: date ?? this.date,
       note: note ?? this.note,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      entryKind: entryKind ?? this.entryKind,
       receiptPhotoUrl: receiptPhotoUrl ?? this.receiptPhotoUrl,
       isVoided: isVoided ?? this.isVoided,
       createdAt: createdAt ?? this.createdAt,
@@ -6507,6 +6610,14 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
     }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
+    }
+    if (paymentMethod.present) {
+      map['payment_method'] = Variable<String>(paymentMethod.value);
+    }
+    if (entryKind.present) {
+      map['entry_kind'] = Variable<String>(
+        $LedgerEntriesTable.$converterentryKindn.toSql(entryKind.value),
+      );
     }
     if (receiptPhotoUrl.present) {
       map['receipt_photo_url'] = Variable<String>(receiptPhotoUrl.value);
@@ -6550,6 +6661,8 @@ class LedgerEntriesCompanion extends UpdateCompanion<LedgerEntryTableData> {
           ..write('type: $type, ')
           ..write('date: $date, ')
           ..write('note: $note, ')
+          ..write('paymentMethod: $paymentMethod, ')
+          ..write('entryKind: $entryKind, ')
           ..write('receiptPhotoUrl: $receiptPhotoUrl, ')
           ..write('isVoided: $isVoided, ')
           ..write('createdAt: $createdAt, ')
@@ -19193,6 +19306,36 @@ class $ExpenseBudgetsTable extends ExpenseBudgets
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
   $ExpenseBudgetsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _rolloverEnabledMeta = const VerificationMeta(
+    'rolloverEnabled',
+  );
+  @override
+  late final GeneratedColumn<bool> rolloverEnabled = GeneratedColumn<bool>(
+    'rollover_enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("rollover_enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   static const VerificationMeta _idMeta = const VerificationMeta('id');
   @override
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
@@ -19361,6 +19504,8 @@ class $ExpenseBudgetsTable extends ExpenseBudgets
       );
   @override
   List<GeneratedColumn> get $columns => [
+    rolloverEnabled,
+    isActive,
     id,
     profileId,
     categoryId,
@@ -19388,6 +19533,21 @@ class $ExpenseBudgetsTable extends ExpenseBudgets
   }) {
     final context = VerificationContext();
     final data = instance.toColumns(true);
+    if (data.containsKey('rollover_enabled')) {
+      context.handle(
+        _rolloverEnabledMeta,
+        rolloverEnabled.isAcceptableOrUnknown(
+          data['rollover_enabled']!,
+          _rolloverEnabledMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
     if (data.containsKey('id')) {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
@@ -19489,6 +19649,14 @@ class $ExpenseBudgetsTable extends ExpenseBudgets
   ExpenseBudgetTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return ExpenseBudgetTableData(
+      rolloverEnabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}rollover_enabled'],
+      )!,
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}id'],
@@ -19563,6 +19731,8 @@ class $ExpenseBudgetsTable extends ExpenseBudgets
 
 class ExpenseBudgetTableData extends DataClass
     implements Insertable<ExpenseBudgetTableData> {
+  final bool rolloverEnabled;
+  final bool isActive;
   final String id;
   final String profileId;
   final String? categoryId;
@@ -19578,6 +19748,8 @@ class ExpenseBudgetTableData extends DataClass
   final int revision;
   final DateTime? remoteUpdatedAt;
   const ExpenseBudgetTableData({
+    required this.rolloverEnabled,
+    required this.isActive,
     required this.id,
     required this.profileId,
     this.categoryId,
@@ -19596,6 +19768,8 @@ class ExpenseBudgetTableData extends DataClass
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    map['rollover_enabled'] = Variable<bool>(rolloverEnabled);
+    map['is_active'] = Variable<bool>(isActive);
     map['id'] = Variable<String>(id);
     map['profile_id'] = Variable<String>(profileId);
     if (!nullToAbsent || categoryId != null) {
@@ -19625,6 +19799,8 @@ class ExpenseBudgetTableData extends DataClass
 
   ExpenseBudgetsCompanion toCompanion(bool nullToAbsent) {
     return ExpenseBudgetsCompanion(
+      rolloverEnabled: Value(rolloverEnabled),
+      isActive: Value(isActive),
       id: Value(id),
       profileId: Value(profileId),
       categoryId: categoryId == null && nullToAbsent
@@ -19654,6 +19830,8 @@ class ExpenseBudgetTableData extends DataClass
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ExpenseBudgetTableData(
+      rolloverEnabled: serializer.fromJson<bool>(json['rolloverEnabled']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
       id: serializer.fromJson<String>(json['id']),
       profileId: serializer.fromJson<String>(json['profileId']),
       categoryId: serializer.fromJson<String?>(json['categoryId']),
@@ -19678,6 +19856,8 @@ class ExpenseBudgetTableData extends DataClass
   Map<String, dynamic> toJson({ValueSerializer? serializer}) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
+      'rolloverEnabled': serializer.toJson<bool>(rolloverEnabled),
+      'isActive': serializer.toJson<bool>(isActive),
       'id': serializer.toJson<String>(id),
       'profileId': serializer.toJson<String>(profileId),
       'categoryId': serializer.toJson<String?>(categoryId),
@@ -19698,6 +19878,8 @@ class ExpenseBudgetTableData extends DataClass
   }
 
   ExpenseBudgetTableData copyWith({
+    bool? rolloverEnabled,
+    bool? isActive,
     String? id,
     String? profileId,
     Value<String?> categoryId = const Value.absent(),
@@ -19713,6 +19895,8 @@ class ExpenseBudgetTableData extends DataClass
     int? revision,
     Value<DateTime?> remoteUpdatedAt = const Value.absent(),
   }) => ExpenseBudgetTableData(
+    rolloverEnabled: rolloverEnabled ?? this.rolloverEnabled,
+    isActive: isActive ?? this.isActive,
     id: id ?? this.id,
     profileId: profileId ?? this.profileId,
     categoryId: categoryId.present ? categoryId.value : this.categoryId,
@@ -19732,6 +19916,10 @@ class ExpenseBudgetTableData extends DataClass
   );
   ExpenseBudgetTableData copyWithCompanion(ExpenseBudgetsCompanion data) {
     return ExpenseBudgetTableData(
+      rolloverEnabled: data.rolloverEnabled.present
+          ? data.rolloverEnabled.value
+          : this.rolloverEnabled,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
       id: data.id.present ? data.id.value : this.id,
       profileId: data.profileId.present ? data.profileId.value : this.profileId,
       categoryId: data.categoryId.present
@@ -19764,6 +19952,8 @@ class ExpenseBudgetTableData extends DataClass
   @override
   String toString() {
     return (StringBuffer('ExpenseBudgetTableData(')
+          ..write('rolloverEnabled: $rolloverEnabled, ')
+          ..write('isActive: $isActive, ')
           ..write('id: $id, ')
           ..write('profileId: $profileId, ')
           ..write('categoryId: $categoryId, ')
@@ -19784,6 +19974,8 @@ class ExpenseBudgetTableData extends DataClass
 
   @override
   int get hashCode => Object.hash(
+    rolloverEnabled,
+    isActive,
     id,
     profileId,
     categoryId,
@@ -19803,6 +19995,8 @@ class ExpenseBudgetTableData extends DataClass
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ExpenseBudgetTableData &&
+          other.rolloverEnabled == this.rolloverEnabled &&
+          other.isActive == this.isActive &&
           other.id == this.id &&
           other.profileId == this.profileId &&
           other.categoryId == this.categoryId &&
@@ -19820,6 +20014,8 @@ class ExpenseBudgetTableData extends DataClass
 }
 
 class ExpenseBudgetsCompanion extends UpdateCompanion<ExpenseBudgetTableData> {
+  final Value<bool> rolloverEnabled;
+  final Value<bool> isActive;
   final Value<String> id;
   final Value<String> profileId;
   final Value<String?> categoryId;
@@ -19836,6 +20032,8 @@ class ExpenseBudgetsCompanion extends UpdateCompanion<ExpenseBudgetTableData> {
   final Value<DateTime?> remoteUpdatedAt;
   final Value<int> rowid;
   const ExpenseBudgetsCompanion({
+    this.rolloverEnabled = const Value.absent(),
+    this.isActive = const Value.absent(),
     this.id = const Value.absent(),
     this.profileId = const Value.absent(),
     this.categoryId = const Value.absent(),
@@ -19853,6 +20051,8 @@ class ExpenseBudgetsCompanion extends UpdateCompanion<ExpenseBudgetTableData> {
     this.rowid = const Value.absent(),
   });
   ExpenseBudgetsCompanion.insert({
+    this.rolloverEnabled = const Value.absent(),
+    this.isActive = const Value.absent(),
     required String id,
     required String profileId,
     this.categoryId = const Value.absent(),
@@ -19873,6 +20073,8 @@ class ExpenseBudgetsCompanion extends UpdateCompanion<ExpenseBudgetTableData> {
        amountInCents = Value(amountInCents),
        startDate = Value(startDate);
   static Insertable<ExpenseBudgetTableData> custom({
+    Expression<bool>? rolloverEnabled,
+    Expression<bool>? isActive,
     Expression<String>? id,
     Expression<String>? profileId,
     Expression<String>? categoryId,
@@ -19890,6 +20092,8 @@ class ExpenseBudgetsCompanion extends UpdateCompanion<ExpenseBudgetTableData> {
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
+      if (rolloverEnabled != null) 'rollover_enabled': rolloverEnabled,
+      if (isActive != null) 'is_active': isActive,
       if (id != null) 'id': id,
       if (profileId != null) 'profile_id': profileId,
       if (categoryId != null) 'category_id': categoryId,
@@ -19910,6 +20114,8 @@ class ExpenseBudgetsCompanion extends UpdateCompanion<ExpenseBudgetTableData> {
   }
 
   ExpenseBudgetsCompanion copyWith({
+    Value<bool>? rolloverEnabled,
+    Value<bool>? isActive,
     Value<String>? id,
     Value<String>? profileId,
     Value<String?>? categoryId,
@@ -19927,6 +20133,8 @@ class ExpenseBudgetsCompanion extends UpdateCompanion<ExpenseBudgetTableData> {
     Value<int>? rowid,
   }) {
     return ExpenseBudgetsCompanion(
+      rolloverEnabled: rolloverEnabled ?? this.rolloverEnabled,
+      isActive: isActive ?? this.isActive,
       id: id ?? this.id,
       profileId: profileId ?? this.profileId,
       categoryId: categoryId ?? this.categoryId,
@@ -19949,6 +20157,12 @@ class ExpenseBudgetsCompanion extends UpdateCompanion<ExpenseBudgetTableData> {
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
+    if (rolloverEnabled.present) {
+      map['rollover_enabled'] = Variable<bool>(rolloverEnabled.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
     if (id.present) {
       map['id'] = Variable<String>(id.value);
     }
@@ -20004,6 +20218,8 @@ class ExpenseBudgetsCompanion extends UpdateCompanion<ExpenseBudgetTableData> {
   @override
   String toString() {
     return (StringBuffer('ExpenseBudgetsCompanion(')
+          ..write('rolloverEnabled: $rolloverEnabled, ')
+          ..write('isActive: $isActive, ')
           ..write('id: $id, ')
           ..write('profileId: $profileId, ')
           ..write('categoryId: $categoryId, ')
@@ -25790,6 +26006,8 @@ typedef $$LedgerEntriesTableCreateCompanionBuilder =
       required EntryType type,
       required DateTime date,
       Value<String?> note,
+      Value<String?> paymentMethod,
+      Value<LedgerEntryKind?> entryKind,
       Value<String?> receiptPhotoUrl,
       Value<bool> isVoided,
       Value<DateTime> createdAt,
@@ -25809,6 +26027,8 @@ typedef $$LedgerEntriesTableUpdateCompanionBuilder =
       Value<EntryType> type,
       Value<DateTime> date,
       Value<String?> note,
+      Value<String?> paymentMethod,
+      Value<LedgerEntryKind?> entryKind,
       Value<String?> receiptPhotoUrl,
       Value<bool> isVoided,
       Value<DateTime> createdAt,
@@ -25901,6 +26121,17 @@ class $$LedgerEntriesTableFilterComposer
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
     builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnWithTypeConverterFilters<LedgerEntryKind?, LedgerEntryKind, String>
+  get entryKind => $composableBuilder(
+    column: $table.entryKind,
+    builder: (column) => ColumnWithTypeConverterFilters(column),
   );
 
   ColumnFilters<String> get receiptPhotoUrl => $composableBuilder(
@@ -26025,6 +26256,16 @@ class $$LedgerEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get entryKind => $composableBuilder(
+    column: $table.entryKind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get receiptPhotoUrl => $composableBuilder(
     column: $table.receiptPhotoUrl,
     builder: (column) => ColumnOrderings(column),
@@ -26137,6 +26378,14 @@ class $$LedgerEntriesTableAnnotationComposer
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get paymentMethod => $composableBuilder(
+    column: $table.paymentMethod,
+    builder: (column) => column,
+  );
+
+  GeneratedColumnWithTypeConverter<LedgerEntryKind?, String> get entryKind =>
+      $composableBuilder(column: $table.entryKind, builder: (column) => column);
 
   GeneratedColumn<String> get receiptPhotoUrl => $composableBuilder(
     column: $table.receiptPhotoUrl,
@@ -26251,6 +26500,8 @@ class $$LedgerEntriesTableTableManager
                 Value<EntryType> type = const Value.absent(),
                 Value<DateTime> date = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<String?> paymentMethod = const Value.absent(),
+                Value<LedgerEntryKind?> entryKind = const Value.absent(),
                 Value<String?> receiptPhotoUrl = const Value.absent(),
                 Value<bool> isVoided = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -26268,6 +26519,8 @@ class $$LedgerEntriesTableTableManager
                 type: type,
                 date: date,
                 note: note,
+                paymentMethod: paymentMethod,
+                entryKind: entryKind,
                 receiptPhotoUrl: receiptPhotoUrl,
                 isVoided: isVoided,
                 createdAt: createdAt,
@@ -26287,6 +26540,8 @@ class $$LedgerEntriesTableTableManager
                 required EntryType type,
                 required DateTime date,
                 Value<String?> note = const Value.absent(),
+                Value<String?> paymentMethod = const Value.absent(),
+                Value<LedgerEntryKind?> entryKind = const Value.absent(),
                 Value<String?> receiptPhotoUrl = const Value.absent(),
                 Value<bool> isVoided = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -26304,6 +26559,8 @@ class $$LedgerEntriesTableTableManager
                 type: type,
                 date: date,
                 note: note,
+                paymentMethod: paymentMethod,
+                entryKind: entryKind,
                 receiptPhotoUrl: receiptPhotoUrl,
                 isVoided: isVoided,
                 createdAt: createdAt,
@@ -34573,6 +34830,8 @@ typedef $$ExpenseTransactionsTableProcessedTableManager =
     >;
 typedef $$ExpenseBudgetsTableCreateCompanionBuilder =
     ExpenseBudgetsCompanion Function({
+      Value<bool> rolloverEnabled,
+      Value<bool> isActive,
       required String id,
       required String profileId,
       Value<String?> categoryId,
@@ -34591,6 +34850,8 @@ typedef $$ExpenseBudgetsTableCreateCompanionBuilder =
     });
 typedef $$ExpenseBudgetsTableUpdateCompanionBuilder =
     ExpenseBudgetsCompanion Function({
+      Value<bool> rolloverEnabled,
+      Value<bool> isActive,
       Value<String> id,
       Value<String> profileId,
       Value<String?> categoryId,
@@ -34666,6 +34927,16 @@ class $$ExpenseBudgetsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<bool> get rolloverEnabled => $composableBuilder(
+    column: $table.rolloverEnabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnFilters(column),
@@ -34783,6 +35054,16 @@ class $$ExpenseBudgetsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<bool> get rolloverEnabled => $composableBuilder(
+    column: $table.rolloverEnabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get id => $composableBuilder(
     column: $table.id,
     builder: (column) => ColumnOrderings(column),
@@ -34899,6 +35180,14 @@ class $$ExpenseBudgetsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<bool> get rolloverEnabled => $composableBuilder(
+    column: $table.rolloverEnabled,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
 
@@ -35024,6 +35313,8 @@ class $$ExpenseBudgetsTableTableManager
               $$ExpenseBudgetsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback:
               ({
+                Value<bool> rolloverEnabled = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
                 Value<String> id = const Value.absent(),
                 Value<String> profileId = const Value.absent(),
                 Value<String?> categoryId = const Value.absent(),
@@ -35040,6 +35331,8 @@ class $$ExpenseBudgetsTableTableManager
                 Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpenseBudgetsCompanion(
+                rolloverEnabled: rolloverEnabled,
+                isActive: isActive,
                 id: id,
                 profileId: profileId,
                 categoryId: categoryId,
@@ -35058,6 +35351,8 @@ class $$ExpenseBudgetsTableTableManager
               ),
           createCompanionCallback:
               ({
+                Value<bool> rolloverEnabled = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
                 required String id,
                 required String profileId,
                 Value<String?> categoryId = const Value.absent(),
@@ -35074,6 +35369,8 @@ class $$ExpenseBudgetsTableTableManager
                 Value<DateTime?> remoteUpdatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpenseBudgetsCompanion.insert(
+                rolloverEnabled: rolloverEnabled,
+                isActive: isActive,
                 id: id,
                 profileId: profileId,
                 categoryId: categoryId,

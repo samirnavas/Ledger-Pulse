@@ -57,6 +57,8 @@ mixin DriftAccountsJournalsMixin on DriftLedgerRepositoryBase {
           db.journalLines.accountId.equals(acc.id) &
               db.journalLines.companyId.equals(companyId) &
               db.journalLines.isDeleted.equals(false) &
+              db.journals.companyId.equals(companyId) &
+              db.journals.isDeleted.equals(false) &
               db.journals.status.equals('posted'),
         );
 
@@ -97,7 +99,8 @@ mixin DriftAccountsJournalsMixin on DriftLedgerRepositoryBase {
                 t.companyId.equals(companyId)))
           .get();
 
-      int netParty = calculatePartyBalanceFromRows(entries);
+      if (entries.isEmpty) continue;
+      final netParty = calculatePartyBalanceFromRows(entries);
       await (db.update(db.parties)..where((t) => t.id.equals(p.id))).write(
         PartiesCompanion(
           netBalanceInCents: Value(netParty),

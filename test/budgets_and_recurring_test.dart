@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -154,7 +156,9 @@ void main() {
         budgetRepositoryProvider.overrideWithValue(budgetRepo),
         recurringServiceProvider.overrideWithValue(recurringService),
         selectedMonthProvider.overrideWith(
-          () => _TestMonthNotifier(selectedMonth ?? DateTime(now.year, now.month)),
+          () => _TestMonthNotifier(
+            selectedMonth ?? DateTime(now.year, now.month),
+          ),
         ),
       ],
       child: MaterialApp(home: child),
@@ -324,6 +328,89 @@ void main() {
         2500,
       );
     });
+
+    test(
+      'v13 budget settings migrate in place and survive a database restart',
+      () async {
+        final dir = await Directory.systemTemp.createTemp('budget_v13_');
+        final file = File('${dir.path}/budgets.sqlite');
+        addTearDown(() => dir.delete(recursive: true));
+
+        final old = AppDatabase(NativeDatabase(file));
+        await old.customStatement('''
+        INSERT INTO profiles (id, owner_id, name, profile_type)
+        VALUES ('legacy-expense', 'owner', 'Legacy expense', 'expense'),
+               ('other-expense', 'owner', 'Other expense', 'expense');
+      ''');
+        await old.customStatement('''
+        INSERT INTO expense_budgets (id, profile_id, amount_in_cents, start_date, sync_status)
+        VALUES ('preserved', 'legacy-expense', 18000, 1790812800, 'synced'),
+               ('isolated', 'other-expense', 23000, 1790812800, 'synced');
+      ''');
+        await old.customStatement('''
+        INSERT INTO budgets (id, company_id, category_account_id, period_type,
+          amount_in_cents, start_date, rollover_enabled, is_active)
+        VALUES ('preserved', 'legacy-expense', 'all', 'monthly', 10000, 1790812800, 1, 0),
+               ('isolated', 'legacy-expense', 'all', 'monthly', 10000, 1790812800, 1, 0);
+      ''');
+        await old.customStatement(
+          'ALTER TABLE expense_budgets DROP COLUMN rollover_enabled',
+        );
+        await old.customStatement(
+          'ALTER TABLE expense_budgets DROP COLUMN is_active',
+        );
+        await old.customStatement('PRAGMA user_version = 13');
+        await old.close();
+
+        final upgraded = AppDatabase(NativeDatabase(file));
+        final repo = DriftBudgetRepository(
+          db: upgraded,
+          currentCompanyId: 'legacy-expense',
+          company: enabledCompany.copyWith(id: 'legacy-expense'),
+        );
+        final current = await repo.getBudgetById('preserved');
+        expect(current.amountInCents, 18000);
+        expect(current.rolloverEnabled, isTrue);
+        expect(current.isActive, isFalse);
+        expect(await repo.getBudgets(), isEmpty);
+        expect(await repo.getBudgets(includeInactive: true), hasLength(1));
+        await expectLater(
+          repo.updateBudget(id: 'isolated', isActive: false),
+          throwsArgumentError,
+        );
+        await repo.restoreBudget('isolated');
+        expect(await upgraded.select(upgraded.syncOutbox).get(), isEmpty);
+        final other = await (upgraded.select(
+          upgraded.expenseBudgets,
+        )..where((row) => row.id.equals('isolated'))).getSingle();
+        expect(other.rolloverEnabled, isFalse);
+        expect(other.isActive, isTrue);
+        expect(await upgraded.select(upgraded.budgets).get(), hasLength(2));
+
+        final updated = await repo.updateBudget(
+          id: 'preserved',
+          isActive: true,
+          amountInCents: 24000,
+        );
+        expect(updated.rolloverEnabled, isTrue);
+        repo.dispose();
+        await upgraded.close();
+
+        final restarted = AppDatabase(NativeDatabase(file));
+        addTearDown(restarted.close);
+        final row = await (restarted.select(
+          restarted.expenseBudgets,
+        )..where((row) => row.id.equals('preserved'))).getSingle();
+        expect(row.amountInCents, 24000);
+        expect(row.rolloverEnabled, isTrue);
+        expect(row.isActive, isTrue);
+        final legacy = await (restarted.select(
+          restarted.budgets,
+        )..where((row) => row.id.equals('preserved'))).getSingle();
+        expect(legacy.amountInCents, 10000);
+        expect(legacy.isActive, isFalse);
+      },
+    );
 
     test('Budget edits and rollover survive reloading', () async {
       final category = await expenseRepo.createCategory(
@@ -571,21 +658,35 @@ void main() {
       final container = ProviderScope.containerOf(
         tester.element(find.byType(BudgetsScreen)),
       );
-      final summaries = await container.read(budgetSummariesByPeriodProvider.future);
+      final summaries = await container.read(
+        budgetSummariesByPeriodProvider.future,
+      );
       expect(summaries[0].totalAllocatedInCents, 1000000);
       expect(summaries[1].totalAllocatedInCents, 1500000);
       expect(summaries[1].totalSpentInCents, 1450000);
-      expect(summaries[2].items.single.budget.periodType, BudgetPeriodType.yearly);
+      expect(
+        summaries[2].items.single.budget.periodType,
+        BudgetPeriodType.yearly,
+      );
       expect(summaries[2].totalAllocatedInCents, 3000000);
       expect(summaries[2].totalSpentInCents, 600000);
       expect(find.text('4 Active'), findsOneWidget);
       expect(find.text('All Categories (Overall)'), findsNothing);
       await tester.tap(
-        find.descendant(of: card, matching: find.byType(PopupMenuButton<String>)),
+        find.descendant(
+          of: card,
+          matching: find.byType(PopupMenuButton<String>),
+        ),
       );
       await tester.pumpAndSettle();
-      expect(find.byKey(Key('edit_budget_${overallBudget.id}')), findsOneWidget);
-      expect(find.byKey(Key('delete_budget_${overallBudget.id}')), findsOneWidget);
+      expect(
+        find.byKey(Key('edit_budget_${overallBudget.id}')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(Key('delete_budget_${overallBudget.id}')),
+        findsOneWidget,
+      );
     });
   });
 

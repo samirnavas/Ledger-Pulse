@@ -52,7 +52,6 @@ class DriftBudgetRepository {
         .tableUpdates(
           TableUpdateQuery.onAllTables([
             _db.expenseBudgets,
-            _db.budgets,
             _db.expenseTransactions,
             _db.expenseCategories,
           ]),
@@ -242,13 +241,12 @@ class DriftBudgetRepository {
       periodType: Value(effPeriod.name),
       amountInCents: effAmount,
       startDate: effectiveStart,
+      rolloverEnabled: Value(rolloverEnabled),
       createdAt: Value(now),
       updatedAt: Value(now),
       isDeleted: const Value(false),
       syncStatus: const Value(SyncRecordStatus.pending),
     );
-
-    await _db.into(_db.expenseBudgets).insertOnConflictUpdate(companion);
 
     final model = BudgetModel(
       id: budgetId,
@@ -265,37 +263,41 @@ class DriftBudgetRepository {
       syncStatus: SyncRecordStatus.pending,
     );
 
-    await _saveBudgetSettings(model);
+    await _db.transaction(() async {
+      await _db.into(_db.expenseBudgets).insert(companion);
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'budget',
-      entityId: budgetId,
-      action: AuditAction.insert,
-      newState: model.toMap(),
-    );
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'budget',
+        entityId: budgetId,
+        action: AuditAction.insert,
+        newState: model.toMap(),
+      );
 
-    await enqueueMutation(
-      db: _db,
-      table: 'exp_budgets',
-      recordId: budgetId,
-      type: 'INSERT',
-      fullRowMap: {
-        'id': budgetId,
-        'profile_id': _currentCompanyId,
-        'category_id':
-            effCategoryId == 'all' || effCategoryId == 'all_categories'
-            ? null
-            : effCategoryId,
-        'period_type': effPeriod.name,
-        'amount_in_cents': effAmount,
-        'start_date': encodeTime(effectiveStart),
-        'created_at': encodeTime(now),
-        'updated_at': encodeTime(now),
-        'is_deleted': false,
-      },
-    );
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_budgets',
+        recordId: budgetId,
+        type: 'INSERT',
+        fullRowMap: {
+          'id': budgetId,
+          'profile_id': _currentCompanyId,
+          'category_id':
+              effCategoryId == 'all' || effCategoryId == 'all_categories'
+              ? null
+              : effCategoryId,
+          'period_type': effPeriod.name,
+          'amount_in_cents': effAmount,
+          'start_date': encodeTime(effectiveStart),
+          'created_at': encodeTime(now),
+          'updated_at': encodeTime(now),
+          'is_deleted': false,
+          'rollover_enabled': model.rolloverEnabled,
+          'is_active': model.isActive,
+        },
+      );
+    });
 
     _notifyUpdates();
     return model;
@@ -323,83 +325,108 @@ class DriftBudgetRepository {
       throw ArgumentError('Budget id is required for update.');
     }
 
-    final existing = await getBudgetById(budgetId);
-    final now = DateTime.now();
+    final updated = await _db.transaction(() async {
+      final existing = await getBudgetById(budgetId);
+      final now = DateTime.now();
 
-    final newAmount =
-        amountInCents ??
-        allocatedInCents ??
-        budget?.amountInCents ??
-        existing.amountInCents;
-    final newPeriod =
-        periodType ?? period ?? budget?.periodType ?? existing.periodType;
-    final newStart = startDate ?? budget?.startDate ?? existing.startDate;
-    final newCategory = budget?.categoryAccountId ?? existing.categoryAccountId;
-    if (newAmount <= 0) {
-      throw ArgumentError('Budget amount must be greater than zero.');
-    }
+      final newAmount =
+          amountInCents ??
+          allocatedInCents ??
+          budget?.amountInCents ??
+          existing.amountInCents;
+      final newPeriod =
+          periodType ?? period ?? budget?.periodType ?? existing.periodType;
+      final newStart = startDate ?? budget?.startDate ?? existing.startDate;
+      final newCategory =
+          budget?.categoryAccountId ?? existing.categoryAccountId;
+      if (newAmount <= 0) {
+        throw ArgumentError('Budget amount must be greater than zero.');
+      }
 
-    await (_db.update(
-      _db.expenseBudgets,
-    )..where((t) => t.id.equals(budgetId))).write(
-      ExpenseBudgetsCompanion(
-        categoryId: Value(
-          newCategory == 'all' || newCategory == 'all_categories'
-              ? null
-              : newCategory,
-        ),
-        amountInCents: Value(newAmount),
-        periodType: Value(newPeriod.name),
-        startDate: Value(newStart),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ),
-    );
-
-    final updated = existing.copyWith(
-      categoryAccountId: newCategory,
-      amountInCents: newAmount,
-      periodType: newPeriod,
-      startDate: newStart,
-      rolloverEnabled:
+      if (newCategory != existing.categoryAccountId &&
+          newCategory != 'all' &&
+          newCategory != 'all_categories') {
+        final category =
+            await (_db.select(_db.expenseCategories)..where(
+                  (t) =>
+                      t.id.equals(newCategory) &
+                      t.profileId.equals(_currentCompanyId) &
+                      t.isDeleted.equals(false),
+                ))
+                .getSingleOrNull();
+        if (category == null) {
+          throw ArgumentError('Category not found: $newCategory');
+        }
+      }
+      final newRollover =
           rolloverEnabled ??
           budget?.rolloverEnabled ??
-          existing.rolloverEnabled,
-      isActive: isActive ?? budget?.isActive ?? existing.isActive,
-      updatedAt: now,
-      syncStatus: SyncRecordStatus.pending,
-    );
+          existing.rolloverEnabled;
+      final newActive = isActive ?? budget?.isActive ?? existing.isActive;
+      await (_db.update(_db.expenseBudgets)..where(
+            (t) =>
+                t.id.equals(budgetId) & t.profileId.equals(_currentCompanyId),
+          ))
+          .write(
+            ExpenseBudgetsCompanion(
+              categoryId: Value(
+                newCategory == 'all' || newCategory == 'all_categories'
+                    ? null
+                    : newCategory,
+              ),
+              amountInCents: Value(newAmount),
+              periodType: Value(newPeriod.name),
+              startDate: Value(newStart),
+              rolloverEnabled: Value(newRollover),
+              isActive: Value(newActive),
+              updatedAt: Value(now),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
 
-    await _saveBudgetSettings(updated);
+      final updated = existing.copyWith(
+        categoryAccountId: newCategory,
+        amountInCents: newAmount,
+        periodType: newPeriod,
+        startDate: newStart,
+        rolloverEnabled: newRollover,
+        isActive: newActive,
+        updatedAt: now,
+        syncStatus: SyncRecordStatus.pending,
+      );
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'budget',
-      entityId: budgetId,
-      action: AuditAction.update,
-      oldState: existing.toMap(),
-      newState: updated.toMap(),
-    );
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'budget',
+        entityId: budgetId,
+        action: AuditAction.update,
+        oldState: existing.toMap(),
+        newState: updated.toMap(),
+      );
 
-    await enqueueMutation(
-      db: _db,
-      table: 'exp_budgets',
-      recordId: budgetId,
-      type: 'UPDATE',
-      fullRowMap: {
-        'id': budgetId,
-        'profile_id': _currentCompanyId,
-        'category_id': newCategory == 'all' || newCategory == 'all_categories'
-            ? null
-            : newCategory,
-        'amount_in_cents': newAmount,
-        'period_type': newPeriod.name,
-        'start_date': encodeTime(newStart),
-        'updated_at': encodeTime(now),
-        'is_deleted': false,
-      },
-    );
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_budgets',
+        recordId: budgetId,
+        type: 'UPDATE',
+        fullRowMap: {
+          'id': budgetId,
+          'profile_id': _currentCompanyId,
+          'category_id': newCategory == 'all' || newCategory == 'all_categories'
+              ? null
+              : newCategory,
+          'amount_in_cents': newAmount,
+          'period_type': newPeriod.name,
+          'start_date': encodeTime(newStart),
+          'updated_at': encodeTime(now),
+          'is_deleted': false,
+          'rollover_enabled': newRollover,
+          'is_active': newActive,
+        },
+      );
+      return updated;
+    });
 
     _notifyUpdates();
     return updated;
@@ -412,39 +439,43 @@ class DriftBudgetRepository {
       UserAction.manageWalletsAndCategories,
     );
 
-    final existing = await getBudgetById(id);
-    final now = DateTime.now();
+    await _db.transaction(() async {
+      final existing = await getBudgetById(id);
+      final now = DateTime.now();
 
-    await (_db.update(_db.expenseBudgets)..where((t) => t.id.equals(id))).write(
-      ExpenseBudgetsCompanion(
-        isDeleted: const Value(true),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ),
-    );
+      await (_db.update(_db.expenseBudgets)..where(
+            (t) => t.id.equals(id) & t.profileId.equals(_currentCompanyId),
+          ))
+          .write(
+            ExpenseBudgetsCompanion(
+              isDeleted: const Value(true),
+              updatedAt: Value(now),
+              syncStatus: const Value(SyncRecordStatus.pending),
+            ),
+          );
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'budget',
-      entityId: id,
-      action: AuditAction.delete,
-      oldState: existing.toMap(),
-    );
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'budget',
+        entityId: id,
+        action: AuditAction.delete,
+        oldState: existing.toMap(),
+      );
 
-    await enqueueMutation(
-      db: _db,
-      table: 'exp_budgets',
-      recordId: id,
-      type: 'DELETE',
-      fullRowMap: {
-        'id': id,
-        'profile_id': _currentCompanyId,
-        'is_deleted': true,
-        'updated_at': encodeTime(now),
-      },
-    );
-
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_budgets',
+        recordId: id,
+        type: 'DELETE',
+        fullRowMap: {
+          'id': id,
+          'profile_id': _currentCompanyId,
+          'is_deleted': true,
+          'updated_at': encodeTime(now),
+        },
+      );
+    });
     _notifyUpdates();
   }
 
@@ -455,29 +486,37 @@ class DriftBudgetRepository {
       UserAction.manageWalletsAndCategories,
     );
 
-    final now = DateTime.now();
+    await _db.transaction(() async {
+      final now = DateTime.now();
+      final restored =
+          await (_db.update(_db.expenseBudgets)..where(
+                (t) =>
+                    t.id.equals(id) &
+                    t.profileId.equals(_currentCompanyId) &
+                    t.isDeleted.equals(true),
+              ))
+              .write(
+                ExpenseBudgetsCompanion(
+                  isDeleted: const Value(false),
+                  updatedAt: Value(now),
+                  syncStatus: const Value(SyncRecordStatus.pending),
+                ),
+              );
 
-    await (_db.update(_db.expenseBudgets)..where((t) => t.id.equals(id))).write(
-      ExpenseBudgetsCompanion(
-        isDeleted: const Value(false),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ),
-    );
-
-    await enqueueMutation(
-      db: _db,
-      table: 'exp_budgets',
-      recordId: id,
-      type: 'UPDATE',
-      fullRowMap: {
-        'id': id,
-        'profile_id': _currentCompanyId,
-        'is_deleted': false,
-        'updated_at': encodeTime(now),
-      },
-    );
-
+      if (restored == 0) return;
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_budgets',
+        recordId: id,
+        type: 'UPDATE',
+        fullRowMap: {
+          'id': id,
+          'profile_id': _currentCompanyId,
+          'is_deleted': false,
+          'updated_at': encodeTime(now),
+        },
+      );
+    });
     _notifyUpdates();
   }
 
@@ -495,21 +534,8 @@ class DriftBudgetRepository {
       )
       ..orderBy([(t) => OrderingTerm.asc(t.startDate)]);
 
-    final rows = await query.get();
-    final legacyList = await (_db.select(
-      _db.budgets,
-    )..where((t) => t.companyId.equals(_currentCompanyId))).get();
-    final legacyMap = {for (final b in legacyList) b.id: b};
-
-    final result = <BudgetModel>[];
-    for (final r in rows) {
-      final model = _budgetFromRow(r, legacyMap[r.id]);
-      if (!includeInactive && !model.isActive) {
-        continue;
-      }
-      result.add(model);
-    }
-    return result;
+    if (!includeInactive) query.where((t) => t.isActive.equals(true));
+    return (await query.get()).map(_budgetFromRow).toList();
   }
 
   Stream<List<BudgetModel>> watchBudgets({bool includeInactive = false}) {
@@ -525,22 +551,8 @@ class DriftBudgetRepository {
       )
       ..orderBy([(t) => OrderingTerm.asc(t.startDate)]);
 
-    return query.watch().asyncMap((rows) async {
-      final legacyList = await (_db.select(
-        _db.budgets,
-      )..where((t) => t.companyId.equals(_currentCompanyId))).get();
-      final legacyMap = {for (final b in legacyList) b.id: b};
-
-      final result = <BudgetModel>[];
-      for (final r in rows) {
-        final model = _budgetFromRow(r, legacyMap[r.id]);
-        if (!includeInactive && !model.isActive) {
-          continue;
-        }
-        result.add(model);
-      }
-      return result;
-    });
+    if (!includeInactive) query.where((t) => t.isActive.equals(true));
+    return query.watch().map((rows) => rows.map(_budgetFromRow).toList());
   }
 
   Future<BudgetModel> getBudgetById(String id) async {
@@ -563,10 +575,7 @@ class DriftBudgetRepository {
       throw ArgumentError('Budget not found: $id');
     }
 
-    final legacy = await (_db.select(
-      _db.budgets,
-    )..where((t) => t.id.equals(id))).getSingleOrNull();
-    return _budgetFromRow(row, legacy);
+    return _budgetFromRow(row);
   }
 
   // ==========================================
@@ -884,29 +893,7 @@ class DriftBudgetRepository {
     return await calculateProgress(allCatBudget, asOfDate: targetMonth);
   }
 
-  Future<void> _saveBudgetSettings(BudgetModel budget) async {
-    await _db
-        .into(_db.budgets)
-        .insertOnConflictUpdate(
-          BudgetsCompanion.insert(
-            id: budget.id,
-            companyId: Value(budget.companyId),
-            categoryAccountId: budget.categoryAccountId,
-            periodType: budget.periodType.name,
-            amountInCents: budget.amountInCents,
-            startDate: budget.startDate,
-            rolloverEnabled: Value(budget.rolloverEnabled),
-            isActive: Value(budget.isActive),
-            createdAt: Value(budget.createdAt),
-            updatedAt: Value(budget.updatedAt),
-          ),
-        );
-  }
-
-  BudgetModel _budgetFromRow(
-    ExpenseBudgetTableData r, [
-    BudgetTableData? legacy,
-  ]) {
+  BudgetModel _budgetFromRow(ExpenseBudgetTableData r) {
     return BudgetModel(
       id: r.id,
       companyId: r.profileId,
@@ -914,8 +901,8 @@ class DriftBudgetRepository {
       periodType: BudgetPeriodType.fromString(r.periodType),
       amountInCents: r.amountInCents,
       startDate: r.startDate,
-      rolloverEnabled: legacy?.rolloverEnabled ?? false,
-      isActive: legacy?.isActive ?? true,
+      rolloverEnabled: r.rolloverEnabled,
+      isActive: r.isActive,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
       isDeleted: r.isDeleted,

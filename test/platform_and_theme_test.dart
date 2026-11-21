@@ -72,7 +72,8 @@ void main() {
       final lightTheme = AndroidTheme.getLight();
 
       expect(lightTheme.brightness, equals(Brightness.light));
-      expect(lightTheme.scaffoldBackgroundColor, equals(lightTheme.colorScheme.surfaceContainerLow));
+      expect(lightTheme.scaffoldBackgroundColor, equals(lightTheme.colorScheme.surface));
+      expect(lightTheme.canvasColor, equals(lightTheme.colorScheme.surfaceContainerLow));
       expect(lightTheme.colorScheme.surfaceContainer, isNot(equals(const Color(0xFF000000))));
     });
   });
@@ -655,7 +656,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final textFields = tester.widgetList<TextField>(find.byType(TextField)).toList();
-      expect(textFields.length, equals(2));
+      expect(textFields.length, equals(3));
 
       for (final tf in textFields) {
         final decoration = tf.decoration;

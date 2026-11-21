@@ -29,6 +29,7 @@ class _ThirdPartyImportScreenState
   final TextEditingController _contentController = TextEditingController();
   ImportParseResult? _parsedResult;
   String? _previewCompanyId;
+  int _previewRequest = 0;
   bool _isImporting = false;
 
   @override
@@ -123,7 +124,8 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
     _runParse();
   }
 
-  void _runParse() {
+  Future<void> _runParse() async {
+    final request = ++_previewRequest;
     final text = _contentController.text.trim();
     if (text.isEmpty) {
       setState(() => _parsedResult = null);
@@ -132,9 +134,29 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
 
     final company = ref.read(activeCompanyProvider);
     if (widget.csvOnly) {
+      final preview = DataImportService.parseLedgerPartyCsv(text);
+      final repo = ref.read(driftLedgerRepositoryProvider);
+      setState(() => _parsedResult = null);
+      List<String> warnings;
+      try {
+        final duplicates = await repo.findImportDuplicates(preview.importedParties);
+        warnings = [
+          if (duplicates.isNotEmpty)
+            'Existing or archived party: ${duplicates.join(', ')}',
+        ];
+      } catch (_) {
+        warnings = const ['Could not check existing parties. Preview again.'];
+      }
+      if (!mounted || request != _previewRequest ||
+          company.id != ref.read(activeCompanyProvider).id) {
+        return;
+      }
       setState(() {
         _previewCompanyId = company.id;
-        _parsedResult = DataImportService.parseLedgerPartyCsv(text);
+        _parsedResult = ImportParseResult(
+          importedParties: preview.importedParties,
+          warnings: [...preview.warnings, ...warnings],
+        );
       });
       return;
     }
@@ -201,10 +223,14 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
     setState(() => _isImporting = true);
 
     try {
-      final ledgerRepo = ref.read(ledgerRepositoryProvider);
-
-      for (final party in result.importedParties) {
-        await ledgerRepo.addParty(party);
+      if (widget.csvOnly) {
+        await ref.read(driftLedgerRepositoryProvider)
+            .importLedgerParties(result.importedParties);
+      } else {
+        final ledgerRepo = ref.read(ledgerRepositoryProvider);
+        for (final party in result.importedParties) {
+          await ledgerRepo.addParty(party);
+        }
       }
 
       ref.invalidate(partyListProvider);

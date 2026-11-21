@@ -274,6 +274,8 @@ class LedgerActionController {
     required EntryType type,
     required DateTime date,
     String? note,
+    LedgerPaymentMethod? paymentMethod,
+    LedgerEntryKind? kind,
     String? receiptPhotoUrl,
     String? requestId,
   }) async {
@@ -284,6 +286,8 @@ class LedgerActionController {
       type: type,
       date: date,
       note: note?.trim().isEmpty ?? true ? null : note!.trim(),
+      paymentMethod: paymentMethod,
+      kind: kind,
       receiptPhotoUrl: receiptPhotoUrl,
     );
     await _repo.addEntry(entry);

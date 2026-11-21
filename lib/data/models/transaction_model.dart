@@ -24,13 +24,27 @@ enum EntryType {
   }
 }
 
+enum LedgerEntryKind { credit, payment }
+
 class LedgerEntry {
+  static const _unchanged = Object();
   final String id;
   final String partyId;
   final int amountInCents;
   final EntryType type;
   final DateTime date;
   final String? note;
+  final LedgerPaymentMethod? paymentMethod;
+  final LedgerEntryKind? kind;
+
+  bool isPaymentFor(PartyType partyType) =>
+      !id.startsWith('entry_init_') &&
+      (kind == null
+          ? isLedgerPayment(partyType, type)
+          : kind == LedgerEntryKind.payment);
+
+  LedgerPaymentMethod? get effectivePaymentMethod =>
+      paymentMethod ?? LedgerPaymentMethod.read(note);
   final String? receiptPhotoUrl;
   final int? runningBalanceInCents; // Computed for display
   final bool isVoided;
@@ -42,6 +56,8 @@ class LedgerEntry {
     required this.type,
     required this.date,
     this.note,
+    this.paymentMethod,
+    this.kind,
     this.receiptPhotoUrl,
     this.runningBalanceInCents,
     this.isVoided = false,
@@ -53,7 +69,9 @@ class LedgerEntry {
     int? amountInCents,
     EntryType? type,
     DateTime? date,
-    String? note,
+    Object? note = _unchanged,
+    Object? paymentMethod = _unchanged,
+    Object? kind = _unchanged,
     String? receiptPhotoUrl,
     int? runningBalanceInCents,
     bool? isVoided,
@@ -64,7 +82,11 @@ class LedgerEntry {
       amountInCents: amountInCents ?? this.amountInCents,
       type: type ?? this.type,
       date: date ?? this.date,
-      note: note ?? this.note,
+      note: identical(note, _unchanged) ? this.note : note as String?,
+      paymentMethod: identical(paymentMethod, _unchanged)
+          ? this.paymentMethod
+          : paymentMethod as LedgerPaymentMethod?,
+      kind: identical(kind, _unchanged) ? this.kind : kind as LedgerEntryKind?,
       receiptPhotoUrl: receiptPhotoUrl ?? this.receiptPhotoUrl,
       runningBalanceInCents:
           runningBalanceInCents ?? this.runningBalanceInCents,
@@ -80,6 +102,8 @@ class LedgerEntry {
       'type': type.name,
       'date': encodeTime(date),
       'note': note,
+      'paymentMethod': paymentMethod?.name,
+      'kind': kind?.name,
       'receiptPhotoUrl': receiptPhotoUrl,
       'runningBalanceInCents': runningBalanceInCents,
       'isVoided': isVoided,
@@ -94,6 +118,12 @@ class LedgerEntry {
       type: EntryType.values.byName(map['type'] as String),
       date: decodeTime(map['date']),
       note: map['note'] as String?,
+      paymentMethod: LedgerPaymentMethod.fromName(
+        map['paymentMethod'] as String?,
+      ),
+      kind: LedgerEntryKind.values
+          .where((kind) => kind.name == map['kind'])
+          .firstOrNull,
       receiptPhotoUrl: map['receiptPhotoUrl'] as String?,
       runningBalanceInCents: map['runningBalanceInCents'] as int?,
       isVoided: (map['isVoided'] as bool?) ?? false,
@@ -110,6 +140,8 @@ class LedgerEntry {
         other.type == type &&
         other.date == date &&
         other.note == note &&
+        other.paymentMethod == paymentMethod &&
+        other.kind == kind &&
         other.receiptPhotoUrl == receiptPhotoUrl &&
         other.isVoided == isVoided;
   }
@@ -122,6 +154,8 @@ class LedgerEntry {
     type,
     date,
     note,
+    paymentMethod,
+    kind,
     receiptPhotoUrl,
     isVoided,
   );
@@ -132,8 +166,7 @@ bool isLedgerPayment(PartyType partyType, EntryType direction) =>
     ? direction == EntryType.got
     : direction == EntryType.gave;
 
-/// Payment metadata travels with the existing synced note so older clients can
-/// still display the method and no profile data migration is required.
+/// Recognizes the exact note prefix written by earlier ledger releases.
 enum LedgerPaymentMethod {
   cash('Cash'),
   bank('Bank transfer'),
@@ -142,6 +175,9 @@ enum LedgerPaymentMethod {
 
   const LedgerPaymentMethod(this.label);
   final String label;
+
+  static LedgerPaymentMethod? fromName(String? name) =>
+      values.where((method) => method.name == name).firstOrNull;
 
   static LedgerPaymentMethod? read(String? note) {
     for (final method in values) {

@@ -442,15 +442,19 @@ void main() {
         expect(party.netBalanceInCents, 50000);
 
         // Change amount to ₹800.00 (80000 cents)
-        await repo.updateEntry(
-          LedgerEntry(
-            id: originalEntryId,
-            partyId: partyId,
-            amountInCents: 80000,
-            type: EntryType.gave,
-            date: DateTime.now(),
-            note: 'Corrected sale amount',
-          ),
+        final correction = LedgerEntry(
+          id: originalEntryId,
+          partyId: partyId,
+          amountInCents: 80000,
+          type: EntryType.gave,
+          kind: LedgerEntryKind.credit,
+          date: DateTime.now(),
+          note: 'Corrected sale amount',
+        );
+        await Future.wait([repo.updateEntry(correction), repo.updateEntry(correction)]);
+        await expectLater(
+          repo.updateEntry(correction.copyWith(amountInCents: 70000)),
+          throwsStateError,
         );
 
         // 1. Verify party net balance is now updated to 80000 cents atomically
@@ -596,6 +600,32 @@ void main() {
         expect((await repo.getPartyById(partyId)).netBalanceInCents, 1200);
       },
     );
+
+    test('archive, restore and duplicate CSV import preserve journal history', () async {
+      final now = DateTime.utc(2026, 1, 1);
+      final archived = Party(id: 'archive-test', name: 'North Trading',
+        phoneNumber: '', type: PartyType.customer, netBalanceInCents: 0,
+        lastUpdated: now);
+      await repo.addParty(archived);
+      await repo.deleteParty(archived.id);
+      expect((await repo.getParties(archived: true)).map((p) => p.id), contains(archived.id));
+
+      final fresh = archived.copyWith(id: 'fresh-import', name: 'South Trading',
+        netBalanceInCents: 100);
+      final duplicate = archived.copyWith(id: 'duplicate-import', name: ' north   trading ');
+      await expectLater(repo.importLedgerParties([fresh, duplicate]), throwsStateError);
+      expect(await repo.getEntriesForParty(fresh.id), isEmpty);
+
+      await repo.restoreParty(archived.id);
+      await repo.restoreParty(archived.id);
+      expect(await repo.getParties(archived: true), isEmpty);
+      expect((await repo.getPartyById(archived.id)).name, 'North Trading');
+
+      await repo.importLedgerParties([fresh]);
+      expect((await repo.getEntriesForParty(fresh.id)).single.runningBalanceInCents, 100);
+      await expectLater(repo.importLedgerParties([fresh]), throwsStateError);
+      expect(await repo.getEntriesForParty(fresh.id), hasLength(1));
+    });
 
     test('standalone posting rejects an expense profile', () async {
       final now = DateTime.now();

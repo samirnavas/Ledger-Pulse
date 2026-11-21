@@ -131,6 +131,8 @@ class LedgerEntries extends Table {
   TextColumn get type => textEnum<EntryType>()();
   DateTimeColumn get date => dateTime()();
   TextColumn get note => text().nullable()();
+  TextColumn get paymentMethod => text().nullable()();
+  TextColumn get entryKind => textEnum<LedgerEntryKind>().nullable()();
   TextColumn get receiptPhotoUrl => text().nullable()();
   BoolColumn get isVoided => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
@@ -545,6 +547,8 @@ class ExpenseTransactions extends Table {
 @DataClassName('ExpenseBudgetTableData')
 @TableIndex(name: 'exp_budgets_profile_category_idx', columns: {#profileId, #categoryId})
 class ExpenseBudgets extends Table {
+  BoolColumn get rolloverEnabled => boolean().withDefault(const Constant(false))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   TextColumn get id => text()();
   TextColumn get profileId => text().references(Profiles, #id)();
   TextColumn get categoryId => text().references(ExpenseCategories, #id).nullable()();
@@ -639,14 +643,46 @@ class AppDatabase extends _$AppDatabase {
         super(e ?? _openConnection(userId ?? 'usr_default'));
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (Migrator m) async {
           await m.createAll();
         },
-        onUpgrade: steps.stepByStep(
+        onUpgrade: (m, from, to) async {
+          if (from < 12) await _upgradeLegacySchema(m, from, to < 12 ? to : 12);
+          if (from < 13 && to >= 13) {
+            await transaction(() async {
+              await m.addColumn(ledgerEntries, ledgerEntries.paymentMethod);
+              await m.addColumn(ledgerEntries, ledgerEntries.entryKind);
+            });
+          }
+          if (from < 14 && to >= 14) {
+            await transaction(() async {
+              await m.addColumn(expenseBudgets, expenseBudgets.rolloverEnabled);
+              await m.addColumn(expenseBudgets, expenseBudgets.isActive);
+              await customStatement('''
+                UPDATE expense_budgets AS expense
+                SET (rollover_enabled, is_active) = (
+                  SELECT legacy.rollover_enabled, legacy.is_active
+                  FROM budgets AS legacy
+                  WHERE legacy.id = expense.id AND legacy.company_id = expense.profile_id
+                )
+                WHERE EXISTS (
+                  SELECT 1 FROM budgets AS legacy
+                  WHERE legacy.id = expense.id AND legacy.company_id = expense.profile_id
+                );
+              ''');
+            });
+          }
+        },
+        beforeOpen: (details) async {
+          await customStatement('PRAGMA foreign_keys = ON');
+        },
+      );
+
+  late final _upgradeLegacySchema = steps.stepByStep(
           from1To2: (m, schema) async {
             await m.addColumn(schema.parties, schema.parties.isDeleted);
             await m.addColumn(schema.ledgerEntries, schema.ledgerEntries.isVoided);
@@ -1093,11 +1129,7 @@ class AppDatabase extends _$AppDatabase {
               WHERE c.mode IN ('expense', 'expenseTracker') AND r.is_deleted = 0;
             ''');
           },
-        ),
-        beforeOpen: (details) async {
-          await customStatement('PRAGMA foreign_keys = ON');
-        },
-      );
+        );
 }
 
 QueryExecutor _openConnection([String uid = 'usr_default']) {

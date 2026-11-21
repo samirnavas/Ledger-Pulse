@@ -5,7 +5,6 @@ import '../../core/utils/currency_formatter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/transaction_model.dart';
 import '../../data/models/voucher_model.dart';
-import '../../data/reporting/custom_sql_report_engine.dart';
 import '../../data/reporting/financial_statement_engine.dart';
 import '../../data/reporting/inventory_report_engine.dart';
 import '../../data/reporting/report_catalog.dart';
@@ -14,11 +13,6 @@ import 'company_providers.dart';
 import 'inventory_providers.dart';
 import 'ledger_providers.dart';
 import 'voucher_providers.dart';
-
-final customSqlReportEngineProvider = Provider<CustomSqlReportEngine>((ref) {
-  final db = ref.watch(appDatabaseProvider);
-  return CustomSqlReportEngine(db);
-});
 
 const ledgerReports = [
   ReportMetadata(
@@ -115,34 +109,45 @@ final dynamicReportDataProvider = FutureProvider.family<ReportData, String>((ref
       final vouchers = db.vouchers;
       final posted = journals.companyId.equals(company.id) &
           journals.status.equals('posted') & journals.isDeleted.equals(false);
-      final standalone = await (db.select(lines).join([
+      final movements = await (db.select(lines).join([
         innerJoin(journals, journals.id.equalsExp(lines.journalId)),
+        leftOuterJoin(vouchers, vouchers.id.equalsExp(journals.voucherId) &
+            vouchers.companyId.equals(company.id) & vouchers.isDeleted.equals(false) &
+            vouchers.status.equals('posted') & vouchers.type.isIn(['receipt', 'payment'])),
       ])..where(posted & lines.companyId.equals(company.id) &
           lines.isDeleted.equals(false) & lines.accountId.isIn([
         '${company.id}_${DefaultAccounts.cashId}',
         '${company.id}_${DefaultAccounts.bankId}',
       ]))).get();
-      final voucherPayments = await (db.select(vouchers).join([
-        innerJoin(journals, journals.voucherId.equalsExp(vouchers.id)),
-      ])..where(posted & vouchers.companyId.equals(company.id) &
-          vouchers.isDeleted.equals(false) & vouchers.status.equals('posted') &
-          vouchers.type.isIn(['receipt', 'payment']))).get();
-      final ids = {
-        for (final item in standalone)
-          if (item.readTable(journals).id.startsWith('jnl_entry_'))
-            item.readTable(journals).id.substring('jnl_entry_'.length),
-        for (final item in voucherPayments)
-          'vch_entry_${item.readTable(vouchers).id}',
-      };
-      final payments = entries.where((entry) => ids.contains(entry.id) &&
+      final amounts = <String, int>{};
+      final voucherMethods = <String, String>{};
+      for (final movement in movements) {
+        final journal = movement.readTable(journals);
+        final voucher = movement.readTableOrNull(vouchers);
+        final id = voucher != null
+            ? 'vch_entry_${voucher.id}'
+            : journal.id.startsWith('jnl_entry_')
+                ? journal.id.substring('jnl_entry_'.length)
+                : null;
+        if (id == null) continue;
+        final line = movement.readTable(lines);
+        amounts.update(id, (value) => value + line.debitInCents - line.creditInCents,
+            ifAbsent: () => line.debitInCents - line.creditInCents);
+        if (voucher != null) {
+          voucherMethods[id] = PaymentMode.values
+              .where((mode) => mode.name == voucher.paymentMode).firstOrNull?.displayName ?? '';
+        }
+      }
+      final payments = entries.where((entry) => (amounts[entry.id] ?? 0) != 0 &&
           !entry.isVoided && !entry.isDeleted && !balance.isLegacyOffset(entry)).toList();
       int received = 0;
       int paid = 0;
       for (final payment in payments) {
-        if (payment.type == EntryType.got) {
-          received += payment.amountInCents;
+        final movement = amounts[payment.id]!;
+        if (movement > 0) {
+          received += movement;
         } else {
-          paid += payment.amountInCents;
+          paid -= movement;
         }
       }
       String amount(int cents) => CurrencyFormatter.format(cents, currencyCode: company.currencyCode);
@@ -160,9 +165,10 @@ final dynamicReportDataProvider = FutureProvider.family<ReportData, String>((ref
             ReportRow({
               'date': DateFormatter.formatShortDate(payment.date),
               'party': names[payment.partyId] ?? 'Archived party',
-              'type': payment.type == EntryType.got ? 'Payment received' : 'Payment paid',
-              'method': LedgerPaymentMethod.read(payment.note)?.label ?? '',
-              'amount': amount(payment.amountInCents),
+              'type': amounts[payment.id]! > 0 ? 'Payment received' : 'Payment paid',
+              'method': (LedgerPaymentMethod.fromName(payment.paymentMethod) ??
+                  LedgerPaymentMethod.read(payment.note))?.label ?? voucherMethods[payment.id] ?? '',
+              'amount': amount(amounts[payment.id]!.abs()),
             }),
         ],
         summary: {'Received': amount(received), 'Paid': amount(paid)},
@@ -186,7 +192,7 @@ final dynamicReportDataProvider = FutureProvider.family<ReportData, String>((ref
             'party': names[entry.partyId],
             'direction': entry.type == EntryType.gave ? 'You gave' : 'You got',
             'amount': CurrencyFormatter.format(entry.amountInCents, currencyCode: company.currencyCode),
-            'note': entry.note ?? '',
+            'note': LedgerPaymentMethod.strip(entry.note) ?? '',
             'status': entry.isVoided ? 'Voided' : 'Recorded',
           }),
       ],

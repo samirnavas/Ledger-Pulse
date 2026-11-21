@@ -207,6 +207,11 @@ class DashboardScreen extends ConsumerWidget {
                   Column(
                     children: [
                       const LedgerPartyFilters(),
+                      TextButton.icon(
+                        onPressed: () => showArchivedLedgerParties(context, ref),
+                        icon: const Icon(Icons.archive_outlined),
+                        label: const Text('Archived parties'),
+                      ),
                       const Expanded(child: PartyListTab()),
                     ],
                   ),

@@ -43,6 +43,8 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
           type: row.type,
           date: row.date,
           note: row.note,
+          paymentMethod: LedgerPaymentMethod.fromName(row.paymentMethod),
+          kind: row.entryKind,
           receiptPhotoUrl: row.receiptPhotoUrl,
           runningBalanceInCents: currentBalance,
           isVoided: row.isVoided,
@@ -54,7 +56,7 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
   }
 
   @override
-  Future<void> addEntry(LedgerEntry entry) async {
+  Future<void> addEntry(LedgerEntry entry, {bool notify = true}) async {
     await ensureInitialized();
 
     if (entry.amountInCents <= 0) {
@@ -68,13 +70,6 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
       );
     }
 
-    // Verify party existence and determine role permission
-    final party = await getPartyById(entry.partyId);
-    final action = party.type == PartyType.customer
-        ? UserAction.createCustomerEntry
-        : UserAction.createSupplierEntry;
-    AccessControlService.verifyPermission(currentRole, action);
-
     final entryId = entry.id.trim().isEmpty ? uuid.v4() : entry.id;
     final effectiveEntry = entry.id == entryId
         ? entry
@@ -82,18 +77,18 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
 
     await db.transaction(() async {
       await requireLedgerProfile();
+      final party = await getPartyById(entry.partyId);
+      AccessControlService.verifyPermission(
+        currentRole,
+        party.type == PartyType.customer
+            ? UserAction.createCustomerEntry
+            : UserAction.createSupplierEntry,
+      );
       final previous = await (db.select(
         db.ledgerEntries,
       )..where((t) => t.id.equals(entryId))).getSingleOrNull();
       if (previous != null) {
-        if (previous.companyId != currentCompanyId ||
-            previous.partyId != entry.partyId ||
-            previous.amountInCents != entry.amountInCents ||
-            previous.type != entry.type ||
-            previous.date.millisecondsSinceEpoch ~/ 1000 !=
-                entry.date.millisecondsSinceEpoch ~/ 1000 ||
-            previous.note != entry.note ||
-            previous.receiptPhotoUrl != entry.receiptPhotoUrl) {
+        if (!_matchesRequest(previous, effectiveEntry)) {
           throw StateError(
             'Ledger entry ID already exists with different data',
           );
@@ -111,9 +106,23 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
       );
     });
 
-    updateStreamController.add(null);
-    triggerBackgroundSync();
+    if (notify) {
+      updateStreamController.add(null);
+      triggerBackgroundSync();
+    }
   }
+
+  bool _matchesRequest(LedgerEntryTableData row, LedgerEntry entry) =>
+      row.companyId == currentCompanyId &&
+      row.partyId == entry.partyId &&
+      row.amountInCents == entry.amountInCents &&
+      row.type == entry.type &&
+      row.date.millisecondsSinceEpoch ~/ 1000 ==
+          entry.date.millisecondsSinceEpoch ~/ 1000 &&
+      row.note == entry.note &&
+      row.paymentMethod == entry.paymentMethod?.name &&
+      row.entryKind == entry.kind &&
+      row.receiptPhotoUrl == entry.receiptPhotoUrl;
 
   Future<void> _insertEntryPosting(
     LedgerEntry effectiveEntry,
@@ -131,6 +140,8 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
             type: effectiveEntry.type,
             date: effectiveEntry.date,
             note: Value(effectiveEntry.note),
+            paymentMethod: Value(effectiveEntry.paymentMethod?.name),
+            entryKind: Value(effectiveEntry.kind),
             receiptPhotoUrl: Value(effectiveEntry.receiptPhotoUrl),
             isVoided: const Value(false),
             createdAt: Value(now),
@@ -154,51 +165,36 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
     final isCustomer = party.type == PartyType.customer;
     final arAccountId = '${currentCompanyId}_${DefaultAccounts.arId}';
     final apAccountId = '${currentCompanyId}_${DefaultAccounts.apId}';
-    final method = LedgerPaymentMethod.read(effectiveEntry.note);
-    final settlementAccount = method == null || method == LedgerPaymentMethod.cash
-        ? DefaultAccounts.cashId : DefaultAccounts.bankId;
+    final method = effectiveEntry.effectivePaymentMethod;
+    final settlementAccount =
+        method == null || method == LedgerPaymentMethod.cash
+        ? DefaultAccounts.cashId
+        : DefaultAccounts.bankId;
     final cashAccountId = '${currentCompanyId}_$settlementAccount';
     final salesAccountId = '${currentCompanyId}_${DefaultAccounts.salesId}';
     final purchasesAccountId =
         '${currentCompanyId}_${DefaultAccounts.purchasesCogsId}';
 
-    String drAcc;
-    String crAcc;
-    String note;
-
+    final partyAccount = isCustomer ? arAccountId : apAccountId;
+    final debitParty = effectiveEntry.type == EntryType.gave;
+    final String otherAccount;
+    final String description;
     if (effectiveEntry.id.startsWith('entry_init_')) {
-      final equity =
+      otherAccount =
           '${currentCompanyId}_${DefaultAccounts.openingBalanceEquityId}';
-      final partyAccount = isCustomer ? arAccountId : apAccountId;
-      final debitParty = effectiveEntry.type == EntryType.gave;
-      drAcc = debitParty ? partyAccount : equity;
-      crAcc = debitParty ? equity : partyAccount;
-      note = 'Opening Balance';
-    } else if (isCustomer) {
-      if (effectiveEntry.type == EntryType.got) {
-        // Customer Receipt: Cash/Bank DR, AR CR
-        drAcc = cashAccountId;
-        crAcc = arAccountId;
-        note = effectiveEntry.note ?? 'Customer Receipt - ${party.name}';
-      } else {
-        // Customer Debit: AR DR, Sales CR
-        drAcc = arAccountId;
-        crAcc = salesAccountId;
-        note = effectiveEntry.note ?? 'Customer Charge - ${party.name}';
-      }
+      description = 'Opening Balance';
+    } else if (effectiveEntry.isPaymentFor(party.type)) {
+      otherAccount = cashAccountId;
+      description = effectiveEntry.type == EntryType.got
+          ? 'Payment received'
+          : 'Payment paid';
     } else {
-      if (effectiveEntry.type == EntryType.gave) {
-        // Supplier Payment: AP DR, Cash/Bank CR
-        drAcc = apAccountId;
-        crAcc = cashAccountId;
-        note = effectiveEntry.note ?? 'Supplier Payment - ${party.name}';
-      } else {
-        // Supplier Bill: Purchases DR, AP CR
-        drAcc = purchasesAccountId;
-        crAcc = apAccountId;
-        note = effectiveEntry.note ?? 'Supplier Bill - ${party.name}';
-      }
+      otherAccount = isCustomer ? salesAccountId : purchasesAccountId;
+      description = 'Credit entry';
     }
+    final drAcc = debitParty ? partyAccount : otherAccount;
+    final crAcc = debitParty ? otherAccount : partyAccount;
+    final note = LedgerPaymentMethod.strip(effectiveEntry.note) ?? description;
 
     final jnlId = 'jnl_entry_${effectiveEntry.id}';
     final jnlNumber =
@@ -270,7 +266,10 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
     recordId: row.id,
     mutationType: 'UPSERT',
     payload: {
-      ...row.toJson(),
+      ...(row.toJson()..removeWhere(
+        (key, value) =>
+            (key == 'paymentMethod' || key == 'entryKind') && value == null,
+      )),
       'date': encodeTime(row.date),
       'createdAt': encodeTime(row.createdAt),
       'updatedAt': encodeTime(row.updatedAt),
@@ -381,27 +380,39 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
           original.partyId != entry.partyId) {
         throw StateError('Ledger entry unavailable for correction');
       }
-      if (original.isVoided) return;
       if (entry.id.startsWith('vch_entry_') || entry.id.startsWith('open_')) {
         throw StateError('Correct this entry through its source document');
       }
 
+      final replacement = entry.copyWith(
+        id: entry.id.startsWith('entry_init_')
+            ? 'entry_init_corrected_${entry.id}'
+            : 'corrected_${entry.id}',
+        isVoided: false,
+      );
+      if (original.isVoided) {
+        final savedCorrection = await _findEntry(replacement.id);
+        if (savedCorrection != null &&
+            _matchesRequest(savedCorrection, replacement)) {
+          return;
+        }
+        throw StateError('This transaction was already voided or corrected');
+      }
+      if (_matchesRequest(original, entry)) return;
+
+      final party = await getPartyById(original.partyId);
       final now = DateTime.now();
       final financialChange =
-          LedgerPaymentMethod.read(original.note) != LedgerPaymentMethod.read(entry.note) ||
+          original.entryKind != entry.kind ||
+          (LedgerPaymentMethod.fromName(original.paymentMethod) ??
+                  LedgerPaymentMethod.read(original.note)) !=
+              entry.effectivePaymentMethod ||
           original.amountInCents != entry.amountInCents ||
           original.type != entry.type ||
           original.date.millisecondsSinceEpoch ~/ 1000 !=
               entry.date.millisecondsSinceEpoch ~/ 1000;
       if (financialChange) {
         await _voidEntryInTransaction(original, now);
-        final replacement = entry.copyWith(
-          id: entry.id.startsWith('entry_init_')
-              ? 'entry_init_corrected_${entry.id}'
-              : 'corrected_${entry.id}',
-          isVoided: false,
-        );
-        final party = await getPartyById(original.partyId);
         await _insertEntryPosting(replacement, party, now);
         await recordAuditLog(
           entityType: 'ledger_entry',
@@ -416,6 +427,7 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
         )..where((t) => t.id.equals(entry.id))).write(
           LedgerEntriesCompanion(
             note: Value(entry.note),
+            paymentMethod: Value(entry.paymentMethod?.name),
             receiptPhotoUrl: Value(entry.receiptPhotoUrl),
             revision: Value(original.revision + 1),
             updatedAt: Value(now),
@@ -444,6 +456,10 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
       await requireLedgerProfile();
       final original = await _findEntry(entryId);
       if (original == null || original.isDeleted || original.isVoided) return;
+      if (entryId.startsWith('open_')) {
+        throw StateError('Correct this entry through its source document');
+      }
+      await getPartyById(original.partyId);
       if (entryId.startsWith('vch_entry_')) {
         await postingEngine.voidVoucher(
           voucherId: entryId.substring('vch_entry_'.length),
@@ -571,6 +587,8 @@ mixin DriftEntriesMixin on DriftLedgerRepositoryBase {
           db.journalLines.accountId.equals(accountId) &
               db.journalLines.companyId.equals(currentCompanyId) &
               db.journalLines.isDeleted.equals(false) &
+              db.journals.companyId.equals(currentCompanyId) &
+              db.journals.isDeleted.equals(false) &
               db.journals.status.equals('posted'),
         );
 

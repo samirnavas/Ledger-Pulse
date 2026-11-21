@@ -8,20 +8,21 @@ import '../security/access_control_service.dart';
 import 'database.dart';
 import 'drift_ledger_base.dart';
 import 'ledger_entry_balance.dart';
+import '../services/data_import_service.dart';
 
 /// Mixin handling Party operations for DriftLedgerRepository.
 mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
-  Future<List<Party>> getParties({PartyType? filter}) async {
+  Future<List<Party>> getParties({PartyType? filter, bool archived = false}) async {
     await ensureInitialized();
 
     final query = db.select(db.parties)
-      ..where((t) => t.companyId.equals(currentCompanyId) & t.isDeleted.equals(false))
+      ..where((t) => t.companyId.equals(currentCompanyId) & t.isDeleted.equals(archived))
       ..orderBy([
         (t) => OrderingTerm.desc(t.lastUpdated),
       ]);
 
     if (filter != null) {
-      query.where((t) => t.companyId.equals(currentCompanyId) & t.isDeleted.equals(false) & t.type.equals(filter.name));
+      query.where((t) => t.companyId.equals(currentCompanyId) & t.isDeleted.equals(archived) & t.type.equals(filter.name));
     }
 
     final rows = await query.get();
@@ -65,8 +66,45 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
     );
   }
 
+  Future<List<String>> findImportDuplicates(List<Party> batch) async {
+    await ensureInitialized();
+    final rows = await (db.select(db.parties)
+      ..where((row) => row.companyId.equals(currentCompanyId))).get();
+    final keys = {
+      for (final row in rows)
+        (DataImportService.normalizePartyName(row.name), row.type),
+    };
+    return [
+      for (final party in batch)
+        if (!keys.add((DataImportService.normalizePartyName(party.name), party.type)))
+          '${party.name} (${party.type.name})',
+    ];
+  }
+
+  Future<void> importLedgerParties(List<Party> batch) async {
+    await ensureInitialized();
+    await db.transaction(() async {
+      await requireLedgerProfile();
+      final duplicates = await findImportDuplicates(batch);
+      if (duplicates.isNotEmpty) {
+        throw StateError('Party names already in use: ${duplicates.join(', ')}');
+      }
+      for (final party in batch) {
+        await _addParty(party);
+      }
+    });
+    updateStreamController.add(null);
+    triggerBackgroundSync();
+  }
+
   Future<void> addParty(Party party) async {
     await ensureInitialized();
+    await _addParty(party);
+    updateStreamController.add(null);
+    triggerBackgroundSync();
+  }
+
+  Future<void> _addParty(Party party) async {
 
     // RBAC check based on party type
     final action = party.type == PartyType.customer
@@ -118,12 +156,9 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
           type: effectiveParty.netBalanceInCents > 0 ? EntryType.gave : EntryType.got,
           date: effectiveParty.lastUpdated,
           note: 'Opening Balance',
-        ));
+        ), notify: false);
       }
     });
-
-    updateStreamController.add(null);
-    triggerBackgroundSync();
   }
 
   Future<void> updateParty(Party party) async {
@@ -183,6 +218,53 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
       );
     });
 
+    updateStreamController.add(null);
+    triggerBackgroundSync();
+  }
+
+  Future<void> restoreParty(String partyId) async {
+    await ensureInitialized();
+    await db.transaction(() async {
+      await requireLedgerProfile();
+      final target = db.update(db.parties)..where((row) =>
+          row.id.equals(partyId) & row.companyId.equals(currentCompanyId) &
+          row.isDeleted.equals(true));
+      final party = await (db.select(db.parties)..where((row) =>
+          row.id.equals(partyId) & row.companyId.equals(currentCompanyId) &
+          row.isDeleted.equals(true))).getSingleOrNull();
+      if (party == null) return;
+      AccessControlService.verifyPermission(
+        currentRole,
+        party.type == PartyType.customer
+            ? UserAction.updateCustomerParty : UserAction.updateSupplierParty,
+      );
+      final now = DateTime.now();
+      final revision = party.revision + 1;
+      await target.write(PartiesCompanion(
+        isDeleted: const Value(false),
+        revision: Value(revision),
+        updatedAt: Value(now),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      ));
+      await recordOutboxEntry(
+        targetTable: 'parties',
+        recordId: partyId,
+        mutationType: 'UPSERT',
+        payload: {
+          ...party.toJson(),
+          'isDeleted': false,
+          'revision': revision,
+          'updatedAt': now.toUtc().toIso8601String(),
+        },
+      );
+      await recordAuditLog(
+        entityType: 'party',
+        entityId: partyId,
+        action: AuditAction.update,
+        oldState: {'id': partyId, 'isDeleted': true},
+        newState: {'id': partyId, 'isDeleted': false},
+      );
+    });
     updateStreamController.add(null);
     triggerBackgroundSync();
   }

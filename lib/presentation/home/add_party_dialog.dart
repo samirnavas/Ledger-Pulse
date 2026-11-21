@@ -256,6 +256,20 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
     final isDark = Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
+    final scheme = Theme.of(context).colorScheme;
+    final fieldBorder = OutlineInputBorder(borderRadius: BorderRadius.circular(16));
+    final fieldDecoration = InputDecoration(
+      border: fieldBorder,
+      enabledBorder: fieldBorder.copyWith(
+        borderSide: BorderSide(color: scheme.outlineVariant),
+      ),
+      focusedBorder: fieldBorder.copyWith(
+        borderSide: BorderSide(color: scheme.primary, width: 2),
+      ),
+      filled: true,
+      fillColor: scheme.surfaceContainerLowest,
+    );
+
     final containerColor = isIos
         ? (isDark
             ? CupertinoColors.systemBackground.darkColor
@@ -367,7 +381,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                           color: Theme.of(context).colorScheme.onSurface,
                           fontWeight: FontWeight.w500,
                         ),
-                        decoration: InputDecoration(
+                        decoration: fieldDecoration.copyWith(
                           labelText: 'Contact / Business Name',
                           prefixIcon: Icon(
                             isIos ? CupertinoIcons.person : Icons.person_outline,
@@ -384,25 +398,6 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                             ),
                             onPressed: _importFromContacts,
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.outlineVariant,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.primary,
-                              width: 2,
-                            ),
-                          ),
-                          filled: true,
-                          fillColor:
-                              Theme.of(context).colorScheme.surfaceContainerLowest,
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -417,32 +412,13 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                           color: Theme.of(context).colorScheme.onSurface,
                           fontWeight: FontWeight.w500,
                         ),
-                        decoration: InputDecoration(
+                        decoration: fieldDecoration.copyWith(
                           labelText: 'Phone number (optional)',
                           prefixIcon: Icon(
                             isIos ? CupertinoIcons.phone : Icons.phone_outlined,
                             size: 20,
                           ),
                           hintText: '9876543210',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.outlineVariant,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(
-                              color: Theme.of(context).colorScheme.primary,
-                              width: 2,
-                            ),
-                          ),
-                          filled: true,
-                          fillColor:
-                              Theme.of(context).colorScheme.surfaceContainerLowest,
                         ),
                       ),
 
@@ -452,7 +428,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
                           controller: _openingController,
                           onTap: _expandSheet,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: InputDecoration(
+                          decoration: fieldDecoration.copyWith(
                             labelText: _type == PartyType.customer
                                 ? 'Opening amount to receive (optional)'
                                 : 'Opening amount to pay (optional)',

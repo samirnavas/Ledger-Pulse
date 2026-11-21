@@ -826,6 +826,8 @@ class SyncEngine {
             'type': e.type.name,
             'date': encodeTime(e.date),
             'note': e.note,
+            if (e.paymentMethod != null) 'paymentMethod': e.paymentMethod,
+            if (e.entryKind != null) 'entryKind': e.entryKind!.name,
             'receiptPhotoUrl': e.receiptPhotoUrl,
             'isVoided': e.isVoided,
             'createdAt': encodeTime(e.createdAt),
@@ -1120,8 +1122,8 @@ class SyncEngine {
             'period_type': b.periodType,
             'amount_in_cents': b.amountInCents,
             'start_date': encodeTime(b.startDate),
-            'end_date': b.endDate != null ? encodeTime(b.endDate!) : null,
-            'alert_threshold_percent': b.alertThresholdPercent,
+            'rollover_enabled': b.rolloverEnabled,
+            'is_active': b.isActive,
             'created_at': encodeTime(b.createdAt),
             'updated_at': encodeTime(b.updatedAt),
             'is_deleted': b.isDeleted,
@@ -1909,6 +1911,9 @@ class SyncEngine {
             'updated_at',
           };
           remoteMap.removeWhere((k, _) => !validSharedMembershipColumns.contains(k));
+        } else if (outboxRow.targetTable == 'exp_budgets') {
+          remoteMap.remove('end_date');
+          remoteMap.remove('alert_threshold_percent');
         } else if (outboxRow.targetTable == 'accounts') {
           final authId = _resolveActiveAuthId();
           final currentOwner = remoteMap['owner_id']?.toString();
@@ -3271,6 +3276,8 @@ class SyncEngine {
           ),
           date: Value(decodeTime(c['date'])),
           note: Value(c['note'] as String?),
+          paymentMethod: Value(c['paymentMethod'] as String?),
+          entryKind: Value(LedgerEntryKind.values.where((kind) => kind.name == c['entryKind']).firstOrNull),
           receiptPhotoUrl: Value(c['receiptPhotoUrl'] as String?),
           isVoided: Value(c['isVoided'] == true || c['isVoided'] == 1),
           createdAt: Value(decodeTime(c['createdAt'])),
@@ -3439,6 +3446,12 @@ class SyncEngine {
           alertThresholdPercent: Value(
             (c['alertThresholdPercent'] as int?) ?? 80,
           ),
+          rolloverEnabled: c['rolloverEnabled'] == null
+              ? const Value.absent()
+              : Value(c['rolloverEnabled'] == true || c['rolloverEnabled'] == 1),
+          isActive: c['isActive'] == null
+              ? const Value.absent()
+              : Value(c['isActive'] == true || c['isActive'] == 1),
           createdAt: Value(decodeTime(c['createdAt'])),
           updatedAt: Value(decodeTime(c['updatedAt'])),
           isDeleted: Value(c['isDeleted'] == true || c['isDeleted'] == 1),
@@ -4299,9 +4312,28 @@ class SyncEngine {
           .into(db.expenseTransactions)
           .insertOnConflictUpdate(tx);
     } else if (table == 'exp_budgets') {
-      await db
-          .into(db.expenseBudgets)
-          .insertOnConflictUpdate(companion as ExpenseBudgetsCompanion);
+      final incoming = companion as ExpenseBudgetsCompanion;
+      final existing = await (db.select(db.expenseBudgets)
+        ..where((row) => row.id.equals(incoming.id.value))).getSingleOrNull();
+      if (existing != null && existing.profileId != incoming.profileId.value) {
+        return;
+      }
+      // Replaying the same synced snapshot must preserve settings backfilled
+      // locally from the old budget row during the v14 upgrade.
+      final previousRemoteTime = existing?.remoteUpdatedAt;
+      final incomingRemoteTime = incoming.remoteUpdatedAt.value;
+      final sameSnapshot = previousRemoteTime != null && incomingRemoteTime != null &&
+          previousRemoteTime.millisecondsSinceEpoch ~/ 1000 ==
+              incomingRemoteTime.millisecondsSinceEpoch ~/ 1000 &&
+          existing!.revision == incoming.revision.value;
+      await db.into(db.expenseBudgets).insertOnConflictUpdate(
+        sameSnapshot
+            ? incoming.copyWith(
+                rolloverEnabled: const Value.absent(),
+                isActive: const Value.absent(),
+              )
+            : incoming,
+      );
     } else if (table == 'exp_recurring_rules') {
       await db
           .into(db.expenseRecurringRules)
