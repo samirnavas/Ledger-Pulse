@@ -13,16 +13,12 @@ import '../../core/widgets/splitting_fab.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/user_profile_model.dart';
 import '../auth/app_root_gate.dart';
-import '../auth/profile_selector_screen.dart';
-import '../home/company_switcher_sheet.dart';
-import '../home/sync_settings_sheet.dart';
+import '../home/edit_profile_sheet.dart';
 import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
 import '../providers/profile_session_controller.dart';
-import '../providers/profile_session_state.dart';
 import '../providers/sync_providers.dart';
-import '../reports/audit_log_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final bool? isStandalone;
@@ -44,11 +40,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
   late TextEditingController _addressController;
-  late TextEditingController _businessTypeController;
-  late TextEditingController _bankNameController;
-  late TextEditingController _bankAccountController;
-  late TextEditingController _bankIfscController;
-  late TextEditingController _upiIdController;
 
   bool _isEditing = false;
   bool _hasChanges = false;
@@ -72,22 +63,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _phoneController = TextEditingController(text: profile.phoneNumber);
     _emailController = TextEditingController(text: profile.email);
     _addressController = TextEditingController(text: profile.address);
-    _businessTypeController = TextEditingController(text: profile.businessType ?? '');
-    _bankNameController = TextEditingController(text: profile.bankName ?? '');
-    _bankAccountController = TextEditingController(text: profile.bankAccountNumber ?? '');
-    _bankIfscController = TextEditingController(text: profile.bankIfsc ?? '');
-    _upiIdController = TextEditingController(text: profile.upiId ?? '');
 
     _nameController.addListener(_onFieldChanged);
     _businessNameController.addListener(_onFieldChanged);
     _phoneController.addListener(_onFieldChanged);
     _emailController.addListener(_onFieldChanged);
     _addressController.addListener(_onFieldChanged);
-    _businessTypeController.addListener(_onFieldChanged);
-    _bankNameController.addListener(_onFieldChanged);
-    _bankAccountController.addListener(_onFieldChanged);
-    _bankIfscController.addListener(_onFieldChanged);
-    _upiIdController.addListener(_onFieldChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -103,12 +84,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _businessNameController.text != current.businessName ||
         _phoneController.text != current.phoneNumber ||
         _emailController.text != current.email ||
-        _addressController.text != current.address ||
-        _businessTypeController.text != (current.businessType ?? '') ||
-        _bankNameController.text != (current.bankName ?? '') ||
-        _bankAccountController.text != (current.bankAccountNumber ?? '') ||
-        _bankIfscController.text != (current.bankIfsc ?? '') ||
-        _upiIdController.text != (current.upiId ?? '');
+        _addressController.text != current.address;
 
     if (changed != _hasChanges) {
       setState(() {
@@ -126,11 +102,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _phoneController.text = current.phoneNumber;
     _emailController.text = current.email;
     _addressController.text = current.address;
-    _businessTypeController.text = current.businessType ?? '';
-    _bankNameController.text = current.bankName ?? '';
-    _bankAccountController.text = current.bankAccountNumber ?? '';
-    _bankIfscController.text = current.bankIfsc ?? '';
-    _upiIdController.text = current.upiId ?? '';
     setState(() {
       _isEditing = false;
       _hasChanges = false;
@@ -154,11 +125,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
-    _businessTypeController.dispose();
-    _bankNameController.dispose();
-    _bankAccountController.dispose();
-    _bankIfscController.dispose();
-    _upiIdController.dispose();
     super.dispose();
   }
 
@@ -166,17 +132,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (_formKey.currentState?.validate() ?? false) {
       HapticFeedback.mediumImpact();
       final current = ref.read(userProfileProvider);
+      final isExpense = ref.read(activeCompanyProvider).isExpense;
       final updatedProfile = current.copyWith(
         name: _nameController.text.trim(),
-        businessName: _businessNameController.text.trim(),
+        businessName: isExpense ? _businessNameController.text.trim() : null,
         phoneNumber: _phoneController.text.trim(),
         email: _emailController.text.trim(),
-        address: _addressController.text.trim(),
-        businessType: _businessTypeController.text.trim(),
-        bankName: _bankNameController.text.trim(),
-        bankAccountNumber: _bankAccountController.text.trim(),
-        bankIfsc: _bankIfscController.text.trim().toUpperCase(),
-        upiId: _upiIdController.text.trim(),
+        address: isExpense ? _addressController.text.trim() : null,
       );
 
       ref.read(userProfileProvider.notifier).updateProfile(updatedProfile);
@@ -200,7 +162,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 size: 20,
               ),
               const SizedBox(width: 8),
-              const Text('Profile and banking details updated successfully'),
+              const Flexible(child: Text('Account details saved')),
             ],
           ),
           backgroundColor: AppColors.receivableGreen,
@@ -314,16 +276,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _phoneController.text = next.phoneNumber;
         _emailController.text = next.email;
         _addressController.text = next.address;
-        _businessTypeController.text = next.businessType ?? '';
-        _bankNameController.text = next.bankName ?? '';
-        _bankAccountController.text = next.bankAccountNumber ?? '';
-        _bankIfscController.text = next.bankIfsc ?? '';
-        _upiIdController.text = next.upiId ?? '';
       }
     });
 
     ref.listen<Company>(activeCompanyProvider, (previous, next) {
-      if (!_isEditing && !_hasChanges && mounted) {
+      if (next.isExpense && !_isEditing && !_hasChanges && mounted) {
         if (_businessNameController.text.isEmpty && next.name.isNotEmpty) {
           _businessNameController.text = next.name;
         }
@@ -352,143 +309,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
               // 1. Header Card with Avatar
               _buildHeaderCard(context, profile, isIos, isDark),
-
-              const SizedBox(height: 24),
-
-              // 1.5 ERP Foundation, Companies & Statutory Security
-              _buildSectionHeader(context, 'Enterprise & Security', Icons.admin_panel_settings_outlined, isIos),
-              const SizedBox(height: 12),
-              _buildActionTile(
-                context,
-                title: 'Active Profile',
-                subtitle: profile.activeCompany.name.isNotEmpty
-                    ? profile.activeCompany.name
-                    : (activeCompany.name.isNotEmpty
-                        ? activeCompany.name
-                        : (profile.businessName.isNotEmpty ? profile.businessName : 'My Workspace')),
-                icon: activeCompany.isExpense
-                    ? (isIos ? CupertinoIcons.money_dollar_circle_fill : Icons.account_balance_wallet_rounded)
-                    : (isIos ? CupertinoIcons.building_2_fill : Icons.business_rounded),
-                isIos: isIos,
-                trailing: Chip(
-                  label: Text(
-                    profile.role.displayName,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                  visualDensity: VisualDensity.compact,
-                ),
-                onTap: () => CompanySwitcherSheet.show(context),
-              ),
-              const SizedBox(height: 10),
-              _buildActionTile(
-                context,
-                title: 'Manage Workspaces & Members',
-                subtitle: 'Switch, create workspaces and view team access',
-                icon: isIos ? CupertinoIcons.square_grid_2x2 : Icons.workspaces_outline,
-                isIos: isIos,
-                onTap: () {
-                  final sessionState = ref.read(profileSessionProvider);
-                  if (sessionState is ActiveProfileReadySessionState) {
-                    Navigator.of(context).push(
-                      createAdaptivePageRoute(
-                        builder: (_) => ProfileSelectorScreen(
-                          userId: sessionState.userId,
-                          profiles: sessionState.availableProfiles,
-                        ),
-                      ),
-                    );
-                  } else {
-                    CompanySwitcherSheet.show(context);
-                  }
-                },
-              ),
-              const SizedBox(height: 10),
-              _buildActionTile(
-                context,
-                title: 'Sync & Backup Center',
-                subtitle: profile.activeCompany.isCloudSyncEnabled
-                    ? 'Supabase Cloud (PostgreSQL)'
-                    : (profile.activeCompany.isDropboxSyncEnabled ? 'Dropbox Storage Backup' : 'Local Only'),
-                icon: isIos ? CupertinoIcons.cloud_upload_fill : Icons.sync_rounded,
-                isIos: isIos,
-                onTap: () => SyncSettingsSheet.show(context),
-              ),
-              const SizedBox(height: 10),
-              _buildActionTile(
-                context,
-                title: 'Sync Profile & Company to Database',
-                subtitle: 'Push profile and company master to Supabase Cloud',
-                icon: isIos ? CupertinoIcons.arrow_2_circlepath_circle_fill : Icons.cloud_sync_rounded,
-                isIos: isIos,
-                onTap: () async {
-                  HapticFeedback.mediumImpact();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Row(
-                        children: [
-                          SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Syncing company and profile to database...'),
-                        ],
-                      ),
-                      duration: const Duration(seconds: 2),
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  );
-
-                  await ref.read(userProfileProvider.notifier).syncProfileToDatabase();
-                  final syncRes = await ref.read(syncControllerProvider.notifier).triggerSync();
-
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            Icon(
-                              syncRes.success ? Icons.check_circle_rounded : Icons.info_outline_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              syncRes.success
-                                  ? 'Company and profile synced successfully to database'
-                                  : 'Saved locally & queued for sync (${syncRes.errorMessage ?? ""})',
-                            ),
-                          ],
-                        ),
-                        backgroundColor: syncRes.success ? AppColors.receivableGreen : Colors.amber.shade800,
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    );
-                  }
-                },
-              ),
-              if (!isExpense) ...[
-                const SizedBox(height: 10),
-                _buildActionTile(
-                  context,
-                  title: 'Audit log',
-                  subtitle: 'Tamper-evident SHA-256 mutation log',
-                  icon: isIos ? CupertinoIcons.shield_lefthalf_fill : Icons.verified_user_rounded,
-                  isIos: isIos,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      createAdaptivePageRoute(
-                        builder: (context) => const AuditLogScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
 
               const SizedBox(height: 24),
 
@@ -568,142 +388,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
               const SizedBox(height: 24),
 
-              // 3. Business Information Section
-              _buildSectionHeader(
-                context,
-                isExpense ? 'Account Details' : 'Business Details',
-                isExpense
-                    ? (isIos ? CupertinoIcons.person_crop_square : Icons.account_box_outlined)
-                    : Icons.business_outlined,
-                isIos,
-              ),
-              const SizedBox(height: 12),
-              AnimatedCrossFade(
-                duration: const Duration(milliseconds: 320),
-                firstCurve: Curves.easeInOutCubic,
-                secondCurve: Curves.easeInOutCubic,
-                sizeCurve: Curves.easeInOutCubic,
-                crossFadeState: _isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                firstChild: _buildReadOnlyCard(context, isIos, [
-                  _buildReadOnlyRow(
-                    context,
-                    isExpense ? 'Account Name' : 'Business Name',
-                    profile.businessName.isNotEmpty ? profile.businessName : activeCompany.name,
-                    isIos ? CupertinoIcons.briefcase : Icons.storefront_outlined,
-                  ),
-                  if (!isExpense) ...[
-                    const SizedBox(height: 16),
-                    _buildReadOnlyRow(context, 'Business Type', profile.businessType ?? '', isIos ? CupertinoIcons.tag : Icons.category_outlined),
-                  ],
-                  const SizedBox(height: 16),
-                  _buildReadOnlyRow(context, isExpense ? 'Billing Address' : 'Business Address', profile.address, isIos ? CupertinoIcons.location : Icons.location_on_outlined),
-                ]),
-                secondChild: Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 4),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildInputField(
-                        context,
-                        controller: _businessNameController,
-                        label: isExpense ? 'Account Name' : 'Business Name',
-                        icon: isIos ? CupertinoIcons.briefcase : Icons.storefront_outlined,
-                        enabled: _isEditing,
-                        validator: (val) => val == null || val.trim().isEmpty ? 'Name cannot be empty' : null,
-                      ),
-                      if (!isExpense) ...[
-                        const SizedBox(height: 14),
-                        _buildInputField(
-                          context,
-                          controller: _businessTypeController,
-                          label: 'Business Type',
-                          icon: isIos ? CupertinoIcons.tag : Icons.category_outlined,
-                          enabled: _isEditing,
-                        ),
-                      ],
-                      const SizedBox(height: 14),
-                      _buildInputField(
-                        context,
-                        controller: _addressController,
-                        label: isExpense ? 'Billing Address' : 'Business Address',
-                        icon: isIos ? CupertinoIcons.location : Icons.location_on_outlined,
-                        maxLines: 2,
-                        enabled: _isEditing,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Banking & UPI Remittance Details Section (FR-VCH-09) - Ledger Only
               if (!isExpense) ...[
-                const SizedBox(height: 24),
                 _buildSectionHeader(
                   context,
-                  'Banking & Remittance (Invoice Payment)',
-                  isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_outlined,
+                  'Workspace details',
+                  Icons.business_outlined,
                   isIos,
                 ),
                 const SizedBox(height: 12),
-                AnimatedCrossFade(
-                  duration: const Duration(milliseconds: 320),
-                  firstCurve: Curves.easeInOutCubic,
-                  secondCurve: Curves.easeInOutCubic,
-                  sizeCurve: Curves.easeInOutCubic,
-                  crossFadeState: _isEditing ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-                  firstChild: _buildReadOnlyCard(context, isIos, [
-                    _buildReadOnlyRow(context, 'Bank Name', profile.bankName ?? '', isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded),
-                    const SizedBox(height: 16),
-                    _buildReadOnlyRow(context, 'Account Number', profile.bankAccountNumber ?? '', isIos ? CupertinoIcons.number : Icons.credit_card_rounded),
-                    const SizedBox(height: 16),
-                    _buildReadOnlyRow(context, 'IFSC Code', profile.bankIfsc ?? '', isIos ? CupertinoIcons.barcode : Icons.qr_code_2_rounded),
-                    const SizedBox(height: 16),
-                    _buildReadOnlyRow(context, 'UPI ID / VPA', profile.upiId ?? '', isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded),
-                  ]),
-                  secondChild: Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 4),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildInputField(
-                          context,
-                          controller: _bankNameController,
-                          label: 'Bank Name',
-                          icon: isIos ? CupertinoIcons.building_2_fill : Icons.account_balance_rounded,
-                          enabled: _isEditing,
-                        ),
-                        const SizedBox(height: 14),
-                        _buildInputField(
-                          context,
-                          controller: _bankAccountController,
-                          label: 'Account Number',
-                          icon: isIos ? CupertinoIcons.number : Icons.credit_card_rounded,
-                          keyboardType: TextInputType.number,
-                          enabled: _isEditing,
-                        ),
-                        const SizedBox(height: 14),
-                        _buildInputField(
-                          context,
-                          controller: _bankIfscController,
-                          label: 'IFSC Code',
-                          icon: isIos ? CupertinoIcons.barcode : Icons.qr_code_2_rounded,
-                          enabled: _isEditing,
-                        ),
-                        const SizedBox(height: 14),
-                        _buildInputField(
-                          context,
-                          controller: _upiIdController,
-                          label: 'UPI ID / VPA (e.g. business@okhdfcbank)',
-                          icon: isIos ? CupertinoIcons.money_dollar_circle : Icons.payment_rounded,
-                          enabled: _isEditing,
-                        ),
-                      ],
-                    ),
-                  ),
+                _buildActionTile(
+                  context,
+                  title: 'Edit business and bank details',
+                  subtitle: activeCompany.name,
+                  icon: isIos
+                      ? CupertinoIcons.building_2_fill
+                      : Icons.account_balance_outlined,
+                  isIos: isIos,
+                  onTap: () => showEditProfileSheet(context, activeCompany),
                 ),
+                const SizedBox(height: 24),
+              ] else ...[
+                _buildSectionHeader(context, 'Account Details', Icons.person_outline, isIos),
+                const SizedBox(height: 12),
+                if (_isEditing) ...[
+                  _buildInputField(
+                    context,
+                    controller: _businessNameController,
+                    label: 'Account Name',
+                    icon: Icons.badge_outlined,
+                    enabled: true,
+                  ),
+                  const SizedBox(height: 14),
+                  _buildInputField(
+                    context,
+                    controller: _addressController,
+                    label: 'Billing Address',
+                    icon: Icons.location_on_outlined,
+                    enabled: true,
+                  ),
+                ] else
+                  _buildReadOnlyCard(context, isIos, [
+                    _buildReadOnlyRow(context, 'Account Name', profile.businessName, Icons.badge_outlined),
+                    const SizedBox(height: 14),
+                    _buildReadOnlyRow(context, 'Billing Address', profile.address, Icons.location_on_outlined),
+                  ]),
+                const SizedBox(height: 24),
               ],
-
-              const SizedBox(height: 24),
 
               // 5. Logout Section Button inside Profile
               Container(
@@ -753,7 +483,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (isStandalone) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('My Profile'),
+          title: const Text('My Account'),
         ),
         floatingActionButton: SplittingProfileFab(
           isEditing: _isEditing,
@@ -825,7 +555,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(
                   profile.name.isNotEmpty
                       ? profile.name
-                      : (ref.watch(authControllerProvider).userName ?? 'My Profile'),
+                      : (ref.watch(authControllerProvider).userName ?? 'My Account'),
                   style: AppTypography.titleMedium.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -895,11 +625,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           color: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: AppTypography.titleSmall.copyWith(
-            fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.primary,
+        Flexible(
+          child: Text(
+            title,
+            style: AppTypography.titleSmall.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).colorScheme.primary,
+            ),
           ),
         ),
       ],

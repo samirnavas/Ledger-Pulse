@@ -21,7 +21,7 @@ class ModeStrings {
   // Company / Entity Labeling
   String get entityLabel => isExpense ? 'Account' : 'Company';
   String get entityLabelPlural => isExpense ? 'Accounts' : 'Companies';
-  String get switchEntity => 'Switch Profile';
+  String get switchEntity => 'Switch Workspace';
   String get addEntity => isExpense ? 'Add New Account' : 'Add New Company';
   String get entitySubtitlePlaceholder =>
       isExpense ? 'Personal Expense Tracker' : 'Personal / Sole Trader';
@@ -41,7 +41,7 @@ class ModeStrings {
   String get homeTab => isExpense ? 'Home' : 'Dashboard';
   String get transactionsTab => isExpense ? 'Transactions' : 'Daybook';
   String get reportsTab => isExpense ? 'Reports' : 'Analytics';
-  String get accountsTab => isExpense ? 'My Profile' : 'Chart of Accounts';
+  String get accountsTab => isExpense ? 'My Account' : 'Chart of Accounts';
   String get budgetsTab => isExpense ? 'Budgets' : 'Inventory';
   String get allExpensesTab => isExpense ? 'All Expenses' : 'All Vouchers';
   String get dailyTab => isExpense ? 'Daily' : 'Daily Daybook';

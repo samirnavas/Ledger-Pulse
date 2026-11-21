@@ -159,10 +159,10 @@ void main() {
 
       expect(find.byType(AdaptiveScaffold), findsOneWidget);
       expect(find.byKey(const Key('active_profile_indicator_pill')), findsOneWidget);
-      expect(find.byTooltip('My Profile'), findsOneWidget);
+      expect(find.byTooltip('My Account'), findsOneWidget);
       expect(
         find.descendant(
-          of: find.byTooltip('My Profile'),
+          of: find.byTooltip('My Account'),
           matching: find.byType(CircleAvatar),
         ),
         findsOneWidget,
@@ -174,7 +174,7 @@ void main() {
 
       expect(find.byType(AdaptiveScaffold), findsOneWidget);
       expect(find.byKey(const Key('active_profile_indicator_pill')), findsOneWidget);
-      expect(find.byTooltip('My Profile'), findsOneWidget);
+      expect(find.byTooltip('My Account'), findsOneWidget);
     });
 
     for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
@@ -229,7 +229,7 @@ void main() {
       ) async {
         await tester.pumpWidget(buildExpenseShellApp(platform: platform));
         await tester.pumpAndSettle();
-        await tester.tap(find.byTooltip('My Profile'));
+        await tester.tap(find.byTooltip('My Account'));
         await tester.pumpAndSettle();
 
         final sections = find.byType(AdaptiveSegmentedControl<int>);
@@ -250,7 +250,7 @@ void main() {
         }
 
         await tester.tap(
-          find.descendant(of: sections, matching: find.text('Profile')),
+          find.descendant(of: sections, matching: find.text('Account')),
         );
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 50));
@@ -344,17 +344,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(SpringMorphingFab), findsNothing);
 
-      // Transactions replaces My Profile in the bottom navigation.
+      // Transactions replaces My Account in the bottom navigation.
       await tester.tap(find.text('Transactions'));
       await tester.pumpAndSettle();
       expect(find.byType(ExpenseTransactionsScreen), findsOneWidget);
       expect(find.text('Add transaction'), findsOneWidget);
       expect(find.byTooltip('Sync & Backup'), findsNothing);
 
-      // The header opens My Profile above the current tab.
-      await tester.tap(find.byTooltip('My Profile'));
+      // The header opens My Account above the current tab.
+      await tester.tap(find.byTooltip('My Account'));
       await tester.pumpAndSettle();
-      expect(find.text('Add profile'), findsOneWidget);
+      expect(find.text('Add workspace'), findsOneWidget);
       await tester.tap(find.text('Wallet').first);
       await tester.pumpAndSettle();
       expect(find.text('Add wallet'), findsOneWidget);
@@ -637,7 +637,7 @@ void main() {
       expect(find.byType(CategoryBreakdownCard), findsOneWidget);
       expect(find.byType(AdaptiveSectionHeader), findsNWidgets(2));
       expect(find.text('RECENT TRANSACTIONS'), findsOneWidget);
-      expect(find.byTooltip('My Profile'), findsOneWidget);
+      expect(find.byTooltip('My Account'), findsOneWidget);
       await tester.tap(find.text('Transactions'));
       await tester.pumpAndSettle();
       expect(find.byType(ExpenseTransactionsScreen), findsOneWidget);

@@ -66,6 +66,36 @@ void main() {
   });
 
   group('SyncEngine Hardening & Verification Suite (Prompt 6)', () {
+    test('Retries company uploads without sending the local routing key', () async {
+      await enqueueMutation(
+        db: db,
+        table: 'companies',
+        recordId: testCompanyId,
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': testCompanyId,
+          'profileId': testCompanyId,
+          'companyId': testCompanyId,
+          'name': 'Sync Hardening Co',
+          'legalName': 'Sync Hardening Co Ltd',
+        },
+      );
+      await db.update(db.syncOutbox).write(
+        const SyncOutboxCompanion(
+          attempts: drift.Value(5),
+          lastError: drift.Value('PGRST204: company_id missing from schema cache'),
+        ),
+      );
+
+      final result = await syncEngine.pushQueue(companyId: testCompanyId);
+
+      expect(result.status, SyncEngineStatus.success);
+      final company = gateway.tables['companies']![testCompanyId]!;
+      expect(company['profile_id'], testCompanyId);
+      expect(company.containsKey('company_id'), isFalse);
+      expect(await db.select(db.syncOutbox).get(), isEmpty);
+    });
+
     // 1. Unsynced local create -> outbox -> successful upload -> marked synced
     test('1. Unsynced local create -> outbox -> successful upload -> marked synced', () async {
       await db.into(db.vouchers).insert(

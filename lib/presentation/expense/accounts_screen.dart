@@ -38,7 +38,7 @@ import '../providers/profile_provider.dart';
 import 'recurring_screen.dart';
 import 'wallet_report_screen.dart';
 
-/// Screen managing My Profile (with sub-categories: Profile, Wallet, and Category).
+/// Screen managing My Account (with Account, Wallet, and Category sections).
 class ExpenseAccountsScreen extends ConsumerStatefulWidget {
   final int initialTab;
   final bool isStandalone;
@@ -618,7 +618,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               child: AdaptiveSegmentedControl<int>(
                 groupValue: _selectedTab,
                 children: const {
-                  0: Text('Profile'),
+                  0: Text('Account'),
                   1: Text('Wallet'),
                   2: Text('Category'),
                 },
@@ -655,7 +655,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
 
     final isIos = AdaptiveThemeHelper.isIos(context);
     final colors = Theme.of(context).colorScheme;
-    final addLabel = ['Add profile', 'Add wallet', 'Add category'][_selectedTab];
+    final addLabel = ['Add workspace', 'Add wallet', 'Add category'][_selectedTab];
 
     void openRecurringRules() {
       Navigator.of(context).push(
@@ -755,7 +755,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                         Text(
                           profile.name.isNotEmpty
                               ? profile.name
-                              : 'User Profile',
+                              : 'My Account',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -946,7 +946,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
 
     await showAdaptiveFormSheet<void>(
       context: context,
-      title: 'Edit Profile',
+      title: 'Edit Account',
       doneLabel: 'Save',
       builder: (sheetCtx) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -1000,9 +1000,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                 );
                 ref.read(userProfileProvider.notifier).updateProfile(updated);
                 Navigator.of(sheetCtx).pop();
-                showAppFeedback(context, 'Profile updated successfully');
+                showAppFeedback(context, 'Account updated successfully');
               },
-              child: const Text('Save Profile'),
+              child: const Text('Save Account'),
             ),
           ],
         ),

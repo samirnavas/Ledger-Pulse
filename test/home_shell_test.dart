@@ -14,6 +14,7 @@ import 'package:ledger_pulse/presentation/expense/expense_home_screen.dart';
 import 'package:ledger_pulse/presentation/home/dashboard_screen.dart';
 import 'package:ledger_pulse/presentation/home/dashboard_sidebar_drawer.dart';
 import 'package:ledger_pulse/presentation/home/home_shell.dart';
+import 'package:ledger_pulse/presentation/home/party_list_tab.dart';
 import 'package:ledger_pulse/presentation/profile/profile_screen.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
@@ -109,6 +110,91 @@ void main() {
 
   group('HomeShell Routing & Company Switch Widget Tests', () {
     for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+      testWidgets('ledger opens Parties with balances and a scroll-aware FAB', (
+        tester,
+      ) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(400, 600);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final profile = UserProfile(
+          id: 'usr_test',
+          name: 'Business user',
+          phoneNumber: '',
+          email: '',
+          companies: [ledgerCompany],
+          activeCompanyId: ledgerCompany.id,
+        );
+        final container = ProviderContainer(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            syncEngineProvider.overrideWithValue(_FakeSyncEngine(db: db)),
+            userProfileProvider.overrideWith(() => _TestUserProfileNotifier(profile)),
+          ],
+        );
+        addTearDown(container.dispose);
+        await tester.pumpWidget(UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData(platform: platform),
+            home: const HomeShell(),
+          ),
+        ));
+        await tester.pumpAndSettle();
+
+        final fab = find.byKey(const Key('ledger_add_party_fab'));
+        final partyList = find.descendant(
+          of: find.byType(PartyListTab),
+          matching: find.byType(ListView),
+        );
+        expect(find.text('Home'), findsNothing);
+        expect(find.text('To receive'), findsOneWidget);
+        expect(find.text('To pay'), findsOneWidget);
+        expect(tester.getBottomLeft(find.text('To pay')).dy,
+            lessThan(tester.getTopLeft(find.text('All')).dy));
+        expect(find.text('Add Party'), findsOneWidget);
+        final expandedWidth = tester.getSize(fab).width;
+
+        await tester.drag(partyList, const Offset(0, -100));
+        await tester.pumpAndSettle();
+        expect(tester.getSize(fab).width, lessThan(expandedWidth));
+
+        await tester.drag(partyList, const Offset(0, 100));
+        await tester.pumpAndSettle();
+        expect(tester.getSize(fab).width, expandedWidth);
+
+        await tester.tap(find.text('Transactions'));
+        await tester.pumpAndSettle();
+        expect(find.text('Add Transaction'), findsOneWidget);
+        expect(find.text('Add Party'), findsNothing);
+
+        await tester.tap(find.byTooltip('My Account'));
+        await tester.pumpAndSettle();
+        expect(find.byType(ProfileScreen), findsOneWidget);
+        expect(find.text('Manage Workspaces & Members'), findsNothing);
+        expect(find.text('Sync Account & Workspace'), findsNothing);
+        expect(find.text('Audit log'), findsNothing);
+        final editDetails = find.text('Edit business and bank details');
+        await tester.ensureVisible(editDetails);
+        await tester.tap(editDetails);
+        await tester.pumpAndSettle();
+        expect(find.text('Account number (optional)'), findsOneWidget);
+        Navigator.of(tester.element(find.text('Edit Workspace'))).pop();
+        await tester.pumpAndSettle();
+        Navigator.of(tester.element(find.byType(ProfileScreen))).pop();
+        await tester.pumpAndSettle();
+        expect(find.text('Add Transaction'), findsOneWidget);
+
+        expect(find.text('Archived parties'), findsNothing);
+        final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).first);
+        scaffold.openDrawer();
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Archived parties'));
+        await tester.pumpAndSettle();
+        expect(scaffold.isDrawerOpen, isFalse);
+        expect(find.text('No archived parties'), findsOneWidget);
+      }, variant: TargetPlatformVariant({platform}));
+
       testWidgets('ledger tabs and report links work on ${platform.name}', (tester) async {
         final profile = UserProfile(
           id: 'usr_test',
@@ -138,8 +224,8 @@ void main() {
         Finder tab(String label) => find.descendant(
           of: find.byType(AdaptiveBottomNav), matching: find.text(label),
         );
-        expect(find.text('Recent transactions'), findsOneWidget);
-        for (final label in ['Home', 'Parties', 'Transactions', 'Reports']) {
+        expect(find.text('To receive'), findsOneWidget);
+        for (final label in ['Parties', 'Transactions', 'Reports']) {
           expect(tab(label), findsOneWidget);
         }
         await tester.tap(tab('Parties'));
@@ -219,7 +305,7 @@ void main() {
 
       tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
       await tester.pumpAndSettle();
-      expect(find.text('Switch Profile'), findsOneWidget);
+      expect(find.text('Switch Workspace'), findsOneWidget);
       expect(find.text('Settings & Preferences'), findsOneWidget);
       expect(find.text('Cash Flow & Intelligence'), findsNothing);
       expect(find.text('ERP Modules & Licensing'), findsNothing);
@@ -337,7 +423,7 @@ void main() {
   });
 
   group('Hiding Ledger Concepts in Expense Mode', () {
-    testWidgets('DashboardSidebarDrawer shows only Settings, Export, Sync, Switch Profile in expense mode', (tester) async {
+    testWidgets('DashboardSidebarDrawer shows only Settings, Export, Sync, Switch Workspace in expense mode', (tester) async {
       final profile = UserProfile(
         id: 'usr_test',
         name: 'John Doe',
@@ -374,7 +460,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify ONLY the 4 permitted items are visible
-      expect(find.text('Switch Profile'), findsOneWidget);
+      expect(find.text('Switch Workspace'), findsOneWidget);
       expect(find.text('Sync & Backup Center'), findsOneWidget);
       expect(find.text('Export'), findsOneWidget);
       expect(find.text('Settings & Preferences'), findsOneWidget);

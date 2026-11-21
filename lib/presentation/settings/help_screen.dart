@@ -36,7 +36,7 @@ class HelpScreen extends StatelessWidget {
                         const _HelpTopic(
                           question: 'Where do I manage wallets and categories?',
                           answer:
-                              'Open My Profile from the top-right button. '
+                              'Open My Account from the top-right button. '
                               'Choose Wallet for cash, bank accounts, and cards, '
                               'or Category to organize income and expenses.',
                         ),
@@ -44,7 +44,7 @@ class HelpScreen extends StatelessWidget {
                           question: 'Where can I see my spending?',
                           answer:
                               'Open Reports to review spending and income. '
-                              'When Budgets is enabled for your profile, open '
+                              'When Budgets is enabled for your workspace, open '
                               'Budgets to set and track spending limits.',
                         ),
                       ] else ...[
@@ -65,10 +65,10 @@ class HelpScreen extends StatelessWidget {
                         ),
                       ],
                       const _HelpTopic(
-                        question: 'How do I switch profiles?',
+                        question: 'How do I switch workspaces?',
                         answer:
-                            'Tap the active profile name in the Home or '
-                            'Dashboard header and choose the profile to open.',
+                            'Tap the active workspace name in the Home or '
+                            'Dashboard header and choose the workspace to open.',
                       ),
                       const _HelpTopic(
                         question: 'How do I sync my records?',

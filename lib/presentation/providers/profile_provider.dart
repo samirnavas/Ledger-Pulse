@@ -208,12 +208,13 @@ class UserProfileNotifier extends Notifier<UserProfile> {
         },
       );
 
-      // Update associated company in db.companies if present
+      // Personal expense account fields also supply the legacy company details.
       if (profile.activeCompanyId.isNotEmpty) {
         final existingComp = await (db.select(db.companies)
               ..where((c) => c.id.equals(profile.activeCompanyId)))
             .getSingleOrNull();
-        if (existingComp != null) {
+        if (existingComp != null &&
+            CompanyMode.tryParse(existingComp.mode) == CompanyMode.expenseTracker) {
           final compName = profile.businessName.isNotEmpty ? profile.businessName : existingComp.name;
           await (db.update(db.companies)..where((c) => c.id.equals(profile.activeCompanyId))).write(
             CompaniesCompanion(

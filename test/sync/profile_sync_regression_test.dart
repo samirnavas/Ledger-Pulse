@@ -9,9 +9,11 @@ import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
 import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/rbac_model.dart';
 import 'package:ledger_pulse/data/models/user_profile_model.dart';
+import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
 import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
 import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
 import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
+import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/strict_fake_remote.dart';
@@ -67,6 +69,37 @@ void main() {
       repoA.dispose();
       syncEngineA.dispose();
       await dbA.close();
+    });
+
+    test('Workspace setup stores and syncs business and bank details', () async {
+      final profiles = DriftProfileRepository(db: dbA, syncEngine: syncEngineA);
+      await profiles.createProfile(
+        name: 'Business Workspace',
+        type: ProfileType.ledger,
+        legalName: 'Business Workspace Ltd',
+        address: 'Market Street',
+        gstin: '29ABCDE1234F1Z5',
+        bankName: 'Test Bank',
+        bankAccountNumber: '0012345678',
+        bankIfsc: 'TEST0001234',
+        upiId: 'business@test',
+        accountId: testUserId,
+        customId: companyId,
+      );
+
+      final local = await dbA.select(dbA.companies).getSingle();
+      expect(local.legalName, 'Business Workspace Ltd');
+      expect(local.bankAccountNumber, '0012345678');
+      expect(local.address, 'Market Street');
+
+      final result = await syncEngineA.pushQueue(companyId: companyId);
+      expect(result.tableErrors, isEmpty);
+      final cloud = fakeRemote.getRow('companies', companyId)!;
+      expect(cloud['bank_name'], 'Test Bank');
+      expect(cloud['bank_account_number'], '0012345678');
+      expect(cloud['bank_ifsc'], 'TEST0001234');
+      expect(cloud['upi_id'], 'business@test');
+      expect(cloud['gstin'], '29ABCDE1234F1Z5');
     });
 
     test('Create profile and synchronize: validates clean payload without non-column fields', () async {

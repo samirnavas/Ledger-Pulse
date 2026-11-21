@@ -137,6 +137,8 @@ final activeCompanyProvider = Provider<Company>((ref) {
 });
 
 class CompanyController extends Notifier<void> {
+  bool _deletingCompany = false;
+
   @override
   void build() {}
 
@@ -181,6 +183,11 @@ class CompanyController extends Notifier<void> {
         currencyCode: newCompany.currencyCode,
         legalName: newCompany.legalName,
         gstin: newCompany.gstin,
+        address: newCompany.address,
+        bankName: newCompany.bankName,
+        bankAccountNumber: newCompany.bankAccountNumber,
+        bankIfsc: newCompany.bankIfsc,
+        upiId: newCompany.upiId,
         stateCode: newCompany.stateCode,
         dealerType: newCompany.dealerType,
         enabledModules: newCompany.enabledModules,
@@ -244,15 +251,32 @@ class CompanyController extends Notifier<void> {
   }
 
   Future<bool> deleteCompany(String companyId) async {
+    if (_deletingCompany) {
+      throw StateError('A profile deletion is already in progress.');
+    }
+    _deletingCompany = true;
+    try {
+      return await _deleteCompany(companyId);
+    } finally {
+      _deletingCompany = false;
+    }
+  }
+
+  Future<bool> _deleteCompany(String companyId) async {
     final companies = ref.read(userCompaniesProvider);
     if (companies.length <= 1) {
       return false;
     }
 
+    final session = ref.read(profileSessionProvider);
+    final userId = ref.read(activeUserIdProvider);
     // 1. Write via the repository first
     final repo = ref.read(driftLedgerRepositoryProvider);
     await repo.deleteCompany(companyId);
 
+    if (!ref.mounted || ref.read(activeUserIdProvider) != userId) {
+      return true;
+    }
     ref.invalidate(companiesProvider);
 
     // 2. Update state if the active company was deleted
@@ -269,6 +293,10 @@ class CompanyController extends Notifier<void> {
       ),
     );
 
+    if (session is ActiveProfileReadySessionState) {
+      await ref.read(profileSessionProvider.notifier)
+          .removeDeletedProfile(session.userId, companyId);
+    }
     return true;
   }
 

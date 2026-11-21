@@ -13,7 +13,9 @@ import 'company_switcher_sheet.dart';
 import 'sync_settings_sheet.dart';
 
 class DashboardSidebarDrawer extends ConsumerWidget {
-  const DashboardSidebarDrawer({super.key});
+  const DashboardSidebarDrawer({super.key, this.onOpenArchivedParties});
+
+  final VoidCallback? onOpenArchivedParties;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -236,7 +238,7 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                       ),
                     ),
                     title: const Text(
-                      'Switch Profile',
+                      'Switch Workspace',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -322,6 +324,19 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                       SyncSettingsSheet.show(context);
                     },
                   ),
+
+                  if (!isExpense && onOpenArchivedParties != null)
+                    ListTile(
+                      leading: Icon(
+                        isIos ? CupertinoIcons.archivebox : Icons.archive_outlined,
+                      ),
+                      title: const Text('Archived parties'),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Scaffold.of(context).closeDrawer();
+                        onOpenArchivedParties!();
+                      },
+                    ),
 
                   // 3. Export (Visible in Expense Mode)
                   if (isExpense)

@@ -20,6 +20,7 @@ import '../providers/auth_providers.dart';
 import '../providers/database_providers.dart';
 import '../providers/profile_provider.dart';
 import '../providers/profile_session_controller.dart';
+import '../widgets/workspace_details_fields.dart';
 import 'app_root_gate.dart';
 
 class ProfileOnboardingScreen extends ConsumerStatefulWidget {
@@ -43,6 +44,8 @@ class _ProfileOnboardingScreenState
   String _selectedCurrency = 'INR';
 
   final TextEditingController _nameController = TextEditingController();
+  final _legalNameController = TextEditingController();
+  final _details = WorkspaceDetailsControllers();
 
   bool _isCreating = false;
   String? _errorMessage;
@@ -58,6 +61,8 @@ class _ProfileOnboardingScreenState
   @override
   void dispose() {
     _nameController.dispose();
+    _legalNameController.dispose();
+    _details.dispose();
     super.dispose();
   }
 
@@ -81,7 +86,7 @@ class _ProfileOnboardingScreenState
     if (name.isEmpty) {
       setState(() {
         _errorMessage = _selectedType == ProfileType.expense
-            ? 'Please enter your profile name'
+            ? 'Please enter your workspace name'
             : 'Please enter your business or firm name';
       });
       return;
@@ -95,10 +100,21 @@ class _ProfileOnboardingScreenState
 
     try {
       final repo = ref.read(profileRepositoryProvider);
+      String? optional(TextEditingController controller) {
+        final value = controller.text.trim();
+        return _selectedType == ProfileType.ledger && value.isNotEmpty ? value : null;
+      }
       final created = await repo.createProfile(
         name: name,
         type: _selectedType,
         currencyCode: _selectedCurrency,
+        legalName: optional(_legalNameController),
+        address: optional(_details.address),
+        gstin: optional(_details.gstin)?.toUpperCase(),
+        bankName: optional(_details.bankName),
+        bankAccountNumber: optional(_details.bankAccountNumber),
+        bankIfsc: optional(_details.bankIfsc)?.toUpperCase(),
+        upiId: optional(_details.upiId),
         accountId: widget.userId,
       );
 
@@ -199,7 +215,7 @@ class _ProfileOnboardingScreenState
     final canPop = ModalRoute.of(context)?.canPop ?? false;
 
     return AdaptiveScaffold(
-      title: 'Setup Your Profile',
+      title: 'Set Up Your Workspace',
       actions: [
         if (!canPop)
           if (isIos)
@@ -274,7 +290,7 @@ class _ProfileOnboardingScreenState
               Padding(
                 padding: const EdgeInsets.only(left: 1),
                 child: Text(
-                  'Profile type cannot be changed after creation.',
+                  'Workspace type cannot be changed after creation.',
                   style: TextStyle(
                     fontSize: 11.5,
                     color: isDark
@@ -288,7 +304,7 @@ class _ProfileOnboardingScreenState
               // Form Section Header
               AdaptiveSectionHeader(
                 title: _selectedType == ProfileType.expense
-                    ? 'Expense Profile Setup'
+                    ? 'Expense Workspace Setup'
                     : 'Business Details & Compliance',
                 padding: const EdgeInsets.only(bottom: 12),
               ),
@@ -297,7 +313,7 @@ class _ProfileOnboardingScreenState
               if (_selectedType == ProfileType.expense) ...[
                 _buildAdaptiveInputField(
                   controller: _nameController,
-                  label: 'Profile Name',
+                  label: 'Workspace Name',
                   hint: 'e.g. Samir Personal, Household Budget',
                   icon: isIos
                       ? CupertinoIcons.person
@@ -375,6 +391,18 @@ class _ProfileOnboardingScreenState
                     if (val != null) setState(() => _selectedCurrency = val);
                   },
                 ),
+                const SizedBox(height: 14),
+                _buildAdaptiveInputField(
+                  controller: _legalNameController,
+                  label: 'Legal / trade name (optional)',
+                  hint: 'Registered business name',
+                  icon: isIos ? CupertinoIcons.building_2_fill : Icons.business_outlined,
+                  isDark: isDark,
+                  isIos: isIos,
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 14),
+                WorkspaceDetailsFields(details: _details, enabled: !_isCreating),
               ],
 
               if (_errorMessage != null) ...[
@@ -428,7 +456,7 @@ class _ProfileOnboardingScreenState
                   onPressed: _isCreating ? null : _handleCreate,
                   isFullWidth: true,
                   isLoading: _isCreating,
-                  child: const Text('Complete & Open Profile'),
+                  child: const Text('Complete & Open Workspace'),
                 ),
               ),
             ),

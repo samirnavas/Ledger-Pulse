@@ -260,17 +260,17 @@ void main() {
   });
 
   group('UI and Deep Link Gating Tests', () {
-    test('ledger navigation defaults to Home and has four destinations', () {
+    test('ledger navigation defaults to Parties and has three destinations', () {
       final container = ProviderContainer(
         overrides: [activeCompanyIdProvider.overrideWithValue('ledger-test')],
       );
       addTearDown(container.dispose);
       expect(container.read(dashboardTabProvider), 0);
       final tabs = container.read(dashboardTabProvider.notifier);
-      tabs.setTab(3);
-      expect(container.read(dashboardTabProvider), 3);
+      tabs.setTab(2);
+      expect(container.read(dashboardTabProvider), 2);
       tabs.setTab(9);
-      expect(container.read(dashboardTabProvider), 3);
+      expect(container.read(dashboardTabProvider), 2);
     });
 
     test('AppModule.fromName parses correctly and validates enabled state', () {

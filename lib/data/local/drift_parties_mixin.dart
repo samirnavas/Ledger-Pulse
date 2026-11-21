@@ -70,15 +70,32 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
     await ensureInitialized();
     final rows = await (db.select(db.parties)
       ..where((row) => row.companyId.equals(currentCompanyId))).get();
-    final keys = {
+    final names = {
       for (final row in rows)
         (DataImportService.normalizePartyName(row.name), row.type),
     };
-    return [
-      for (final party in batch)
-        if (!keys.add((DataImportService.normalizePartyName(party.name), party.type)))
-          '${party.name} (${party.type.name})',
-    ];
+    final phones = {
+      for (final row in rows) _partyPhoneKey(row.phoneNumber),
+    }..remove('');
+    final duplicates = <String>[];
+    for (final party in batch) {
+      final nameKey = (DataImportService.normalizePartyName(party.name), party.type);
+      final phoneKey = _partyPhoneKey(party.phoneNumber);
+      final duplicateName = !names.add(nameKey);
+      final duplicatePhone = phoneKey.isNotEmpty && !phones.add(phoneKey);
+      if (duplicateName || duplicatePhone) {
+        duplicates.add('${party.name} (${party.type.name})');
+      }
+    }
+    return duplicates;
+  }
+
+  String _partyPhoneKey(String number) {
+    final digits = number.replaceAll(RegExp(r'\D'), '');
+    if (number.trimLeft().startsWith('+')) return digits;
+    if (digits.startsWith('00')) return digits.substring(2);
+    // The party form defaults to +91. Older imports may store bare numbers.
+    return digits.length == 10 ? '91$digits' : digits;
   }
 
   Future<void> importLedgerParties(List<Party> batch) async {
@@ -87,10 +104,10 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
       await requireLedgerProfile();
       final duplicates = await findImportDuplicates(batch);
       if (duplicates.isNotEmpty) {
-        throw StateError('Party names already in use: ${duplicates.join(', ')}');
+        throw StateError('Duplicate party names or phone numbers: ${duplicates.join(', ')}');
       }
       for (final party in batch) {
-        await _addParty(party);
+        await _addParty(party, checkDuplicates: false);
       }
     });
     updateStreamController.add(null);
@@ -104,7 +121,7 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
     triggerBackgroundSync();
   }
 
-  Future<void> _addParty(Party party) async {
+  Future<void> _addParty(Party party, {bool checkDuplicates = true}) async {
 
     // RBAC check based on party type
     final action = party.type == PartyType.customer
@@ -117,6 +134,10 @@ mixin DriftPartiesMixin on DriftLedgerRepositoryBase {
 
     await db.transaction(() async {
       await requireLedgerProfile();
+      if (checkDuplicates &&
+          (await findImportDuplicates([effectiveParty])).isNotEmpty) {
+        throw const DuplicatePartyException();
+      }
       await db.into(db.parties).insertOnConflictUpdate(
             PartiesCompanion.insert(
               id: effectiveParty.id,

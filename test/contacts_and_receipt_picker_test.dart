@@ -22,7 +22,7 @@ void main() {
 
       expect(find.byIcon(Icons.contacts_rounded), findsOneWidget);
       expect(find.text('Contact / Business Name'), findsOneWidget);
-      expect(find.text('Phone Number'), findsOneWidget);
+      expect(find.text('Phone number (optional)'), findsOneWidget);
       expect(find.text('Save & Open Ledger'), findsOneWidget);
     });
 

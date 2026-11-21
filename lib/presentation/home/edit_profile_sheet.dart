@@ -7,6 +7,7 @@ import '../../core/widgets/adaptive_controls.dart';
 import '../../core/widgets/adaptive_picker.dart';
 import '../../data/models/company_model.dart';
 import '../providers/company_providers.dart';
+import '../widgets/workspace_details_fields.dart';
 
 Future<void> showEditProfileSheet(BuildContext context, Company profile) async {
   final key = GlobalKey<_EditProfileFormState>();
@@ -50,7 +51,7 @@ Future<void> showEditProfileSheet(BuildContext context, Company profile) async {
                             ),
                             Expanded(
                               child: Text(
-                                'Edit Profile',
+                                'Edit Workspace',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: Theme.of(context).textTheme.titleLarge,
@@ -102,7 +103,7 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
   late final TextEditingController _legal;
-  late final TextEditingController _address;
+  late final WorkspaceDetailsControllers _details;
   late final TextEditingController _phone;
   late final TextEditingController _email;
   late String _currency;
@@ -115,7 +116,7 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
     final p = widget.profile;
     _name = TextEditingController(text: p.name);
     _legal = TextEditingController(text: p.legalName);
-    _address = TextEditingController(text: p.address);
+    _details = WorkspaceDetailsControllers(p);
     _phone = TextEditingController(text: p.phoneNumber);
     _email = TextEditingController(text: p.email);
     _currency = p.currencyCode;
@@ -123,15 +124,10 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
 
   @override
   void dispose() {
-    for (final controller in [
-      _name,
-      _legal,
-      _address,
-      _phone,
-      _email,
-    ]) {
+    for (final controller in [_name, _legal, _phone, _email]) {
       controller.dispose();
     }
+    _details.dispose();
     super.dispose();
   }
 
@@ -148,7 +144,16 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
           ? _name.text.trim()
           : _legal.text.trim(),
       currencyCode: _currency,
-      address: p.isExpense ? p.address : _address.text.trim(),
+      address: p.isExpense ? p.address : _details.address.text.trim(),
+      gstin: p.isExpense ? p.gstin : _details.gstin.text.trim().toUpperCase(),
+      bankName: p.isExpense ? p.bankName : _details.bankName.text.trim(),
+      bankAccountNumber: p.isExpense
+          ? p.bankAccountNumber
+          : _details.bankAccountNumber.text.trim(),
+      bankIfsc: p.isExpense
+          ? p.bankIfsc
+          : _details.bankIfsc.text.trim().toUpperCase(),
+      upiId: p.isExpense ? p.upiId : _details.upiId.text.trim(),
       phoneNumber: p.isExpense ? p.phoneNumber : _phone.text.trim(),
       email: p.isExpense ? p.email : _email.text.trim(),
       updatedAt: DateTime.now(),
@@ -160,7 +165,7 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = 'Could not save profile: $error';
+          _error = 'Could not save workspace: $error';
         });
       }
     }
@@ -189,7 +194,7 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
         border: const OutlineInputBorder(),
       ),
       validator: (value) => required && (value?.trim().isEmpty ?? true)
-          ? 'Enter a profile name'
+          ? 'Enter a workspace name'
           : null,
     ),
   );
@@ -217,11 +222,11 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 4),
-                  const Text('Profile type cannot be changed.'),
+                  const Text('Workspace type cannot be changed.'),
                   const SizedBox(height: 20),
                   _field(
                     'profile_name_field',
-                    'Profile name',
+                    'Workspace name',
                     _name,
                     required: true,
                   ),
@@ -248,12 +253,6 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
                       _legal,
                     ),
                     _field(
-                      'profile_address_field',
-                      'Business address (optional)',
-                      _address,
-                      maxLines: 2,
-                    ),
-                    _field(
                       'profile_phone_field',
                       'Phone (optional)',
                       _phone,
@@ -264,6 +263,10 @@ class _EditProfileFormState extends ConsumerState<_EditProfileForm> {
                       'Email (optional)',
                       _email,
                       keyboardType: TextInputType.emailAddress,
+                    ),
+                    WorkspaceDetailsFields(
+                      details: _details,
+                      enabled: !_saving,
                     ),
                   ],
                   if (_error != null)

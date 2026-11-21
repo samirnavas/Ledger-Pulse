@@ -65,7 +65,7 @@ class CompanySwitcherSheet extends ConsumerStatefulWidget {
     if (userId == null || userId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please sign in to add a workspace profile.'),
+          content: Text('Please sign in to add a workspace.'),
         ),
       );
       return;
@@ -116,9 +116,9 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
         showCupertinoDialog(
           context: context,
           builder: (ctx) => CupertinoAlertDialog(
-            title: const Text('Cannot Delete Profile'),
+            title: const Text('Cannot Delete Workspace'),
             content: const Text(
-              'At least one company must remain in your account. You cannot delete the only company.',
+              'At least one workspace must remain in your account.',
             ),
             actions: [
               CupertinoDialogAction(
@@ -132,9 +132,9 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Cannot Delete Profile'),
+            title: const Text('Cannot Delete Workspace'),
             content: const Text(
-              'At least one company must remain in your account. You cannot delete the only company.',
+              'At least one workspace must remain in your account.',
             ),
             actions: [
               TextButton(
@@ -154,7 +154,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
         builder: (ctx) => CupertinoAlertDialog(
           title: Text('Delete "${company.name}"?'),
           content: const Text(
-            'This action will remove the company from your profile and local database. This cannot be undone.',
+            'This permanently deletes the workspace.',
           ),
           actions: [
             CupertinoDialogAction(
@@ -173,13 +173,13 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                   if (!success && context.mounted) {
                     _showErrorMessage(
                       context,
-                      'Cannot delete the only company.',
+                      'Your account must keep at least one workspace.',
                     );
                   }
                 } catch (e) {
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (context.mounted) {
-                    _showErrorMessage(context, 'Failed to delete company: $e');
+                    _showErrorMessage(context, 'Failed to delete workspace: $e');
                   }
                 }
               },
@@ -193,7 +193,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
         builder: (ctx) => AlertDialog(
           title: Text('Delete "${company.name}"?'),
           content: const Text(
-            'This action will remove the company from your profile and local database. This cannot be undone.',
+            'This permanently deletes the workspace.',
           ),
           actions: [
             TextButton(
@@ -215,13 +215,13 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                   if (!success && context.mounted) {
                     _showErrorMessage(
                       context,
-                      'Cannot delete the only company.',
+                      'Your account must keep at least one workspace.',
                     );
                   }
                 } catch (e) {
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (context.mounted) {
-                    _showErrorMessage(context, 'Failed to delete company: $e');
+                    _showErrorMessage(context, 'Failed to delete workspace: $e');
                   }
                 }
               },
@@ -245,7 +245,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
           title: Text(company.name),
           message: Text(
             isSelected
-                ? 'Active Profile'
+                ? 'Active Workspace'
                 : (company.isExpense
                       ? 'Personal Expense Tracker'
                       : company.currencyCode),
@@ -262,7 +262,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                   children: [
                     Icon(CupertinoIcons.checkmark_circle, size: 20),
                     SizedBox(width: 8),
-                    Text('Switch to this Profile'),
+                    Text('Switch to this Workspace'),
                   ],
                 ),
               ),
@@ -276,7 +276,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 children: [
                   Icon(CupertinoIcons.pencil, size: 20),
                   SizedBox(width: 8),
-                  Text('Edit Profile'),
+                  Text('Edit Workspace'),
                 ],
               ),
             ),
@@ -291,7 +291,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 children: [
                   Icon(CupertinoIcons.trash, size: 20),
                   SizedBox(width: 8),
-                  Text('Delete Profile'),
+                  Text('Delete Workspace'),
                 ],
               ),
             ),
@@ -338,7 +338,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                       const SizedBox(height: 2),
                       Text(
                         isSelected
-                            ? 'Active Profile'
+                            ? 'Active Workspace'
                             : company.currencyCode,
                         style: TextStyle(
                           fontSize: 13,
@@ -361,7 +361,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                           leading: const Icon(
                             Icons.check_circle_outline_rounded,
                           ),
-                          title: const Text('Switch to this Profile'),
+                          title: const Text('Switch to this Workspace'),
                           onTap: () {
                             Navigator.pop(ctx);
                             _switchWorkspace(company);
@@ -371,7 +371,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                       ],
                       ListTile(
                         leading: const Icon(Icons.edit_outlined),
-                        title: const Text('Edit Profile'),
+                        title: const Text('Edit Workspace'),
                         onTap: () {
                           Navigator.pop(ctx);
                           _showEditCompanyDialog(context, company);
@@ -384,7 +384,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                           color: colorScheme.error,
                         ),
                         title: Text(
-                          'Delete Profile',
+                          'Delete Workspace',
                           style: TextStyle(
                             color: colorScheme.error,
                             fontWeight: FontWeight.w600,
@@ -425,7 +425,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Switch Profile',
+                    'Switch Workspace',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -458,13 +458,15 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
               IconButton(
                 icon: const Icon(Icons.add_business_rounded),
                 onPressed: () => _showAddCompanyDialog(context),
-                tooltip: 'Add Profile',
+                tooltip: 'Add Workspace',
               ),
           ],
         ),
         const SizedBox(height: 16),
         ...companies.map((company) {
           final isSelected = company.id == activeCompany.id;
+          final profileType =
+              company.isExpense ? 'Personal Expense Tracker' : 'Business Ledger';
 
           if (isIos) {
             return Padding(
@@ -516,14 +518,13 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              if (company.isExpense)
-                                const Text(
-                                  'Personal Expense Tracker',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: CupertinoColors.secondaryLabel,
-                                  ),
+                              Text(
+                                profileType,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: CupertinoColors.secondaryLabel,
                                 ),
+                              ),
                             ],
                           ),
                         ),
@@ -588,11 +589,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-              subtitle: Text(
-                company.isExpense
-                    ? 'Personal Expense Tracker'
-                    : company.currencyCode,
-              ),
+              subtitle: Text(profileType),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -606,7 +603,7 @@ class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
                     ),
                   IconButton(
                     icon: const Icon(Icons.more_vert_rounded),
-                    tooltip: 'Profile options',
+                    tooltip: 'Workspace options',
                     onPressed: () => _showCompanyMenu(context, company),
                   ),
                 ],

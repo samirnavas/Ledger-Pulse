@@ -601,6 +601,48 @@ void main() {
       },
     );
 
+    test('rejects duplicate party names and normalized phone numbers', () async {
+      final party = Party(
+        id: 'unique-party',
+        name: 'River Trading',
+        phoneNumber: '+91 (98765) 43210',
+        type: PartyType.customer,
+        netBalanceInCents: 0,
+        lastUpdated: DateTime.utc(2026, 1, 1),
+      );
+      await repo.addParty(party);
+      final duplicateName = party.copyWith(
+        id: 'duplicate-name',
+        name: ' river   trading ',
+        phoneNumber: '',
+      );
+      final duplicateContact = party.copyWith(
+        id: 'duplicate-contact',
+        name: 'River Contact',
+        type: PartyType.supplier,
+        phoneNumber: '98765-43210',
+        netBalanceInCents: 500,
+      );
+      await expectLater(repo.addParty(duplicateName), throwsA(isA<DuplicatePartyException>()));
+      await expectLater(repo.addParty(duplicateContact), throwsA(isA<DuplicatePartyException>()));
+      expect(await repo.getEntriesForParty(duplicateContact.id), isEmpty);
+      expect(
+        (await db.select(db.syncOutbox).get()).map((row) => row.recordId),
+        isNot(contains(duplicateContact.id)),
+      );
+      expect(
+        await repo.findImportDuplicates([
+          duplicateContact.copyWith(phoneNumber: '0091 9876543210'),
+        ]),
+        hasLength(1),
+      );
+
+      await repo.deleteParty(party.id);
+      await expectLater(repo.addParty(duplicateContact), throwsA(isA<DuplicatePartyException>()));
+      await repo.restoreParty(party.id);
+      expect((await repo.getPartyById(party.id)).name, party.name);
+    });
+
     test('archive, restore and duplicate CSV import preserve journal history', () async {
       final now = DateTime.utc(2026, 1, 1);
       final archived = Party(id: 'archive-test', name: 'North Trading',

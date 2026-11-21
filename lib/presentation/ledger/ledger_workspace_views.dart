@@ -418,123 +418,45 @@ Future<void> showArchivedLedgerParties(
   }
 }
 
-class LedgerHomeView extends ConsumerWidget {
-  const LedgerHomeView({
-    super.key,
-    required this.onAddParty,
-    required this.onAddTransaction,
-    required this.onViewTransactions,
-  });
-
-  final VoidCallback onAddParty;
-  final VoidCallback onAddTransaction;
-  final VoidCallback onViewTransactions;
+class LedgerBalanceCard extends ConsumerWidget {
+  const LedgerBalanceCard({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
-    final typography = Theme.of(context).textTheme;
     final company = ref.watch(activeCompanyProvider);
     final summary = ref.watch(businessSummaryProvider);
-    final activity = ref.watch(ledgerActivityProvider);
-    return RefreshIndicator.adaptive(
-      onRefresh: () async {
-        ref.invalidate(ledgerActivityProvider);
-        ref.invalidate(businessSummaryProvider);
-        await ref.read(businessSummaryProvider.future);
-      },
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-        children: [
-          Text('Outstanding balances', style: typography.titleLarge),
-          const SizedBox(height: 12),
-          summary.when(
-            data: (value) => LiquidGlassCard(
-              borderRadius: 24,
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _Balance(
-                      label: 'To receive',
-                      cents: value.$1,
-                      currency: company.currencyCode,
-                      color: scheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _Balance(
-                      label: 'To pay',
-                      cents: value.$2,
-                      currency: company.currencyCode,
-                      color: scheme.tertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            loading: () => const _Loading(),
-            error: (_, _) =>
-                _Retry(onRetry: () => ref.invalidate(businessSummaryProvider)),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                onPressed: onAddTransaction,
-                icon: const Icon(Icons.add),
-                label: const Text('Add transaction'),
-              ),
-              OutlinedButton.icon(
-                onPressed: onAddParty,
-                icon: const Icon(Icons.person_add_alt),
-                label: const Text('Add party'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: summary.when(
+        data: (value) => LiquidGlassCard(
+          borderRadius: 24,
+          padding: const EdgeInsets.all(16),
+          child: Row(
             children: [
               Expanded(
-                child: Text(
-                  'Recent transactions',
-                  style: typography.titleLarge,
+                child: _Balance(
+                  label: 'To receive',
+                  cents: value.$1,
+                  currency: company.currencyCode,
+                  color: scheme.primary,
                 ),
               ),
-              TextButton(
-                onPressed: onViewTransactions,
-                child: const Text('View all'),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _Balance(
+                  label: 'To pay',
+                  cents: value.$2,
+                  currency: company.currencyCode,
+                  color: scheme.tertiary,
+                ),
               ),
             ],
           ),
-          activity.when(
-            data: (rows) {
-              final recent = rows;
-              return recent.isEmpty
-                  ? const ListTile(
-                      title: Text('No transactions yet'),
-                      subtitle: Text('Record a transaction to see it here.'),
-                    )
-                  : Column(
-                      children: [
-                        for (final row in recent)
-                          _TransactionTile(
-                            party: row.party,
-                            entry: row.entry,
-                            archived: row.archived,
-                          ),
-                      ],
-                    );
-            },
-            loading: () => const _Loading(),
-            error: (_, _) =>
-                _Retry(onRetry: () => ref.invalidate(ledgerActivityProvider)),
-          ),
-        ],
+        ),
+        loading: () => const _Loading(),
+        error: (_, _) =>
+            _Retry(onRetry: () => ref.invalidate(businessSummaryProvider)),
       ),
     );
   }

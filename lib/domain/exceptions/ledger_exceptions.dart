@@ -1,6 +1,14 @@
 import '../../data/models/company_mode.dart';
 import '../../data/models/subscription_tier_model.dart';
 
+class DuplicatePartyException implements Exception {
+  const DuplicatePartyException();
+
+  @override
+  String toString() =>
+      'An existing or archived party already has this name and type, or this phone number.';
+}
+
 class ActiveBalanceException implements Exception {
 
   final String message;

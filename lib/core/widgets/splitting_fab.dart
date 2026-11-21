@@ -163,10 +163,10 @@ class _SplittingProfileFabState extends State<SplittingProfileFab>
               SizedBox(width: _gapAnimation.value),
             ],
 
-            // 2. Main Action Button (Morphs between Edit Profile & Save Changes)
+            // 2. Main Action Button (Morphs between Edit Account & Save Changes)
             _SpringFabButton(
               backgroundColor: mainBg,
-              tooltip: widget.isEditing ? 'Save profile changes' : 'Edit profile',
+              tooltip: widget.isEditing ? 'Save account changes' : 'Edit account',
               onTap: widget.isEditing ? widget.onSave : widget.onEdit,
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
@@ -202,7 +202,7 @@ class _SplittingProfileFabState extends State<SplittingProfileFab>
                           Icon(Icons.edit_rounded, color: mainFg, size: 22),
                           const SizedBox(width: 10),
                           Text(
-                            'Edit Profile',
+                            'Edit Account',
                             style: TextStyle(
                               color: mainFg,
                               fontWeight: FontWeight.w700,

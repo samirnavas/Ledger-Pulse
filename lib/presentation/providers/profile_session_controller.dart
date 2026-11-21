@@ -239,7 +239,9 @@ class DriftProfileRepository implements IProfileRepository {
         final existingProf = await (db.select(db.profiles)
               ..where((p) => p.id.equals(profId)))
             .getSingleOrNull();
-        if (existingProf != null && existingProf.syncStatus != SyncRecordStatus.synced) {
+        if (existingProf != null &&
+            (existingProf.isDeleted ||
+                existingProf.syncStatus != SyncRecordStatus.synced)) {
           continue;
         }
 
@@ -291,7 +293,9 @@ class DriftProfileRepository implements IProfileRepository {
 
         // Enforce workspace type immutability: preserve local mode if company exists locally
         final existingComp = await (db.select(db.companies)..where((c) => c.id.equals(compId))).getSingleOrNull();
-        if (existingComp != null && existingComp.syncStatus != SyncRecordStatus.synced) {
+        if (existingComp != null &&
+            (existingComp.isDeleted ||
+                existingComp.syncStatus != SyncRecordStatus.synced)) {
           // Never overwrite newer local pending company changes with stale remote data
           continue;
         }
@@ -326,6 +330,11 @@ class DriftProfileRepository implements IProfileRepository {
                 mode: Value(effectiveMode),
                 currencyCode: Value(currencyCode),
                 gstin: Value(gstin),
+                address: Value(comp['address'] as String?),
+                bankName: Value(comp['bank_name'] as String? ?? comp['bankName'] as String?),
+                bankAccountNumber: Value(comp['bank_account_number'] as String? ?? comp['bankAccountNumber'] as String?),
+                bankIfsc: Value(comp['bank_ifsc'] as String? ?? comp['bankIfsc'] as String?),
+                upiId: Value(comp['upi_id'] as String? ?? comp['upiId'] as String?),
                 ownerId: Value(ownerId),
                 isActive: Value(isActive),
                 isDeleted: Value(isDeleted),
@@ -470,6 +479,11 @@ class DriftProfileRepository implements IProfileRepository {
     String currencyCode = 'INR',
     String? legalName,
     String? gstin,
+    String? address,
+    String? bankName,
+    String? bankAccountNumber,
+    String? bankIfsc,
+    String? upiId,
     String? stateCode,
     String? dealerType,
     Set<AppModule>? enabledModules,
@@ -522,6 +536,11 @@ class DriftProfileRepository implements IProfileRepository {
       mode: type == ProfileType.expense ? CompanyMode.expenseTracker : CompanyMode.ledger,
       enabledModules: effectiveModules,
       gstin: gstin,
+      address: address,
+      bankName: bankName,
+      bankAccountNumber: bankAccountNumber,
+      bankIfsc: bankIfsc,
+      upiId: upiId,
       stateCode: stateCode,
       dealerType: effectiveDealerType,
       ownerId: effectiveAccountId,
@@ -577,6 +596,11 @@ class DriftProfileRepository implements IProfileRepository {
               mode: Value(type.canonicalValue),
               currencyCode: Value(currencyCode),
               gstin: Value(gstin),
+              address: Value(address),
+              bankName: Value(bankName),
+              bankAccountNumber: Value(bankAccountNumber),
+              bankIfsc: Value(bankIfsc),
+              upiId: Value(upiId),
               stateCode: Value(stateCode),
               dealerType: Value(effectiveDealerType),
               enabledModulesJson: Value(
@@ -607,6 +631,11 @@ class DriftProfileRepository implements IProfileRepository {
           'currency_code': currencyCode,
           'currencyCode': currencyCode,
           'gstin': gstin,
+          'address': address,
+          'bank_name': bankName,
+          'bank_account_number': bankAccountNumber,
+          'bank_ifsc': bankIfsc,
+          'upi_id': upiId,
           'state_code': stateCode,
           'stateCode': stateCode,
           'dealer_type': effectiveDealerType,
@@ -1205,6 +1234,32 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
       availableProfiles: _currentAvailableProfiles!,
       isOffline: current.isOffline,
     );
+  }
+
+  Future<void> removeDeletedProfile(String userId, String profileId) async {
+    final current = state;
+    if (current is! ActiveProfileReadySessionState || current.userId != userId) {
+      return;
+    }
+    final remaining =
+        current.availableProfiles.where((profile) => profile.id != profileId).toList();
+    if (current.activeProfile.id == profileId) {
+      if (remaining.isNotEmpty) await switchProfile(remaining.first);
+      return;
+    }
+
+    _currentAvailableProfiles = remaining;
+    state = current.isOffline
+        ? OfflineActiveProfileReadySessionState(
+            userId: userId,
+            activeProfile: current.activeProfile,
+            availableProfiles: remaining,
+          )
+        : ActiveProfileReadySessionState(
+            userId: userId,
+            activeProfile: current.activeProfile,
+            availableProfiles: remaining,
+          );
   }
 
   Future<void> switchProfile(WorkspaceProfileHeader profile) async {

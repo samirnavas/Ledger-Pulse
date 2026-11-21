@@ -73,7 +73,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(ProfileOnboardingScreen), findsOneWidget);
-      expect(find.text('Setup Your Profile'), findsOneWidget);
+      expect(find.text('Set Up Your Workspace'), findsOneWidget);
       expect(find.text('Personal & Expense'), findsOneWidget);
       expect(find.text('Business Ledger'), findsOneWidget);
     });
@@ -143,19 +143,21 @@ void main() {
       await tester.pumpAndSettle();
 
       // Starts in Expense mode by default
-      expect(find.text('Expense Profile Setup'), findsOneWidget);
-      expect(find.text('Profile Name'), findsOneWidget);
+      expect(find.text('Expense Workspace Setup'), findsOneWidget);
+      expect(find.text('Workspace Name'), findsOneWidget);
       expect(find.text('GSTIN (Optional)'), findsNothing);
 
       // Tap on Business Ledger card
       await tester.tap(find.text('Business Ledger'));
       await tester.pumpAndSettle();
 
-      // Now shows Business Details and GSTIN fields
+      // Ledger setup uses business-specific name and currency labels.
       expect(find.text('Business Details & Compliance'), findsOneWidget);
       expect(find.text('Business / Company Name *'), findsOneWidget);
-      expect(find.text('Legal Registered Name (Optional)'), findsOneWidget);
-      expect(find.text('GSTIN (Optional)'), findsOneWidget);
+      expect(find.text('Primary Currency'), findsOneWidget);
+      expect(find.text('Legal / trade name (optional)'), findsOneWidget);
+      expect(find.text('GSTIN (optional)'), findsOneWidget);
+      expect(find.text('Account number (optional)'), findsOneWidget);
     });
 
     testWidgets('ActiveProfileIndicatorPill shows active workspace name and domain badge',

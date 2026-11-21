@@ -583,7 +583,12 @@ class SyncEngine {
       case 'profiles':
       case 'companies':
         final id = payloadMap['id']?.toString();
-        return id == companyId;
+        final ownerId = payloadMap['owner_id'] ?? payloadMap['ownerId'];
+        final isDeleted = payloadMap['is_deleted'] == true ||
+            payloadMap['isDeleted'] == true;
+        // A deleted workspace can no longer be selected to push its own tombstones.
+        return id == companyId ||
+            (!isGuest && isDeleted && ownerId == activeUserId);
 
       case 'user_profiles':
         if (activeUserId == null || activeUserId.isEmpty) return false;
@@ -1854,6 +1859,9 @@ class SyncEngine {
           };
           remoteMap.removeWhere((key, _) => !profileColumns.contains(key));
         } else if (outboxRow.targetTable == 'companies') {
+          // Company outbox entries use this local routing key, but the remote
+          // companies table identifies the workspace with id and profile_id.
+          remoteMap.remove('company_id');
           if (remoteMap['profile_id'] == null || remoteMap['profile_id'].toString().isEmpty) {
             remoteMap['profile_id'] = remoteMap['id'];
           }

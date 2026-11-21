@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/core/widgets/splitting_fab.dart';
 
 void main() {
-  testWidgets('SplittingProfileFab renders Edit Profile in collapsed state', (tester) async {
+  testWidgets('SplittingProfileFab renders Edit Account in collapsed state', (tester) async {
     bool editCalled = false;
     bool saveCalled = false;
     bool cancelCalled = false;
@@ -21,13 +21,13 @@ void main() {
       ),
     );
 
-    // Initial state: "Edit Profile" is displayed
-    expect(find.text('Edit Profile'), findsOneWidget);
+    // Initial state: "Edit Account" is displayed
+    expect(find.text('Edit Account'), findsOneWidget);
     expect(find.text('Cancel'), findsNothing);
     expect(find.text('Save Changes'), findsNothing);
 
-    // Tapping Edit Profile invokes onEdit
-    await tester.tap(find.text('Edit Profile'));
+    // Tapping Edit Account invokes onEdit
+    await tester.tap(find.text('Edit Account'));
     expect(editCalled, isTrue);
     expect(saveCalled, isFalse);
     expect(cancelCalled, isFalse);
@@ -62,11 +62,11 @@ void main() {
       ),
     );
 
-    expect(find.text('Edit Profile'), findsOneWidget);
+    expect(find.text('Edit Account'), findsOneWidget);
     expect(find.text('Cancel'), findsNothing);
 
     // Tap Edit to trigger split
-    await tester.tap(find.text('Edit Profile'));
+    await tester.tap(find.text('Edit Account'));
     expect(editCalled, isTrue);
 
     // Animate splitting forward
@@ -89,8 +89,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
 
-    // After combining, only Edit Profile is present
-    expect(find.text('Edit Profile'), findsOneWidget);
+    // After combining, only Edit Account is present
+    expect(find.text('Edit Account'), findsOneWidget);
     expect(find.text('Cancel'), findsNothing);
   });
 }

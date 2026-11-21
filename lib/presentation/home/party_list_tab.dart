@@ -22,7 +22,9 @@ import '../providers/sync_providers.dart';
 import 'add_party_dialog.dart';
 
 class PartyListTab extends ConsumerStatefulWidget {
-  const PartyListTab({super.key});
+  const PartyListTab({super.key, this.bottomPadding = 4});
+
+  final double bottomPadding;
 
   @override
   ConsumerState<PartyListTab> createState() => _PartyListTabState();
@@ -714,7 +716,7 @@ class _PartyListTabState extends ConsumerState<PartyListTab> {
 
                     return ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding: EdgeInsets.only(top: 4, bottom: widget.bottomPadding),
                       itemCount: parties.length,
                       separatorBuilder: (_, _) => Divider(
                       height: 1,

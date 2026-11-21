@@ -404,7 +404,11 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
         entityId: updated.id,
         action: AuditAction.update,
         oldState: oldMap,
-        newState: updated.toMap(),
+        newState: updated.toMap()
+          ..remove('bankAccountNumber')
+          ..remove('bank_account_number')
+          ..remove('upiId')
+          ..remove('upi_id'),
         companyId: updated.id,
       );
     });
@@ -414,13 +418,53 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
     return updated;
   }
 
-  Future<void> deleteCompany(String companyId) async {
+  Future<void> deleteCompany(String id) async {
     await ensureInitialized();
     AccessControlService.verifyPermission(currentRole, UserAction.createCompany);
 
     final now = DateTime.now();
 
     await db.transaction(() async {
+      final company = await (db.select(db.companies)
+            ..where((t) => t.profileId.equals(id)))
+          .getSingleOrNull() ??
+          await (db.select(db.companies)..where((t) => t.id.equals(id)))
+              .getSingleOrNull();
+      final profileId = company?.profileId ?? id;
+      final profile = await (db.select(db.profiles)
+            ..where((t) => t.id.equals(profileId) & t.isDeleted.equals(false)))
+          .getSingleOrNull();
+      if (profile != null) {
+        await (db.update(db.profiles)..where((t) => t.id.equals(profileId)))
+            .write(ProfilesCompanion(
+          isDeleted: const Value(true),
+          isActive: const Value(false),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ));
+        await recordOutboxEntry(
+          targetTable: 'profiles',
+          recordId: profileId,
+          mutationType: 'UPSERT',
+          companyId: profileId,
+          payload: {
+            'id': profileId,
+            'name': profile.name,
+            'profile_type': profile.profileType,
+            'currency_code': profile.currencyCode,
+            'owner_id': profile.ownerId,
+            'settings_json': profile.settingsJson,
+            'is_active': false,
+            'is_deleted': true,
+            'revision': profile.revision,
+            'created_at': encodeTime(profile.createdAt),
+            'updated_at': encodeTime(now),
+          },
+        );
+      }
+
+      if (company == null) return;
+      final companyId = company.id;
       // 1. Soft-delete company
       await (db.update(db.companies)..where((t) => t.id.equals(companyId))).write(
         CompaniesCompanion(
@@ -436,8 +480,16 @@ mixin DriftCompaniesProfileMixin on DriftLedgerRepositoryBase {
         mutationType: 'DELETE',
         payload: {
           'id': companyId,
+          'profileId': profileId,
+          'ownerId': company.ownerId ?? profile?.ownerId,
+          'name': company.name,
+          'legalName': company.legalName,
+          'mode': company.mode,
+          'isActive': false,
           'isDeleted': true,
-          'companyId': companyId,
+          'revision': company.revision,
+          'createdAt': encodeTime(company.createdAt),
+          'updatedAt': encodeTime(now),
         },
         companyId: companyId,
       );

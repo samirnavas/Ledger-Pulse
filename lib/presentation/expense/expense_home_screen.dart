@@ -24,6 +24,7 @@ import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/voucher_model.dart';
 import '../widgets/active_profile_indicator_pill.dart';
+import '../widgets/account_header_button.dart';
 import '../providers/budget_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
@@ -278,16 +279,6 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       ),
     ];
 
-    final profileIcon = CircleAvatar(
-      radius: 17,
-      backgroundColor: colorScheme.secondaryContainer,
-      foregroundColor: colorScheme.onSecondaryContainer,
-      child: Icon(
-        isIos ? CupertinoIcons.person_fill : Icons.person_rounded,
-        size: 20,
-      ),
-    );
-
     // Header Title Widget or String
     Widget? titleWidget;
     String? titleText;
@@ -360,21 +351,7 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
               _handlePrimaryAction(context, ref, clampedIndex, hasBudgets),
           child: const Icon(CupertinoIcons.add, size: 22),
         ),
-      if (isIos)
-        Tooltip(
-          message: modeStrings.accountsTab,
-          child: CupertinoButton(
-            padding: const EdgeInsets.symmetric(horizontal: 5),
-            onPressed: openProfile,
-            child: profileIcon,
-          ),
-        )
-      else
-        IconButton(
-          icon: profileIcon,
-          tooltip: modeStrings.accountsTab,
-          onPressed: openProfile,
-        ),
+      AccountHeaderButton(onPressed: openProfile),
     ];
 
     return PopScope(

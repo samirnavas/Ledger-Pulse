@@ -89,7 +89,7 @@ class PaymentGatewayService {
   }) {
     final invoiceNo = voucher.voucherNumber;
     final amountInCents = voucher.totalAmountInCents;
-    final payeeVpa = company.bankAccountNumber != null
+    final payeeVpa = company.bankAccountNumber?.isNotEmpty == true
         ? '${company.bankAccountNumber}@upi'
         : 'ludgerpulse.${company.id}@icici';
 

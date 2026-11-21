@@ -197,7 +197,7 @@ class SettingsScreen extends ConsumerWidget {
                         ),
                       ),
                       title: Text(
-                        profileName.isNotEmpty ? profileName : 'My Profile',
+                        profileName.isNotEmpty ? profileName : 'My Account',
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,

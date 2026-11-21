@@ -1,19 +1,24 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/adaptive_theme.dart';
+import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_bottom_nav.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
+import '../../core/widgets/spring_morphing_fab.dart';
 import '../../data/models/party_model.dart';
 import '../../data/models/sync_model.dart';
 import '../ledger/ledger_workspace_views.dart';
+import '../profile/profile_screen.dart';
 import '../providers/company_providers.dart';
 import '../providers/ledger_providers.dart';
 import '../providers/sync_providers.dart';
 import '../reports/reporting_hub_screen.dart';
 import '../widgets/active_profile_indicator_pill.dart';
+import '../widgets/account_header_button.dart';
 import 'add_party_dialog.dart';
 import 'create_company_flow.dart';
 import 'dashboard_sidebar_drawer.dart';
@@ -27,25 +32,30 @@ class DashboardTabNotifier extends Notifier<int> {
     return 0;
   }
 
-  void setTab(int index) => state = index.clamp(0, 3);
+  void setTab(int index) => state = index.clamp(0, 2);
 }
 
 final dashboardTabProvider = NotifierProvider<DashboardTabNotifier, int>(
   DashboardTabNotifier.new,
 );
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
-  static const _labels = ['Home', 'Parties', 'Transactions', 'Reports'];
+  @override
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  final _fabExtended = [true, true];
+
+  static const _labels = ['Parties', 'Transactions', 'Reports'];
   static const _material = [
-    Icons.home_outlined,
     Icons.people_outline,
     Icons.receipt_long_outlined,
     Icons.bar_chart_outlined,
   ];
   static const _cupertino = [
-    CupertinoIcons.house,
     CupertinoIcons.person_2,
     CupertinoIcons.list_bullet,
     CupertinoIcons.chart_bar,
@@ -64,8 +74,20 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
+  bool _handleScroll(int tab, UserScrollNotification notification) {
+    if (notification.depth == 0 &&
+        notification.metrics.axis == Axis.vertical &&
+        notification.direction != ScrollDirection.idle) {
+      final extended = notification.direction == ScrollDirection.forward;
+      if (_fabExtended[tab] != extended) {
+        setState(() => _fabExtended[tab] = extended);
+      }
+    }
+    return false;
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     if (ref.watch(userCompaniesProvider).isEmpty) {
       return const CreateCompanyFlow(isOnboarding: true);
     }
@@ -74,22 +96,14 @@ class DashboardScreen extends ConsumerWidget {
     final sync = ref.watch(syncControllerProvider);
     final companyId = ref.watch(activeCompanyIdProvider);
     final selected = ref.watch(dashboardTabProvider);
-    final searchingParties = selected == 1 &&
+    final searchingParties =
+        selected == 0 &&
         (ref.watch(isPartySearchActiveProvider) ||
             ref.watch(partySearchQueryProvider).isNotEmpty);
     final isIos = AdaptiveThemeHelper.isIos(context);
-    final canAdd = selected != 3;
-    void add() {
-      if (selected == 1) {
-        _addParty(context, ref);
-      } else {
-        openLedgerTransaction(
-          context,
-          ref,
-          onAddParty: () => _addParty(context, ref),
-        );
-      }
-    }
+    void addParty() => _addParty(context, ref);
+    void addTransaction() =>
+        openLedgerTransaction(context, ref, onAddParty: addParty);
 
     void select(int tab) {
       FocusManager.instance.primaryFocus?.unfocus();
@@ -97,8 +111,32 @@ class DashboardScreen extends ConsumerWidget {
       ref.read(dashboardTabProvider.notifier).setTab(tab);
     }
 
+    Widget fab(int tab) => SpringMorphingFab(
+      key: ValueKey(
+        tab == 0 ? 'ledger_add_party_fab' : 'ledger_add_transaction_fab',
+      ),
+      icon: isIos ? CupertinoIcons.add : Icons.add,
+      label: tab == 0 ? 'Add Party' : 'Add Transaction',
+      isExtended: _fabExtended[tab],
+      onPressed: tab == 0 ? addParty : addTransaction,
+    );
+
+    Widget scrollableTab(int tab, Widget body) {
+      final content = NotificationListener<UserScrollNotification>(
+        onNotification: (notification) => _handleScroll(tab, notification),
+        child: body,
+      );
+      if (!isIos) return content;
+      return Stack(
+        children: [
+          content,
+          PositionedDirectional(end: 16, bottom: 16, child: fab(tab)),
+        ],
+      );
+    }
+
     return PopScope(
-      canPop: selected == 0,
+      canPop: selected == 0 && !searchingParties,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         if (searchingParties) {
@@ -110,7 +148,9 @@ class DashboardScreen extends ConsumerWidget {
         }
       },
       child: AdaptiveScaffold(
-        drawer: const DashboardSidebarDrawer(),
+        drawer: DashboardSidebarDrawer(
+          onOpenArchivedParties: () => showArchivedLedgerParties(context, ref),
+        ),
         titleWidget: const Material(
           type: MaterialType.transparency,
           child: ActiveProfileIndicatorPill(),
@@ -143,24 +183,18 @@ class DashboardScreen extends ConsumerWidget {
                           : Icons.cloud_sync_outlined,
                     ),
             ),
-          if (isIos && canAdd)
-            Semantics(
-              label: selected == 1 ? 'Add party' : 'Add transaction',
-              button: true,
-              child: CupertinoButton(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                onPressed: add,
-                child: const Icon(CupertinoIcons.add, size: 22),
-              ),
-            ),
+          AccountHeaderButton(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              Navigator.of(context).push(
+                createAdaptivePageRoute(
+                  builder: (_) => const ProfileScreen(isStandalone: true),
+                ),
+              );
+            },
+          ),
         ],
-        floatingActionButton: !isIos && canAdd
-            ? FloatingActionButton(
-                tooltip: selected == 1 ? 'Add party' : 'Add transaction',
-                onPressed: add,
-                child: const Icon(Icons.add),
-              )
-            : null,
+        floatingActionButton: !isIos && selected < 2 ? fab(selected) : null,
         bottomNavigationBar: AdaptiveBottomNav(
           currentIndex: selected,
           onTap: select,
@@ -195,27 +229,17 @@ class DashboardScreen extends ConsumerWidget {
                 key: ValueKey(companyId),
                 index: selected,
                 children: [
-                  LedgerHomeView(
-                    onAddParty: () => _addParty(context, ref),
-                    onAddTransaction: () => openLedgerTransaction(
-                      context,
-                      ref,
-                      onAddParty: () => _addParty(context, ref),
+                  scrollableTab(
+                    0,
+                    Column(
+                      children: [
+                        const LedgerBalanceCard(),
+                        const LedgerPartyFilters(),
+                        const Expanded(child: PartyListTab(bottomPadding: 88)),
+                      ],
                     ),
-                    onViewTransactions: () => select(2),
                   ),
-                  Column(
-                    children: [
-                      const LedgerPartyFilters(),
-                      TextButton.icon(
-                        onPressed: () => showArchivedLedgerParties(context, ref),
-                        icon: const Icon(Icons.archive_outlined),
-                        label: const Text('Archived parties'),
-                      ),
-                      const Expanded(child: PartyListTab()),
-                    ],
-                  ),
-                  const LedgerTransactionsView(),
+                  scrollableTab(1, const LedgerTransactionsView()),
                   const ReportingHubScreen(embedded: true),
                 ],
               ),

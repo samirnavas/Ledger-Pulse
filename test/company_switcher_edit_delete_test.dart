@@ -178,10 +178,85 @@ void main() {
     },
   );
 
+  for (final deleteActive in [false, true]) {
+    test('Signed-in deletion removes the profile (active: $deleteActive)', () async {
+      const userId = 'usr_test';
+      final headers = [
+        for (final id in ['keep', 'remove'])
+          WorkspaceProfileHeader(
+            id: id,
+            name: id,
+            legalName: id,
+            type: ProfileType.expense,
+            role: ProfileRole.owner,
+            updatedAt: DateTime.now(),
+          ),
+      ];
+      for (final header in headers) {
+        await db.into(db.profiles).insert(ProfilesCompanion.insert(
+          id: header.id,
+          name: header.name,
+          ownerId: const Value(userId),
+        ));
+        await db.into(db.companies).insert(CompaniesCompanion.insert(
+          id: '${header.id}_company',
+          profileId: Value(header.id),
+          name: header.name,
+          legalName: header.legalName,
+        ));
+      }
+      final active = deleteActive ? headers.last : headers.first;
+      final container = ProviderContainer(overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        activeUserIdProvider.overrideWithValue(userId),
+        userProfileProvider.overrideWith(
+          () => _TestUserProfileNotifier(UserProfile(
+            id: userId,
+            name: 'Account holder',
+            phoneNumber: '',
+            email: '',
+            companies: const [],
+            activeCompanyId: active.id,
+          )),
+        ),
+        profileSessionProvider.overrideWith(
+          () => _TestSession(OfflineActiveProfileReadySessionState(
+            userId: userId,
+            activeProfile: active,
+            availableProfiles: headers,
+          )),
+        ),
+      ]);
+      addTearDown(container.dispose);
+
+      final controller = container.read(companyControllerProvider.notifier);
+      expect(await controller.deleteCompany('remove'), isTrue);
+      expect(container.read(userCompaniesProvider).single.id, 'keep');
+      expect(container.read(activeCompanyIdProvider), 'keep');
+      expect(container.read(profileSessionProvider),
+          isA<OfflineActiveProfileReadySessionState>());
+      final repo = container.read(profileRepositoryProvider);
+      expect((await repo.getAccessibleProfiles(userId)).single.id, 'keep');
+      final company = await (db.select(db.companies)
+            ..where((row) => row.id.equals('remove_company')))
+          .getSingle();
+      expect(company.isDeleted, isTrue);
+      final outbox = await (db.select(db.syncOutbox)
+            ..where((row) => row.targetTable.equals('profiles')))
+          .getSingle();
+      expect(outbox.recordId, 'remove');
+      expect(outbox.payload, contains('"is_deleted":true'));
+      final syncEngine = container.read(syncEngineProvider);
+      expect(await syncEngine.getPendingCount(companyId: 'keep'),
+          greaterThanOrEqualTo(2));
+      expect(await controller.deleteCompany('keep'), isFalse);
+    });
+  }
+
   for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
     for (final mode in [CompanyMode.ledger, CompanyMode.expenseTracker]) {
       testWidgets(
-        'Edit Profile adapts fields and fits a narrow keyboard viewport ($platform, $mode)',
+        'Edit Workspace adapts fields and fits a narrow keyboard viewport ($platform, $mode)',
         (tester) async {
           tester.view.physicalSize = const Size(320, 600);
           tester.view.devicePixelRatio = 1;
@@ -220,7 +295,7 @@ void main() {
           );
           await tester.tap(find.text('Edit'));
           await tester.pumpAndSettle();
-          expect(find.text('Edit Profile'), findsOneWidget);
+          expect(find.text('Edit Workspace'), findsOneWidget);
           expect(find.byKey(const Key('profile_name_field')), findsOneWidget);
           expect(
             find.byKey(const Key('profile_currency_field')),
@@ -447,9 +522,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify bottom sheet menu appeared
-      expect(find.text('Edit Profile'), findsOneWidget);
-      expect(find.text('Delete Profile'), findsOneWidget);
-      expect(find.text('Switch to this Profile'), findsOneWidget);
+      expect(find.text('Edit Workspace'), findsOneWidget);
+      expect(find.text('Delete Workspace'), findsOneWidget);
+      expect(find.text('Switch to this Workspace'), findsOneWidget);
 
       // Dismiss menu
       await tester.tapAt(const Offset(20, 20));
@@ -460,15 +535,15 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify bottom sheet menu appeared from long press
-      expect(find.text('Edit Profile'), findsOneWidget);
-      expect(find.text('Delete Profile'), findsOneWidget);
+      expect(find.text('Edit Workspace'), findsOneWidget);
+      expect(find.text('Delete Workspace'), findsOneWidget);
 
-      // Tap Edit Profile
-      await tester.tap(find.text('Edit Profile'));
+      // Tap Edit Workspace
+      await tester.tap(find.text('Edit Workspace'));
       await tester.pumpAndSettle();
 
-      // Verify Edit Profile Dialog is displayed
-      expect(find.text('Edit Profile'), findsOneWidget);
+      // Verify Edit Workspace Dialog is displayed
+      expect(find.text('Edit Workspace'), findsOneWidget);
       expect(find.text('Save'), findsOneWidget);
 
       // Change company name

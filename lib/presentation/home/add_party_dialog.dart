@@ -199,6 +199,12 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
     if (_isSubmitting) return;
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
+    final storedPhone = switch (phone) {
+      '' => '',
+      _ when phone.startsWith('+') => phone,
+      _ when phone.startsWith('00') => '+${phone.substring(2).trimLeft()}',
+      _ => '+91 $phone',
+    };
 
     if (name.isEmpty) {
       setState(() => _error = 'Please enter party name');
@@ -223,7 +229,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
       if (widget.partyToEdit != null) {
         final updatedParty = widget.partyToEdit!.copyWith(
           name: name,
-          phoneNumber: phone.isEmpty || phone.startsWith('+') ? phone : '+91 $phone',
+          phoneNumber: storedPhone,
           type: _type,
           lastUpdated: DateTime.now(),
         );
@@ -231,7 +237,7 @@ class _AddPartyDialogState extends ConsumerState<AddPartyDialog> {
       } else {
         await ref.read(ledgerActionControllerProvider).addParty(
               name: name,
-              phoneNumber: phone.isEmpty || phone.startsWith('+') ? phone : '+91 $phone',
+              phoneNumber: storedPhone,
               type: _type,
               initialBalanceInCents: initialBalance,
             );
