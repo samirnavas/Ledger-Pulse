@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/modules/module_catalog.dart';
 import '../../core/theme/adaptive_theme.dart';
@@ -47,7 +48,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
   String _currencyCode = 'INR';
 
   // Step (b): Mode picker
-  CompanyMode _selectedMode = CompanyMode.ledger;
+  CompanyMode _selectedMode = CompanyMode.expenseTracker;
 
   final TextEditingController _cashOpeningCtrl = TextEditingController();
   final TextEditingController _bankOpeningCtrl = TextEditingController();
@@ -114,7 +115,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
     HapticFeedback.mediumImpact();
 
     try {
-      final companyId = 'cmp_${DateTime.now().millisecondsSinceEpoch}';
+      final companyId = const Uuid().v4();
       final currentUid = ref.read(activeUserIdProvider);
       final uuidRegex = RegExp(
         r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -394,6 +395,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
           isDark: isDark,
           mode: CompanyMode.ledger,
           title: 'Business Ledger',
+          badge: 'Coming Soon',
           subtitle: 'Customer and supplier transactions, balances, and statements.',
           icon: isIos ? CupertinoIcons.chart_bar_alt_fill : Icons.account_balance_rounded,
         ),
@@ -427,7 +429,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
     final primaryColor = isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary;
 
     return GestureDetector(
-      onTap: () => _onModeChanged(mode),
+      onTap: mode == CompanyMode.ledger ? null : () => _onModeChanged(mode),
       child: LiquidGlassCard(
         borderRadius: 16,
         borderColor: isSelected ? primaryColor : (isDark ? Colors.white12 : Colors.black12),

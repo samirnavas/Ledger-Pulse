@@ -277,14 +277,16 @@ void main() {
 
       await ledgerRepoA.updateEntry(updatedEntry);
 
-      final updatedRow = await (dbA.select(dbA.ledgerEntries)..where((t) => t.id.equals('entry_edit_date_1'))).getSingle();
+      final updatedRow = await (dbA.select(dbA.ledgerEntries)..where((t) => t.id.equals('corrected_entry_edit_date_1'))).getSingle();
       // Date changed
       expect(updatedRow.date.day, equals(15));
       expect(updatedRow.date.hour, equals(14));
       expect(updatedRow.date.minute, equals(30));
 
       // createdAt remains UNCHANGED
-      expect(updatedRow.createdAt.millisecondsSinceEpoch, equals(initialCreatedAt.millisecondsSinceEpoch));
+      final original = await (dbA.select(dbA.ledgerEntries)..where((t) => t.id.equals(entry.id))).getSingle();
+      expect(original.isVoided, isTrue);
+      expect(original.createdAt.millisecondsSinceEpoch, initialCreatedAt.millisecondsSinceEpoch);
       // updatedAt was updated
       expect(updatedRow.updatedAt.isAfter(initialCreatedAt) || updatedRow.updatedAt.isAtSameMomentAs(initialCreatedAt), isTrue);
     });
@@ -309,13 +311,15 @@ void main() {
 
       await ledgerRepoA.updateEntry(updatedEntry);
 
-      final updatedRow = await (dbA.select(dbA.ledgerEntries)..where((t) => t.id.equals('entry_edit_time_1'))).getSingle();
+      final updatedRow = await (dbA.select(dbA.ledgerEntries)..where((t) => t.id.equals('corrected_entry_edit_time_1'))).getSingle();
       expect(updatedRow.date.day, equals(12));
       expect(updatedRow.date.hour, equals(17));
       expect(updatedRow.date.minute, equals(45));
 
       // createdAt strictly unchanged
-      expect(updatedRow.createdAt.millisecondsSinceEpoch, equals(initialCreatedAt.millisecondsSinceEpoch));
+      final original = await (dbA.select(dbA.ledgerEntries)..where((t) => t.id.equals(entry.id))).getSingle();
+      expect(original.isVoided, isTrue);
+      expect(original.createdAt.millisecondsSinceEpoch, initialCreatedAt.millisecondsSinceEpoch);
     });
 
     test('Editing both date and time keeps timestamps independent', () async {
@@ -337,11 +341,13 @@ void main() {
 
       await ledgerRepoA.updateEntry(updatedEntry);
 
-      final updatedRow = await (dbA.select(dbA.ledgerEntries)..where((t) => t.id.equals('entry_edit_both_1'))).getSingle();
+      final updatedRow = await (dbA.select(dbA.ledgerEntries)..where((t) => t.id.equals('corrected_entry_edit_both_1'))).getSingle();
       expect(updatedRow.date.day, equals(20));
       expect(updatedRow.date.hour, equals(18));
       expect(updatedRow.date.minute, equals(30));
-      expect(updatedRow.createdAt.millisecondsSinceEpoch, equals(initialCreatedAt.millisecondsSinceEpoch));
+      final original = await (dbA.select(dbA.ledgerEntries)..where((t) => t.id.equals(entry.id))).getSingle();
+      expect(original.isVoided, isTrue);
+      expect(original.createdAt.millisecondsSinceEpoch, initialCreatedAt.millisecondsSinceEpoch);
     });
 
     test('Repeated synchronization causes zero timestamp drift', () async {

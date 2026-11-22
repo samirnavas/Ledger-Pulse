@@ -533,7 +533,7 @@ void main() {
       });
     }
 
-    testWidgets('Upgrade to Business Ledger is reachable from the expense drawer', (tester) async {
+    testWidgets('Expense drawer does not offer an in-place Ledger upgrade', (tester) async {
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -563,15 +563,8 @@ void main() {
       scaffoldState.openDrawer();
       await tester.pumpAndSettle();
 
-      // Find and tap 'Upgrade to Business Ledger'
-      final upgradeTile = find.widgetWithText(ListTile, 'Upgrade to Business Ledger');
-      expect(upgradeTile, findsOneWidget);
-      await tester.tap(upgradeTile);
-      await tester.pumpAndSettle();
-
-      // Upgrade dialog is visible
-      expect(find.byKey(const Key('confirm_upgrade_button')), findsOneWidget);
-      expect(find.textContaining('Upgrading to Business Ledger'), findsOneWidget);
+      expect(find.byType(Drawer), findsOneWidget);
+      expect(find.text('Upgrade to Business Ledger'), findsNothing);
     });
   });
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
 import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
@@ -405,11 +406,34 @@ void main() {
       expect(finalDb.userId, equals(userA));
     });
 
-    test('9. Existing database schema and migration version 12 are preserved', () {
+    test('9. Account databases use the current local schema', () {
       final db = AppDatabase(NativeDatabase.memory());
       addTearDown(db.close);
 
-      expect(db.schemaVersion, equals(12));
+      expect(db.schemaVersion, equals(15));
+    });
+
+    test('an unscoped SQLite file stays separate from a different account', () async {
+      final folder = await Directory.systemTemp.createTemp('legacy_scope_');
+      final file = File('${folder.path}/ledger_pulse.sqlite');
+      final legacy = AppDatabase(NativeDatabase(file), userA);
+      await legacy.customStatement(
+        'INSERT INTO user_profiles (id, name, phone_number, email) VALUES (?, ?, ?, ?)',
+        [userA, 'Legacy Account', '', ''],
+      );
+      await legacy.close();
+
+      const channel = MethodChannel('plugins.flutter.io/path_provider');
+      final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (_) async => folder.path);
+      addTearDown(() async {
+        messenger.setMockMethodCallHandler(channel, (_) async => '.');
+        await folder.delete(recursive: true);
+      });
+      final current = AppDatabase(null, userB);
+      addTearDown(current.close);
+      expect(await current.select(current.userProfiles).get(), isEmpty);
+      expect(await file.exists(), isTrue);
     });
   });
 }

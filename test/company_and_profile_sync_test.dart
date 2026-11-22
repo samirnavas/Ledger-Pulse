@@ -290,7 +290,7 @@ void main() {
       // 1. Initially user selects compNew
       await container.read(companyControllerProvider.notifier).selectCompany(compNew.id);
       expect(container.read(activeCompanyProvider).id, equals(compNew.id));
-      expect(prefs.getString('last_active_company_id'), equals(compNew.id));
+      expect(prefs.getString(activeWorkspacePreferenceKey('usr_default')), compNew.id);
 
       // 2. Simulate remote sync pull that has old company (cmp_old) in remote user profile
       (syncEngine.fakeRemoteStore as StrictFakeRemoteSyncBackend?)?.upsert('user_profiles', 'usr_default', {
@@ -305,7 +305,7 @@ void main() {
 
       // 4. Verify that after sync & reloadFromDatabase, the active company DID NOT switch back to cmp_old!
       expect(container.read(activeCompanyProvider).id, equals(compNew.id));
-      expect(prefs.getString('last_active_company_id'), equals(compNew.id));
+      expect(prefs.getString(activeWorkspacePreferenceKey('usr_default')), compNew.id);
       expect(container.read(userProfileProvider).activeCompanyId, equals(compNew.id));
     });
   });

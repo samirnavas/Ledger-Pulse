@@ -16,6 +16,10 @@ DateTime decodeTime(dynamic value) {
   if (s.isEmpty) {
     return DateTime.now();
   }
+  // PostgreSQL DATE values are calendar days with no time zone.
+  if (RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(s)) {
+    return DateTime.parse(s);
+  }
   final hasOffset = s.endsWith('Z') || RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(s);
   final isoStr = hasOffset ? s : '${s}Z';
   return DateTime.parse(isoStr).toLocal();

@@ -75,7 +75,7 @@ void main() {
       expect(find.byType(ProfileOnboardingScreen), findsOneWidget);
       expect(find.text('Set Up Your Workspace'), findsOneWidget);
       expect(find.text('Personal & Expense'), findsOneWidget);
-      expect(find.text('Business Ledger'), findsOneWidget);
+      expect(find.text('Ledger · Coming Soon'), findsOneWidget);
     });
 
     testWidgets('AppRootGate routes to ProfileSelectorScreen when multiple profiles exist',
@@ -131,7 +131,7 @@ void main() {
       expect(find.text('+ Create New Workspace'), findsOneWidget);
     });
 
-    testWidgets('ProfileOnboardingScreen toggles separate setup forms for Expense and Ledger',
+    testWidgets('ProfileOnboardingScreen keeps Expense available when Ledger is tapped',
         (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
@@ -147,17 +147,12 @@ void main() {
       expect(find.text('Workspace Name'), findsOneWidget);
       expect(find.text('GSTIN (Optional)'), findsNothing);
 
-      // Tap on Business Ledger card
-      await tester.tap(find.text('Business Ledger'));
+      await tester.tap(find.text('Ledger · Coming Soon'));
       await tester.pumpAndSettle();
 
-      // Ledger setup uses business-specific name and currency labels.
-      expect(find.text('Business Details & Compliance'), findsOneWidget);
-      expect(find.text('Business / Company Name *'), findsOneWidget);
-      expect(find.text('Primary Currency'), findsOneWidget);
-      expect(find.text('Legal / trade name (optional)'), findsOneWidget);
-      expect(find.text('GSTIN (optional)'), findsOneWidget);
-      expect(find.text('Account number (optional)'), findsOneWidget);
+      expect(find.text('Expense Workspace Setup'), findsOneWidget);
+      expect(find.text('Workspace Name'), findsOneWidget);
+      expect(find.text('Business Details & Compliance'), findsNothing);
     });
 
     testWidgets('ActiveProfileIndicatorPill shows active workspace name and domain badge',

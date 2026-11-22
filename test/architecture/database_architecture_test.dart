@@ -138,7 +138,8 @@ void main() {
       final defaultWallet = wallets.first;
 
       final categories = await (db.select(db.expenseCategories)..where((c) => c.profileId.equals(expProfile.id))).get();
-      final defaultCategory = categories.first;
+      final defaultCategory = categories.firstWhere((c) => c.categoryType == 'expense');
+      final incomeCategory = categories.firstWhere((c) => c.categoryType == 'income');
 
       final expenseRepo = DriftExpenseRepository(
         db: db,
@@ -164,7 +165,7 @@ void main() {
 
       // 2B. Record Income
       final incomeTxn = await expenseRepo.addIncome(
-        categoryAccountId: defaultCategory.id,
+        categoryAccountId: incomeCategory.id,
         walletAccountId: defaultWallet.id,
         amountInCents: 10000,
         narration: 'Freelance payment',
@@ -338,7 +339,7 @@ void main() {
 
       final migratedDb = AppDatabase(schema.newConnection());
       await migratedDb.customSelect('SELECT 1').get();
-      expect(migratedDb.schemaVersion, 14);
+      expect(migratedDb.schemaVersion, 15);
       final entryColumns = await migratedDb.customSelect('PRAGMA table_info(ledger_entries)').get();
       expect(entryColumns.map((row) => row.read<String>('name')),
           containsAll(['note', 'payment_method', 'entry_kind']));

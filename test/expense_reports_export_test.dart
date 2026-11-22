@@ -542,7 +542,7 @@ void main() {
 
       expect(mergedData['company_name'], 'Personal Expenses');
       expect(mergedData['company_id'], 'cmp_test_expense');
-      expect(mergedData['mode'], 'expenseTracker');
+      expect(mergedData['mode'], 'expense');
       expect(mergedData['cash_in_label'], "This Month's Income");
       expect(mergedData['cash_out_label'], "This Month's Spend");
       expect(mergedData['cash_in_raw'], 500.0);

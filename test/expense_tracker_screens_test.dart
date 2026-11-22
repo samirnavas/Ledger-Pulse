@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_pulse/core/widgets/adaptive_chip.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
 import 'package:ledger_pulse/core/utils/currency_formatter.dart';
 import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
@@ -319,7 +320,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Filter by Type: Income
-      await tester.tap(find.text('Income'));
+      await tester.tap(find.descendant(
+        of: find.byType(AdaptiveChipRow<VoucherType?>),
+        matching: find.text('Income'),
+      ));
       await tester.pumpAndSettle();
 
       expect(find.textContaining('Freelance Design'), findsOneWidget);
@@ -336,7 +340,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('empty_transactions_view')), findsOneWidget);
-      expect(find.text('No Transactions'), findsOneWidget);
+      expect(find.text('No transactions found'), findsOneWidget);
     });
   });
 

@@ -17442,6 +17442,17 @@ class $ExpenseCategoriesTable extends ExpenseCategories
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _archivedAtMeta = const VerificationMeta(
+    'archivedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> archivedAt = GeneratedColumn<DateTime>(
+    'archived_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -17528,6 +17539,7 @@ class $ExpenseCategoriesTable extends ExpenseCategories
     iconName,
     colorHex,
     isSystem,
+    archivedAt,
     createdAt,
     updatedAt,
     isDeleted,
@@ -17602,6 +17614,12 @@ class $ExpenseCategoriesTable extends ExpenseCategories
       context.handle(
         _isSystemMeta,
         isSystem.isAcceptableOrUnknown(data['is_system']!, _isSystemMeta),
+      );
+    }
+    if (data.containsKey('archived_at')) {
+      context.handle(
+        _archivedAtMeta,
+        archivedAt.isAcceptableOrUnknown(data['archived_at']!, _archivedAtMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -17681,6 +17699,10 @@ class $ExpenseCategoriesTable extends ExpenseCategories
         DriftSqlType.bool,
         data['${effectivePrefix}is_system'],
       )!,
+      archivedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}archived_at'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -17731,6 +17753,7 @@ class ExpenseCategoryTableData extends DataClass
   final String? iconName;
   final String? colorHex;
   final bool isSystem;
+  final DateTime? archivedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isDeleted;
@@ -17746,6 +17769,7 @@ class ExpenseCategoryTableData extends DataClass
     this.iconName,
     this.colorHex,
     required this.isSystem,
+    this.archivedAt,
     required this.createdAt,
     required this.updatedAt,
     required this.isDeleted,
@@ -17770,6 +17794,9 @@ class ExpenseCategoryTableData extends DataClass
       map['color_hex'] = Variable<String>(colorHex);
     }
     map['is_system'] = Variable<bool>(isSystem);
+    if (!nullToAbsent || archivedAt != null) {
+      map['archived_at'] = Variable<DateTime>(archivedAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['is_deleted'] = Variable<bool>(isDeleted);
@@ -17801,6 +17828,9 @@ class ExpenseCategoryTableData extends DataClass
           ? const Value.absent()
           : Value(colorHex),
       isSystem: Value(isSystem),
+      archivedAt: archivedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(archivedAt),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       isDeleted: Value(isDeleted),
@@ -17826,6 +17856,7 @@ class ExpenseCategoryTableData extends DataClass
       iconName: serializer.fromJson<String?>(json['iconName']),
       colorHex: serializer.fromJson<String?>(json['colorHex']),
       isSystem: serializer.fromJson<bool>(json['isSystem']),
+      archivedAt: serializer.fromJson<DateTime?>(json['archivedAt']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
@@ -17848,6 +17879,7 @@ class ExpenseCategoryTableData extends DataClass
       'iconName': serializer.toJson<String?>(iconName),
       'colorHex': serializer.toJson<String?>(colorHex),
       'isSystem': serializer.toJson<bool>(isSystem),
+      'archivedAt': serializer.toJson<DateTime?>(archivedAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'isDeleted': serializer.toJson<bool>(isDeleted),
@@ -17868,6 +17900,7 @@ class ExpenseCategoryTableData extends DataClass
     Value<String?> iconName = const Value.absent(),
     Value<String?> colorHex = const Value.absent(),
     bool? isSystem,
+    Value<DateTime?> archivedAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isDeleted,
@@ -17885,6 +17918,7 @@ class ExpenseCategoryTableData extends DataClass
     iconName: iconName.present ? iconName.value : this.iconName,
     colorHex: colorHex.present ? colorHex.value : this.colorHex,
     isSystem: isSystem ?? this.isSystem,
+    archivedAt: archivedAt.present ? archivedAt.value : this.archivedAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     isDeleted: isDeleted ?? this.isDeleted,
@@ -17908,6 +17942,9 @@ class ExpenseCategoryTableData extends DataClass
       iconName: data.iconName.present ? data.iconName.value : this.iconName,
       colorHex: data.colorHex.present ? data.colorHex.value : this.colorHex,
       isSystem: data.isSystem.present ? data.isSystem.value : this.isSystem,
+      archivedAt: data.archivedAt.present
+          ? data.archivedAt.value
+          : this.archivedAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
@@ -17932,6 +17969,7 @@ class ExpenseCategoryTableData extends DataClass
           ..write('iconName: $iconName, ')
           ..write('colorHex: $colorHex, ')
           ..write('isSystem: $isSystem, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
@@ -17952,6 +17990,7 @@ class ExpenseCategoryTableData extends DataClass
     iconName,
     colorHex,
     isSystem,
+    archivedAt,
     createdAt,
     updatedAt,
     isDeleted,
@@ -17971,6 +18010,7 @@ class ExpenseCategoryTableData extends DataClass
           other.iconName == this.iconName &&
           other.colorHex == this.colorHex &&
           other.isSystem == this.isSystem &&
+          other.archivedAt == this.archivedAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.isDeleted == this.isDeleted &&
@@ -17989,6 +18029,7 @@ class ExpenseCategoriesCompanion
   final Value<String?> iconName;
   final Value<String?> colorHex;
   final Value<bool> isSystem;
+  final Value<DateTime?> archivedAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<bool> isDeleted;
@@ -18005,6 +18046,7 @@ class ExpenseCategoriesCompanion
     this.iconName = const Value.absent(),
     this.colorHex = const Value.absent(),
     this.isSystem = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
@@ -18022,6 +18064,7 @@ class ExpenseCategoriesCompanion
     this.iconName = const Value.absent(),
     this.colorHex = const Value.absent(),
     this.isSystem = const Value.absent(),
+    this.archivedAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isDeleted = const Value.absent(),
@@ -18041,6 +18084,7 @@ class ExpenseCategoriesCompanion
     Expression<String>? iconName,
     Expression<String>? colorHex,
     Expression<bool>? isSystem,
+    Expression<DateTime>? archivedAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<bool>? isDeleted,
@@ -18058,6 +18102,7 @@ class ExpenseCategoriesCompanion
       if (iconName != null) 'icon_name': iconName,
       if (colorHex != null) 'color_hex': colorHex,
       if (isSystem != null) 'is_system': isSystem,
+      if (archivedAt != null) 'archived_at': archivedAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isDeleted != null) 'is_deleted': isDeleted,
@@ -18077,6 +18122,7 @@ class ExpenseCategoriesCompanion
     Value<String?>? iconName,
     Value<String?>? colorHex,
     Value<bool>? isSystem,
+    Value<DateTime?>? archivedAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<bool>? isDeleted,
@@ -18094,6 +18140,7 @@ class ExpenseCategoriesCompanion
       iconName: iconName ?? this.iconName,
       colorHex: colorHex ?? this.colorHex,
       isSystem: isSystem ?? this.isSystem,
+      archivedAt: archivedAt ?? this.archivedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,
@@ -18130,6 +18177,9 @@ class ExpenseCategoriesCompanion
     }
     if (isSystem.present) {
       map['is_system'] = Variable<bool>(isSystem.value);
+    }
+    if (archivedAt.present) {
+      map['archived_at'] = Variable<DateTime>(archivedAt.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -18168,6 +18218,7 @@ class ExpenseCategoriesCompanion
           ..write('iconName: $iconName, ')
           ..write('colorHex: $colorHex, ')
           ..write('isSystem: $isSystem, ')
+          ..write('archivedAt: $archivedAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isDeleted: $isDeleted, ')
@@ -33115,6 +33166,7 @@ typedef $$ExpenseCategoriesTableCreateCompanionBuilder =
       Value<String?> iconName,
       Value<String?> colorHex,
       Value<bool> isSystem,
+      Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
@@ -33133,6 +33185,7 @@ typedef $$ExpenseCategoriesTableUpdateCompanionBuilder =
       Value<String?> iconName,
       Value<String?> colorHex,
       Value<bool> isSystem,
+      Value<DateTime?> archivedAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> isDeleted,
@@ -33256,6 +33309,11 @@ class $$ExpenseCategoriesTableFilterComposer
 
   ColumnFilters<bool> get isSystem => $composableBuilder(
     column: $table.isSystem,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -33408,6 +33466,11 @@ class $$ExpenseCategoriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -33495,6 +33558,11 @@ class $$ExpenseCategoriesTableAnnotationComposer
 
   GeneratedColumn<bool> get isSystem =>
       $composableBuilder(column: $table.isSystem, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get archivedAt => $composableBuilder(
+    column: $table.archivedAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -33639,6 +33707,7 @@ class $$ExpenseCategoriesTableTableManager
                 Value<String?> iconName = const Value.absent(),
                 Value<String?> colorHex = const Value.absent(),
                 Value<bool> isSystem = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
@@ -33655,6 +33724,7 @@ class $$ExpenseCategoriesTableTableManager
                 iconName: iconName,
                 colorHex: colorHex,
                 isSystem: isSystem,
+                archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,
@@ -33673,6 +33743,7 @@ class $$ExpenseCategoriesTableTableManager
                 Value<String?> iconName = const Value.absent(),
                 Value<String?> colorHex = const Value.absent(),
                 Value<bool> isSystem = const Value.absent(),
+                Value<DateTime?> archivedAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
@@ -33689,6 +33760,7 @@ class $$ExpenseCategoriesTableTableManager
                 iconName: iconName,
                 colorHex: colorHex,
                 isSystem: isSystem,
+                archivedAt: archivedAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 isDeleted: isDeleted,

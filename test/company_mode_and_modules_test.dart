@@ -57,7 +57,7 @@ void main() {
   });
 
   group('Company model mode & modules tests', () {
-    test('Company defaults mode to ledger and enabledModules to all modules', () {
+    test('Default Ledger settings retain flags and expose Ledger essentials', () {
       final now = DateTime.now();
       final company = Company(
         id: 'comp_1',
@@ -70,7 +70,7 @@ void main() {
       expect(company.mode, equals(CompanyMode.ledger));
       expect(company.enabledModules, equals(AppModule.allModules));
       expect(company.isModuleEnabled(AppModule.parties), isTrue);
-      expect(company.isModuleEnabled(AppModule.budgets), isTrue);
+      expect(company.isModuleEnabled(AppModule.budgets), isFalse);
     });
 
     test('Company isModuleEnabled reflects enabledModules subset', () {

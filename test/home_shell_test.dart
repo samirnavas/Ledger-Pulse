@@ -257,7 +257,7 @@ void main() {
         await tester.pumpAndSettle();
         final csvField = platform == TargetPlatform.iOS
             ? find.byType(CupertinoTextField) : find.byType(TextField);
-        await tester.enterText(csvField, 'bad header');
+        await tester.enterText(csvField, 'Wrong,Type,Phone,Opening Balance');
         await tester.pumpAndSettle();
         expect(find.text('Use the header Name,Type,Phone,Opening Balance'), findsOneWidget);
         await tester.enterText(

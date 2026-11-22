@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' hide Column;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -215,10 +214,8 @@ void main() {
         narration: 'Groceries',
       );
 
-      final expenseAccountsBefore = await (db.select(db.accounts)
-            ..where((t) => t.companyId.equals(expenseId) & t.isDeleted.equals(false)))
-          .get();
-      final cashAccountBefore = expenseAccountsBefore.firstWhere((a) => a.id == '${expenseId}_${ExpenseTrackerDefaults.walletCashId}');
+      final cashId = '${expenseId}_${ExpenseTrackerDefaults.walletCashId}';
+      final cashAccountBefore = await expenseRepo.getWalletById(cashId);
       expect(cashAccountBefore.currentBalanceInCents, equals(700000));
 
       // Now create a separate Ledger workspace for the user
@@ -245,10 +242,7 @@ void main() {
       expect(persistedLedger.mode, equals(CompanyMode.ledger));
 
       // Balance in original expense workspace is completely identical
-      final expenseAccountsAfter = await (db.select(db.accounts)
-            ..where((t) => t.companyId.equals(expenseId) & t.isDeleted.equals(false)))
-          .get();
-      final cashAccountAfter = expenseAccountsAfter.firstWhere((a) => a.id == '${expenseId}_${ExpenseTrackerDefaults.walletCashId}');
+      final cashAccountAfter = await expenseRepo.getWalletById(cashId);
       expect(cashAccountAfter.currentBalanceInCents, equals(700000));
     });
 

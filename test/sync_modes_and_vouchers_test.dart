@@ -156,8 +156,8 @@ void main() {
       final freshCompsBefore = await freshDb.select(freshDb.companies).get();
       expect(freshCompsBefore, isEmpty);
 
-      // 8. PULL: Trigger pull on the clean device without specifying companyId (discovery mode)
-      final pullResult = await freshSyncEngine.pullChanges();
+      // 8. PULL: Apply only the workspace selected by discovery.
+      final pullResult = await freshSyncEngine.pullChanges(companyId: companyId);
       expect(pullResult.success, isTrue);
       expect(pullResult.itemsPulled, greaterThan(0));
 
@@ -230,7 +230,7 @@ void main() {
         fakeRemoteStore: fakeRemote,
       );
 
-      final pullResult = await syncEngine.pullChanges();
+      final pullResult = await syncEngine.pullChanges(companyId: 'cmp_legacy_001');
       expect(pullResult.success, isTrue);
 
       final repo = DriftLedgerRepository(

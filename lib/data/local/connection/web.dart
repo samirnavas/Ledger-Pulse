@@ -5,5 +5,9 @@ import 'connection.dart';
 
 QueryExecutor openConnection([String uid = 'usr_default']) {
   final sanitizedUid = sanitizeDatabaseIdentifier(uid);
-  return WebDatabase('ledger_pulse_$sanitizedUid', logStatements: false);
+  final developmentNamespace = developmentDatabaseNamespace();
+  final databaseName = developmentNamespace == null
+      ? 'ledger_pulse_$sanitizedUid'
+      : 'ledger_pulse.dev.$developmentNamespace.$sanitizedUid';
+  return WebDatabase(databaseName, logStatements: false);
 }

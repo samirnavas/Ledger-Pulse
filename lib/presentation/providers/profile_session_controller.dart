@@ -16,8 +16,8 @@ import '../../data/models/company_model.dart';
 import '../../domain/models/workspace_profile_header.dart';
 import '../../domain/repositories/i_profile_repository.dart';
 import 'auth_providers.dart';
-import 'company_providers.dart';
 import 'database_providers.dart';
+import 'profile_provider.dart';
 import 'profile_session_state.dart';
 
 class DriftProfileRepository implements IProfileRepository {
@@ -150,303 +150,109 @@ class DriftProfileRepository implements IProfileRepository {
       return getAccessibleProfiles(accountId);
     }
 
-    // Parallel fetch with timeout for maximum responsiveness
-    Map<String, dynamic>? remoteProfile;
-    List<Map<String, dynamic>> remoteMemberships = [];
-    List<Map<String, dynamic>> remoteCompanies = [];
-    List<Map<String, dynamic>> remoteCanonicalProfiles = [];
+    final authUser = client.auth.currentUser;
+    if (authUser?.id != accountId || db.userId != accountId) {
+      throw StateError('Workspace database belongs to a different account.');
+    }
 
-    await Future.wait([
-      (() async {
-        try {
-          final res = await client
-              .from('profiles')
-              .select()
-              .eq('is_deleted', false)
-              .timeout(const Duration(seconds: 8));
-          remoteCanonicalProfiles = List<Map<String, dynamic>>.from(res);
-        } catch (e) {
-          if (_isNetworkException(e)) rethrow;
-          debugPrint('DriftProfileRepository: Error fetching profiles: $e');
-        }
-      })(),
-      (() async {
-        try {
-          final res = await client
-              .from('user_profiles')
-              .select()
-              .eq('id', accountId)
-              .maybeSingle()
-              .timeout(const Duration(seconds: 8));
-          if (res != null) {
-            remoteProfile = Map<String, dynamic>.from(res);
-          }
-        } catch (e) {
-          if (_isNetworkException(e)) rethrow;
-          debugPrint('DriftProfileRepository: Error fetching user_profiles: $e');
-        }
-      })(),
-      (() async {
-        try {
-          final res = await client
-              .from('shared_memberships')
-              .select()
-              .eq('account_id', accountId)
-              .timeout(const Duration(seconds: 8));
-          remoteMemberships = List<Map<String, dynamic>>.from(res);
-        } catch (e) {
-          if (_isNetworkException(e)) rethrow;
-          debugPrint('DriftProfileRepository: Error fetching shared_memberships: $e');
-        }
-      })(),
-      (() async {
-        try {
-          final res = await client
-              .from('companies')
-              .select()
-              .eq('is_deleted', false)
-              .timeout(const Duration(seconds: 8));
-          remoteCompanies = List<Map<String, dynamic>>.from(res);
-        } catch (e) {
-          if (_isNetworkException(e)) rethrow;
-          debugPrint('DriftProfileRepository: Error fetching companies: $e');
-        }
-      })(),
+    final results = await Future.wait([
+      client
+          .from('workspaces')
+          .select()
+          .eq('owner_user_id', accountId)
+          .timeout(const Duration(seconds: 8)),
+      client
+          .from('users')
+          .select()
+          .eq('id', accountId)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 8)),
     ]);
+    final workspaces = results[0] as List<Map<String, dynamic>>;
+    final personal = results[1] as Map<String, dynamic>?;
+    final visibleIds = <String>{};
 
-    // 4. Batch upsert into local Drift database in a single transaction
     await db.transaction(() async {
-      for (final prof in remoteCanonicalProfiles) {
-        final profId = prof['id'] as String;
-        final profName = prof['name'] as String? ?? '';
-        final mode = prof['mode'] as String? ?? 'ledger';
-        final currencyCode = prof['currency_code'] as String? ??
-            prof['currencyCode'] as String? ??
-            'INR';
-        final ownerId = prof['owner_id'] as String? ??
-            prof['ownerId'] as String?;
-        final isDeleted = prof['is_deleted'] as bool? ??
-            prof['isDeleted'] as bool? ??
-            false;
-        final createdAtStr = prof['created_at'] ?? prof['createdAt'];
-        final updatedAtStr = prof['updated_at'] ?? prof['updatedAt'];
-        final createdAt =
-            createdAtStr != null ? decodeTime(createdAtStr) : DateTime.now();
-        final updatedAt =
-            updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
-        final revision = (prof['revision'] as num?)?.toInt() ?? 0;
-
-        final existingProf = await (db.select(db.profiles)
-              ..where((p) => p.id.equals(profId)))
-            .getSingleOrNull();
-        if (existingProf != null &&
-            (existingProf.isDeleted ||
-                existingProf.syncStatus != SyncRecordStatus.synced)) {
-          continue;
+      for (final workspace in workspaces) {
+        if (workspace['owner_user_id'] != accountId) {
+          throw const FormatException('Foreign workspace in account response.');
         }
-
+        final id = workspace['id'] as String;
+        final lifecycle = workspace['lifecycle_state'] as String;
+        final existing = await (db.select(db.profiles)
+              ..where((row) => row.id.equals(id)))
+            .getSingleOrNull();
+        if (existing != null && existing.ownerId != accountId) {
+          throw StateError('Workspace belongs to a different local account.');
+        }
+        if (lifecycle != 'deleted') visibleIds.add(id);
         await db.into(db.profiles).insertOnConflictUpdate(
               ProfilesCompanion.insert(
-                id: profId,
-                name: profName,
-                profileType: Value(mode),
-                currencyCode: Value(currencyCode),
-                ownerId: Value(ownerId),
-                isDeleted: Value(isDeleted),
-                revision: Value(revision),
-                createdAt: Value(createdAt),
-                updatedAt: Value(updatedAt),
+                id: id,
+                name: workspace['name'] as String,
+                profileType: Value(workspace['workspace_type'] as String),
+                currencyCode: Value(workspace['currency_code'] as String),
+                ownerId: Value(accountId),
+                isActive: Value(lifecycle == 'active'),
+                isDeleted: Value(lifecycle == 'deleted'),
+                createdAt: Value(decodeTime(workspace['created_at'])),
+                updatedAt: Value(decodeTime(workspace['updated_at'])),
+                revision: Value((workspace['revision'] as num).toInt()),
                 syncStatus: const Value(SyncRecordStatus.synced),
               ),
             );
       }
-
-      for (final comp in remoteCompanies) {
-        final compId = comp['id'] as String;
-        final profId = comp['profile_id'] as String? ??
-            comp['profileId'] as String? ??
-            compId;
-        final compName = comp['name'] as String? ?? '';
-        final legalName = comp['legal_name'] as String? ??
-            comp['legalName'] as String? ??
-            compName;
-        final mode = comp['mode'] as String? ?? 'ledger';
-        final currencyCode = comp['currency_code'] as String? ??
-            comp['currencyCode'] as String? ??
-            'INR';
-        final gstin = comp['gstin'] as String?;
-        final ownerId = comp['owner_id'] as String? ??
-            comp['ownerId'] as String? ??
-            accountId;
-        final isActive = comp['is_active'] as bool? ??
-            comp['isActive'] as bool? ??
-            true;
-        final isDeleted = comp['is_deleted'] as bool? ??
-            comp['isDeleted'] as bool? ??
-            false;
-        final createdAtStr = comp['created_at'] ?? comp['createdAt'];
-        final updatedAtStr = comp['updated_at'] ?? comp['updatedAt'];
-        final createdAt =
-            createdAtStr != null ? decodeTime(createdAtStr) : DateTime.now();
-        final updatedAt =
-            updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
-
-        // Enforce workspace type immutability: preserve local mode if company exists locally
-        final existingComp = await (db.select(db.companies)..where((c) => c.id.equals(compId))).getSingleOrNull();
-        if (existingComp != null &&
-            (existingComp.isDeleted ||
-                existingComp.syncStatus != SyncRecordStatus.synced)) {
-          // Never overwrite newer local pending company changes with stale remote data
-          continue;
+      if (personal != null) {
+        if (personal['id'] != accountId) {
+          throw const FormatException('Foreign user in account response.');
         }
-        final effectiveMode = existingComp != null ? existingComp.mode : mode;
-
-        // Ensure canonical profile row exists locally to maintain referential integrity
-        final existingProf = await (db.select(db.profiles)
-              ..where((p) => p.id.equals(profId)))
+        final existing = await (db.select(db.userProfiles)
+              ..where((row) => row.id.equals(accountId)))
             .getSingleOrNull();
-        if (existingProf == null) {
-          await db.into(db.profiles).insertOnConflictUpdate(
-                ProfilesCompanion.insert(
-                  id: profId,
-                  name: compName,
-                  profileType: Value(effectiveMode),
-                  currencyCode: Value(currencyCode),
-                  ownerId: Value(ownerId),
-                  isDeleted: Value(isDeleted),
-                  createdAt: Value(createdAt),
-                  updatedAt: Value(updatedAt),
-                  syncStatus: const Value(SyncRecordStatus.synced),
-                ),
-              );
-        }
-
-        await db.into(db.companies).insertOnConflictUpdate(
-              CompaniesCompanion.insert(
-                id: compId,
-                profileId: Value(profId),
-                name: compName,
-                legalName: legalName,
-                mode: Value(effectiveMode),
-                currencyCode: Value(currencyCode),
-                gstin: Value(gstin),
-                address: Value(comp['address'] as String?),
-                bankName: Value(comp['bank_name'] as String? ?? comp['bankName'] as String?),
-                bankAccountNumber: Value(comp['bank_account_number'] as String? ?? comp['bankAccountNumber'] as String?),
-                bankIfsc: Value(comp['bank_ifsc'] as String? ?? comp['bankIfsc'] as String?),
-                upiId: Value(comp['upi_id'] as String? ?? comp['upiId'] as String?),
-                ownerId: Value(ownerId),
-                isActive: Value(isActive),
-                isDeleted: Value(isDeleted),
-                createdAt: Value(createdAt),
-                updatedAt: Value(updatedAt),
-                syncStatus: const Value(SyncRecordStatus.synced),
-              ),
-            );
-      }
-
-      for (final mem in remoteMemberships) {
-        final memId = mem['id'].toString();
-        final profId = mem['profile_id']?.toString() ??
-            mem['profileId']?.toString() ??
-            '';
-        final accId = mem['account_id']?.toString() ??
-            mem['accountId']?.toString() ??
-            accountId;
-        final role = mem['role'] as String? ?? 'owner';
-        final joinedAtStr = mem['joined_at'] ?? mem['joinedAt'];
-        final updatedAtStr = mem['updated_at'] ?? mem['updatedAt'];
-        final joinedAt =
-            joinedAtStr != null ? decodeTime(joinedAtStr) : DateTime.now();
-        final updatedAt =
-            updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
-
-        if (profId.isNotEmpty) {
-          final existingProf = await (db.select(db.profiles)
-                ..where((p) => p.id.equals(profId)))
-              .getSingleOrNull();
-          if (existingProf == null) {
-            await db.into(db.profiles).insertOnConflictUpdate(
-                  ProfilesCompanion.insert(
-                    id: profId,
-                    name: 'Profile $profId',
-                    profileType: const Value('ledger'),
-                    ownerId: Value(accId),
-                    createdAt: Value(joinedAt),
-                    updatedAt: Value(updatedAt),
-                    syncStatus: const Value(SyncRecordStatus.synced),
-                  ),
-                );
-          }
-
-          await db.into(db.sharedMemberships).insertOnConflictUpdate(
-                SharedMembershipsCompanion.insert(
-                  id: memId,
-                  profileId: profId,
-                  accountId: accId,
-                  role: role,
-                  joinedAt: Value(joinedAt),
-                  updatedAt: Value(updatedAt),
-                ),
-              );
-        }
-      }
-
-      final profData = remoteProfile;
-      if (profData != null) {
-        final profId = profData['id'] as String;
-        final existingProf = await (db.select(db.userProfiles)..where((u) => u.id.equals(profId))).getSingleOrNull();
-        if (existingProf == null || existingProf.syncStatus == SyncRecordStatus.synced) {
-          final profName = profData['name'] as String? ?? '';
-          final phone = profData['phone_number'] as String? ??
-              profData['phoneNumber'] as String? ??
-              '';
-          final email = profData['email'] as String? ?? '';
-          final activeCompanyId = profData['active_company_id'] as String? ??
-              profData['activeCompanyId'] as String? ??
-              '';
-          final role = profData['role'] as String? ?? 'admin';
-          final createdAtStr =
-              profData['created_at'] ?? profData['createdAt'];
-          final updatedAtStr =
-              profData['updated_at'] ?? profData['updatedAt'];
-          final createdAt =
-              createdAtStr != null ? decodeTime(createdAtStr) : DateTime.now();
-          final updatedAt =
-              updatedAtStr != null ? decodeTime(updatedAtStr) : DateTime.now();
-
+        if (existing == null || existing.syncStatus == SyncRecordStatus.synced) {
           await db.into(db.userProfiles).insertOnConflictUpdate(
                 UserProfilesCompanion.insert(
-                  id: profId,
-                  name: profName,
-                  phoneNumber: phone,
-                  email: email,
-                  businessName: Value(profData['business_name'] as String? ??
-                      profData['businessName'] as String?),
-                  address: Value(profData['address'] as String?),
-                  gstin: Value(profData['gstin'] as String?),
-                  businessType: Value(profData['business_type'] as String? ??
-                      profData['businessType'] as String?),
-                  bankName: Value(profData['bank_name'] as String? ??
-                      profData['bankName'] as String?),
-                  bankAccountNumber: Value(profData['bank_account_number'] as String? ??
-                      profData['bankAccountNumber'] as String?),
-                  bankIfsc: Value(profData['bank_ifsc'] as String? ??
-                      profData['bankIfsc'] as String?),
-                  upiId: Value(profData['upi_id'] as String? ??
-                      profData['upiId'] as String?),
-                  activeCompanyId: Value(activeCompanyId),
-                  role: Value(role),
-                  createdAt: Value(createdAt),
-                  updatedAt: Value(updatedAt),
+                  id: accountId,
+                  name: personal['display_name'] as String,
+                  phoneNumber: authUser?.phone ?? '',
+                  email: authUser?.email ?? '',
+                  createdAt: Value(decodeTime(personal['created_at'])),
+                  updatedAt: Value(decodeTime(personal['updated_at'])),
                   syncStatus: const Value(SyncRecordStatus.synced),
                 ),
               );
         }
+      }
+      if (client.auth.currentUser?.id != accountId) {
+        throw StateError('Account changed while loading workspaces.');
       }
     });
 
-    return getAccessibleProfiles(accountId);
+    final local = await getAccessibleProfiles(accountId);
+    final accessible = <WorkspaceProfileHeader>[];
+    for (final workspace in local) {
+      if (visibleIds.contains(workspace.id)) {
+        accessible.add(workspace);
+        continue;
+      }
+      if (!workspace.isExpense || workspace.role != ProfileRole.owner) continue;
+      final pending = await (db.select(db.profiles)..where((row) =>
+          row.id.equals(workspace.id) & row.ownerId.equals(accountId) &
+          row.revision.equals(0) & row.syncStatus.equalsValue(SyncRecordStatus.pending)))
+          .getSingleOrNull();
+      if (pending == null) continue;
+      final localCreate = await (db.select(db.syncOutbox)..where((row) =>
+          row.targetTable.equals('profiles') & row.recordId.equals(workspace.id)))
+          .getSingleOrNull();
+      if (localCreate != null ||
+          (await syncEngine.workspaceSync?.hasPendingCreation(workspace.id) ?? false)) {
+        accessible.add(workspace);
+      }
+    }
+    if (client.auth.currentUser?.id != accountId) {
+      throw StateError('Account changed while loading workspaces.');
+    }
+    return accessible;
   }
 
   static SupabaseClient? _getSafeSupabaseClient() {
@@ -491,8 +297,7 @@ class DriftProfileRepository implements IProfileRepository {
     String? customId,
     String? accountId,
   }) async {
-    final profileId = customId ??
-        'prf_${DateTime.now().millisecondsSinceEpoch.toRadixString(16)}';
+    final profileId = customId ?? const Uuid().v4();
     final now = DateTime.now();
     final effectiveLegalName = legalName ?? name;
 
@@ -695,7 +500,13 @@ class DriftProfileRepository implements IProfileRepository {
         final initialCash = initialWalletBalancesInCents?['cash'] ??
             initialWalletBalancesInCents?['Cash in Hand'] ??
             0;
-        final walletId = '${profileId}_wal_cash';
+        final legacyWalletId = '${profileId}_wal_cash';
+        final legacyWallet = await (db.select(db.expenseWallets)
+              ..where((row) =>
+                  row.id.equals(legacyWalletId) & row.profileId.equals(profileId)))
+            .getSingleOrNull();
+        final walletId = legacyWallet?.id ??
+            const Uuid().v5(Namespace.url.value, 'ledgerpulse:$profileId:wallet:cash');
         await db.into(db.expenseWallets).insertOnConflictUpdate(
               ExpenseWalletsCompanion.insert(
                 id: walletId,
@@ -744,8 +555,14 @@ class DriftProfileRepository implements IProfileRepository {
         ];
 
         for (final cat in defaultCats) {
-          final catId =
-              '${profileId}_cat_${cat.$1.toLowerCase().replaceAll(RegExp(r'\W+'), '_')}';
+          final categoryKey = cat.$1.toLowerCase().replaceAll(RegExp(r'\W+'), '_');
+          final legacyCategoryId = '${profileId}_cat_$categoryKey';
+          final legacyCategory = await (db.select(db.expenseCategories)
+                ..where((row) => row.id.equals(legacyCategoryId) &
+                    row.profileId.equals(profileId)))
+              .getSingleOrNull();
+          final catId = legacyCategory?.id ??
+              const Uuid().v5(Namespace.url.value, 'ledgerpulse:$profileId:category:$categoryKey');
           await db.into(db.expenseCategories).insertOnConflictUpdate(
                 ExpenseCategoriesCompanion.insert(
                   id: catId,
@@ -800,53 +617,75 @@ class DriftProfileRepository implements IProfileRepository {
   }
 
   @override
-  Future<void> deleteProfile(String profileId) async {
-    final now = DateTime.now();
-    await (db.update(db.profiles)..where((t) => t.id.equals(profileId))).write(
-      ProfilesCompanion(
-        isDeleted: const Value(true),
-        syncStatus: const Value(SyncRecordStatus.pending),
-        updatedAt: Value(now),
-      ),
-    );
-    await enqueueMutation(
-      db: db,
-      table: 'profiles',
-      recordId: profileId,
-      type: 'UPSERT',
-      fullRowMap: {
-        'id': profileId,
-        'is_deleted': true,
-        'updated_at': encodeTime(now),
-      },
-    );
+  Future<void> deleteProfile(String profileId) => _setProfileDeleted(profileId, true);
 
-    // Also soft-delete linked company if one exists
-    final comp = await (db.select(db.companies)
-          ..where((c) => c.profileId.equals(profileId) | c.id.equals(profileId)))
-        .getSingleOrNull();
-    if (comp != null) {
-      await (db.update(db.companies)..where((t) => t.id.equals(comp.id))).write(
-        CompaniesCompanion(
-          isDeleted: const Value(true),
+  @override
+  Future<void> restoreProfile(String profileId) => _setProfileDeleted(profileId, false);
+
+  Future<void> _setProfileDeleted(String profileId, bool deleted) async {
+    final actor = supabaseClient?.auth.currentUser?.id ?? db.userId;
+    if (actor != db.userId) {
+      throw StateError('Workspace database belongs to a different account.');
+    }
+    await db.transaction(() async {
+      final workspace = await (db.select(db.profiles)..where(
+        (p) => p.id.equals(profileId) & p.ownerId.equals(actor))).getSingleOrNull();
+      if (workspace == null) throw StateError('Workspace is unavailable to this account.');
+      if (workspace.isDeleted == deleted) return;
+      final now = DateTime.now();
+      await (db.update(db.profiles)..where((t) => t.id.equals(profileId))).write(
+        ProfilesCompanion(
+          isDeleted: Value(deleted),
           syncStatus: const Value(SyncRecordStatus.pending),
           updatedAt: Value(now),
         ),
       );
       await enqueueMutation(
         db: db,
-        table: 'companies',
-        recordId: comp.id,
+        table: 'profiles',
+        recordId: profileId,
         type: 'UPSERT',
         fullRowMap: {
-          'id': comp.id,
-          'is_deleted': true,
-          'isDeleted': true,
+          'id': profileId,
+          'owner_id': actor,
+          'is_deleted': deleted,
           'updated_at': encodeTime(now),
-          'updatedAt': encodeTime(now),
         },
       );
-    }
+
+      // Also soft-delete linked company if one exists
+      final comp = await (db.select(db.companies)
+            ..where((c) => c.profileId.equals(profileId) |
+                (c.profileId.isNull() & c.id.equals(profileId))))
+          .getSingleOrNull();
+      if (comp != null) {
+        if (comp.ownerId != null && comp.ownerId != actor) {
+          throw StateError('Linked company belongs to a different account.');
+        }
+        await (db.update(db.companies)..where((t) => t.id.equals(comp.id))).write(
+          CompaniesCompanion(
+            isDeleted: Value(deleted),
+            syncStatus: const Value(SyncRecordStatus.pending),
+            updatedAt: Value(now),
+          ),
+        );
+        await enqueueMutation(
+          db: db,
+          table: 'companies',
+          recordId: comp.id,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': comp.id,
+            'profile_id': profileId,
+            'owner_id': actor,
+            'is_deleted': deleted,
+            'isDeleted': deleted,
+            'updated_at': encodeTime(now),
+            'updatedAt': encodeTime(now),
+          },
+        );
+      }
+    });
     syncEngine.triggerBackgroundSync(companyId: profileId);
   }
 }
@@ -1105,28 +944,13 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
     }
 
     final prefs = ref.read(sharedPreferencesProvider);
-    var lastActiveId = prefs?.getString('last_active_profile_$userId') ??
+    final lastActiveId = prefs?.getString(activeWorkspacePreferenceKey(userId)) ??
         prefs?.getString('last_active_company_id_$userId');
-
-    if (lastActiveId == null || lastActiveId.isEmpty) {
-      try {
-        final db = ref.read(appDatabaseProvider);
-        final profRow = await (db.select(db.userProfiles)
-              ..where((t) => t.id.equals(userId) & t.isDeleted.equals(false)))
-            .getSingleOrNull();
-        if (profRow != null &&
-            profRow.activeCompanyId.isNotEmpty &&
-            profRow.activeCompanyId != 'cmp_default') {
-          lastActiveId = profRow.activeCompanyId;
-        }
-      } catch (_) {}
-    }
 
     if (profiles.length == 1) {
       final single = profiles.first;
-      await prefs?.setString('last_active_profile_$userId', single.id);
-      await prefs?.setString('last_active_company_id_$userId', single.id);
-      await prefs?.setString('last_active_company_id', single.id);
+      await prefs?.setString(activeWorkspacePreferenceKey(userId), single.id);
+      if (!ref.mounted || ref.read(activeUserIdProvider) != userId) return;
 
       _currentActiveUserId = userId;
       _currentActiveProfile = single;
@@ -1279,6 +1103,7 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
       final repo = ref.read(profileRepositoryProvider);
       // Verify membership against database rather than trusting in-memory state
       final freshProfiles = await repo.getAccessibleProfiles(userId);
+      if (!ref.mounted || ref.read(activeUserIdProvider) != userId) return;
       final isAuthorized = freshProfiles.any((p) => p.id == profile.id);
       if (!isAuthorized) {
         state = const SessionErrorState(
@@ -1289,36 +1114,8 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
 
       final targetProfile = freshProfiles.firstWhere((p) => p.id == profile.id);
       final prefs = ref.read(sharedPreferencesProvider);
-      await prefs?.setString('last_active_profile_$userId', targetProfile.id);
-      await prefs?.setString(
-          'last_active_company_id_$userId', targetProfile.id);
-      await prefs?.setString('last_active_company_id', targetProfile.id);
-
-      // Persist activeCompanyId to local db.userProfiles with pending status and enqueue outbox
-      try {
-        final db = ref.read(appDatabaseProvider);
-        final now = DateTime.now();
-        await (db.update(db.userProfiles)..where((t) => t.id.equals(userId))).write(
-          UserProfilesCompanion(
-            activeCompanyId: Value(targetProfile.id),
-            updatedAt: Value(now),
-            syncStatus: const Value(SyncRecordStatus.pending),
-          ),
-        );
-        await enqueueMutation(
-          db: db,
-          table: 'user_profiles',
-          recordId: userId,
-          type: 'UPSERT',
-          fullRowMap: {
-            'id': userId,
-            'activeCompanyId': targetProfile.id,
-            'updatedAt': now,
-          },
-        );
-      } catch (e) {
-        debugPrint('ProfileSessionController: Error updating active profile: $e');
-      }
+      await prefs?.setString(activeWorkspacePreferenceKey(userId), targetProfile.id);
+      if (!ref.mounted || ref.read(activeUserIdProvider) != userId) return;
 
       final isOffline = state is ActiveProfileReadySessionState &&
           (state as ActiveProfileReadySessionState).isOffline;
@@ -1357,10 +1154,8 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
   }
 
   void _syncActiveCompany(WorkspaceProfileHeader profile) {
-    try {
-      ref.read(companyControllerProvider.notifier).selectCompany(profile.id);
-    } catch (_) {
-      // Ignored if company controller is disposing
+    if (ref.mounted) {
+      ref.read(userProfileProvider.notifier).showSelectedWorkspace(profile.id);
     }
   }
 

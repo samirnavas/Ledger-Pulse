@@ -13,6 +13,7 @@ import '../../data/models/party_model.dart';
 import '../../data/models/transaction_model.dart';
 import '../config/supabase_config.dart';
 import 'sync_codec.dart';
+import 'workspace_sync_engine.dart';
 
 enum SyncEngineStatus { idle, syncing, success, partial, error }
 
@@ -261,6 +262,7 @@ class SyncEngine {
   final bool simulateSyncForTesting;
   final String? activeUserId;
   final int pageSize;
+  final WorkspaceSyncEngine? workspaceSync;
 
   final StreamController<SyncEngineStatus> _statusController =
       StreamController<SyncEngineStatus>.broadcast();
@@ -268,6 +270,7 @@ class SyncEngine {
 
   Completer<void>? _syncLock;
   Timer? _debounceTimer;
+  int _workspaceSyncRequest = 0;
 
   SyncEngine({
     required this.db,
@@ -277,6 +280,7 @@ class SyncEngine {
     this.simulateSyncForTesting = false,
     this.activeUserId,
     this.pageSize = 500,
+    this.workspaceSync,
   }) : gateway =
            gateway ??
            fakeRemoteStore ??
@@ -328,11 +332,18 @@ class SyncEngine {
 
   /// Invalidates any in-flight sync operations so their results and database writes are discarded.
   void invalidateSession() {
+    workspaceSync?.suspend();
     _sessionGeneration++;
   }
 
-  bool _isSessionStale(int expectedGeneration) =>
-      _isDisposed || _sessionGeneration != expectedGeneration;
+  bool _isSessionStale(int expectedGeneration) {
+    if (_isDisposed || _sessionGeneration != expectedGeneration) return true;
+    final remote = gateway;
+    if (remote is! SupabaseGateway) return false;
+    final session = remote.client.auth.currentSession;
+    final owner = activeUserId ?? db.userId;
+    return session == null || session.isExpired || session.user.id != owner;
+  }
 
   @visibleForTesting
   Future<void> Function()? onBeforeMarkSynced;
@@ -368,6 +379,7 @@ class SyncEngine {
   Stream<SyncEngineStatus> get statusStream => _statusController.stream;
 
   void dispose() {
+    workspaceSync?.suspend();
     _isDisposed = true;
     _sessionGeneration++;
     _debounceTimer?.cancel();
@@ -588,6 +600,9 @@ class SyncEngine {
             payloadMap['isDeleted'] == true;
         // A deleted workspace can no longer be selected to push its own tombstones.
         return id == companyId ||
+            (targetTable == 'companies' &&
+                !isGuest && ownerId == activeUserId &&
+                _matchesScopeAliases(payloadMap, 'profile_id', 'profileId', companyId)) ||
             (!isGuest && isDeleted && ownerId == activeUserId);
 
       case 'user_profiles':
@@ -601,9 +616,7 @@ class SyncEngine {
       case 'exp_transactions':
       case 'exp_budgets':
       case 'exp_recurring_rules':
-        final profileId =
-            (payloadMap['profile_id'] ?? payloadMap['profileId'])?.toString();
-        return profileId == companyId;
+        return _matchesScopeAliases(payloadMap, 'profile_id', 'profileId', companyId);
 
       case 'accounts':
       case 'parties':
@@ -616,13 +629,24 @@ class SyncEngine {
       case 'inventory_items':
       case 'stock_ledger':
       case 'audit_logs':
-        final rowCompanyId =
-            (payloadMap['company_id'] ?? payloadMap['companyId'])?.toString();
-        return rowCompanyId == companyId;
+        return _matchesScopeAliases(payloadMap, 'company_id', 'companyId', companyId);
 
       default:
         return false;
     }
+  }
+
+  static bool _matchesScopeAliases(
+    Map<String, dynamic> row,
+    String column,
+    String alias,
+    String workspace,
+  ) {
+    final canonical = row[column];
+    final alternate = row[alias];
+    return (canonical != null || alternate != null) &&
+        (canonical == null || canonical == workspace) &&
+        (alternate == null || alternate == workspace);
   }
 
   /// Queues any domain records with syncStatus == pending into sync_outbox if missing
@@ -1308,6 +1332,7 @@ class SyncEngine {
 
   /// Pushes queued outbox mutations to remote backend.
   Future<SyncResult> pushQueue({String? companyId}) async {
+    if (workspaceSync != null) return syncAll(companyId: companyId);
     final cid = companyId ?? 'cmp_default';
     return _synchronizedSync(() async {
       return _pushQueueInternal(companyId: cid);
@@ -1712,7 +1737,7 @@ class SyncEngine {
 
   Future<SyncResult> _pushQueueInternal({required String companyId}) async {
     final currentGeneration = _sessionGeneration;
-    if (_isDisposed || _sessionGeneration != currentGeneration) {
+    if (_isSessionStale(currentGeneration)) {
       return SyncResult(
         status: SyncEngineStatus.idle,
         tableErrors: {'aborted': 'Engine was disposed or session invalidated'},
@@ -1726,7 +1751,7 @@ class SyncEngine {
     final enqueueErrors = enqueueOutcome.errors;
     final failedEnqueueKeys = enqueueOutcome.failedKeys;
 
-    if (_isDisposed || _sessionGeneration != currentGeneration) {
+    if (_isSessionStale(currentGeneration)) {
       return SyncResult(
         status: SyncEngineStatus.idle,
         tableErrors: {'aborted': 'Engine was disposed or session invalidated'},
@@ -1787,7 +1812,7 @@ class SyncEngine {
     int pushedCount = 0;
 
     for (final outboxRow in outboxRows) {
-      if (_isDisposed || _sessionGeneration != currentGeneration) break;
+      if (_isSessionStale(currentGeneration)) break;
 
       final rowKey = '${outboxRow.targetTable}:${outboxRow.recordId}';
 
@@ -1808,7 +1833,7 @@ class SyncEngine {
         targetTable: outboxRow.targetTable,
         payloadMap: payloadMap,
         companyId: companyId,
-        activeUserId: activeUserId,
+        activeUserId: activeUserId ?? (gateway is SupabaseGateway ? db.userId : null),
       )) {
         continue;
       }
@@ -1982,7 +2007,7 @@ class SyncEngine {
         );
 
         // Session generation check immediately after awaiting remote call
-        if (_isDisposed || _sessionGeneration != currentGeneration) {
+        if (_isSessionStale(currentGeneration)) {
           break;
         }
 
@@ -1996,13 +2021,13 @@ class SyncEngine {
           outboxId: outboxRow.id,
         );
 
-        if (_isDisposed || _sessionGeneration != currentGeneration) break;
+        if (_isSessionStale(currentGeneration)) break;
 
         if (markedSynced) {
           pushedCount++;
         }
       } catch (e) {
-        if (_isDisposed || _sessionGeneration != currentGeneration) break;
+        if (_isSessionStale(currentGeneration)) break;
 
         final errStr = e.toString();
         if (kDebugMode) {
@@ -2047,7 +2072,7 @@ class SyncEngine {
       }
     }
 
-    if (_isDisposed || _sessionGeneration != currentGeneration) {
+    if (_isSessionStale(currentGeneration)) {
       return SyncResult(
         status: SyncEngineStatus.idle,
         tableErrors: {'aborted': 'Session invalidated during push'},
@@ -3549,6 +3574,7 @@ class SyncEngine {
 
   /// Pulls changes from remote backend for [companyId] in FK-safe topological order.
   Future<SyncResult> pullChanges({String? companyId}) async {
+    if (workspaceSync != null) return syncAll(companyId: companyId);
     final cid = companyId ?? 'cmp_default';
     return _synchronizedSync(() async {
       return _pullChangesInternal(companyId: cid);
@@ -3557,7 +3583,7 @@ class SyncEngine {
 
   Future<SyncResult> _pullChangesInternal({required String companyId}) async {
     final currentGeneration = _sessionGeneration;
-    if (_isDisposed || _sessionGeneration != currentGeneration) {
+    if (_isSessionStale(currentGeneration)) {
       return SyncResult(
         status: SyncEngineStatus.idle,
         tableErrors: {'aborted': 'Engine was disposed or session invalidated'},
@@ -3569,7 +3595,7 @@ class SyncEngine {
     int totalPulled = 0;
 
     for (final table in syncTables) {
-      if (_isDisposed || _sessionGeneration != currentGeneration) break;
+      if (_isSessionStale(currentGeneration)) break;
 
       try {
         final syncStateRow =
@@ -3639,6 +3665,12 @@ class SyncEngine {
                 final recordId = (remoteMap['id'] ?? remoteMap['record_id'])
                     ?.toString();
                 if (recordId == null) continue;
+                await _validatePulledScope(
+                  table.name,
+                  recordId,
+                  remoteMap,
+                  companyId,
+                );
 
                 final isPendingLocal = await _isRecordPendingLocal(
                   table.name,
@@ -3814,10 +3846,10 @@ class SyncEngine {
         tableErrors[table.name] = e.toString();
         // Do NOT advance cursor for failed table
       }
-      if (_isDisposed || _sessionGeneration != currentGeneration) break;
+      if (_isSessionStale(currentGeneration)) break;
     }
 
-    if (_isDisposed || _sessionGeneration != currentGeneration) {
+    if (_isSessionStale(currentGeneration)) {
       return SyncResult(
         status: SyncEngineStatus.idle,
         tableErrors: {'aborted': 'Session invalidated during pull'},
@@ -3838,6 +3870,53 @@ class SyncEngine {
       tableErrors: tableErrors,
       pulledCount: totalPulled,
     );
+  }
+
+  Future<void> _validatePulledScope(
+    String table,
+    String recordId,
+    Map<String, dynamic> remote,
+    String workspace,
+  ) async {
+    if (table == 'user_profiles') {
+      final owner = activeUserId ?? (gateway is SupabaseGateway ? db.userId : null);
+      if (owner != null && recordId != owner) {
+        throw const FormatException('Foreign account in sync page');
+      }
+      return;
+    }
+    if (table == 'profiles' || table == 'companies') {
+      if (recordId != workspace) {
+        throw const FormatException('Foreign workspace in sync page');
+      }
+      return;
+    }
+    final profileScoped = table == 'shared_memberships' || table.startsWith('exp_');
+    final column = profileScoped ? 'profile_id' : 'company_id';
+    final alias = profileScoped ? 'profileId' : 'companyId';
+    if ((remote[column] != null && remote[column] != workspace) ||
+        (remote[alias] != null && remote[alias] != workspace) ||
+        (gateway is SupabaseGateway && remote[column] == null && remote[alias] == null)) {
+      throw const FormatException('Foreign or missing scope in sync page');
+    }
+    final localTable = switch (table) {
+      'exp_wallets' => 'expense_wallets',
+      'exp_categories' => 'expense_categories',
+      'exp_transactions' => 'expense_transactions',
+      'exp_budgets' => 'expense_budgets',
+      'exp_recurring_rules' => 'expense_recurring_rules',
+      _ => table,
+    };
+    // Table names come from the static sync registry. Keep the scope check
+    // inside the page transaction so neither tombstones nor upserts can move
+    // a local record with the same ID to another workspace.
+    final existing = await db.customSelect(
+      'SELECT $column AS scope FROM $localTable WHERE id = ?',
+      variables: [Variable(recordId)],
+    ).getSingleOrNull();
+    if (existing != null && existing.read<String>('scope') != workspace) {
+      throw const FormatException('Local record belongs to another workspace');
+    }
   }
 
   Future<bool> _isRecordPendingLocal(String table, String recordId) async {
@@ -4506,10 +4585,169 @@ class SyncEngine {
   }
 
   /// Triggers full sync (push followed by pull)
+  Future<bool> _queueExpenseCommands(
+    WorkspaceSyncEngine normalized,
+    String workspace,
+  ) async {
+    final profile = await (db.select(db.profiles)..where((row) =>
+        row.id.equals(workspace) & row.ownerId.equals(db.userId)))
+        .getSingleOrNull();
+    if (profile?.profileType != 'expense') return false;
+
+    final rows = await db.select(db.syncOutbox).get();
+    final pendingRecurrence = rows.any((row) =>
+        row.targetTable == 'exp_recurring_rules' &&
+        (jsonDecode(row.payload) as Map)['profile_id'] == workspace);
+    rows.sort((a, b) => tableDependencyRank(a.targetTable)
+        .compareTo(tableDependencyRank(b.targetTable)));
+    var complete = true;
+    for (final row in rows) {
+      final payload = jsonDecode(row.payload) as Map<String, dynamic>;
+      final scope = row.targetTable == 'profiles'
+          ? payload['id']
+          : payload['profile_id'];
+      if (scope != workspace) continue;
+      if (row.targetTable == 'profiles') {
+        final revision = profile!.revision;
+        final deleted = payload['is_deleted'] == true;
+        if (revision == 0 && deleted) {
+          complete = false;
+          continue;
+        }
+        final kind = revision == 0 ? 'create_workspace'
+            : deleted || !payload.containsKey('name') ? 'workspace_state'
+            : 'rename_workspace';
+        await _queueConverted(normalized, workspace, row, kind, switch (kind) {
+          'create_workspace' => {
+            'workspace_type': 'expense', 'name': profile.name,
+            'currency_code': profile.currencyCode, 'time_zone': 'UTC',
+          },
+          'rename_workspace' => {'name': profile.name, 'expected_revision': revision},
+          _ => {'state': deleted ? 'deleted' : 'active', 'expected_revision': revision},
+        });
+        continue;
+      }
+
+      final mappings = _expenseCommandColumns[row.targetTable];
+      if (mappings == null) {
+        // Local compatibility records have no cloud equivalent in Expense.
+        if (row.targetTable != 'companies' && row.targetTable != 'shared_memberships') {
+          complete = false;
+        }
+        continue;
+      }
+      if ((pendingRecurrence && row.targetTable == 'exp_transactions') ||
+          !_isValidUuid(row.recordId) || payload['payee_or_payer'] != null ||
+          payload['receipt_photo_url'] != null || payload['is_cleared'] == false ||
+          payload['end_date'] != null ||
+          (payload['alert_threshold_percent'] != null && payload['alert_threshold_percent'] != 80)) {
+        complete = false;
+        continue;
+      }
+      final table = row.targetTable.replaceFirst('exp_', 'expense_');
+      final existing = await db.customSelect(
+        'SELECT revision FROM $table WHERE id = ? AND profile_id = ?',
+        variables: [Variable(row.recordId), Variable(workspace)],
+      ).getSingleOrNull();
+      if (existing == null) {
+        complete = false;
+        continue;
+      }
+      final revision = existing.read<int>('revision');
+      final fields = <String, dynamic>{
+        for (final entry in mappings.entries)
+          if (payload.containsKey(entry.key)) entry.value: payload[entry.key],
+      };
+      if (fields['start_on'] case final String date) {
+        fields['start_on'] = date.split('T').first;
+      }
+      if (payload.containsKey('is_archived')) {
+        fields['archived_at'] = payload['is_archived'] == true ? payload['updated_at'] : null;
+      }
+      if (row.targetTable == 'exp_categories' && payload['is_system'] == true) {
+        fields['system_key'] = row.recordId;
+      }
+      if (payload['is_deleted'] == true) {
+        if (revision == 0) {
+          complete = false;
+          continue;
+        }
+        fields['deleted_at'] = true;
+      }
+      await _queueConverted(normalized, workspace, row, 'write_entity', {
+        'table': table, 'id': row.recordId, 'expected_revision': revision,
+        'fields': fields,
+      });
+    }
+    return complete;
+  }
+
+  Future<void> _queueConverted(WorkspaceSyncEngine normalized, String workspace,
+      SyncOutboxTableData row, String kind, SyncJson data) => normalized.enqueue(
+    workspace: workspace,
+    operationId: row.id,
+    kind: kind,
+    data: data,
+    applyLocal: () async {
+      final removed = await (db.delete(db.syncOutbox)..where((entry) =>
+          entry.id.equals(row.id) & entry.payload.equals(row.payload))).go();
+      if (removed != 1) throw StateError('Local mutation changed during sync.');
+    },
+  );
+
+  static const _expenseCommandColumns = {
+    'exp_wallets': {
+      'name': 'name', 'wallet_type': 'wallet_type', 'starting_balance_in_cents': 'opening_balance_minor',
+      'icon_name': 'icon_name', 'color_hex': 'color_hex',
+    },
+    'exp_categories': {
+      'name': 'name', 'category_type': 'category_type', 'parent_category_id': 'parent_category_id',
+      'icon_name': 'icon_name', 'color_hex': 'color_hex',
+    },
+    'exp_transactions': {
+      'transaction_type': 'transaction_type', 'amount_in_cents': 'amount_minor', 'wallet_id': 'wallet_id',
+      'to_wallet_id': 'to_wallet_id', 'category_id': 'category_id', 'transaction_date': 'occurred_at',
+      'note': 'note', 'reference_number': 'reference_number',
+    },
+    'exp_budgets': {
+      'category_id': 'category_id', 'period_type': 'period_type', 'amount_in_cents': 'amount_minor',
+      'start_date': 'start_on', 'rollover_enabled': 'rollover_enabled', 'is_active': 'is_active',
+    },
+  };
+
   Future<SyncResult> syncAll({String? companyId}) async {
     final cid = (companyId != null && companyId.isNotEmpty)
         ? companyId
         : 'cmp_default';
+    final normalized = workspaceSync;
+    if (normalized != null) {
+      if (!_isValidUuid(cid) || _isDisposed) {
+        return SyncResult(status: SyncEngineStatus.idle);
+      }
+      final request = ++_workspaceSyncRequest;
+      normalized.selectWorkspace(cid);
+      final allConverted = await _queueExpenseCommands(normalized, cid);
+      if (_isDisposed || request != _workspaceSyncRequest) {
+        return SyncResult(status: SyncEngineStatus.idle);
+      }
+      setStatus(SyncEngineStatus.syncing);
+      try {
+        final outcome = await normalized.synchronize();
+        final status = switch (outcome) {
+          WorkspaceSyncOutcome.current => allConverted ? SyncEngineStatus.success : SyncEngineStatus.partial,
+          WorkspaceSyncOutcome.suspended => SyncEngineStatus.idle,
+          _ => SyncEngineStatus.partial,
+        };
+        setStatus(status);
+        return SyncResult(
+          status: status,
+          errorMessage: allConverted ? null : 'Some local changes need a supported workspace command.',
+        );
+      } catch (_) {
+        setStatus(SyncEngineStatus.error);
+        rethrow;
+      }
+    }
     return _synchronizedSync(() async {
       setStatus(SyncEngineStatus.syncing);
       final pushResult = await _pushQueueInternal(companyId: cid);

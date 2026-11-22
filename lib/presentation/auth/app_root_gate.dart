@@ -1,9 +1,11 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
 import '../../core/constants/typography.dart';
 import '../../core/theme/adaptive_theme.dart';
+import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
@@ -52,6 +54,30 @@ class AppRootGate extends ConsumerWidget {
     }
 
     if (sessionState is ActiveProfileReadySessionState) {
+      if (kReleaseMode && sessionState.activeProfile.isLedger) {
+        return AdaptiveScaffold(
+          title: 'Ledger · Coming Soon',
+          body: Center(
+            child: AdaptiveButton(
+              child: const Text('Open or create an Expense workspace'),
+              onPressed: () {
+                final expense = sessionState.availableProfiles
+                    .where((workspace) => workspace.isExpense)
+                    .firstOrNull;
+                if (expense != null) {
+                  ref.read(profileSessionProvider.notifier).switchProfile(expense);
+                } else {
+                  Navigator.of(context).push(createAdaptivePageRoute(
+                    builder: (_) => ProfileOnboardingScreen(
+                      userId: sessionState.userId,
+                    ),
+                  ));
+                }
+              },
+            ),
+          ),
+        );
+      }
       return HomeShell(
         key: ValueKey('active_profile_${sessionState.activeProfile.id}'),
       );

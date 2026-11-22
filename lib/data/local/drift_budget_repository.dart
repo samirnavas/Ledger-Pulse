@@ -212,25 +212,14 @@ class DriftBudgetRepository {
               ))
               .getSingleOrNull();
 
-      if (cat == null) {
-        // Fallback check on accounts table during migration period
-        final accCat =
-            await (_db.select(_db.accounts)..where(
-                  (t) =>
-                      t.id.equals(effCategoryId) &
-                      t.companyId.equals(_currentCompanyId) &
-                      t.isDeleted.equals(false),
-                ))
-                .getSingleOrNull();
-        if (accCat == null) {
-          throw ArgumentError('Category not found: $effCategoryId');
-        }
+      if (cat == null || cat.archivedAt != null) {
+        throw ArgumentError('Active category not found: $effCategoryId');
       }
     }
 
     final now = DateTime.now();
     final effectiveStart = startDate ?? now;
-    final budgetId = 'bgt_${_uuid.v4().substring(0, 12)}';
+    final budgetId = _uuid.v4();
 
     final companion = ExpenseBudgetsCompanion.insert(
       id: budgetId,

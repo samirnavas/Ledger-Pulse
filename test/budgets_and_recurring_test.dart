@@ -359,6 +359,9 @@ void main() {
         await old.customStatement(
           'ALTER TABLE expense_budgets DROP COLUMN is_active',
         );
+        await old.customStatement(
+          'ALTER TABLE expense_categories DROP COLUMN archived_at',
+        );
         await old.customStatement('PRAGMA user_version = 13');
         await old.close();
 

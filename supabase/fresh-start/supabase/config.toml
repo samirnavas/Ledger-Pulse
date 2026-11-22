@@ -1,0 +1,28 @@
+project_id = "ledgerpulse-fresh-start"
+
+[api]
+enabled = true
+port = 55431
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+port = 55432
+shadow_port = 55430
+major_version = 17
+
+[db.seed]
+enabled = false
+
+[studio]
+enabled = true
+port = 55433
+
+[inbucket]
+enabled = true
+port = 55434
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:55431"
+enable_anonymous_sign_ins = false

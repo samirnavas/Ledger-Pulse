@@ -10,6 +10,13 @@ QueryExecutor openConnection([String uid = 'usr_default']) {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
     final sanitizedUid = sanitizeDatabaseIdentifier(uid);
+    final developmentNamespace = developmentDatabaseNamespace();
+    if (developmentNamespace != null) {
+      return NativeDatabase.createInBackground(File(p.join(
+        dbFolder.path,
+        'ledger_pulse.dev.$developmentNamespace.$sanitizedUid.sqlite',
+      )));
+    }
     final targetPath = p.join(
       dbFolder.path,
       'ledger_pulse_$sanitizedUid.sqlite',
@@ -40,54 +47,10 @@ QueryExecutor openConnection([String uid = 'usr_default']) {
         }
       }
 
-      final legacyFile = File(p.join(dbFolder.path, 'ledger_pulse.sqlite'));
-      if (await legacyFile.exists()) {
-        try {
-          final executor = NativeDatabase.createInBackground(legacyFile);
-          final List<Map<String, Object?>> result;
-          try {
-            await executor.ensureOpen(const _DummyUser());
-            result = await executor.runSelect(
-              'SELECT COUNT(DISTINCT id) as cnt FROM user_profiles WHERE is_deleted = 0;',
-              [],
-            );
-          } finally {
-            await executor.close();
-          }
-
-          int count = 0;
-          if (result.isNotEmpty) {
-            count = (result.first['cnt'] as num?)?.toInt() ?? 0;
-          }
-
-          if (count <= 1) {
-            debugPrint(
-              'Migrating single-user legacy database ledger_pulse.sqlite -> $targetPath',
-            );
-            await legacyFile.rename(targetPath);
-          }
-        } catch (e) {
-          debugPrint(
-            'Legacy DB check failed, copying legacy file to user DB: $e',
-          );
-          try {
-            await legacyFile.copy(targetPath);
-          } catch (_) {}
-        }
-      }
+      // The oldest unscoped file has no reliable account binding. Leave it
+      // available for a separately verified recovery instead of adopting it.
     }
 
     return NativeDatabase.createInBackground(targetFile);
   });
-}
-
-class _DummyUser implements QueryExecutorUser {
-  const _DummyUser();
-  @override
-  Future<void> beforeOpen(
-    QueryExecutor executor,
-    OpeningDetails details,
-  ) async {}
-  @override
-  int get schemaVersion => 9;
 }

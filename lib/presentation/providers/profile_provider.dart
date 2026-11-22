@@ -9,6 +9,8 @@ import '../../data/models/user_profile_model.dart';
 import 'auth_providers.dart';
 import 'database_providers.dart';
 
+String activeWorkspacePreferenceKey(String userId) => 'last_active_profile_$userId';
+
 class UserProfileNotifier extends Notifier<UserProfile> {
   @override
   UserProfile build() {
@@ -18,8 +20,8 @@ class UserProfileNotifier extends Notifier<UserProfile> {
     final name = authState.userName ?? '';
     final email = authState.email ?? '';
     final prefs = ref.watch(sharedPreferencesProvider);
-    final savedActiveCompanyId = prefs?.getString('last_active_company_id_$uid') ??
-        prefs?.getString('last_active_company_id');
+    final savedActiveCompanyId = prefs?.getString(activeWorkspacePreferenceKey(uid)) ??
+        prefs?.getString('last_active_company_id_$uid');
 
     final initial = UserProfile(
       id: uid,
@@ -71,17 +73,14 @@ class UserProfileNotifier extends Notifier<UserProfile> {
         updatedAt: c.updatedAt,
       )).toList();
 
-      if (!ref.mounted) return;
+      if (!ref.mounted || ref.read(activeUserIdProvider) != userId) return;
       final prefs = ref.read(sharedPreferencesProvider);
-      final savedActiveId = prefs?.getString('last_active_company_id_$userId') ??
-          prefs?.getString('last_active_company_id');
+      final savedActiveId = prefs?.getString(activeWorkspacePreferenceKey(userId)) ??
+          prefs?.getString('last_active_company_id_$userId');
 
       final effectiveActiveId = (savedActiveId != null && savedActiveId.isNotEmpty)
           ? savedActiveId
-          : (state.activeCompanyId.isNotEmpty
-              ? state.activeCompanyId
-              : (profileRow?.activeCompanyId ??
-                  (loadedCompanies.isNotEmpty ? loadedCompanies.first.id : '')));
+          : (loadedCompanies.isNotEmpty ? loadedCompanies.first.id : '');
 
       final activeComp = loadedCompanies.where((c) => c.id == effectiveActiveId).firstOrNull ??
           (loadedCompanies.isNotEmpty ? loadedCompanies.first : null);
@@ -90,13 +89,11 @@ class UserProfileNotifier extends Notifier<UserProfile> {
           ? profileRow.name
           : (authState.userName?.isNotEmpty == true ? authState.userName! : state.name);
 
-      final effectivePhone = (profileRow != null && profileRow.phoneNumber.isNotEmpty)
-          ? profileRow.phoneNumber
-          : (authState.phoneNumber?.isNotEmpty == true ? authState.phoneNumber! : state.phoneNumber);
+      final effectivePhone = authState.phoneNumber ??
+          profileRow?.phoneNumber ??
+          state.phoneNumber;
 
-      final effectiveEmail = (profileRow != null && profileRow.email.isNotEmpty)
-          ? profileRow.email
-          : (authState.email?.isNotEmpty == true ? authState.email! : state.email);
+      final effectiveEmail = authState.email ?? profileRow?.email ?? state.email;
 
       final effectiveBusinessName = (profileRow != null && profileRow.businessName?.isNotEmpty == true)
           ? profileRow.businessName!
@@ -139,7 +136,7 @@ class UserProfileNotifier extends Notifier<UserProfile> {
         );
 
         if (savedActiveId == null && effectiveActiveId.isNotEmpty) {
-          prefs?.setString('last_active_company_id_$userId', effectiveActiveId);
+          prefs?.setString(activeWorkspacePreferenceKey(userId), effectiveActiveId);
         }
       }
     } catch (e, st) {
@@ -149,11 +146,11 @@ class UserProfileNotifier extends Notifier<UserProfile> {
 
   void updateProfile(UserProfile updated) {
     state = updated;
-    if (updated.activeCompanyId.isNotEmpty) {
-      final prefs = ref.read(sharedPreferencesProvider);
-      prefs?.setString('last_active_company_id_${updated.id}', updated.activeCompanyId);
-    }
     _saveToDatabase(updated);
+  }
+
+  void showSelectedWorkspace(String workspaceId) {
+    state = state.copyWith(activeCompanyId: workspaceId);
   }
 
   Future<void> _saveToDatabase(UserProfile profile) async {
@@ -175,7 +172,6 @@ class UserProfileNotifier extends Notifier<UserProfile> {
         bankAccountNumber: Value(profile.bankAccountNumber),
         bankIfsc: Value(profile.bankIfsc),
         upiId: Value(profile.upiId),
-        activeCompanyId: Value(profile.activeCompanyId.isNotEmpty ? profile.activeCompanyId : 'cmp_default'),
         role: Value(profile.role.name),
         updatedAt: Value(now),
         syncStatus: const Value(SyncRecordStatus.pending),
@@ -201,7 +197,6 @@ class UserProfileNotifier extends Notifier<UserProfile> {
           'bankAccountNumber': profile.bankAccountNumber,
           'bankIfsc': profile.bankIfsc,
           'upiId': profile.upiId,
-          'activeCompanyId': profile.activeCompanyId.isNotEmpty ? profile.activeCompanyId : 'cmp_default',
           'role': profile.role.name,
           'isDeleted': false,
           'updatedAt': now,

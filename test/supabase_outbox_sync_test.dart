@@ -7,10 +7,12 @@ import 'package:ledger_pulse/core/network/sync_engine.dart';
 import 'package:ledger_pulse/core/widgets/liquid_glass_card.dart';
 import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
+import 'package:ledger_pulse/data/models/company_model.dart';
 import 'package:ledger_pulse/data/models/party_model.dart';
 import 'package:ledger_pulse/data/models/transaction_model.dart';
 import 'package:ledger_pulse/data/repositories/supabase_auth_repository.dart';
 import 'package:ledger_pulse/presentation/widgets/adaptive_sync_indicator.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthException;
 import 'package:uuid/uuid.dart';
 
 void main() {
@@ -21,7 +23,7 @@ void main() {
     late DriftLedgerRepository repo;
     late SyncEngine syncEngine;
 
-    setUp(() {
+    setUp(() async {
       db = AppDatabase(NativeDatabase.memory());
       repo = DriftLedgerRepository(
         db: db,
@@ -30,6 +32,15 @@ void main() {
         currentUserId: 'usr_supabase_uuid',
       );
       syncEngine = SyncEngine(db: db, simulateSyncForTesting: true);
+      final now = DateTime.now();
+      await repo.createCompany(Company(
+        id: 'cmp_outbox_test',
+        name: 'Outbox Ledger',
+        legalName: 'Outbox Ledger',
+        mode: CompanyMode.ledger,
+        createdAt: now,
+        updatedAt: now,
+      ));
     });
 
     tearDown(() async {
@@ -108,7 +119,7 @@ void main() {
       expect(outboxItems.length, equals(1));
       final outboxRow = outboxItems.first;
       expect(outboxRow.targetTable, equals('ledger_entries'));
-      expect(outboxRow.mutationType, equals('INSERT'));
+      expect(outboxRow.mutationType, equals('UPSERT'));
 
       final payloadMap = jsonDecode(outboxRow.payload) as Map<String, dynamic>;
       expect(payloadMap['id'], equals(entryId));
@@ -147,27 +158,15 @@ void main() {
       expect(syncedParty.syncStatus, equals(SyncRecordStatus.synced));
     });
 
-    test('Directive 2: SupabaseAuthRepository manages session token and user ID scoping', () async {
+    test('Offline OTP cannot establish a fake cloud identity', () async {
       final authRepo = SupabaseAuthRepository();
+      addTearDown(authRepo.dispose);
 
-      expect(authRepo.isAuthenticated, isFalse);
-
-      // Verify OTP flow with mock/demo code
-      await authRepo.sendOtp('+91 98765 43210');
-      final verified = await authRepo.verifyOtp('+91 98765 43210', '123456');
-
-      expect(verified, isTrue);
-      expect(authRepo.isAuthenticated, isTrue);
-      expect(authRepo.currentUserId, isNotNull);
-      expect(authRepo.currentSessionToken, isNotNull);
-
-      // Setting repo context scopes local queries with authenticated user ID
-      repo.setContext(userId: authRepo.currentUserId);
-      expect(repo.currentUserId, equals(authRepo.currentUserId));
-
-      await authRepo.logout();
+      await expectLater(authRepo.sendOtp('+91 98765 43210'), throwsA(isA<AuthException>()));
+      expect(await authRepo.verifyOtp('+91 98765 43210', '123456'), isFalse);
       expect(authRepo.isAuthenticated, isFalse);
       expect(authRepo.currentUserId, isNull);
+      expect(authRepo.currentSessionToken, isNull);
     });
 
     testWidgets('UI/UX Constraint: AdaptiveSyncIndicator adheres to iOS & Android guidelines', (tester) async {

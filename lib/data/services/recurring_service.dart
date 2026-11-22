@@ -220,14 +220,19 @@ class RecurringService {
         }
 
         final dateStr = DateFormat('yyyyMMdd').format(currentRun);
-        final deterministicId = 'rec_${rule.id}_$dateStr';
+        final deterministicId = _uuid.v5(
+          Namespace.url.value,
+          'ledgerpulse:${rule.companyId}:occurrence:${rule.id}:$dateStr',
+        );
+        final legacyId = 'rec_${rule.id}_$dateStr';
 
         // Check if transaction already exists for this execution in exp_transactions
         final existingTxn = await (_db.select(
           _db.expenseTransactions,
-        )..where((t) => t.id.equals(deterministicId))).getSingleOrNull();
+        )..where((t) => t.profileId.equals(rule.companyId) &
+            t.id.isIn([deterministicId, legacyId]))).get();
 
-        if (existingTxn == null) {
+        if (existingTxn.isEmpty) {
           try {
             final t = rule.template;
             _validateTemplate(t);
@@ -416,7 +421,7 @@ class RecurringService {
     if (endDate != null && endDate.isBefore(nextRunDate)) {
       throw ArgumentError('End date must be on or after the first run.');
     }
-    final ruleId = 'rec_rule_${_uuid.v4().substring(0, 12)}';
+    final ruleId = _uuid.v4();
     final now = DateTime.now();
 
     final companion = ExpenseRecurringRulesCompanion.insert(

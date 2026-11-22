@@ -93,6 +93,30 @@ void main() {
   }
 
   group('Section 7.1 – Workspace Creation Tests', () {
+    test('an owner can restore a deleted workspace with its wallets intact', () async {
+      final ownerDb = AppDatabase(NativeDatabase.memory(), userUuidA);
+      final ownerSync = SyncEngine(db: ownerDb);
+      final ownerRepo = DriftProfileRepository(db: ownerDb, syncEngine: ownerSync);
+      addTearDown(() async {
+        ownerSync.dispose();
+        await ownerDb.close();
+      });
+      final workspace = await ownerRepo.createProfile(
+        name: 'Recoverable',
+        type: ProfileType.expense,
+        accountId: userUuidA,
+      );
+      final before = await ownerDb.select(ownerDb.expenseWallets).get();
+      expect(before, isNotEmpty);
+      await ownerRepo.deleteProfile(workspace.id);
+      expect(await ownerRepo.getAccessibleProfiles(userUuidA), isEmpty);
+      expect(await ownerDb.select(ownerDb.expenseWallets).get(), before);
+      await ownerRepo.restoreProfile(workspace.id);
+      expect((await ownerRepo.getAccessibleProfiles(userUuidA)).single.id, workspace.id);
+      expect(await ownerRepo.getAccessibleProfiles(userUuidB), isEmpty);
+      expect(await ownerDb.select(ownerDb.expenseWallets).get(), before);
+    });
+
     test('A new authenticated user can create an Expense workspace', () async {
       final header = await profileRepo.createProfile(
         name: 'Household Expenses',

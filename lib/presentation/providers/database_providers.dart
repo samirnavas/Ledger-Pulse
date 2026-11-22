@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/network/drift_workspace_replica.dart';
 import '../../core/network/sync_engine.dart';
+import '../../core/network/workspace_sync_engine.dart';
 import '../../data/local/database.dart';
 import 'auth_providers.dart';
 
@@ -40,7 +43,16 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 final syncEngineProvider = Provider<SyncEngine>((ref) {
   final db = ref.watch(appDatabaseProvider);
   final uid = ref.watch(activeUserIdProvider);
-  final engine = SyncEngine(db: db, activeUserId: uid);
+  final client = _configuredClient();
+  final engine = SyncEngine(
+    db: db,
+    activeUserId: uid,
+    workspaceSync: client == null ? null : WorkspaceSyncEngine(
+      db: db,
+      gateway: SupabaseWorkspaceCommandGateway(client),
+      replica: DriftWorkspaceReplica(db),
+    ),
+  );
   ref.onDispose(() {
     try {
       engine.dispose();
@@ -50,3 +62,11 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
   });
   return engine;
 });
+
+SupabaseClient? _configuredClient() {
+  try {
+    return Supabase.instance.client;
+  } catch (_) {
+    return null;
+  }
+}

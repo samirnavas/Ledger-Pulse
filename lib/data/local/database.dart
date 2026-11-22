@@ -502,6 +502,7 @@ class ExpenseCategories extends Table {
   TextColumn get iconName => text().nullable()();
   TextColumn get colorHex => text().nullable()();
   BoolColumn get isSystem => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get archivedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
@@ -643,7 +644,7 @@ class AppDatabase extends _$AppDatabase {
         super(e ?? _openConnection(userId ?? 'usr_default'));
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -673,6 +674,22 @@ class AppDatabase extends _$AppDatabase {
                   SELECT 1 FROM budgets AS legacy
                   WHERE legacy.id = expense.id AND legacy.company_id = expense.profile_id
                 );
+              ''');
+            });
+          }
+          if (from < 15 && to >= 15) {
+            await transaction(() async {
+              await m.addColumn(expenseCategories, expenseCategories.archivedAt);
+              await customStatement('''
+                UPDATE expense_categories AS category
+                SET archived_at = (
+                  SELECT account.updated_at
+                  FROM accounts AS account
+                  WHERE account.id = category.id
+                    AND account.company_id = category.profile_id
+                    AND account.kind = 'category' AND account.is_active = 0
+                )
+                WHERE category.is_deleted = 0
               ''');
             });
           }

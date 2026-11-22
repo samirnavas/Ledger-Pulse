@@ -181,6 +181,8 @@ void main() {
   for (final deleteActive in [false, true]) {
     test('Signed-in deletion removes the profile (active: $deleteActive)', () async {
       const userId = 'usr_test';
+      await db.close();
+      db = AppDatabase(NativeDatabase.memory(), userId);
       final headers = [
         for (final id in ['keep', 'remove'])
           WorkspaceProfileHeader(
@@ -199,7 +201,7 @@ void main() {
           ownerId: const Value(userId),
         ));
         await db.into(db.companies).insert(CompaniesCompanion.insert(
-          id: '${header.id}_company',
+          id: header.id == 'keep' ? 'remove' : 'remove_company',
           profileId: Value(header.id),
           name: header.name,
           legalName: header.legalName,
@@ -241,6 +243,11 @@ void main() {
             ..where((row) => row.id.equals('remove_company')))
           .getSingle();
       expect(company.isDeleted, isTrue);
+      final otherCompany = await (db.select(db.companies)
+            ..where((row) => row.id.equals('remove')))
+          .getSingle();
+      expect(otherCompany.profileId, 'keep');
+      expect(otherCompany.isDeleted, isFalse);
       final outbox = await (db.select(db.syncOutbox)
             ..where((row) => row.targetTable.equals('profiles')))
           .getSingle();

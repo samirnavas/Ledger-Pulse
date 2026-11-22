@@ -84,7 +84,10 @@ class DriftExpenseRepository implements IExpenseRepository {
   Future<ExpenseTransactionModel> addTransaction(
       ExpenseTransactionModel transaction) async {
     return await db.transaction(() async {
-      await db.into(db.expenseTransactions).insertOnConflictUpdate(
+      if (transaction.profileId != _profileId || transaction.amountInCents <= 0) {
+        throw ArgumentError('Invalid transaction for this workspace.');
+      }
+      await db.into(db.expenseTransactions).insert(
             ExpenseTransactionsCompanion.insert(
               id: transaction.id,
               profileId: _profileId,
@@ -150,23 +153,26 @@ class DriftExpenseRepository implements IExpenseRepository {
   Future<ExpenseTransactionModel> updateTransaction(
       ExpenseTransactionModel transaction) async {
     return await db.transaction(() async {
+      if (transaction.profileId != _profileId || transaction.amountInCents <= 0) {
+        throw ArgumentError('Invalid transaction for this workspace.');
+      }
       final existing = await (db.select(db.expenseTransactions)
             ..where((t) => t.id.equals(transaction.id) & t.profileId.equals(_profileId)))
           .getSingleOrNull();
 
-      if (existing != null) {
-        // Revert old effect
-        await _applyTransactionBalanceEffects(
-          type: ExpenseTransactionType.fromString(existing.transactionType),
-          amountInCents: existing.amountInCents,
-          walletId: existing.walletId,
-          toWalletId: existing.toWalletId,
-          isReversal: true,
-        );
+      if (existing == null || existing.isDeleted) {
+        throw StateError('Active transaction was not found in this workspace.');
       }
+      await _applyTransactionBalanceEffects(
+        type: ExpenseTransactionType.fromString(existing.transactionType),
+        amountInCents: existing.amountInCents,
+        walletId: existing.walletId,
+        toWalletId: existing.toWalletId,
+        isReversal: true,
+      );
 
       await (db.update(db.expenseTransactions)
-            ..where((t) => t.id.equals(transaction.id)))
+            ..where((t) => t.id.equals(transaction.id) & t.profileId.equals(_profileId)))
           .write(
         ExpenseTransactionsCompanion(
           transactionType: Value(transaction.transactionType.toDbValue()),
@@ -241,7 +247,8 @@ class DriftExpenseRepository implements IExpenseRepository {
         isReversal: true,
       );
 
-      await (db.update(db.expenseTransactions)..where((t) => t.id.equals(id)))
+      await (db.update(db.expenseTransactions)
+            ..where((t) => t.id.equals(id) & t.profileId.equals(_profileId)))
           .write(
         ExpenseTransactionsCompanion(
           isDeleted: const Value(true),
@@ -305,7 +312,8 @@ class DriftExpenseRepository implements IExpenseRepository {
     if (wallet == null) return;
 
     final newBalance = wallet.currentBalanceInCents + deltaInCents;
-    await (db.update(db.expenseWallets)..where((t) => t.id.equals(walletId)))
+    await (db.update(db.expenseWallets)
+          ..where((t) => t.id.equals(walletId) & t.profileId.equals(_profileId)))
         .write(
       ExpenseWalletsCompanion(
         currentBalanceInCents: Value(newBalance),
@@ -333,7 +341,7 @@ class DriftExpenseRepository implements IExpenseRepository {
 
   @override
   Future<ExpenseWalletModel> addWallet(ExpenseWalletModel wallet) async {
-    await db.into(db.expenseWallets).insertOnConflictUpdate(
+    await db.into(db.expenseWallets).insert(
           ExpenseWalletsCompanion.insert(
             id: wallet.id,
             profileId: _profileId,
@@ -380,7 +388,8 @@ class DriftExpenseRepository implements IExpenseRepository {
 
   @override
   Future<ExpenseWalletModel> updateWallet(ExpenseWalletModel wallet) async {
-    await (db.update(db.expenseWallets)..where((t) => t.id.equals(wallet.id)))
+    final changed = await (db.update(db.expenseWallets)
+          ..where((t) => t.id.equals(wallet.id) & t.profileId.equals(_profileId)))
         .write(
       ExpenseWalletsCompanion(
         name: Value(wallet.name),
@@ -394,6 +403,7 @@ class DriftExpenseRepository implements IExpenseRepository {
       ),
     );
 
+    if (changed == 0) throw StateError('Wallet was not found in this workspace.');
     await enqueueMutation(
       db: db,
       table: 'exp_wallets',
@@ -419,7 +429,8 @@ class DriftExpenseRepository implements IExpenseRepository {
 
   @override
   Future<void> deleteWallet(String id) async {
-    await (db.update(db.expenseWallets)..where((t) => t.id.equals(id))).write(
+    final changed = await (db.update(db.expenseWallets)
+          ..where((t) => t.id.equals(id) & t.profileId.equals(_profileId))).write(
       ExpenseWalletsCompanion(
         isDeleted: const Value(true),
         updatedAt: Value(DateTime.now()),
@@ -427,6 +438,7 @@ class DriftExpenseRepository implements IExpenseRepository {
       ),
     );
 
+    if (changed == 0) return;
     await enqueueMutation(
       db: db,
       table: 'exp_wallets',
@@ -450,7 +462,8 @@ class DriftExpenseRepository implements IExpenseRepository {
     ExpenseCategoryType? type,
   }) async {
     final query = db.select(db.expenseCategories)
-      ..where((t) => t.profileId.equals(_profileId) & t.isDeleted.equals(false))
+      ..where((t) => t.profileId.equals(_profileId) &
+          t.isDeleted.equals(false) & t.archivedAt.isNull())
       ..orderBy([(t) => OrderingTerm.asc(t.name)]);
 
     if (type != null) {
@@ -463,7 +476,7 @@ class DriftExpenseRepository implements IExpenseRepository {
 
   @override
   Future<ExpenseCategoryModel> addCategory(ExpenseCategoryModel category) async {
-    await db.into(db.expenseCategories).insertOnConflictUpdate(
+    await db.into(db.expenseCategories).insert(
           ExpenseCategoriesCompanion.insert(
             id: category.id,
             profileId: _profileId,
@@ -506,7 +519,8 @@ class DriftExpenseRepository implements IExpenseRepository {
 
   @override
   Future<ExpenseCategoryModel> updateCategory(ExpenseCategoryModel category) async {
-    await (db.update(db.expenseCategories)..where((t) => t.id.equals(category.id)))
+    final changed = await (db.update(db.expenseCategories)
+          ..where((t) => t.id.equals(category.id) & t.profileId.equals(_profileId)))
         .write(
       ExpenseCategoriesCompanion(
         name: Value(category.name),
@@ -519,6 +533,7 @@ class DriftExpenseRepository implements IExpenseRepository {
       ),
     );
 
+    if (changed == 0) throw StateError('Category was not found in this workspace.');
     await enqueueMutation(
       db: db,
       table: 'exp_categories',
@@ -543,7 +558,8 @@ class DriftExpenseRepository implements IExpenseRepository {
 
   @override
   Future<void> deleteCategory(String id) async {
-    await (db.update(db.expenseCategories)..where((t) => t.id.equals(id))).write(
+    final changed = await (db.update(db.expenseCategories)
+          ..where((t) => t.id.equals(id) & t.profileId.equals(_profileId))).write(
       ExpenseCategoriesCompanion(
         isDeleted: const Value(true),
         updatedAt: Value(DateTime.now()),
@@ -551,6 +567,7 @@ class DriftExpenseRepository implements IExpenseRepository {
       ),
     );
 
+    if (changed == 0) return;
     await enqueueMutation(
       db: db,
       table: 'exp_categories',

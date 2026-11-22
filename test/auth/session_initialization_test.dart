@@ -208,6 +208,13 @@ class StubProfileRepository implements IProfileRepository {
       CompaniesCompanion(isDeleted: const Value(true)),
     );
   }
+
+  @override
+  Future<void> restoreProfile(String profileId) async {
+    await (db.update(db.companies)..where((t) => t.id.equals(profileId))).write(
+      const CompaniesCompanion(isDeleted: Value(false)),
+    );
+  }
 }
 
 void main() {

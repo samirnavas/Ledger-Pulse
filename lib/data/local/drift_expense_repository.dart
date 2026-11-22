@@ -278,6 +278,70 @@ class DriftExpenseRepository {
   // TRANSACTIONS (EXPENSE, INCOME, TRANSFER)
   // ==========================================
 
+  Future<VoucherModel?> _findTransactionReplay({
+    required String id,
+    required VoucherType type,
+    required int amount,
+    required String walletId,
+    String? toWalletId,
+    String? categoryId,
+    DateTime? date,
+    String? note,
+    String? referenceNumber,
+    String? receiptPhotoUrl,
+  }) async {
+    final row = await (_db.select(_db.expenseTransactions)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
+    if (row == null) return null;
+    if (row.profileId != _currentCompanyId ||
+        row.isDeleted ||
+        row.transactionType != type.name ||
+        row.amountInCents != amount ||
+        row.walletId != walletId ||
+        row.toWalletId != toWalletId ||
+        row.categoryId != categoryId ||
+        (date != null && row.transactionDate.millisecondsSinceEpoch ~/ 1000 !=
+            date.millisecondsSinceEpoch ~/ 1000) ||
+        row.note != note ||
+        row.referenceNumber != referenceNumber ||
+        row.receiptPhotoUrl != receiptPhotoUrl) {
+      throw StateError('Transaction ID is already in use.');
+    }
+    return _rowToVoucher(row);
+  }
+
+  Future<void> _validateTransactionReferences({
+    required VoucherType type,
+    required String walletId,
+    String? toWalletId,
+    String? categoryId,
+  }) async {
+    final source = await _getWalletRow(walletId);
+    if (source.isArchived || source.isDeleted) {
+      throw ArgumentError('Source wallet must be active.');
+    }
+    if (type == VoucherType.transfer) {
+      if (toWalletId == null || walletId == toWalletId || categoryId != null) {
+        throw ArgumentError('Transfer requires two distinct wallets.');
+      }
+      final destination = await _getWalletRow(toWalletId);
+      if (destination.isArchived || destination.isDeleted) {
+        throw ArgumentError('Destination wallet must be active.');
+      }
+      return;
+    }
+    if ((type != VoucherType.expense && type != VoucherType.income) || toWalletId != null) {
+      throw ArgumentError('Invalid Expense transaction type.');
+    }
+    if (categoryId != null) {
+      final category = await getCategoryById(categoryId);
+      if (!category.isActive || category.type.name != type.name) {
+        throw ArgumentError('Category must be active and match transaction type.');
+      }
+    }
+  }
+
   Future<VoucherModel> addExpense({
     required String categoryAccountId,
     required String walletAccountId,
@@ -297,10 +361,25 @@ class DriftExpenseRepository {
 
     final now = DateTime.now();
     final txnDate = date ?? now;
-    final txnId = customId ?? 'tx_${_uuid.v4().replaceAll('-', '').substring(0, 16)}';
+    final txnId = customId ?? _uuid.v4();
 
     return await _db.transaction(() async {
-      await _db.into(_db.expenseTransactions).insertOnConflictUpdate(
+      final replay = await _findTransactionReplay(
+        id: txnId,
+        type: VoucherType.expense,
+        amount: amountInCents,
+        walletId: walletAccountId,
+        categoryId: categoryAccountId,
+        date: date,
+        note: narration,
+        referenceNumber: referenceNumber,
+        receiptPhotoUrl: receiptPhotoUrl,
+      );
+      if (replay != null) return replay;
+      await _validateTransactionReferences(
+        type: VoucherType.expense, walletId: walletAccountId, categoryId: categoryAccountId,
+      );
+      await _db.into(_db.expenseTransactions).insert(
             ExpenseTransactionsCompanion.insert(
               id: txnId,
               profileId: _currentCompanyId,
@@ -400,10 +479,25 @@ class DriftExpenseRepository {
 
     final now = DateTime.now();
     final txnDate = date ?? now;
-    final txnId = customId ?? 'tx_${_uuid.v4().replaceAll('-', '').substring(0, 16)}';
+    final txnId = customId ?? _uuid.v4();
 
     return await _db.transaction(() async {
-      await _db.into(_db.expenseTransactions).insertOnConflictUpdate(
+      final replay = await _findTransactionReplay(
+        id: txnId,
+        type: VoucherType.income,
+        amount: amountInCents,
+        walletId: walletAccountId,
+        categoryId: categoryAccountId,
+        date: date,
+        note: narration,
+        referenceNumber: referenceNumber,
+        receiptPhotoUrl: receiptPhotoUrl,
+      );
+      if (replay != null) return replay;
+      await _validateTransactionReferences(
+        type: VoucherType.income, walletId: walletAccountId, categoryId: categoryAccountId,
+      );
+      await _db.into(_db.expenseTransactions).insert(
             ExpenseTransactionsCompanion.insert(
               id: txnId,
               profileId: _currentCompanyId,
@@ -506,10 +600,25 @@ class DriftExpenseRepository {
 
     final now = DateTime.now();
     final txnDate = date ?? now;
-    final txnId = customId ?? 'tx_${_uuid.v4().replaceAll('-', '').substring(0, 16)}';
+    final txnId = customId ?? _uuid.v4();
 
     return await _db.transaction(() async {
-      await _db.into(_db.expenseTransactions).insertOnConflictUpdate(
+      final replay = await _findTransactionReplay(
+        id: txnId,
+        type: VoucherType.transfer,
+        amount: amountInCents,
+        walletId: walletAccountId,
+        toWalletId: toWalletAccountId,
+        date: date,
+        note: narration,
+        referenceNumber: referenceNumber,
+        receiptPhotoUrl: receiptPhotoUrl,
+      );
+      if (replay != null) return replay;
+      await _validateTransactionReferences(
+        type: VoucherType.transfer, walletId: walletAccountId, toWalletId: toWalletAccountId,
+      );
+      await _db.into(_db.expenseTransactions).insert(
             ExpenseTransactionsCompanion.insert(
               id: txnId,
               profileId: _currentCompanyId,
@@ -600,26 +709,38 @@ class DriftExpenseRepository {
             ..where((t) => t.id.equals(voucher.id) & t.profileId.equals(_currentCompanyId)))
           .getSingleOrNull();
 
-      if (existing != null) {
-        // Revert old effect
-        await _applyTransactionBalanceEffects(
-          type: existing.transactionType,
-          amountInCents: existing.amountInCents,
-          walletId: existing.walletId,
-          toWalletId: existing.toWalletId,
-          isReversal: true,
+      if (existing == null || existing.isDeleted) {
+        throw StateError('Active transaction was not found in this workspace.');
+      }
+      if (voucher.totalAmountInCents <= 0) {
+        throw ArgumentError('Transaction amount must be greater than zero.');
+      }
+      final effectiveWalletId = voucher.walletAccountId ?? existing.walletId;
+      if ((voucher.type.name, effectiveWalletId, voucher.toWalletAccountId, voucher.categoryAccountId) !=
+          (existing.transactionType, existing.walletId, existing.toWalletId, existing.categoryId)) {
+        await _validateTransactionReferences(
+          type: voucher.type, walletId: effectiveWalletId,
+          toWalletId: voucher.toWalletAccountId, categoryId: voucher.categoryAccountId,
         );
       }
+      await _applyTransactionBalanceEffects(
+        type: existing.transactionType,
+        amountInCents: existing.amountInCents,
+        walletId: existing.walletId,
+        toWalletId: existing.toWalletId,
+        isReversal: true,
+      );
 
       final now = DateTime.now();
       final typeStr = voucher.type.name;
 
-      await (_db.update(_db.expenseTransactions)..where((t) => t.id.equals(voucher.id)))
+      await (_db.update(_db.expenseTransactions)..where((t) =>
+        t.id.equals(voucher.id) & t.profileId.equals(_currentCompanyId)))
           .write(
         ExpenseTransactionsCompanion(
           transactionType: Value(typeStr),
           amountInCents: Value(voucher.totalAmountInCents),
-          walletId: Value(voucher.walletAccountId ?? (existing?.walletId ?? '')),
+          walletId: Value(effectiveWalletId),
           toWalletId: Value(voucher.toWalletAccountId),
           categoryId: Value(voucher.categoryAccountId),
           transactionDate: Value(voucher.date),
@@ -632,7 +753,6 @@ class DriftExpenseRepository {
       );
 
       // Apply new effect
-      final effectiveWalletId = voucher.walletAccountId ?? (existing?.walletId ?? '');
       await _applyTransactionBalanceEffects(
         type: typeStr,
         amountInCents: voucher.totalAmountInCents,
@@ -923,6 +1043,9 @@ class DriftExpenseRepository {
       ),
     );
 
+    // Cloud balances are derived from the transaction command.
+    if (_syncEngine?.workspaceSync != null) return;
+
     await enqueueMutation(
       db: _db,
       table: 'exp_wallets',
@@ -1020,7 +1143,7 @@ class DriftExpenseRepository {
     }
 
     final now = DateTime.now();
-    final walletId = '${_currentCompanyId}_wal_${_uuid.v4().substring(0, 8)}';
+    final walletId = _uuid.v4();
     final resolvedWalletType = walletType ?? (type == AccountType.liability ? 'credit_card' : 'cash');
 
     final companion = ExpenseWalletsCompanion.insert(
@@ -1309,22 +1432,10 @@ class DriftExpenseRepository {
       query.where((t) => t.categoryType.equals(type.name));
     }
 
-    final rows = await query.get();
-    final accounts = await (_db.select(_db.accounts)
-          ..where((t) => t.companyId.equals(_currentCompanyId)))
-        .get();
-    final accountMap = {for (final a in accounts) a.id: a};
-
-    final result = <AccountModel>[];
-    for (final row in rows) {
-      final acc = accountMap[row.id];
-      final model = _categoryToAccount(row, acc);
-      if (!includeArchived && !model.isActive) {
-        continue;
-      }
-      result.add(model);
+    if (!includeArchived) {
+      query.where((t) => t.archivedAt.isNull());
     }
-    return result;
+    return (await query.get()).map(_categoryToAccount).toList();
   }
 
   Future<AccountModel> getCategoryById(String id) async {
@@ -1341,10 +1452,26 @@ class DriftExpenseRepository {
     if (row == null) {
       throw AccountNotFoundException(id, 'Category account not found: $id');
     }
-    final acc = await (_db.select(_db.accounts)
-          ..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
-    return _categoryToAccount(row, acc);
+    return _categoryToAccount(row);
+  }
+
+  Future<void> _validateCategoryParent({
+    required String parentId,
+    required AccountType type,
+    String? categoryId,
+  }) async {
+  final visited = <String>{?categoryId};
+    String? nextId = parentId;
+    while (nextId != null) {
+      if (!visited.add(nextId)) {
+        throw ArgumentError('Category hierarchy cannot contain a cycle.');
+      }
+      final parent = await getCategoryById(nextId);
+      if (parent.type != type || !parent.isActive) {
+        throw ArgumentError('Parent category must be active and of the same type.');
+      }
+      nextId = parent.parentAccountId;
+    }
   }
 
   Future<AccountModel> createCategory({
@@ -1369,90 +1496,66 @@ class DriftExpenseRepository {
       typeStr = type.toString().toLowerCase().contains('income') ? 'income' : 'expense';
     }
 
-    // If parent category provided, validate matching type
-    if (parentAccountId != null && parentAccountId.isNotEmpty) {
-      final parent = await (_db.select(_db.expenseCategories)
-            ..where((t) =>
-                t.id.equals(parentAccountId) &
-                t.profileId.equals(_currentCompanyId) &
-                t.isDeleted.equals(false)))
-          .getSingleOrNull();
-
-      if (parent != null && parent.categoryType != typeStr) {
-        throw ArgumentError('Sub-category type ($typeStr) must match parent category type (${parent.categoryType}).');
-      }
-    }
-
-    final now = DateTime.now();
-    final catId = '${_currentCompanyId}_cat_${_uuid.v4().substring(0, 8)}';
-
-    final companion = ExpenseCategoriesCompanion.insert(
-      id: catId,
-      profileId: _currentCompanyId,
-      name: name,
-      categoryType: Value(typeStr),
-      parentCategoryId: Value(parentAccountId),
-      iconName: Value(iconName),
-      colorHex: Value(colorHex),
-      isSystem: const Value(false),
-      createdAt: Value(now),
-      updatedAt: Value(now),
-      isDeleted: const Value(false),
-      syncStatus: const Value(SyncRecordStatus.pending),
-    );
-
-    await _db.into(_db.expenseCategories).insert(companion);
-
-    // Keep legacy accounts table synchronized for backwards compatibility
-    await _db.into(_db.accounts).insertOnConflictUpdate(
-          AccountsCompanion.insert(
-            id: catId,
-            companyId: Value(_currentCompanyId),
-            code: catId,
-            name: name,
-            type: typeStr,
-            kind: const Value('category'),
-            parentAccountId: Value(parentAccountId),
-            isSystem: const Value(false),
-            isActive: const Value(true),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-            isDeleted: const Value(false),
-            syncStatus: const Value(SyncRecordStatus.synced),
-          ),
+    final created = await _db.transaction(() async {
+      if (parentAccountId != null) {
+        await _validateCategoryParent(
+          parentId: parentAccountId,
+          type: typeStr == 'income' ? AccountType.income : AccountType.expense,
         );
+      }
+      final now = DateTime.now();
+      final catId = _uuid.v4();
 
-    final created = await getCategoryById(catId);
+      final companion = ExpenseCategoriesCompanion.insert(
+        id: catId,
+        profileId: _currentCompanyId,
+        name: name,
+        categoryType: Value(typeStr),
+        parentCategoryId: Value(parentAccountId),
+        iconName: Value(iconName),
+        colorHex: Value(colorHex),
+        isSystem: const Value(false),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        isDeleted: const Value(false),
+        syncStatus: const Value(SyncRecordStatus.pending),
+      );
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'category',
-      entityId: catId,
-      action: AuditAction.insert,
-      newState: created.toMap(),
-    );
+      await _db.into(_db.expenseCategories).insert(companion);
 
-    await enqueueMutation(
-      db: _db,
-      table: 'exp_categories',
-      recordId: catId,
-      type: 'INSERT',
-      fullRowMap: {
-        'id': catId,
-        'profile_id': _currentCompanyId,
-        'name': name,
-        'category_type': typeStr,
-        'parent_category_id': parentAccountId,
-        'icon_name': iconName,
-        'color_hex': colorHex,
-        'is_system': false,
-        'created_at': encodeTime(now),
-        'updated_at': encodeTime(now),
-        'is_deleted': false,
-      },
-    );
+      final created = await getCategoryById(catId);
 
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'category',
+        entityId: catId,
+        action: AuditAction.insert,
+        newState: created.toMap(),
+      );
+
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_categories',
+        recordId: catId,
+        type: 'INSERT',
+        fullRowMap: {
+          'id': catId,
+          'profile_id': _currentCompanyId,
+          'name': name,
+          'category_type': typeStr,
+          'parent_category_id': parentAccountId,
+          'icon_name': iconName,
+          'color_hex': colorHex,
+          'is_system': false,
+          'created_at': encodeTime(now),
+          'updated_at': encodeTime(now),
+          'is_deleted': false,
+        },
+      );
+
+      return created;
+    });
     _notifyUpdates();
     return created;
   }
@@ -1470,46 +1573,58 @@ class DriftExpenseRepository {
     AccessControlService.verifyPermission(
         _currentRole, UserAction.manageWalletsAndCategories);
 
-    final existing = await getCategoryById(id);
-    final now = DateTime.now();
+    final updated = await _db.transaction(() async {
+      final existing = await getCategoryById(id);
+      if (parentAccountId != null) {
+        await _validateCategoryParent(
+          parentId: parentAccountId,
+          categoryId: id,
+          type: existing.type,
+        );
+      }
+      final now = DateTime.now();
 
-    await (_db.update(_db.expenseCategories)..where((t) => t.id.equals(id))).write(
-      ExpenseCategoriesCompanion(
-        name: name != null ? Value(name) : const Value.absent(),
-        parentCategoryId: parentAccountId != null ? Value(parentAccountId) : const Value.absent(),
-        colorHex: colorHex != null ? Value(colorHex) : const Value.absent(),
-        iconName: iconName != null ? Value(iconName) : const Value.absent(),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ),
-    );
+      await (_db.update(_db.expenseCategories)..where((t) =>
+        t.id.equals(id) & t.profileId.equals(_currentCompanyId))).write(
+        ExpenseCategoriesCompanion(
+          name: name != null ? Value(name) : const Value.absent(),
+          parentCategoryId: parentAccountId != null ? Value(parentAccountId) : const Value.absent(),
+          colorHex: colorHex != null ? Value(colorHex) : const Value.absent(),
+          iconName: iconName != null ? Value(iconName) : const Value.absent(),
+          archivedAt: isActive == null ? const Value.absent() : Value(isActive ? null : now),
+          updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
 
-    final updated = await getCategoryById(id);
+      final updated = await getCategoryById(id);
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'category',
-      entityId: id,
-      action: AuditAction.update,
-      oldState: existing.toMap(),
-      newState: updated.toMap(),
-    );
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'category',
+        entityId: id,
+        action: AuditAction.update,
+        oldState: existing.toMap(),
+        newState: updated.toMap(),
+      );
 
-    await enqueueMutation(
-      db: _db,
-      table: 'exp_categories',
-      recordId: id,
-      type: 'UPDATE',
-      fullRowMap: {
-        'id': id,
-        'profile_id': _currentCompanyId,
-        'name': updated.name,
-        'parent_category_id': updated.parentAccountId,
-        'updated_at': encodeTime(now),
-      },
-    );
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_categories',
+        recordId: id,
+        type: 'UPDATE',
+        fullRowMap: {
+          'id': id,
+          'profile_id': _currentCompanyId,
+          'name': updated.name,
+          'parent_category_id': updated.parentAccountId,
+          'updated_at': encodeTime(now),
+        },
+      );
 
+      return updated;
+    });
     _notifyUpdates();
     return updated;
   }
@@ -1519,69 +1634,63 @@ class DriftExpenseRepository {
     AccessControlService.verifyPermission(
         _currentRole, UserAction.manageWalletsAndCategories);
 
-    final existing = await getCategoryById(id);
+    final deleted = await _db.transaction(() async {
+      final existing = await getCategoryById(id);
 
-    // Check if category has transactions
-    final hasTxns = await (_db.select(_db.expenseTransactions)
-          ..where((t) =>
-              t.profileId.equals(_currentCompanyId) &
-              t.categoryId.equals(id) &
-              t.isDeleted.equals(false)))
-        .get();
+      // Check if category has transactions
+      final hasTxns = await (_db.select(_db.expenseTransactions)
+            ..where((t) =>
+                t.profileId.equals(_currentCompanyId) &
+                t.categoryId.equals(id) &
+                t.isDeleted.equals(false)))
+          .get();
 
-    final now = DateTime.now();
+      final now = DateTime.now();
 
-    if (hasTxns.isNotEmpty) {
-      // In use: archive by keeping it in expenseCategories, mark inactive in accounts
-      await (_db.update(_db.accounts)..where((t) => t.id.equals(id))).write(
-        AccountsCompanion(
-          isActive: const Value(false),
+      final child = await (_db.select(_db.expenseCategories)
+        ..where((t) => t.profileId.equals(_currentCompanyId) &
+          t.parentCategoryId.equals(id) & t.isDeleted.equals(false))
+        ..limit(1)).getSingleOrNull();
+      final budget = await (_db.select(_db.expenseBudgets)
+        ..where((t) => t.profileId.equals(_currentCompanyId) &
+          t.categoryId.equals(id) & t.isDeleted.equals(false))
+        ..limit(1)).getSingleOrNull();
+      final archive = hasTxns.isNotEmpty || child != null || budget != null;
+      await (_db.update(_db.expenseCategories)..where((t) =>
+        t.id.equals(id) & t.profileId.equals(_currentCompanyId))).write(
+        ExpenseCategoriesCompanion(
+          isDeleted: Value(!archive),
+          archivedAt: Value(archive ? now : null),
           updatedAt: Value(now),
+          syncStatus: const Value(SyncRecordStatus.pending),
         ),
       );
-      _notifyUpdates();
-      return false; // Archived / in-use, not deleted
-    }
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'category',
+        entityId: id,
+        action: archive ? AuditAction.update : AuditAction.delete,
+        oldState: existing.toMap(),
+      );
 
-    // Soft delete
-    await (_db.update(_db.expenseCategories)..where((t) => t.id.equals(id))).write(
-      ExpenseCategoriesCompanion(
-        isDeleted: const Value(true),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      ),
-    );
-    await (_db.update(_db.accounts)..where((t) => t.id.equals(id))).write(
-      AccountsCompanion(
-        isDeleted: const Value(true),
-        updatedAt: Value(now),
-      ),
-    );
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_categories',
+        recordId: id,
+        type: archive ? 'UPDATE' : 'DELETE',
+        fullRowMap: {
+          'id': id,
+          'profile_id': _currentCompanyId,
+          'is_deleted': !archive,
+          'updated_at': encodeTime(now),
+        },
+      );
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'category',
-      entityId: id,
-      action: AuditAction.delete,
-      oldState: existing.toMap(),
-    );
-
-    await enqueueMutation(
-      db: _db,
-      table: 'exp_categories',
-      recordId: id,
-      type: 'DELETE',
-      fullRowMap: {
-        'id': id,
-        'profile_id': _currentCompanyId,
-        'is_deleted': true,
-        'updated_at': encodeTime(now),
-      },
-    );
-
+      return !archive;
+    });
     _notifyUpdates();
-    return true;
+    return deleted;
   }
 
   // ==========================================
@@ -1710,8 +1819,7 @@ class DriftExpenseRepository {
     );
   }
 
-  AccountModel _categoryToAccount(ExpenseCategoryTableData c, [AccountTableData? acc]) {
-    final isActive = acc?.isActive ?? true;
+  AccountModel _categoryToAccount(ExpenseCategoryTableData c) {
     return AccountModel(
       id: c.id,
       companyId: c.profileId,
@@ -1720,7 +1828,7 @@ class DriftExpenseRepository {
       type: c.categoryType == 'income' ? AccountType.income : AccountType.expense,
       kind: 'category',
       isSystem: c.isSystem,
-      isActive: isActive && !c.isDeleted,
+      isActive: c.archivedAt == null && !c.isDeleted,
       parentAccountId: c.parentCategoryId,
       description: 'Category: ${c.name}',
       currentBalanceInCents: 0,

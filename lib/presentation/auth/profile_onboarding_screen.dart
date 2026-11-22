@@ -120,9 +120,7 @@ class _ProfileOnboardingScreenState
 
       // Save preference for newly created profile so it immediately becomes active
       final prefs = ref.read(sharedPreferencesProvider);
-      await prefs?.setString('last_active_profile_${widget.userId}', created.id);
-      await prefs?.setString('last_active_company_id_${widget.userId}', created.id);
-      await prefs?.setString('last_active_company_id', created.id);
+      await prefs?.setString(activeWorkspacePreferenceKey(widget.userId), created.id);
 
       // Populate user_profiles in local database with details given during signup & onboarding
       final authState = ref.read(authControllerProvider);
@@ -141,9 +139,6 @@ class _ProfileOnboardingScreenState
           name: accountName,
           phoneNumber: accountPhone,
           email: accountEmail,
-          businessName: drift.Value(name),
-          address: const drift.Value(''),
-          activeCompanyId: drift.Value(created.id),
           role: const drift.Value('admin'),
           updatedAt: drift.Value(now),
           syncStatus: const drift.Value(SyncRecordStatus.pending),
@@ -162,11 +157,6 @@ class _ProfileOnboardingScreenState
             'phone_number': accountPhone,
             'phoneNumber': accountPhone,
             'email': accountEmail,
-            'business_name': name,
-            'businessName': name,
-            'address': '',
-            'active_company_id': created.id,
-            'activeCompanyId': created.id,
             'role': 'admin',
             'is_deleted': false,
             'isDeleted': false,
@@ -261,12 +251,13 @@ class _ProfileOnboardingScreenState
                   ProfileType.ledger: Padding(
                     padding: EdgeInsets.symmetric(vertical: 4),
                     child: Text(
-                      'Business Ledger',
+                      'Ledger · Coming Soon',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
                 },
                 onValueChanged: (val) {
+                  if (val == ProfileType.ledger) return;
                   HapticFeedback.lightImpact();
                   setState(() {
                     _selectedType = val;

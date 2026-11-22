@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/data/local/database.dart';
@@ -12,6 +15,32 @@ void main() {
   setUpAll(() {
     driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
     verifier = SchemaVerifier(GeneratedHelper());
+  });
+
+  test('v15 preserves an archived category from the same workspace', () async {
+    final directory = await Directory.systemTemp.createTemp('expense_category_v14_');
+    final file = File('${directory.path}/v14.sqlite');
+    addTearDown(() => directory.delete(recursive: true));
+    final old = AppDatabase(NativeDatabase(file));
+    await old.customStatement("INSERT INTO profiles (id, name) VALUES ('one','One'),('two','Two')");
+    await old.customStatement('''
+      INSERT INTO expense_categories (id,profile_id,name)
+      VALUES ('archived','one','Archived'),('unchanged','two','Unchanged')
+    ''');
+    await old.customStatement('''
+      INSERT INTO accounts (id,company_id,code,name,type,kind,is_active)
+      VALUES ('archived','one','ARCH','Archived','expense','category',0),
+        ('unchanged','one','OTHER','Wrong workspace','expense','category',0)
+    ''');
+    await old.customStatement('ALTER TABLE expense_categories DROP COLUMN archived_at');
+    await old.customStatement('PRAGMA user_version = 14');
+    await old.close();
+
+    final migrated = AppDatabase(NativeDatabase(file));
+    addTearDown(migrated.close);
+    final categories = await migrated.select(migrated.expenseCategories).get();
+    expect(categories.singleWhere((row) => row.id == 'archived').archivedAt != null, isTrue);
+    expect(categories.singleWhere((row) => row.id == 'unchanged').archivedAt, null);
   });
 
   group('Drift Step-by-Step Migrations (Every Old Schema Version to Latest v11)', () {

@@ -135,6 +135,10 @@ INVITEM	Server Rack Cabinet	42U Server Rack	45000	32000''';
     final company = ref.read(activeCompanyProvider);
     if (widget.csvOnly) {
       final preview = DataImportService.parseLedgerPartyCsv(text);
+      if (preview.importedParties.isEmpty) {
+        setState(() => _parsedResult = preview);
+        return;
+      }
       final repo = ref.read(driftLedgerRepositoryProvider);
       setState(() => _parsedResult = null);
       List<String> warnings;

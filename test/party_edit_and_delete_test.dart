@@ -42,7 +42,7 @@ void main() {
 
       // Verify contextual menu options
       expect(find.text('Edit Details'), findsOneWidget);
-      expect(find.text('Delete Party'), findsOneWidget);
+      expect(find.text('Archive Party'), findsOneWidget);
     });
 
     testWidgets('Tapping Edit Details opens AddPartyDialog in Edit Mode pre-populated',
@@ -109,14 +109,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      await tester.tap(find.text('Delete Party'));
+      await tester.tap(find.text('Archive Party'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
       // Verify alert dialog prevents deletion
-      expect(find.text('Cannot Delete Party'), findsOneWidget);
+      expect(find.text('Cannot Archive Party'), findsOneWidget);
       expect(
-        find.textContaining('Cannot delete a party with an outstanding balance of ₹ 4,500.00'),
+        find.textContaining('Cannot archive a party with an outstanding balance of ₹ 4,500.00'),
         findsOneWidget,
       );
       expect(find.text('OK'), findsOneWidget);
@@ -165,25 +165,25 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      await tester.tap(find.text('Delete Party'));
+      await tester.tap(find.text('Archive Party'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
       // Verify confirmation dialog
-      expect(find.text('Delete Party?'), findsOneWidget);
+      expect(find.text('Archive Party?'), findsOneWidget);
       expect(
-        find.textContaining('Are you sure you want to delete Zero Balance Customer?'),
+        find.textContaining('Archive Zero Balance Customer?'),
         findsOneWidget,
       );
 
       // Confirm deletion
-      await tester.tap(find.text('Delete'));
+      await tester.tap(find.text('Archive'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
 
       // Verify SnackBar and party removal
-      expect(find.text('Zero Balance Customer deleted and archived.'), findsOneWidget);
+      expect(find.text('Zero Balance Customer archived.'), findsOneWidget);
       expect(find.text('Zero Balance Customer'), findsNothing);
 
       // Advance past SnackBar timer and dismissal animation

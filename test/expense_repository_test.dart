@@ -238,6 +238,67 @@ void main() {
   });
 
   group('Prompt 9 - Category CRUD and Archive Behavior', () {
+    test('repeating an expense ID applies the wallet movement once', () async {
+      final category = await expenseRepo.createCategory(
+        name: 'Replay category',
+        type: AccountType.expense,
+      );
+      final walletId = '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}';
+      final before = (await expenseRepo.getWalletById(walletId)).currentBalanceInCents;
+
+      Future<VoucherModel> add(int amount) => expenseRepo.addExpense(
+        categoryAccountId: category.id,
+        walletAccountId: walletId,
+        amountInCents: amount,
+        customId: 'local-expense-replay',
+      );
+
+      final first = await add(300);
+      expect((await add(300)).id, first.id);
+      await expectLater(add(301), throwsStateError);
+      expect(
+        (await expenseRepo.getWalletById(walletId)).currentBalanceInCents,
+        before - 300,
+      );
+    });
+
+    test('a correction cannot overwrite a row from another workspace', () async {
+      final category = await expenseRepo.createCategory(
+        name: 'Scoped category',
+        type: AccountType.expense,
+      );
+      final walletId = '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}';
+      final original = await expenseRepo.addExpense(
+        categoryAccountId: category.id,
+        walletAccountId: walletId,
+        amountInCents: 300,
+      );
+      const otherWorkspace = 'another_expense_workspace';
+      await db.into(db.profiles).insert(ProfilesCompanion.insert(
+        id: otherWorkspace,
+        name: 'Other',
+      ));
+      final otherRepository = DriftExpenseRepository(
+        db: db,
+        postingEngine: postingEngine,
+        voucherRepo: voucherRepo,
+        auditService: auditService,
+        currentCompanyId: otherWorkspace,
+        currentUserId: 'usr_test_admin',
+        currentRole: Role.admin,
+      );
+      addTearDown(otherRepository.dispose);
+      await expectLater(
+        otherRepository.updateTransaction(original.copyWith(totalAmountInCents: 900)),
+        throwsStateError,
+      );
+      final row = await (db.select(db.expenseTransactions)
+            ..where((table) => table.id.equals(original.id)))
+          .getSingle();
+      expect(row.amountInCents, 300);
+      expect(row.profileId, expenseCompanyId);
+    });
+
     test('Category without transactions is soft-deleted; category with transactions is archived', () async {
       expenseRepo.setContext(role: Role.admin);
 
@@ -279,8 +340,14 @@ void main() {
       final allCatsIncludingArchived = await expenseRepo.getCategories(includeArchived: true);
       final archivedCat = allCatsIncludingArchived.firstWhere((c) => c.id == groceryCat.id);
       expect(archivedCat.isActive, isFalse);
-      final catRow = await (db.select(db.accounts)..where((t) => t.id.equals(groceryCat.id))).getSingle();
+      final catRow = await (db.select(db.expenseCategories)
+            ..where((t) => t.id.equals(groceryCat.id)))
+          .getSingle();
       expect(catRow.isDeleted, isFalse);
+      expect(catRow.archivedAt, isNotNull);
+      expect(await (db.select(db.accounts)
+            ..where((t) => t.id.equals(groceryCat.id)))
+          .getSingleOrNull(), isNull);
     });
 
     test('Category allows optional parent for sub-categories with type validation', () async {
@@ -298,6 +365,10 @@ void main() {
         parentAccountId: parentCat.id,
       );
       expect(subCat.parentAccountId, equals(parentCat.id));
+      await expectLater(
+        expenseRepo.updateCategory(id: parentCat.id, parentAccountId: subCat.id),
+        throwsArgumentError,
+      );
 
       // Sub-category with mismatched type throws ArgumentError
       expect(

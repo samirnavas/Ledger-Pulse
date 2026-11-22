@@ -31,5 +31,8 @@ abstract class IProfileRepository {
 
   /// Deletes or soft-deletes a profile if caller is the owner.
   Future<void> deleteProfile(String profileId);
+
+  /// Restores an owned workspace without recreating its financial records.
+  Future<void> restoreProfile(String profileId);
 }
 

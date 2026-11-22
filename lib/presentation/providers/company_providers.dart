@@ -18,15 +18,14 @@ final activeCompanyIdProvider = Provider<String>((ref) {
   if (sessionState is ActiveProfileReadySessionState) {
     return sessionState.activeProfile.id;
   }
-  final profileActiveId = ref.watch(userProfileProvider.select((p) => p.activeCompanyId));
-  if (profileActiveId.isNotEmpty) {
-    return profileActiveId;
-  }
   final uid = ref.watch(activeUserIdProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
-  final savedId = prefs?.getString('last_active_company_id_$uid') ??
-      prefs?.getString('last_active_profile_$uid') ??
-      prefs?.getString('last_active_company_id');
+  final savedId = prefs?.getString(activeWorkspacePreferenceKey(uid)) ??
+      prefs?.getString('last_active_company_id_$uid');
+  final profileActiveId = ref.watch(userProfileProvider.select((p) => p.activeCompanyId));
+  if (profileActiveId.isNotEmpty && profileActiveId != 'cmp_default') {
+    return profileActiveId;
+  }
   return (savedId != null && savedId.isNotEmpty) ? savedId : 'cmp_default';
 });
 
@@ -115,19 +114,12 @@ final activeCompanyProvider = Provider<Company>((ref) {
     if (match != null) return match;
   }
 
-  // 1. Try to match currently set activeCompanyId
   final profileMatch = companies.where((c) => c.id == activeCompanyId).firstOrNull;
   if (profileMatch != null) return profileMatch;
 
-  // 2. Try to match active profile from profileSessionProvider if available
-  if (sessionState is ActiveProfileReadySessionState) {
-    final sessionMatch = companies.where((c) => c.id == sessionState.activeProfile.id).firstOrNull;
-    if (sessionMatch != null) return sessionMatch;
-  }
-
-  // 3. Try to match persisted last_active_company_id from SharedPreferences
+  final uid = ref.watch(activeUserIdProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
-  final savedId = prefs?.getString('last_active_company_id');
+  final savedId = prefs?.getString(activeWorkspacePreferenceKey(uid));
   if (savedId != null && savedId.isNotEmpty) {
     final savedMatch = companies.where((c) => c.id == savedId).firstOrNull;
     if (savedMatch != null) return savedMatch;
@@ -143,14 +135,12 @@ class CompanyController extends Notifier<void> {
   void build() {}
 
   Future<void> selectCompany(String companyId) async {
+    final uid = ref.read(activeUserIdProvider);
     final prefs = ref.read(sharedPreferencesProvider);
-    await prefs?.setString('last_active_company_id', companyId);
-
-    final profileNotifier = ref.read(userProfileProvider.notifier);
-    final currentProfile = ref.read(userProfileProvider);
-    profileNotifier.updateProfile(
-      currentProfile.copyWith(activeCompanyId: companyId),
-    );
+    await prefs?.setString(activeWorkspacePreferenceKey(uid), companyId);
+    if (ref.mounted && ref.read(activeUserIdProvider) == uid) {
+      ref.read(userProfileProvider.notifier).showSelectedWorkspace(companyId);
+    }
   }
 
   Future<void> addCompany(
@@ -205,6 +195,7 @@ class CompanyController extends Notifier<void> {
     }
 
     ref.invalidate(companiesProvider);
+    await selectCompany(newCompany.id);
 
     // 2. On success, update in-memory state
     final profileNotifier = ref.read(userProfileProvider.notifier);
@@ -270,9 +261,17 @@ class CompanyController extends Notifier<void> {
 
     final session = ref.read(profileSessionProvider);
     final userId = ref.read(activeUserIdProvider);
-    // 1. Write via the repository first
-    final repo = ref.read(driftLedgerRepositoryProvider);
-    await repo.deleteCompany(companyId);
+    final workspace = session is ActiveProfileReadySessionState
+        ? session.availableProfiles.where((profile) => profile.id == companyId).firstOrNull
+        : null;
+    if (workspace != null) {
+      if (workspace.role != ProfileRole.owner) {
+        throw StateError('Only the workspace owner can delete it.');
+      }
+      await ref.read(profileRepositoryProvider).deleteProfile(companyId);
+    } else {
+      await ref.read(driftLedgerRepositoryProvider).deleteCompany(companyId);
+    }
 
     if (!ref.mounted || ref.read(activeUserIdProvider) != userId) {
       return true;
