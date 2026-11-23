@@ -337,7 +337,7 @@ class RecurringService {
     if (dueRules.isNotEmpty) _notifyUpdates();
     if (failedRules.isNotEmpty) {
       throw StateError(
-        'Could not generate ${failedRules.length} recurring rule(s). Check their wallets and categories, then retry. Failed occurrences remain due.',
+        'Some automations could not run. Check their wallets and categories, then try again.',
       );
     }
 
@@ -620,7 +620,7 @@ class RecurringService {
             .getSingleOrNull();
 
     if (row == null) {
-      throw StateError('Recurring rule not found: $id');
+      throw StateError('Automation not found.');
     }
     return _ruleFromRow(row);
   }

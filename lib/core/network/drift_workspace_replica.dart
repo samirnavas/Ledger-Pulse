@@ -6,7 +6,7 @@ import '../../data/local/database.dart';
 import 'sync_engine.dart';
 import 'workspace_sync_engine.dart';
 
-/// Projects the normalized Expense feed into the Drift tables read by the app.
+/// Projects normalized workspace details and Expense records into Drift.
 final class DriftWorkspaceReplica implements WorkspaceReplica {
   final AppDatabase db;
 
@@ -49,8 +49,14 @@ final class DriftWorkspaceReplica implements WorkspaceReplica {
       db.profiles,
     )..where((row) => row.id.equals(workspaceId))).getSingleOrNull();
     if (profile == null) return;
-    if (profile.ownerId != db.userId || profile.profileType != 'expense') {
-      throw StateError('Cannot clear an unrelated Expense workspace');
+    if (profile.ownerId != db.userId) {
+      throw StateError('Cannot clear an unrelated workspace');
+    }
+    if (profile.profileType == 'ledger') {
+      await (db.update(db.companies)..where((row) =>
+          row.profileId.equals(workspaceId) | row.id.equals(workspaceId))).write(
+        const CompaniesCompanion(isActive: Value(false), isDeleted: Value(true)),
+      );
     }
     await (db.delete(
       db.expenseAttachments,
@@ -93,13 +99,14 @@ final class DriftWorkspaceReplica implements WorkspaceReplica {
   Future<void> _apply(String workspace, WorkspaceChange change) async {
     final row = change.row;
     if (row == null) {
-      throw const FormatException('Unexpected Expense hard delete');
+      if (change.table == 'ledger_voucher_lines') return;
+      throw const FormatException('Unexpected workspace hard delete');
     }
     if (change.table == 'workspaces') {
       if (row['id'] != workspace ||
           row['owner_user_id'] != db.userId ||
-          row['workspace_type'] != 'expense') {
-        throw const FormatException('Invalid Expense workspace scope');
+          !const {'expense', 'ledger'}.contains(row['workspace_type'])) {
+        throw const FormatException('Invalid workspace scope');
       }
       final lifecycle = row['lifecycle_state'];
       if (lifecycle != 'active' &&
@@ -122,7 +129,7 @@ final class DriftWorkspaceReplica implements WorkspaceReplica {
               id: workspace,
               ownerId: Value(db.userId),
               name: row['name'] as String,
-              profileType: const Value('expense'),
+              profileType: Value(row['workspace_type'] as String),
               currencyCode: Value(row['currency_code'] as String),
               isActive: Value(lifecycle == 'active'),
               isDeleted: Value(lifecycle == 'deleted'),
@@ -148,9 +155,11 @@ final class DriftWorkspaceReplica implements WorkspaceReplica {
               (row) => row.id.equals(workspace) & row.ownerId.equals(db.userId),
             ))
             .getSingleOrNull();
-    if (profile == null ||
-        profile.profileType != 'expense' ||
-        profile.isDeleted) {
+    if (profile?.profileType == 'ledger') {
+      if (change.table == 'ledger_profiles') await _applyLedgerDetails(profile!, row);
+      return;
+    }
+    if (profile == null || profile.isDeleted) {
       throw StateError('Expense workspace is unavailable for projection');
     }
 
@@ -178,7 +187,7 @@ final class DriftWorkspaceReplica implements WorkspaceReplica {
                   entry.recordId.equals(id),
             ))
             .getSingleOrNull();
-    if (pendingEdit != null) {
+    if (pendingEdit != null && legacyTable != 'exp_categories') {
       throw StateError(
         'A local Expense edit must be queued before projection.',
       );
@@ -211,6 +220,21 @@ final class DriftWorkspaceReplica implements WorkspaceReplica {
           id,
           workspace,
         );
+        final local = await (db.select(db.expenseCategories)..where((entry) =>
+            entry.id.equals(id) & entry.profileId.equals(workspace)))
+            .getSingleOrNull();
+        final pendingCategoryChange = local != null &&
+            local.syncStatus == SyncRecordStatus.pending &&
+            await hasUnacceptedCategoryWrite(db, workspace, id);
+        if (pendingEdit != null || pendingCategoryChange) {
+          // Learn the cloud revision without overwriting a pending local edit.
+          await (db.update(db.expenseCategories)..where((entry) =>
+                entry.id.equals(id) & entry.profileId.equals(workspace)))
+              .write(ExpenseCategoriesCompanion(
+                revision: Value(_integer(row['revision'])),
+              ));
+          return;
+        }
         fields['is_system'] = row['system_key'] != null;
         final category =
             _decoders[legacyTable]!(fields) as ExpenseCategoriesCompanion;
@@ -320,6 +344,58 @@ final class DriftWorkspaceReplica implements WorkspaceReplica {
               _decoders[legacyTable]!(fields) as ExpenseRecurringRulesCompanion,
             );
     }
+  }
+
+  Future<void> _applyLedgerDetails(
+    ProfileTableData profile,
+    SyncJson row,
+  ) async {
+    final workspace = profile.id;
+    final existing = await (db.select(db.companies)..where((entry) =>
+        entry.profileId.equals(workspace) | entry.id.equals(workspace)))
+        .getSingleOrNull();
+    if (existing?.ownerId != null && existing!.ownerId != db.userId) {
+      throw StateError('Ledger company belongs to a different account');
+    }
+
+    final id = existing?.id ?? workspace;
+    final revision = _integer(row['revision']);
+    final pending = await (db.select(db.syncOutbox)..where((entry) =>
+        entry.targetTable.equals('companies') & entry.recordId.equals(id)))
+        .getSingleOrNull();
+    if (existing != null && pending != null) {
+      // Preserve newer local edits while learning the confirmed revision.
+      await (db.update(db.companies)..where((entry) => entry.id.equals(id)))
+          .write(CompaniesCompanion(revision: Value(revision)));
+      return;
+    }
+
+    await db.into(db.companies).insertOnConflictUpdate(CompaniesCompanion.insert(
+      id: id,
+      profileId: Value(workspace),
+      ownerId: Value(db.userId),
+      mode: const Value('ledger'),
+      name: profile.name,
+      legalName: row['legal_name'] as String,
+      currencyCode: Value(profile.currencyCode),
+      gstin: Value(row['tax_registration_no'] as String?),
+      stateCode: Value(row['tax_region_code'] as String?),
+      dealerType: Value(row['dealer_type'] as String? ?? 'regular'),
+      address: Value(row['business_address'] as String?),
+      email: Value(row['business_email'] as String?),
+      phoneNumber: Value(row['business_phone'] as String?),
+      signatoryName: Value(row['signatory_name'] as String?),
+      bankName: Value(row['bank_name'] as String?),
+      bankAccountNumber: Value(row['bank_account_no'] as String?),
+      bankIfsc: Value(row['bank_routing_code'] as String?),
+      upiId: Value(row['payment_address'] as String?),
+      isActive: Value(profile.isActive),
+      isDeleted: Value(profile.isDeleted),
+      revision: Value(revision),
+      syncStatus: const Value(SyncRecordStatus.synced),
+      createdAt: Value(DateTime.parse(row['created_at'] as String)),
+      updatedAt: Value(DateTime.parse(row['updated_at'] as String)),
+    ));
   }
 
   Future<void> _requireScope<T extends Table, D>(

@@ -95,9 +95,9 @@ class ModuleCatalog {
     ),
     AppModule.recurring: ModuleMetadata(
       module: AppModule.recurring,
-      label: 'Recurring Rules',
+      label: 'Automation',
       description:
-          'Scheduled recurring expenses, subscriptions, and auto-entry.',
+          'Automatically record repeating bills, subscriptions, and income.',
       materialIcon: Icons.update_outlined,
       cupertinoIcon: CupertinoIcons.repeat,
       allowedModes: {CompanyMode.expenseTracker},

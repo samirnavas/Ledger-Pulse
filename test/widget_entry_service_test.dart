@@ -9,6 +9,8 @@ import 'package:ledger_pulse/core/services/widget_entry_service.dart';
 import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/data/local/drift_expense_repository.dart';
 import 'package:ledger_pulse/data/models/account_model.dart';
+import 'package:ledger_pulse/data/models/company_model.dart';
+import 'package:ledger_pulse/data/models/rbac_model.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -74,6 +76,38 @@ void main() {
       openingBalanceInCents: 10000,
     );
     final category = await repo.createCategory(name: 'Food', type: AccountType.expense);
+    final workspace = Company(
+      id: company,
+      name: 'Expenses',
+      legalName: 'Expenses',
+      mode: CompanyMode.expenseTracker,
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    await WidgetEntryService.publish(
+      company: workspace,
+      userId: user,
+      role: Role.admin,
+      wallets: [wallet],
+      categories: [category],
+      defaultWalletId: wallet.id,
+    );
+    expect(
+      jsonDecode(prefs[WidgetEntryService.contextKey] as String)['default_wallet'],
+      wallet.id,
+    );
+    await WidgetEntryService.publish(
+      company: workspace,
+      userId: user,
+      role: Role.admin,
+      wallets: [wallet.copyWith(isActive: false)],
+      categories: [category],
+      defaultWalletId: wallet.id,
+    );
+    expect(
+      jsonDecode(prefs[WidgetEntryService.contextKey] as String)['default_wallet'],
+      isNull,
+    );
     await WidgetEntryService.start();
 
     Future<Object?> sendSave(String companyId) async {

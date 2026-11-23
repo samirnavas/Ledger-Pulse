@@ -18,6 +18,7 @@ import '../../data/local/outbox_helper.dart';
 import '../../domain/models/workspace_profile_header.dart';
 import '../providers/auth_providers.dart';
 import '../providers/database_providers.dart';
+import '../providers/ledger_creation_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/profile_session_controller.dart';
 import '../widgets/workspace_details_fields.dart';
@@ -82,6 +83,11 @@ class _ProfileOnboardingScreenState
   }
 
   void _handleCreate() async {
+    if (_selectedType == ProfileType.ledger &&
+        !ref.read(ledgerCreationEnabledProvider)) {
+      setState(() => _errorMessage = 'Ledger creation is disabled.');
+      return;
+    }
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() {
@@ -131,21 +137,26 @@ class _ProfileOnboardingScreenState
       final accountPhone = authState.phoneNumber ?? '';
 
       final db = ref.read(appDatabaseProvider);
-      final now = DateTime.now();
+      await db.transaction(() async {
+        final existing = await (db.select(db.userProfiles)
+              ..where((row) => row.id.equals(widget.userId)))
+            .getSingleOrNull();
+        if (existing != null) return;
 
-      await db.into(db.userProfiles).insertOnConflictUpdate(
-        UserProfilesCompanion.insert(
-          id: widget.userId,
-          name: accountName,
-          phoneNumber: accountPhone,
-          email: accountEmail,
-          role: const drift.Value('admin'),
-          updatedAt: drift.Value(now),
-          syncStatus: const drift.Value(SyncRecordStatus.pending),
-        ),
-      );
+        final now = DateTime.now();
 
-      try {
+        await db.into(db.userProfiles).insert(
+          UserProfilesCompanion.insert(
+            id: widget.userId,
+            name: accountName,
+            phoneNumber: accountPhone,
+            email: accountEmail,
+            role: const drift.Value('admin'),
+            updatedAt: drift.Value(now),
+            syncStatus: const drift.Value(SyncRecordStatus.pending),
+          ),
+        );
+
         await enqueueMutation(
           db: db,
           table: 'user_profiles',
@@ -164,7 +175,7 @@ class _ProfileOnboardingScreenState
             'updatedAt': now,
           },
         );
-      } catch (_) {}
+      });
 
       // Reload profile session and user profile so state machine transitions to active profile
       await ref
@@ -193,6 +204,7 @@ class _ProfileOnboardingScreenState
 
   @override
   Widget build(BuildContext context) {
+    final ledgerEnabled = ref.watch(ledgerCreationEnabledProvider);
     final isIos = AdaptiveThemeHelper.isIos(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark ||
@@ -240,8 +252,8 @@ class _ProfileOnboardingScreenState
               // Material 3 / Cupertino Adaptive Segmented Control
               AdaptiveSegmentedControl<ProfileType>(
                 groupValue: _selectedType,
-                children: const {
-                  ProfileType.expense: Padding(
+                children: {
+                  ProfileType.expense: const Padding(
                     padding: EdgeInsets.symmetric(vertical: 4),
                     child: Text(
                       'Personal & Expense',
@@ -249,15 +261,15 @@ class _ProfileOnboardingScreenState
                     ),
                   ),
                   ProfileType.ledger: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Text(
-                      'Ledger · Coming Soon',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                      ledgerEnabled ? 'Business Ledger' : 'Ledger · Unavailable',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                   ),
                 },
                 onValueChanged: (val) {
-                  if (val == ProfileType.ledger) return;
+                  if (val == ProfileType.ledger && !ledgerEnabled) return;
                   HapticFeedback.lightImpact();
                   setState(() {
                     _selectedType = val;

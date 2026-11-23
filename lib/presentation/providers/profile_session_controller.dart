@@ -17,6 +17,7 @@ import '../../domain/models/workspace_profile_header.dart';
 import '../../domain/repositories/i_profile_repository.dart';
 import 'auth_providers.dart';
 import 'database_providers.dart';
+import 'ledger_creation_provider.dart';
 import 'profile_provider.dart';
 import 'profile_session_state.dart';
 
@@ -25,12 +26,14 @@ class DriftProfileRepository implements IProfileRepository {
   final SyncEngine syncEngine;
   final SupabaseClient? supabaseClient;
   final VoucherPostingEngine? postingEngine;
+  final bool Function()? ledgerCreationEnabled;
 
   DriftProfileRepository({
     required this.db,
     required this.syncEngine,
     this.supabaseClient,
     this.postingEngine,
+    this.ledgerCreationEnabled,
   });
 
   @override
@@ -214,8 +217,8 @@ class DriftProfileRepository implements IProfileRepository {
                 UserProfilesCompanion.insert(
                   id: accountId,
                   name: personal['display_name'] as String,
-                  phoneNumber: authUser?.phone ?? '',
-                  email: authUser?.email ?? '',
+                  phoneNumber: personal['phone_number'] as String? ?? authUser?.phone ?? '',
+                  email: personal['email'] as String? ?? authUser?.email ?? '',
                   createdAt: Value(decodeTime(personal['created_at'])),
                   updatedAt: Value(decodeTime(personal['updated_at'])),
                   syncStatus: const Value(SyncRecordStatus.synced),
@@ -235,7 +238,7 @@ class DriftProfileRepository implements IProfileRepository {
         accessible.add(workspace);
         continue;
       }
-      if (!workspace.isExpense || workspace.role != ProfileRole.owner) continue;
+      if (workspace.role != ProfileRole.owner) continue;
       final pending = await (db.select(db.profiles)..where((row) =>
           row.id.equals(workspace.id) & row.ownerId.equals(accountId) &
           row.revision.equals(0) & row.syncStatus.equalsValue(SyncRecordStatus.pending)))
@@ -297,6 +300,10 @@ class DriftProfileRepository implements IProfileRepository {
     String? customId,
     String? accountId,
   }) async {
+    if (type == ProfileType.ledger &&
+        !(ledgerCreationEnabled?.call() ?? defaultLedgerCreationEnabled)) {
+      throw StateError('Ledger creation is disabled.');
+    }
     final profileId = customId ?? const Uuid().v4();
     final now = DateTime.now();
     final effectiveLegalName = legalName ?? name;
@@ -707,6 +714,7 @@ final profileRepositoryProvider = Provider<IProfileRepository>((ref) {
     syncEngine: syncEngine,
     supabaseClient: client,
     postingEngine: VoucherPostingEngine(db, AuditService(db)),
+    ledgerCreationEnabled: () => ref.read(ledgerCreationEnabledProvider),
   );
 });
 

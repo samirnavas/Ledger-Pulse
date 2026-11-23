@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../../core/network/sync_codec.dart';
@@ -84,6 +85,9 @@ Future<void> enqueueMutation({
       INSERT INTO sync_outbox (id, table_name, record_id, mutation_type, payload, attempts, last_error, next_attempt_at, created_at)
       VALUES (?, ?, ?, ?, ?, 0, NULL, NULL, ?)
       ON CONFLICT (table_name, record_id) DO UPDATE SET
+        id = CASE
+          WHEN table_name = 'user_profiles' AND payload <> excluded.payload
+          THEN excluded.id ELSE id END,
         payload = excluded.payload,
         mutation_type = excluded.mutation_type,
         attempts = 0,
@@ -98,6 +102,7 @@ Future<void> enqueueMutation({
       payloadJson,
       nowSeconds,
     ]);
+    db.notifyUpdates({TableUpdate.onTable(db.syncOutbox)});
   } catch (e, stackTrace) {
     debugPrint('Failed to enqueue sync outbox mutation for table "$table" ($recordId): $e');
     throw OutboxEnqueueException(

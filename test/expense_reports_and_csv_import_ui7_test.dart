@@ -175,8 +175,20 @@ void main() {
         expect(find.byType(AdaptiveSectionHeader), findsNWidgets(4));
         expect(find.text('Spending by category'), findsOneWidget);
         expect(find.text('Monthly trend'), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text('Monthly trend')).dy,
+          lessThan(tester.getTopLeft(find.text('Spending by category')).dy),
+        );
         expect(find.text('Income vs expense'), findsOneWidget);
         expect(find.text('Wallet balance history'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('Show line chart'));
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('Show bar chart'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('Show bar chart'));
+        await tester.pumpAndSettle();
+        expect(find.byTooltip('Show line chart'), findsOneWidget);
       },
     );
 

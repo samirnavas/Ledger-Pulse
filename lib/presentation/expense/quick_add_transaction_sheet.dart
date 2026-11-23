@@ -49,6 +49,7 @@ class QuickAddTransactionSheet extends ConsumerStatefulWidget {
       return await showModalBottomSheet<bool>(
         context: context,
         showDragHandle: false,
+        enableDrag: false,
         elevation: 0,
         isScrollControlled: true,
         useSafeArea: true,
@@ -766,6 +767,7 @@ class _QuickAddTransactionSheetState
         CupertinoTheme.of(context).brightness == Brightness.dark;
     final company = ref.watch(activeCompanyProvider);
     final walletsAsync = ref.watch(walletsProvider);
+    final defaultWallet = ref.watch(defaultWalletIdProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
 
     final themeColor = _getTypeColor(context, _selectedType);
@@ -779,10 +781,18 @@ class _QuickAddTransactionSheetState
               : Theme.of(context).colorScheme.surfaceContainerHighest);
 
     walletsAsync.whenData((wallets) {
-      if (_selectedWalletId == null && wallets.isNotEmpty) {
+      if (_selectedWalletId == null &&
+          wallets.isNotEmpty &&
+          (defaultWallet.hasValue || defaultWallet.hasError)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _selectedWalletId == null) {
-            setState(() => _selectedWalletId = wallets.first.id);
+            final preferred = ref.read(defaultWalletIdProvider).value;
+            setState(() {
+              _selectedWalletId = wallets
+                  .where((wallet) => wallet.id == preferred)
+                  .firstOrNull
+                  ?.id ?? wallets.first.id;
+            });
           }
         });
       }
@@ -810,6 +820,7 @@ class _QuickAddTransactionSheetState
         maxChildSize: 0.98,
         snapSizes: const [0.95, 0.98],
         showHandle: true,
+        shouldCloseOnMinExtent: _isClean,
         backgroundColor: containerColor,
         builder: (sheetContext, scrollController) {
           return Padding(

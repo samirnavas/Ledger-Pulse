@@ -36,10 +36,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   
   late TextEditingController _nameController;
-  late TextEditingController _businessNameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
-  late TextEditingController _addressController;
 
   bool _isEditing = false;
   bool _hasChanges = false;
@@ -59,16 +57,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     final profile = ref.read(userProfileProvider);
     _nameController = TextEditingController(text: profile.name);
-    _businessNameController = TextEditingController(text: profile.businessName);
     _phoneController = TextEditingController(text: profile.phoneNumber);
     _emailController = TextEditingController(text: profile.email);
-    _addressController = TextEditingController(text: profile.address);
 
     _nameController.addListener(_onFieldChanged);
-    _businessNameController.addListener(_onFieldChanged);
     _phoneController.addListener(_onFieldChanged);
     _emailController.addListener(_onFieldChanged);
-    _addressController.addListener(_onFieldChanged);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -81,10 +75,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void _onFieldChanged() {
     final current = ref.read(userProfileProvider);
     final changed = _nameController.text != current.name ||
-        _businessNameController.text != current.businessName ||
         _phoneController.text != current.phoneNumber ||
-        _emailController.text != current.email ||
-        _addressController.text != current.address;
+        _emailController.text != current.email;
 
     if (changed != _hasChanges) {
       setState(() {
@@ -98,10 +90,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     HapticFeedback.lightImpact();
     final current = ref.read(userProfileProvider);
     _nameController.text = current.name;
-    _businessNameController.text = current.businessName;
     _phoneController.text = current.phoneNumber;
     _emailController.text = current.email;
-    _addressController.text = current.address;
     setState(() {
       _isEditing = false;
       _hasChanges = false;
@@ -121,27 +111,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       // Notifiers may have already been disposed if widget tree is tearing down
     }
     _nameController.dispose();
-    _businessNameController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
-    _addressController.dispose();
     super.dispose();
   }
 
-  void _saveProfile() {
+  Future<void> _saveProfile() async {
     if (_formKey.currentState?.validate() ?? false) {
       HapticFeedback.mediumImpact();
       final current = ref.read(userProfileProvider);
-      final isExpense = ref.read(activeCompanyProvider).isExpense;
       final updatedProfile = current.copyWith(
         name: _nameController.text.trim(),
-        businessName: isExpense ? _businessNameController.text.trim() : null,
         phoneNumber: _phoneController.text.trim(),
         email: _emailController.text.trim(),
-        address: isExpense ? _addressController.text.trim() : null,
       );
 
-      ref.read(userProfileProvider.notifier).updateProfile(updatedProfile);
+      final saved = await ref.read(userProfileProvider.notifier)
+          .saveProfile(updatedProfile);
+      if (!mounted) return;
+      if (!saved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save your account details')),
+        );
+        return;
+      }
 
       setState(() {
         _isEditing = false;
@@ -272,21 +265,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     ref.listen<UserProfile>(userProfileProvider, (previous, next) {
       if (!_isEditing && !_hasChanges && mounted) {
         _nameController.text = next.name;
-        _businessNameController.text = next.businessName;
         _phoneController.text = next.phoneNumber;
         _emailController.text = next.email;
-        _addressController.text = next.address;
-      }
-    });
-
-    ref.listen<Company>(activeCompanyProvider, (previous, next) {
-      if (next.isExpense && !_isEditing && !_hasChanges && mounted) {
-        if (_businessNameController.text.isEmpty && next.name.isNotEmpty) {
-          _businessNameController.text = next.name;
-        }
-        if (_addressController.text.isEmpty && next.address != null && next.address!.isNotEmpty) {
-          _addressController.text = next.address!;
-        }
       }
     });
 
@@ -298,7 +278,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: SafeArea(
         child: AppPullToRefresh(
           onRefresh: () async {
-            await ref.read(userProfileProvider.notifier).syncProfileToDatabase();
             await ref.read(syncControllerProvider.notifier).triggerSync();
           },
           child: SingleChildScrollView(
@@ -406,32 +385,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   isIos: isIos,
                   onTap: () => showEditProfileSheet(context, activeCompany),
                 ),
-                const SizedBox(height: 24),
-              ] else ...[
-                _buildSectionHeader(context, 'Account Details', Icons.person_outline, isIos),
-                const SizedBox(height: 12),
-                if (_isEditing) ...[
-                  _buildInputField(
-                    context,
-                    controller: _businessNameController,
-                    label: 'Account Name',
-                    icon: Icons.badge_outlined,
-                    enabled: true,
-                  ),
-                  const SizedBox(height: 14),
-                  _buildInputField(
-                    context,
-                    controller: _addressController,
-                    label: 'Billing Address',
-                    icon: Icons.location_on_outlined,
-                    enabled: true,
-                  ),
-                ] else
-                  _buildReadOnlyCard(context, isIos, [
-                    _buildReadOnlyRow(context, 'Account Name', profile.businessName, Icons.badge_outlined),
-                    const SizedBox(height: 14),
-                    _buildReadOnlyRow(context, 'Billing Address', profile.address, Icons.location_on_outlined),
-                  ]),
                 const SizedBox(height: 24),
               ],
 
@@ -562,11 +515,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  profile.businessName.isNotEmpty
-                      ? profile.businessName
-                      : (activeCompany.name.isNotEmpty
-                          ? activeCompany.name
-                          : (isExpense ? 'Personal Workspace' : 'Business Workspace')),
+                  activeCompany.name.isNotEmpty
+                      ? activeCompany.name
+                      : (isExpense ? 'Personal Workspace' : 'Business Workspace'),
                   style: AppTypography.bodySmall.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),

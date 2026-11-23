@@ -15,6 +15,7 @@ import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/database_providers.dart';
+import '../providers/ledger_creation_provider.dart';
 
 /// Multi-step company creation flow (adaptive Cupertino / Material 3).
 /// Used during first-run onboarding (when no companies exist) and from CompanySwitcherSheet.
@@ -111,6 +112,11 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
   }
 
   Future<void> _submitCompany() async {
+    if (_selectedMode == CompanyMode.ledger &&
+        !ref.read(ledgerCreationEnabledProvider)) {
+      _showToast('Ledger creation is disabled.');
+      return;
+    }
     setState(() => _isSubmitting = true);
     HapticFeedback.mediumImpact();
 
@@ -395,7 +401,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
           isDark: isDark,
           mode: CompanyMode.ledger,
           title: 'Business Ledger',
-          badge: 'Coming Soon',
+          badge: ref.watch(ledgerCreationEnabledProvider) ? null : 'Unavailable',
           subtitle: 'Customer and supplier transactions, balances, and statements.',
           icon: isIos ? CupertinoIcons.chart_bar_alt_fill : Icons.account_balance_rounded,
         ),
@@ -429,7 +435,10 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
     final primaryColor = isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary;
 
     return GestureDetector(
-      onTap: mode == CompanyMode.ledger ? null : () => _onModeChanged(mode),
+      onTap: mode == CompanyMode.ledger &&
+              !ref.watch(ledgerCreationEnabledProvider)
+          ? null
+          : () => _onModeChanged(mode),
       child: LiquidGlassCard(
         borderRadius: 16,
         borderColor: isSelected ? primaryColor : (isDark ? Colors.white12 : Colors.black12),

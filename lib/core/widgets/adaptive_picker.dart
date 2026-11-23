@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../theme/adaptive_theme.dart';
+import 'adaptive_button.dart';
+import 'draggable_modal_sheet.dart';
 
 /// Item representation for [showAdaptivePicker].
 class AdaptivePickerItem<T> {
@@ -41,8 +43,7 @@ class AdaptivePicker {
 }
 
 /// Shows a platform-adaptive selection picker.
-/// On iOS: CupertinoActionSheet.
-/// On Material: Material 3 Bottom Sheet selection list.
+/// The handle resizes the sheet independently of the list scroll position.
 Future<T?> showAdaptivePicker<T>({
   required BuildContext context,
   required String title,
@@ -50,115 +51,64 @@ Future<T?> showAdaptivePicker<T>({
   required List<AdaptivePickerItem<T>> items,
   T? selectedValue,
   String cancelLabel = 'Cancel',
-}) async {
+}) {
   final isIos = AdaptiveThemeHelper.isIos(context);
+  final height = MediaQuery.sizeOf(context).height;
+  final itemHeight = items.any((item) => item.subtitle != null) ? 72 : 56;
+  final initialSize = ((144 + items.length * itemHeight) / height)
+      .clamp(0.30, 0.60);
 
-  if (isIos) {
-    return showCupertinoModalPopup<T>(
-      context: context,
-      builder: (ctx) => CupertinoActionSheet(
-        title: Text(title),
-        message: message != null ? Text(message) : null,
-        actions: items.map((item) {
-          final isSelected = item.value == selectedValue;
-          return CupertinoActionSheetAction(
-            isDestructiveAction: item.isDestructive,
-            onPressed: () => Navigator.of(ctx).pop(item.value),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (item.icon != null) ...[
-                  item.icon!,
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  item.label,
-                  style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-                if (isSelected) ...[
-                  const SizedBox(width: 8),
-                  const Icon(CupertinoIcons.checkmark, size: 18),
-                ],
-              ],
-            ),
-          );
-        }).toList(),
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(ctx).pop(null),
-          child: Text(cancelLabel),
-        ),
-      ),
-    );
-  } else {
-    final theme = Theme.of(context);
-    return showModalBottomSheet<T>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(top: 10, bottom: 8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
+  return showAdaptiveDraggableModal<T>(
+    context: context,
+    useRootNavigator: isIos,
+    initialChildSize: initialSize,
+    builder: (context, scrollController) {
+      final theme = Theme.of(context);
+      return Material(
+        type: MaterialType.transparency,
+        child: SingleChildScrollView(
+          controller: scrollController,
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                child: Text(title, style: theme.textTheme.titleLarge),
+              ),
+              if (message != null)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-                  child: Text(
-                    title,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Text(message, style: theme.textTheme.bodyMedium),
                 ),
-                if (message != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                    child: Text(
-                      message,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+              for (final item in items)
+                ListTile(
+                  leading: item.icon,
+                  title: Text(
+                    item.label,
+                    style: TextStyle(
+                      fontWeight: item.value == selectedValue
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: item.isDestructive ? theme.colorScheme.error : null,
                     ),
                   ),
-                const SizedBox(height: 8),
-                ...items.map((item) {
-                  final isSelected = item.value == selectedValue;
-                  return ListTile(
-                    leading: item.icon,
-                    title: Text(
-                      item.label,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: item.isDestructive ? theme.colorScheme.error : null,
-                      ),
-                    ),
-                    subtitle: item.subtitle != null ? Text(item.subtitle!) : null,
-                    trailing: isSelected
-                        ? Icon(Icons.check_rounded, color: theme.colorScheme.primary)
-                        : null,
-                    onTap: () => Navigator.of(ctx).pop(item.value),
-                  );
-                }),
-                const SizedBox(height: 8),
-              ],
-            ),
+                  subtitle: item.subtitle == null ? null : Text(item.subtitle!),
+                  selected: item.value == selectedValue,
+                  trailing: item.value == selectedValue
+                      ? Icon(isIos ? CupertinoIcons.checkmark : Icons.check_rounded)
+                      : null,
+                  onTap: () => Navigator.of(context).pop(item.value),
+                ),
+              AdaptiveButton(
+                type: AdaptiveButtonType.text,
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(cancelLabel),
+              ),
+            ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
 }

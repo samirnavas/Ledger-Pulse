@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/core/theme/android_theme.dart';
 import 'package:ledger_pulse/core/utils/adaptive_page_route.dart';
+import 'package:ledger_pulse/core/widgets/adaptive_form_sheet.dart';
+import 'package:ledger_pulse/core/widgets/adaptive_picker.dart';
 import 'package:ledger_pulse/core/widgets/draggable_modal_sheet.dart';
 import 'package:ledger_pulse/presentation/reports/pdf_export_modal.dart';
 
@@ -214,6 +216,81 @@ void main() {
   });
 
   group('Draggable Modal Sheet Tests', () {
+    for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+      testWidgets('Currency picker handle resizes and dismisses on $platform', (
+        tester,
+      ) async {
+        String? selected;
+        await tester.pumpWidget(MaterialApp(
+          theme: ThemeData(platform: platform),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () async {
+                  selected = await showAdaptivePicker(
+                    context: context,
+                    title: 'Select Base Currency',
+                    selectedValue: 'INR',
+                    items: const ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'CAD', 'AUD', 'JPY']
+                        .map((code) => AdaptivePickerItem(value: code, label: code))
+                        .toList(),
+                  );
+                },
+                child: const Text('Base Currency'),
+              ),
+            ),
+          ),
+        ));
+
+        await tester.tap(find.text('Base Currency'));
+        await tester.pumpAndSettle();
+        final handle = find.byType(ModalDragHandle);
+        final initialY = tester.getCenter(handle).dy;
+
+        final gesture = await tester.startGesture(tester.getCenter(handle));
+        await gesture.moveBy(const Offset(0, -120));
+        await tester.pump();
+        expect(tester.getCenter(handle).dy, lessThan(initialY - 50));
+        await gesture.up();
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('USD'));
+        await tester.pumpAndSettle();
+        expect(selected, 'USD');
+
+        await tester.tap(find.text('Base Currency'));
+        await tester.pumpAndSettle();
+        await tester.drag(handle, const Offset(0, 310));
+        await tester.pumpAndSettle();
+        expect(handle, findsNothing);
+        expect(selected, isNull);
+      });
+
+      testWidgets('Form sheet handle dismisses on $platform', (tester) async {
+        await tester.pumpWidget(MaterialApp(
+          theme: ThemeData(platform: platform),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showAdaptiveFormSheet<void>(
+                  context: context,
+                  title: 'Edit example',
+                  builder: (_) => const SizedBox(height: 260),
+                ),
+                child: const Text('Open form'),
+              ),
+            ),
+          ),
+        ));
+
+        await tester.tap(find.text('Open form'));
+        await tester.pumpAndSettle();
+        final handle = find.byType(ModalDragHandle);
+        await tester.drag(handle, const Offset(0, 230));
+        await tester.pumpAndSettle();
+        expect(find.text('Edit example'), findsNothing);
+      });
+    }
+
     testWidgets('DraggableModalSheet renders with ModalDragHandle, snapping, and dismiss extent', (tester) async {
       await tester.pumpWidget(
         MaterialApp(

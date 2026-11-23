@@ -23,6 +23,7 @@ import '../home/sync_settings_sheet.dart';
 import '../profile/profile_screen.dart';
 import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
+import '../providers/ledger_creation_provider.dart';
 import '../providers/profile_provider.dart';
 import '../../data/models/company_model.dart';
 import '../providers/sync_providers.dart';
@@ -73,6 +74,19 @@ class SettingsScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             children: [
+                if (kDebugMode) ...[
+                  _buildSectionHeader(context, 'DEVELOPMENT'),
+                  const SizedBox(height: 8),
+                  _buildCard(context, isDark, isIos, children: [
+                    SwitchListTile(
+                      title: const Text('Allow Ledger creation'),
+                      value: ref.watch(ledgerCreationEnabledProvider),
+                      onChanged: ref.read(ledgerCreationEnabledProvider.notifier)
+                          .setEnabled,
+                    ),
+                  ]),
+                  const SizedBox(height: 24),
+                ],
                 // 1. APPEARANCE & THEME
                 _buildSectionHeader(context, 'APPEARANCE & THEME'),
                 const SizedBox(height: 8),

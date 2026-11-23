@@ -15,7 +15,7 @@ import '../../settings/settings_screen.dart';
 import '../recurring_screen.dart';
 
 /// Platform-adaptive drawer for Expense Tracker mode.
-/// Exposes company header, Company Switcher, Settings, and Recurring Rules (if module enabled).
+/// Exposes company header, Company Switcher, Settings, and Automation (if module enabled).
 class ExpenseSidebarDrawer extends ConsumerWidget {
   const ExpenseSidebarDrawer({super.key});
 
@@ -193,7 +193,7 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                     },
                   ),
 
-                  // 2. Recurring Rules (only if module enabled)
+                  // 2. Automation (only if module enabled)
                   if (isRecurringEnabled)
                     ListTile(
                       leading: Container(
@@ -201,21 +201,21 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color:
                               (isIos
-                                      ? CupertinoColors.systemOrange
-                                      : Colors.orange)
+                                      ? CupertinoColors.activeBlue
+                                      : colorScheme.primary)
                                   .withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                         ),
                         child: Icon(
                           isIos ? CupertinoIcons.repeat : Icons.update_rounded,
                           color: isIos
-                              ? CupertinoColors.systemOrange
-                              : Colors.orange.shade800,
+                              ? CupertinoColors.activeBlue
+                              : colorScheme.primary,
                           size: 20,
                         ),
                       ),
                       title: const Text(
-                        'Recurring Rules',
+                        'Automation',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,

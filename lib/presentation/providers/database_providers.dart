@@ -47,12 +47,14 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
   final engine = SyncEngine(
     db: db,
     activeUserId: uid,
+    gateway: client == null ? null : SupabaseGateway(client, usePersonalAccounts: true),
     workspaceSync: client == null ? null : WorkspaceSyncEngine(
       db: db,
       gateway: SupabaseWorkspaceCommandGateway(client),
       replica: DriftWorkspaceReplica(db),
     ),
   );
+  if (client != null && uid != 'usr_default') engine.startUploadingEdits();
   ref.onDispose(() {
     try {
       engine.dispose();

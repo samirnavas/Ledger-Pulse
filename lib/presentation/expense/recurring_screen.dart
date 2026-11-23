@@ -47,7 +47,7 @@ class RecurringScreen extends ConsumerStatefulWidget {
 }
 
 class _RecurringScreenState extends ConsumerState<RecurringScreen> {
-  // Show Add/Edit Recurring Rule Bottom Sheet
+  // Show Add/Edit Automation Bottom Sheet
   Future<void> _showAddEditRuleSheet(
     BuildContext context, {
     RecurringRuleModel? existingRule,
@@ -172,7 +172,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
         if (context.mounted) {
           showAppFeedback(
             context,
-            'Could not save recurring rule: $e',
+            'Could not save automation: $e',
             isError: true,
           );
         }
@@ -187,8 +187,8 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
         showAppFeedback(
           context,
           existingRule == null
-              ? 'Recurring rule created successfully'
-              : 'Recurring rule updated successfully',
+              ? 'Automation created'
+              : 'Automation updated',
         );
       }
     }
@@ -198,8 +198,8 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
     await showAdaptiveFormSheet<void>(
       context: context,
       title: existingRule == null
-          ? 'Add Recurring Rule'
-          : 'Edit Recurring Rule',
+          ? 'Add Automation'
+          : 'Edit Automation',
       doneLabel: 'Save',
       onDone: () => saveFromHeader?.call(),
       builder: (sheetContext) {
@@ -360,8 +360,8 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
                     key: const Key('save_recurring_rule_button'),
                     child: Text(
                       existingRule == null
-                          ? 'Create Recurring Rule'
-                          : 'Update Rule',
+                          ? 'Create Automation'
+                          : 'Save Changes',
                     ),
                     onPressed: () => doSave(sheetContext),
                   ),
@@ -378,8 +378,8 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
   Future<void> _deleteRule(RecurringRuleModel rule) async {
     final confirmed = await showAdaptiveConfirmDialog(
       context: context,
-      title: 'Delete Recurring Rule',
-      message: 'Are you sure you want to delete this recurring rule?',
+      title: 'Delete Automation',
+      message: 'Delete this automation?',
       confirmLabel: 'Delete',
       isDestructive: true,
     );
@@ -388,7 +388,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
       HapticFeedback.mediumImpact();
       await ref.read(recurringServiceProvider).deleteRule(rule.id);
       if (mounted) {
-        showAppFeedback(context, 'Recurring rule deleted');
+        showAppFeedback(context, 'Automation deleted');
       }
     }
   }
@@ -404,15 +404,15 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
         showAppFeedback(
           context,
           count == 0
-              ? 'No recurring transactions were due'
-              : 'Generated $count recurring transaction(s) successfully!',
+              ? 'No transactions were due'
+              : 'Transactions added: $count',
         );
       }
     } catch (e) {
       if (mounted) {
         showAppFeedback(
           context,
-          'Could not run recurring rules: $e',
+          'Could not run automation: $e',
           isError: true,
         );
       }
@@ -428,12 +428,12 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
     if (!company.isModuleEnabled(AppModule.recurring)) {
       return const AdaptiveScaffold(
         key: Key('recurring_module_disabled'),
-        title: 'Recurring Transactions',
+        title: 'Automation',
         body: EmptyStateView(
           icon: Icons.update,
-          title: 'Recurring Module Disabled',
+          title: 'Automation is off',
           message:
-              'The recurring transactions module is currently disabled for this company. Enable it in company settings to automate repeating transactions.',
+              'Enable Automation in workspace settings to record repeating transactions.',
         ),
       );
     }
@@ -446,7 +446,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
     final categories = categoriesAsync.asData?.value ?? [];
 
     return AdaptiveScaffold(
-      title: 'Recurring Rules',
+      title: 'Automation',
       actions: [
         IconButton(
           key: const Key('run_due_recurring_button'),
@@ -460,7 +460,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
           IconButton(
             key: const Key('add_recurring_rule_button'),
             icon: const Icon(CupertinoIcons.add),
-            tooltip: 'Add Rule',
+            tooltip: 'Add Automation',
             onPressed: () => _showAddEditRuleSheet(context),
           ),
       ],
@@ -468,7 +468,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
           ? null
           : SpringMorphingFab(
               key: const Key('add_recurring_rule_button'),
-              label: 'Add Rule',
+              label: 'Add Automation',
               icon: Icons.add_rounded,
               onPressed: () => _showAddEditRuleSheet(context),
             ),
@@ -482,15 +482,15 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
               SkeletonListTile(),
             ],
           ),
-          error: (err, _) => Center(child: Text('Error loading rules: $err')),
+          error: (err, _) => Center(child: Text('Could not load automations: $err')),
           data: (rules) {
             if (rules.isEmpty) {
               return EmptyStateView(
                 icon: Icons.update,
-                title: 'No Recurring Rules',
+                title: 'No automations yet',
                 message:
-                    'Automate your repeating bills, subscriptions, or salaries with recurring transactions.',
-                actionLabel: 'Create First Rule',
+                    'Automatically record repeating bills, subscriptions, or income.',
+                actionLabel: 'Create Automation',
                 onAction: () => _showAddEditRuleSheet(context),
               );
             }
@@ -673,7 +673,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
               children: [
                 Expanded(child: Text(rule.isActive ? 'Active' : 'Paused')),
                 Semantics(
-                  label: 'Recurring rule active',
+                  label: 'Automation active',
                   child: AdaptiveSwitch(
                     key: Key('toggle_rule_${rule.id}'),
                     value: rule.isActive,

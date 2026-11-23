@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ledger_pulse/core/network/sync_engine.dart';
+import 'package:ledger_pulse/core/widgets/adaptive_chip.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_list_row.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_surface_card.dart';
 import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
@@ -20,6 +21,7 @@ import 'package:ledger_pulse/data/models/voucher_model.dart';
 import 'package:ledger_pulse/data/services/recurring_service.dart';
 import 'package:ledger_pulse/presentation/expense/accounts_screen.dart';
 import 'package:ledger_pulse/presentation/expense/budgets_screen.dart';
+import 'package:ledger_pulse/presentation/expense/quick_add_transaction_sheet.dart';
 import 'package:ledger_pulse/presentation/expense/recurring_screen.dart';
 import 'package:ledger_pulse/presentation/providers/budget_providers.dart';
 import 'package:ledger_pulse/presentation/providers/company_providers.dart';
@@ -155,6 +157,113 @@ void main() {
   }
 
   group('Prompt UI-6 - Accounts Screen (Wallets & Categories)', () {
+    testWidgets('Wallet menu sets the default for a new transaction', (tester) async {
+      tester.view.physicalSize = const Size(1000, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final wallet = await expenseRepo.createWallet(
+        name: 'Preferred Wallet',
+        type: AccountType.asset,
+        openingBalanceInCents: 0,
+      );
+      await tester.pumpWidget(buildTestScope(
+        child: const ExpenseAccountsScreen(initialTab: 1),
+      ));
+      await tester.pumpAndSettle();
+      final menu = find.byKey(Key('wallet_menu_${wallet.id}'));
+      await tester.ensureVisible(menu);
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Set as default wallet'));
+      await tester.pumpAndSettle();
+      expect(find.text('Asset Wallet · Default'), findsOneWidget);
+
+      final sheet = QuickAddTransactionSheet.show(
+        tester.element(find.byType(ExpenseAccountsScreen)),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<AdaptiveChip>(
+          find.byKey(Key('wallet_chip_${wallet.id}')),
+        ).isSelected,
+        isTrue,
+      );
+      Navigator.of(tester.element(find.byType(QuickAddTransactionSheet))).pop();
+      await tester.pumpAndSettle();
+      await sheet;
+      await tester.tap(menu);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Clear default wallet'));
+      await tester.pumpAndSettle();
+      expect(await expenseRepo.getDefaultWalletId(), isNull);
+    });
+
+    testWidgets('Saved category drag order appears in Quick Add', (tester) async {
+      tester.view.physicalSize = const Size(1000, 1600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final first = await expenseRepo.createCategory(
+        name: 'A Priority Example',
+        type: AccountType.expense,
+      );
+      final second = await expenseRepo.createCategory(
+        name: 'B Priority Example',
+        type: AccountType.expense,
+      );
+      await tester.pumpWidget(buildTestScope(
+        child: const ExpenseAccountsScreen(initialTab: 2),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Arrange'));
+      await tester.pumpAndSettle();
+
+      final handle = find.byTooltip('Reorder B Priority Example');
+      final from = tester.getCenter(handle);
+      final target = tester.getTopLeft(find.text('A Priority Example')).dy;
+      final gesture = await tester.startGesture(from);
+      await gesture.moveBy(const Offset(0, -20));
+      await tester.pump();
+      await gesture.moveTo(Offset(from.dx, target - 62));
+      await tester.pumpAndSettle();
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.text(second.name)).dy,
+        lessThan(tester.getTopLeft(find.text(first.name)).dy),
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.getTopLeft(find.text(second.name)).dy,
+        lessThan(tester.getTopLeft(find.text(first.name)).dy),
+      );
+      final transactionSheet = QuickAddTransactionSheet.show(
+        tester.element(find.byType(ExpenseAccountsScreen)),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.byKey(Key('cat_chip_${second.id}'))).dx,
+        lessThan(tester.getTopLeft(find.byKey(Key('cat_chip_${first.id}'))).dx),
+      );
+      final more = find.byKey(const Key('cat_chip_more'));
+      await tester.ensureVisible(more);
+      await tester.pumpAndSettle();
+      await tester.tap(more);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.text(second.name).hitTestable()).dy,
+        lessThan(tester.getTopLeft(find.text(first.name).hitTestable()).dy),
+      );
+      Navigator.of(tester.element(find.text('Select Category'))).pop();
+      await tester.pumpAndSettle();
+      Navigator.of(tester.element(find.byType(QuickAddTransactionSheet))).pop();
+      await tester.pumpAndSettle();
+      await transactionSheet;
+    });
+
     testWidgets('Add wallet sheet with AdaptiveChip liability and opening balance',
         (tester) async {
       tester.view.physicalSize = const Size(1200, 2400);
@@ -317,6 +426,16 @@ void main() {
         type: AccountType.expense,
         parentAccountId: parent.id,
       );
+      final retiredIncome = await expenseRepo.createCategory(
+        name: 'Retired Income',
+        type: AccountType.income,
+      );
+      await expenseRepo.updateCategory(id: retiredIncome.id, isActive: false);
+      final removed = await expenseRepo.createCategory(
+        name: 'Removed Category',
+        type: AccountType.expense,
+      );
+      expect(await expenseRepo.deleteCategory(removed.id), isTrue);
 
       await tester.pumpWidget(buildTestScope(
         child: const ExpenseAccountsScreen(),
@@ -355,6 +474,23 @@ void main() {
       // Verify deleted from repo
       final remaining = await expenseRepo.getCategories();
       expect(remaining.any((c) => c.id == parent.id), isFalse);
+
+      await tester.tap(find.text('View archive'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Archived Categories'), findsOneWidget);
+      expect(find.text('Retired Income'), findsOneWidget);
+      expect(find.text('Live Concerts'), findsOneWidget);
+      expect(find.text('Indie Music'), findsNothing);
+      expect(find.text('Removed Category'), findsNothing);
+
+      await tester.tap(find.text('Retired Income'));
+      await tester.pumpAndSettle();
+      expect(find.text('Restore category?'), findsOneWidget);
+      await tester.tap(find.text('Restore'));
+      await tester.pumpAndSettle();
+      expect(find.text('Retired Income'), findsNothing);
+      expect((await expenseRepo.getCategoryById(retiredIncome.id)).isActive, isTrue);
     });
   });
 
@@ -642,7 +778,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Confirmation dialog appears
-      expect(find.text('Delete Recurring Rule'), findsOneWidget);
+      expect(find.text('Delete Automation'), findsOneWidget);
       await tester.tap(find.text('Delete'));
       await tester.pumpAndSettle();
 

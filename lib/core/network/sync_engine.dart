@@ -89,7 +89,9 @@ abstract class RemoteGateway {
 class SupabaseGateway implements RemoteGateway {
   final SupabaseClient client;
 
-  SupabaseGateway(this.client);
+  final bool usePersonalAccounts;
+
+  SupabaseGateway(this.client, {this.usePersonalAccounts = false});
 
   @override
   Future<Map<String, dynamic>?> upsertRow({
@@ -97,6 +99,20 @@ class SupabaseGateway implements RemoteGateway {
     required Map<String, dynamic> row,
   }) async {
     try {
+      if (usePersonalAccounts && table == 'user_profiles') {
+        if (row['id'] != client.auth.currentUser?.id) {
+          throw StateError('Personal account belongs to a different session.');
+        }
+        await client.rpc<void>('ledgerpulse_save_account', params: {
+          'p_account_id': row['id'],
+          'p_details': {
+            'display_name': row['name'],
+            'phone_number': row['phone_number'],
+            'email': row['email'],
+          },
+        });
+        return null;
+      }
       final response = await client
           .from(table)
           .upsert(row)
@@ -123,7 +139,8 @@ class SupabaseGateway implements RemoteGateway {
     String? afterId,
   }) async {
     try {
-      var query = client.from(table).select();
+      final personalAccount = usePersonalAccounts && table == 'user_profiles';
+      var query = client.from(personalAccount ? 'users' : table).select();
 
       if (table == 'companies' || table == 'profiles') {
         query = query.eq('id', companyId);
@@ -156,6 +173,17 @@ class SupabaseGateway implements RemoteGateway {
 
       final List<dynamic> responseList = await transform;
 
+      if (personalAccount) {
+        return [
+          for (final row in responseList.cast<Map<String, dynamic>>())
+            {
+              ...row,
+              'name': row['display_name'],
+              'phone_number': row['phone_number'] ?? client.auth.currentUser?.phone,
+              'email': row['email'] ?? client.auth.currentUser?.email,
+            },
+        ];
+      }
       return responseList.cast<Map<String, dynamic>>();
     } on PostgrestException catch (e) {
       if (e.code == 'PGRST205' ||
@@ -269,8 +297,58 @@ class SyncEngine {
   SyncEngineStatus _currentStatus = SyncEngineStatus.idle;
 
   Completer<void>? _syncLock;
-  Timer? _debounceTimer;
-  int _workspaceSyncRequest = 0;
+  final _pendingUploads = <String>{};
+  StreamSubscription<List<SyncOutboxTableData>>? _outboxSubscription;
+  bool _uploadRunning = false;
+
+  /// Upload committed edits as soon as they appear in the durable outbox.
+  void startUploadingEdits() {
+    if (_outboxSubscription != null || _isDisposed) return;
+    var previous = <String, String>{};
+    _outboxSubscription = db.select(db.syncOutbox).watch().listen((rows) {
+      final current = <String, String>{};
+      for (final row in rows) {
+        if (row.lastError != null) continue;
+        current[row.id] = row.payload;
+        if (previous[row.id] == row.payload) continue;
+        try {
+          final decoded = jsonDecode(row.payload);
+          if (decoded is! Map<String, dynamic>) continue;
+          final payload = mapToSnakeCase(decoded);
+          final scope = switch (row.targetTable) {
+            'user_profiles' => 'cmp_default',
+            'profiles' || 'companies' => payload['profile_id'] ?? row.recordId,
+            _ => payload['profile_id'] ?? payload['company_id'],
+          };
+          if (scope is String && scope.isNotEmpty) _pendingUploads.add(scope);
+        } on FormatException {
+          // Malformed outbox rows are handled by sync cleanup.
+        }
+      }
+      previous = current;
+      unawaited(_uploadPendingEdits());
+    }, onError: (Object error) {
+      debugPrint('Unable to watch the sync outbox: ${error.runtimeType}');
+    });
+  }
+
+  Future<void> _uploadPendingEdits() async {
+    if (_uploadRunning || _isSessionStale(_sessionGeneration)) return;
+    _uploadRunning = true;
+    try {
+      while (_pendingUploads.isNotEmpty && !_isSessionStale(_sessionGeneration)) {
+        final scope = _pendingUploads.first;
+        _pendingUploads.remove(scope);
+        try {
+          await pushQueue(companyId: scope);
+        } catch (error) {
+          debugPrint('Edit upload failed: ${error.runtimeType}');
+        }
+      }
+    } finally {
+      _uploadRunning = false;
+    }
+  }
 
   SyncEngine({
     required this.db,
@@ -333,6 +411,7 @@ class SyncEngine {
   /// Invalidates any in-flight sync operations so their results and database writes are discarded.
   void invalidateSession() {
     workspaceSync?.suspend();
+    _pendingUploads.clear();
     _sessionGeneration++;
   }
 
@@ -382,7 +461,7 @@ class SyncEngine {
     workspaceSync?.suspend();
     _isDisposed = true;
     _sessionGeneration++;
-    _debounceTimer?.cancel();
+    unawaited(_outboxSubscription?.cancel());
     _statusController.close();
   }
 
@@ -488,19 +567,11 @@ class SyncEngine {
 
   void triggerBackgroundSync({
     String? companyId,
-    Duration debounceDelay = const Duration(milliseconds: 1500),
+    Duration debounceDelay = Duration.zero,
   }) {
     if (_isDisposed) return;
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(debounceDelay, () async {
-      if (_isDisposed) return;
-      try {
-        await db.customSelect('SELECT 1').getSingle();
-        await syncAll(companyId: companyId ?? 'cmp_default');
-      } catch (_) {
-        // DB closed or unmounted; ignore background sync trigger
-      }
-    });
+    _pendingUploads.add(companyId ?? 'cmp_default');
+    unawaited(_uploadPendingEdits());
   }
 
   Future<int> getPendingCount({String? companyId}) async {
@@ -1332,9 +1403,18 @@ class SyncEngine {
 
   /// Pushes queued outbox mutations to remote backend.
   Future<SyncResult> pushQueue({String? companyId}) async {
-    if (workspaceSync != null) return syncAll(companyId: companyId);
-    final cid = companyId ?? 'cmp_default';
+    final cid = companyId == null || companyId.isEmpty
+        ? 'cmp_default'
+        : companyId;
     return _synchronizedSync(() async {
+      final normalized = workspaceSync;
+      if (normalized != null) {
+        if (cid == 'cmp_default') {
+          return _pushQueueInternal(companyId: cid, accountOnly: true);
+        }
+        if (_isValidUuid(cid)) return _syncWorkspaceCommands(normalized, cid);
+        return SyncResult(status: SyncEngineStatus.idle);
+      }
       return _pushQueueInternal(companyId: cid);
     });
   }
@@ -1735,7 +1815,10 @@ class SyncEngine {
     }
   }
 
-  Future<SyncResult> _pushQueueInternal({required String companyId}) async {
+  Future<SyncResult> _pushQueueInternal({
+    required String companyId,
+    bool accountOnly = false,
+  }) async {
     final currentGeneration = _sessionGeneration;
     if (_isSessionStale(currentGeneration)) {
       return SyncResult(
@@ -1746,8 +1829,10 @@ class SyncEngine {
 
     setStatus(SyncEngineStatus.syncing);
     await _cleanupCorruptedOutbox();
-    await _repairFailedSyncRecords(companyId: companyId);
-    final enqueueOutcome = await _queueUnsyncedLocalRecords(companyId);
+    if (!accountOnly) await _repairFailedSyncRecords(companyId: companyId);
+    final enqueueOutcome = accountOnly
+        ? _EnqueueOutcome(errors: {}, failedKeys: {})
+        : await _queueUnsyncedLocalRecords(companyId);
     final enqueueErrors = enqueueOutcome.errors;
     final failedEnqueueKeys = enqueueOutcome.failedKeys;
 
@@ -1772,6 +1857,9 @@ class SyncEngine {
       )
       ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]);
 
+    if (accountOnly) {
+      query.where((row) => row.targetTable.equals('user_profiles'));
+    }
     final outboxRows = await query.get();
     if (outboxRows.isEmpty) {
       final status =
@@ -3581,7 +3669,10 @@ class SyncEngine {
     });
   }
 
-  Future<SyncResult> _pullChangesInternal({required String companyId}) async {
+  Future<SyncResult> _pullChangesInternal({
+    required String companyId,
+    bool accountOnly = false,
+  }) async {
     final currentGeneration = _sessionGeneration;
     if (_isSessionStale(currentGeneration)) {
       return SyncResult(
@@ -3595,6 +3686,7 @@ class SyncEngine {
     int totalPulled = 0;
 
     for (final table in syncTables) {
+      if (accountOnly && table.name != 'user_profiles') continue;
       if (_isSessionStale(currentGeneration)) break;
 
       try {
@@ -4585,30 +4677,35 @@ class SyncEngine {
   }
 
   /// Triggers full sync (push followed by pull)
-  Future<bool> _queueExpenseCommands(
+  Future<bool> _queueWorkspaceCommands(
     WorkspaceSyncEngine normalized,
-    String workspace,
-  ) async {
+    String workspace, {
+    bool afterPull = false,
+  }) async {
     final profile = await (db.select(db.profiles)..where((row) =>
         row.id.equals(workspace) & row.ownerId.equals(db.userId)))
         .getSingleOrNull();
-    if (profile?.profileType != 'expense') return false;
+    if (profile == null) return false;
+    final isLedger = profile.profileType == 'ledger';
 
     final rows = await db.select(db.syncOutbox).get();
     final pendingRecurrence = rows.any((row) =>
         row.targetTable == 'exp_recurring_rules' &&
-        (jsonDecode(row.payload) as Map)['profile_id'] == workspace);
+        mapToSnakeCase(jsonDecode(row.payload) as Map<String, dynamic>)[
+          'profile_id'
+        ] == workspace);
     rows.sort((a, b) => tableDependencyRank(a.targetTable)
         .compareTo(tableDependencyRank(b.targetTable)));
     var complete = true;
     for (final row in rows) {
-      final payload = jsonDecode(row.payload) as Map<String, dynamic>;
+      final payload = mapToSnakeCase(jsonDecode(row.payload) as Map<String, dynamic>);
       final scope = row.targetTable == 'profiles'
           ? payload['id']
-          : payload['profile_id'];
+          : payload['profile_id'] ??
+              (row.targetTable == 'companies' ? row.recordId : null);
       if (scope != workspace) continue;
       if (row.targetTable == 'profiles') {
-        final revision = profile!.revision;
+        final revision = profile.revision;
         final deleted = payload['is_deleted'] == true;
         if (revision == 0 && deleted) {
           complete = false;
@@ -4619,7 +4716,7 @@ class SyncEngine {
             : 'rename_workspace';
         await _queueConverted(normalized, workspace, row, kind, switch (kind) {
           'create_workspace' => {
-            'workspace_type': 'expense', 'name': profile.name,
+            'workspace_type': profile.profileType, 'name': profile.name,
             'currency_code': profile.currencyCode, 'time_zone': 'UTC',
           },
           'rename_workspace' => {'name': profile.name, 'expected_revision': revision},
@@ -4628,7 +4725,39 @@ class SyncEngine {
         continue;
       }
 
-      final mappings = _expenseCommandColumns[row.targetTable];
+      if (isLedger && row.targetTable == 'companies') {
+        final company = await (db.select(db.companies)..where((entry) =>
+            entry.id.equals(row.recordId) &
+            (entry.profileId.equals(workspace) | entry.id.equals(workspace))))
+            .getSingleOrNull();
+        if (company == null || company.isDeleted) continue;
+        if (company.revision == 0) {
+          complete = false;
+          continue;
+        }
+        await _queueConverted(normalized, workspace, row, 'write_entity', {
+          'table': 'ledger_profiles',
+          'id': workspace,
+          'expected_revision': company.revision,
+          'fields': {
+            'legal_name': company.legalName,
+            'tax_registration_no': company.gstin,
+            'tax_region_code': company.stateCode,
+            'dealer_type': company.dealerType,
+            'business_address': company.address,
+            'business_email': company.email,
+            'business_phone': company.phoneNumber,
+            'signatory_name': company.signatoryName,
+            'bank_name': company.bankName,
+            'bank_account_no': company.bankAccountNumber,
+            'bank_routing_code': company.bankIfsc,
+            'payment_address': company.upiId,
+          },
+        });
+        continue;
+      }
+
+      final mappings = isLedger ? null : _expenseCommandColumns[row.targetTable];
       if (mappings == null) {
         // Local compatibility records have no cloud equivalent in Expense.
         if (row.targetTable != 'companies' && row.targetTable != 'shared_memberships') {
@@ -4645,6 +4774,13 @@ class SyncEngine {
         continue;
       }
       final table = row.targetTable.replaceFirst('exp_', 'expense_');
+      final isCategory = row.targetTable == 'exp_categories';
+      if (isCategory) {
+        if (!await _queueCategoryCommand(normalized, workspace, row, afterPull)) {
+          complete = false;
+        }
+        continue;
+      }
       final existing = await db.customSelect(
         'SELECT revision FROM $table WHERE id = ? AND profile_id = ?',
         variables: [Variable(row.recordId), Variable(workspace)],
@@ -4664,9 +4800,6 @@ class SyncEngine {
       if (payload.containsKey('is_archived')) {
         fields['archived_at'] = payload['is_archived'] == true ? payload['updated_at'] : null;
       }
-      if (row.targetTable == 'exp_categories' && payload['is_system'] == true) {
-        fields['system_key'] = row.recordId;
-      }
       if (payload['is_deleted'] == true) {
         if (revision == 0) {
           complete = false;
@@ -4682,18 +4815,74 @@ class SyncEngine {
     return complete;
   }
 
+  Future<bool> _queueCategoryCommand(
+    WorkspaceSyncEngine normalized,
+    String workspace,
+    SyncOutboxTableData row,
+    bool afterPull,
+  ) async {
+    if (await normalized.hasPendingCategoryWrite(workspace, row.recordId)) {
+      return false;
+    }
+    final category = await (db.select(db.expenseCategories)
+          ..where((entry) =>
+              entry.id.equals(row.recordId) & entry.profileId.equals(workspace)))
+        .getSingleOrNull();
+    if (category == null) return false;
+    if (category.isDeleted && category.revision == 0) {
+      if (!afterPull) return false;
+      // The completed pull found no cloud revision for this local-only category.
+      await db.transaction(() async {
+        await _removeConvertedEntry(row);
+        await (db.update(db.expenseCategories)
+              ..where((entry) => entry.id.equals(category.id) &
+                  entry.profileId.equals(workspace)))
+            .write(const ExpenseCategoriesCompanion(
+              syncStatus: Value(SyncRecordStatus.synced),
+            ));
+      });
+      return true;
+    }
+    final payload = mapToSnakeCase(jsonDecode(row.payload) as Map<String, dynamic>);
+    final fields = <String, dynamic>{
+      if (category.revision == 0) ...{
+        'name': category.name,
+        'category_type': category.categoryType,
+        'parent_category_id': category.parentCategoryId,
+        'icon_name': category.iconName,
+        'color_hex': category.colorHex,
+        if (category.isSystem) 'system_key': category.id,
+      } else if (!category.isDeleted)
+        for (final key in const [
+          'name', 'category_type', 'parent_category_id', 'icon_name', 'color_hex',
+        ])
+          if (payload.containsKey(key)) key: payload[key],
+      'archived_at': category.archivedAt == null ? null : encodeTime(category.archivedAt!),
+      if (category.isDeleted) 'deleted_at': true,
+    };
+    await _queueConverted(normalized, workspace, row, 'write_entity', {
+      'table': 'expense_categories',
+      'id': category.id,
+      'expected_revision': category.revision,
+      'fields': fields,
+    });
+    return true;
+  }
+
   Future<void> _queueConverted(WorkspaceSyncEngine normalized, String workspace,
       SyncOutboxTableData row, String kind, SyncJson data) => normalized.enqueue(
     workspace: workspace,
     operationId: row.id,
     kind: kind,
     data: data,
-    applyLocal: () async {
-      final removed = await (db.delete(db.syncOutbox)..where((entry) =>
-          entry.id.equals(row.id) & entry.payload.equals(row.payload))).go();
-      if (removed != 1) throw StateError('Local mutation changed during sync.');
-    },
+    applyLocal: () => _removeConvertedEntry(row),
   );
+
+  Future<void> _removeConvertedEntry(SyncOutboxTableData row) async {
+    final removed = await (db.delete(db.syncOutbox)..where((entry) =>
+        entry.id.equals(row.id) & entry.payload.equals(row.payload))).go();
+    if (removed != 1) throw StateError('Local mutation changed during sync.');
+  }
 
   static const _expenseCommandColumns = {
     'exp_wallets': {
@@ -4715,40 +4904,82 @@ class SyncEngine {
     },
   };
 
+  Future<SyncResult> _syncWorkspaceCommands(
+    WorkspaceSyncEngine normalized,
+    String workspace,
+  ) async {
+    final generation = _sessionGeneration;
+    if (_isSessionStale(generation)) {
+      return SyncResult(status: SyncEngineStatus.idle);
+    }
+    normalized.selectWorkspace(workspace);
+    var allConverted = await _queueWorkspaceCommands(normalized, workspace);
+    if (_isSessionStale(generation)) {
+      return SyncResult(status: SyncEngineStatus.idle);
+    }
+    setStatus(SyncEngineStatus.syncing);
+    try {
+      var outcome = await normalized.synchronize();
+      if (outcome == WorkspaceSyncOutcome.conflicted &&
+          !_isSessionStale(generation) &&
+          await normalized.retryConflictedCategoryVisibilityChange(workspace) &&
+          !_isSessionStale(generation)) {
+        outcome = await normalized.synchronize();
+      }
+      if (!allConverted && outcome == WorkspaceSyncOutcome.current &&
+          !_isSessionStale(generation)) {
+        allConverted = await _queueWorkspaceCommands(normalized, workspace, afterPull: true);
+        if (!_isSessionStale(generation)) {
+          outcome = await normalized.synchronize();
+        }
+      }
+      final status = switch (outcome) {
+        WorkspaceSyncOutcome.current => allConverted ? SyncEngineStatus.success : SyncEngineStatus.partial,
+        WorkspaceSyncOutcome.suspended => SyncEngineStatus.idle,
+        _ => SyncEngineStatus.partial,
+      };
+      setStatus(status);
+      return SyncResult(
+        status: status,
+        errorMessage: allConverted ? null : 'Some local changes need a supported workspace command.',
+      );
+    } catch (_) {
+      setStatus(SyncEngineStatus.error);
+      rethrow;
+    }
+  }
+
   Future<SyncResult> syncAll({String? companyId}) async {
     final cid = (companyId != null && companyId.isNotEmpty)
         ? companyId
         : 'cmp_default';
-    final normalized = workspaceSync;
-    if (normalized != null) {
-      if (!_isValidUuid(cid) || _isDisposed) {
-        return SyncResult(status: SyncEngineStatus.idle);
-      }
-      final request = ++_workspaceSyncRequest;
-      normalized.selectWorkspace(cid);
-      final allConverted = await _queueExpenseCommands(normalized, cid);
-      if (_isDisposed || request != _workspaceSyncRequest) {
-        return SyncResult(status: SyncEngineStatus.idle);
-      }
-      setStatus(SyncEngineStatus.syncing);
-      try {
-        final outcome = await normalized.synchronize();
-        final status = switch (outcome) {
-          WorkspaceSyncOutcome.current => allConverted ? SyncEngineStatus.success : SyncEngineStatus.partial,
-          WorkspaceSyncOutcome.suspended => SyncEngineStatus.idle,
-          _ => SyncEngineStatus.partial,
-        };
-        setStatus(status);
-        return SyncResult(
-          status: status,
-          errorMessage: allConverted ? null : 'Some local changes need a supported workspace command.',
-        );
-      } catch (_) {
-        setStatus(SyncEngineStatus.error);
-        rethrow;
-      }
-    }
     return _synchronizedSync(() async {
+      final normalized = workspaceSync;
+      if (normalized != null) {
+        final account = await _pushQueueInternal(
+          companyId: 'cmp_default', accountOnly: true,
+        );
+        if (cid == 'cmp_default' || _isValidUuid(cid)) {
+          final accountPull = await _pullChangesInternal(
+            companyId: 'cmp_default', accountOnly: true,
+          );
+          final workspace = cid == 'cmp_default'
+              ? SyncResult()
+              : await _syncWorkspaceCommands(normalized, cid);
+          final status = account.success && accountPull.success
+              ? workspace.status
+              : SyncEngineStatus.partial;
+          setStatus(status);
+          return SyncResult(
+            status: status,
+            errorMessage: workspace.errorMessage,
+            tableErrors: {...account.tableErrors, ...accountPull.tableErrors},
+            pushedCount: account.pushedCount,
+            pulledCount: accountPull.pulledCount,
+          );
+        }
+        return account;
+      }
       setStatus(SyncEngineStatus.syncing);
       final pushResult = await _pushQueueInternal(companyId: cid);
       final pullResult = await _pullChangesInternal(companyId: cid);

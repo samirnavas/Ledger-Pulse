@@ -79,6 +79,7 @@ final widgetEntryContextProvider = Provider<void>((ref) {
   final isExpense = company.mode == CompanyMode.expenseTracker;
   final wallets = isExpense ? ref.watch(walletsProvider).value : null;
   final categories = isExpense ? ref.watch(categoriesProvider).value : null;
+  final defaultWallet = isExpense ? ref.watch(defaultWalletIdProvider) : null;
   final enabled = ref.watch(widgetKeypadEnabledProvider).value;
   final hasActiveCompany = ref.watch(
     userCompaniesProvider.select(
@@ -95,13 +96,15 @@ final widgetEntryContextProvider = Provider<void>((ref) {
         return;
       } else if (!isExpense) {
         await WidgetEntryService.clear();
-      } else if (enabled == true && wallets != null && categories != null) {
+      } else if (enabled == true && wallets != null && categories != null &&
+          defaultWallet?.isLoading == false) {
         await WidgetEntryService.publish(
           company: company,
           userId: userId,
           role: role,
           wallets: wallets,
           categories: categories,
+          defaultWalletId: defaultWallet?.value,
         );
       }
     } catch (error) {

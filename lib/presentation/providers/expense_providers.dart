@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/local/drift_expense_repository.dart';
@@ -170,6 +171,17 @@ final walletsProvider = FutureProvider<List<AccountModel>>((ref) async {
   return await repo.getWallets(includeArchived: false);
 });
 
+final defaultWalletIdProvider = FutureProvider<String?>((ref) async {
+  if (ref.watch(activeCompanyProvider).mode != CompanyMode.expenseTracker) {
+    return null;
+  }
+  final db = ref.watch(appDatabaseProvider);
+  final subscription = db.tableUpdates(TableUpdateQuery.onTable(db.userPreferences))
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(subscription.cancel);
+  return ref.watch(expenseRepositoryProvider).getDefaultWalletId();
+});
+
 /// Reactive list of active expense and income categories.
 /// Refreshed from repositoryUpdatesStream.
 final categoriesProvider = FutureProvider<List<AccountModel>>((ref) async {
@@ -183,6 +195,27 @@ final categoriesProvider = FutureProvider<List<AccountModel>>((ref) async {
     ref.invalidateSelf();
   });
   ref.onDispose(sub.cancel);
+  final db = ref.watch(appDatabaseProvider);
+  final projection = db.tableUpdates(TableUpdateQuery.onTable(db.expenseCategories))
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(projection.cancel);
 
-  return await repo.getCategories(includeArchived: false);
+  return await repo.getCategories(usePriority: true);
+});
+
+final archivedCategoriesProvider =
+    FutureProvider.autoDispose<List<AccountModel>>((ref) async {
+  if (ref.watch(activeCompanyProvider).mode != CompanyMode.expenseTracker) {
+    return const [];
+  }
+  final repo = ref.watch(expenseRepositoryProvider);
+  final sub = repo.repositoryUpdatesStream.listen((_) => ref.invalidateSelf());
+  ref.onDispose(sub.cancel);
+  final db = ref.watch(appDatabaseProvider);
+  final projection = db.tableUpdates(TableUpdateQuery.onTable(db.expenseCategories))
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(projection.cancel);
+
+  final categories = await repo.getCategories(includeArchived: true);
+  return categories.where((category) => !category.isActive).toList();
 });

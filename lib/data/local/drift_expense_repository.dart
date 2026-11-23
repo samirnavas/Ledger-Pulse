@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -1095,6 +1096,44 @@ class DriftExpenseRepository {
   Future<AccountModel> getWalletById(String id) async =>
       _walletToAccount(await _getWalletRow(id));
 
+  static const _defaultWalletKey = 'default_expense_wallet';
+
+  Selectable<UserPreferenceTableData> _defaultWalletPreference() =>
+      _db.select(_db.userPreferences)..where(
+        (row) =>
+            row.profileId.equals(_currentCompanyId) &
+            row.key.equals(_defaultWalletKey),
+      );
+
+  Future<String?> getDefaultWalletId() async =>
+      (await _defaultWalletPreference().getSingleOrNull())?.value;
+
+  Future<void> setDefaultWalletId(String? id) async {
+    await _ensureExpenseTrackerMode();
+    AccessControlService.verifyPermission(_currentRole, UserAction.createExpense);
+    await _db.transaction(() async {
+      if (id == null) {
+        await (_db.delete(_db.userPreferences)..where(
+          (row) => row.profileId.equals(_currentCompanyId) &
+              row.key.equals(_defaultWalletKey),
+        )).go();
+        return;
+      }
+      final wallet = await _getWalletRow(id);
+      if (wallet.isArchived) {
+        throw StateError('Choose an active wallet.');
+      }
+      await _db.into(_db.userPreferences).insertOnConflictUpdate(
+        UserPreferencesCompanion.insert(
+          key: _defaultWalletKey,
+          profileId: Value(_currentCompanyId),
+          value: id,
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    });
+  }
+
   Future<int> getWalletOpeningBalance(String id) async =>
       (await _getWalletRow(id)).startingBalanceInCents;
 
@@ -1420,6 +1459,7 @@ class DriftExpenseRepository {
   Future<List<AccountModel>> getCategories({
     ExpenseCategoryType? type,
     bool includeArchived = false,
+    bool usePriority = false,
   }) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
@@ -1435,7 +1475,94 @@ class DriftExpenseRepository {
     if (!includeArchived) {
       query.where((t) => t.archivedAt.isNull());
     }
-    return (await query.get()).map(_categoryToAccount).toList();
+    final categories = (await query.get()).map(_categoryToAccount).toList();
+    if (!usePriority || categories.isEmpty) return categories;
+
+    final preferences = await (_db.select(_db.userPreferences)
+          ..where((row) =>
+              row.profileId.equals(_currentCompanyId) &
+              row.key.isIn([
+                _categoryPriorityKey(AccountType.expense),
+                _categoryPriorityKey(AccountType.income),
+              ])))
+        .get();
+    if (preferences.isEmpty) return categories;
+
+    final orderByType = {for (final row in preferences) row.key: row.value};
+    return [
+      for (final type in [AccountType.expense, AccountType.income])
+        ..._applyCategoryPriority(
+          categories.where((category) => category.type == type).toList(),
+          orderByType[_categoryPriorityKey(type)],
+        ),
+    ];
+  }
+
+  static String _categoryPriorityKey(AccountType type) =>
+      'category_priority_${type.name}';
+
+  List<AccountModel> _applyCategoryPriority(
+    List<AccountModel> categories,
+    String? preference,
+  ) {
+    if (preference == null) return categories;
+    final List<String> ids;
+    try {
+      final decoded = jsonDecode(preference);
+      if (decoded is! List) return categories;
+      ids = decoded.whereType<String>().toList();
+    } on FormatException {
+      return categories;
+    }
+    final remaining = {for (final category in categories) category.id: category};
+    final ordered = <AccountModel>[];
+    for (final id in ids) {
+      final category = remaining.remove(id);
+      if (category != null) ordered.add(category);
+    }
+    ordered.addAll(remaining.values);
+
+    final childrenByParent = <String, List<AccountModel>>{};
+    for (final category in ordered) {
+      final parentId = category.parentAccountId;
+      if (parentId != null) {
+        childrenByParent.putIfAbsent(parentId, () => []).add(category);
+      }
+    }
+    final grouped = <AccountModel>[];
+    final visited = <String>{};
+    void addGroup(AccountModel category) {
+      if (!visited.add(category.id)) return;
+      grouped.add(category);
+      for (final child in childrenByParent[category.id] ?? const []) {
+        addGroup(child);
+      }
+    }
+    for (final category in ordered.where((category) => category.parentAccountId == null)) {
+      addGroup(category);
+    }
+    // An active category can outlive its archived parent.
+    for (final category in ordered) {
+      addGroup(category);
+    }
+    return grouped;
+  }
+
+  Future<void> saveCategoryPriority(AccountType type, List<String> ids) async {
+    await _ensureExpenseTrackerMode();
+    AccessControlService.verifyPermission(
+      _currentRole,
+      UserAction.manageWalletsAndCategories,
+    );
+    await _db.into(_db.userPreferences).insertOnConflictUpdate(
+      UserPreferencesCompanion.insert(
+        key: _categoryPriorityKey(type),
+        profileId: Value(_currentCompanyId),
+        value: jsonEncode(ids),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+    if (!_isDisposed) _updateStreamController.add(null);
   }
 
   Future<AccountModel> getCategoryById(String id) async {
@@ -1575,9 +1702,11 @@ class DriftExpenseRepository {
 
     final updated = await _db.transaction(() async {
       final existing = await getCategoryById(id);
-      if (parentAccountId != null) {
+      final parentToValidate =
+          parentAccountId ?? (isActive == true ? existing.parentAccountId : null);
+      if (parentToValidate != null) {
         await _validateCategoryParent(
-          parentId: parentAccountId,
+          parentId: parentToValidate,
           categoryId: id,
           type: existing.type,
         );
@@ -1617,8 +1746,10 @@ class DriftExpenseRepository {
         fullRowMap: {
           'id': id,
           'profile_id': _currentCompanyId,
-          'name': updated.name,
-          'parent_category_id': updated.parentAccountId,
+          if (name != null) 'name': updated.name,
+          if (parentAccountId != null) 'parent_category_id': updated.parentAccountId,
+          'color_hex': ?colorHex,
+          'icon_name': ?iconName,
           'updated_at': encodeTime(now),
         },
       );

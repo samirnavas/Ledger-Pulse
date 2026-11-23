@@ -12,6 +12,8 @@ import 'database_providers.dart';
 String activeWorkspacePreferenceKey(String userId) => 'last_active_profile_$userId';
 
 class UserProfileNotifier extends Notifier<UserProfile> {
+  int _editVersion = 0;
+
   @override
   UserProfile build() {
     final uid = ref.watch(activeUserIdProvider);
@@ -43,6 +45,8 @@ class UserProfileNotifier extends Notifier<UserProfile> {
   Future<void> _loadFromDatabase(String userId) async {
     try {
       if (!ref.mounted) return;
+      final editVersion = _editVersion;
+      final legacyProfile = ref.read(syncEngineProvider).workspaceSync == null;
       final db = ref.read(appDatabaseProvider);
       final authState = ref.read(authControllerProvider);
 
@@ -73,7 +77,10 @@ class UserProfileNotifier extends Notifier<UserProfile> {
         updatedAt: c.updatedAt,
       )).toList();
 
-      if (!ref.mounted || ref.read(activeUserIdProvider) != userId) return;
+      if (!ref.mounted || ref.read(activeUserIdProvider) != userId ||
+          editVersion != _editVersion) {
+        return;
+      }
       final prefs = ref.read(sharedPreferencesProvider);
       final savedActiveId = prefs?.getString(activeWorkspacePreferenceKey(userId)) ??
           prefs?.getString('last_active_company_id_$userId');
@@ -89,21 +96,19 @@ class UserProfileNotifier extends Notifier<UserProfile> {
           ? profileRow.name
           : (authState.userName?.isNotEmpty == true ? authState.userName! : state.name);
 
-      final effectivePhone = authState.phoneNumber ??
-          profileRow?.phoneNumber ??
-          state.phoneNumber;
-
-      final effectiveEmail = authState.email ?? profileRow?.email ?? state.email;
+      final effectivePhone =
+          profileRow?.phoneNumber ?? authState.phoneNumber ?? state.phoneNumber;
+      final effectiveEmail = profileRow?.email ?? authState.email ?? state.email;
 
       final effectiveBusinessName = (profileRow != null && profileRow.businessName?.isNotEmpty == true)
           ? profileRow.businessName!
           : (activeComp?.name.isNotEmpty == true ? activeComp!.name : state.businessName);
 
-      final effectiveGstin = (profileRow != null && profileRow.gstin?.isNotEmpty == true)
+      final effectiveGstin = (legacyProfile && profileRow != null && profileRow.gstin?.isNotEmpty == true)
           ? profileRow.gstin!
           : (activeComp?.gstin ?? state.gstin);
 
-      final effectiveAddress = (profileRow != null && profileRow.address?.isNotEmpty == true)
+      final effectiveAddress = (legacyProfile && profileRow != null && profileRow.address?.isNotEmpty == true)
           ? profileRow.address!
           : (activeComp?.address ?? state.address);
 
@@ -120,16 +125,24 @@ class UserProfileNotifier extends Notifier<UserProfile> {
           name: effectiveName,
           phoneNumber: effectivePhone,
           email: effectiveEmail,
-          businessName: effectiveBusinessName,
-          address: effectiveAddress,
-          gstin: effectiveGstin,
-          businessType: profileRow?.businessType ?? state.businessType,
-          bankName: profileRow?.bankName ?? activeComp?.bankName ?? state.bankName,
-          bankAccountNumber: profileRow?.bankAccountNumber ??
-              activeComp?.bankAccountNumber ??
-              state.bankAccountNumber,
-          bankIfsc: profileRow?.bankIfsc ?? activeComp?.bankIfsc ?? state.bankIfsc,
-          upiId: profileRow?.upiId ?? activeComp?.upiId ?? state.upiId,
+          businessName: legacyProfile ? effectiveBusinessName : '',
+          address: legacyProfile ? effectiveAddress : '',
+          gstin: legacyProfile ? effectiveGstin : '',
+          businessType: legacyProfile ? profileRow?.businessType ?? state.businessType : null,
+          bankName: legacyProfile
+              ? profileRow?.bankName ?? activeComp?.bankName ?? state.bankName
+              : null,
+          bankAccountNumber: legacyProfile
+              ? profileRow?.bankAccountNumber ??
+                  activeComp?.bankAccountNumber ??
+                  state.bankAccountNumber
+              : null,
+          bankIfsc: legacyProfile
+              ? profileRow?.bankIfsc ?? activeComp?.bankIfsc ?? state.bankIfsc
+              : null,
+          upiId: legacyProfile
+              ? profileRow?.upiId ?? activeComp?.upiId ?? state.upiId
+              : null,
           role: userRole,
           activeCompanyId: effectiveActiveId,
           companies: loadedCompanies.isNotEmpty ? loadedCompanies : state.companies,
@@ -145,119 +158,143 @@ class UserProfileNotifier extends Notifier<UserProfile> {
   }
 
   void updateProfile(UserProfile updated) {
+    saveProfile(updated);
+  }
+
+  Future<bool> saveProfile(UserProfile updated) async {
+    final previous = state;
+    final version = ++_editVersion;
     state = updated;
-    _saveToDatabase(updated);
+    final saved = await _saveToDatabase(updated);
+    if (!saved && ref.mounted && version == _editVersion &&
+        identical(state, updated)) {
+      state = previous;
+    }
+    return saved;
   }
 
   void showSelectedWorkspace(String workspaceId) {
     state = state.copyWith(activeCompanyId: workspaceId);
   }
 
-  Future<void> _saveToDatabase(UserProfile profile) async {
+  void showCompanies(List<Company> companies) {
+    state = state.copyWith(companies: companies);
+  }
+
+  Future<bool> _saveToDatabase(UserProfile profile) async {
     try {
-      if (!ref.mounted) return;
+      if (!ref.mounted) return false;
       final db = ref.read(appDatabaseProvider);
+      final engine = ref.read(syncEngineProvider);
       final now = DateTime.now();
 
-      final profileCompanion = UserProfilesCompanion.insert(
-        id: profile.id,
-        name: profile.name,
-        phoneNumber: profile.phoneNumber,
-        email: profile.email,
-        businessName: Value(profile.businessName),
-        address: Value(profile.address),
-        gstin: Value(profile.gstin),
-        businessType: Value(profile.businessType),
-        bankName: Value(profile.bankName),
-        bankAccountNumber: Value(profile.bankAccountNumber),
-        bankIfsc: Value(profile.bankIfsc),
-        upiId: Value(profile.upiId),
-        role: Value(profile.role.name),
-        updatedAt: Value(now),
-        syncStatus: const Value(SyncRecordStatus.pending),
-      );
-      await db.into(db.userProfiles).insertOnConflictUpdate(profileCompanion);
-
-      // Enqueue sync outbox mutation for user_profiles
-      await enqueueMutation(
-        db: db,
-        table: 'user_profiles',
-        recordId: profile.id,
-        type: 'UPSERT',
-        fullRowMap: {
-          'id': profile.id,
-          'name': profile.name,
-          'phoneNumber': profile.phoneNumber,
-          'email': profile.email,
-          'businessName': profile.businessName,
-          'address': profile.address,
-          'gstin': profile.gstin,
-          'businessType': profile.businessType,
-          'bankName': profile.bankName,
-          'bankAccountNumber': profile.bankAccountNumber,
-          'bankIfsc': profile.bankIfsc,
-          'upiId': profile.upiId,
-          'role': profile.role.name,
-          'isDeleted': false,
-          'updatedAt': now,
-        },
-      );
-
-      // Personal expense account fields also supply the legacy company details.
-      if (profile.activeCompanyId.isNotEmpty) {
-        final existingComp = await (db.select(db.companies)
-              ..where((c) => c.id.equals(profile.activeCompanyId)))
+      await db.transaction(() async {
+        final existing = await (db.select(db.userProfiles)
+              ..where((row) => row.id.equals(profile.id)))
             .getSingleOrNull();
-        if (existingComp != null &&
-            CompanyMode.tryParse(existingComp.mode) == CompanyMode.expenseTracker) {
-          final compName = profile.businessName.isNotEmpty ? profile.businessName : existingComp.name;
-          await (db.update(db.companies)..where((c) => c.id.equals(profile.activeCompanyId))).write(
-            CompaniesCompanion(
-              name: Value(compName),
-              legalName: Value(compName),
-              gstin: Value(profile.gstin.isNotEmpty ? profile.gstin : existingComp.gstin),
-              address: Value(profile.address.isNotEmpty ? profile.address : existingComp.address),
-              bankName: Value(profile.bankName ?? existingComp.bankName),
-              bankAccountNumber: Value(profile.bankAccountNumber ?? existingComp.bankAccountNumber),
-              bankIfsc: Value(profile.bankIfsc ?? existingComp.bankIfsc),
-              upiId: Value(profile.upiId ?? existingComp.upiId),
-              updatedAt: Value(now),
-              syncStatus: const Value(SyncRecordStatus.pending),
-            ),
-          );
+        final revision = (existing?.revision ?? 0) + 1;
+        final legacyProfile = engine.workspaceSync == null;
+        final profileCompanion = UserProfilesCompanion.insert(
+          id: profile.id,
+          name: profile.name,
+          phoneNumber: profile.phoneNumber,
+          email: profile.email,
+          businessName: legacyProfile ? Value(profile.businessName) : const Value.absent(),
+          address: legacyProfile ? Value(profile.address) : const Value.absent(),
+          gstin: legacyProfile ? Value(profile.gstin) : const Value.absent(),
+          businessType: legacyProfile ? Value(profile.businessType) : const Value.absent(),
+          bankName: legacyProfile ? Value(profile.bankName) : const Value.absent(),
+          bankAccountNumber: legacyProfile ? Value(profile.bankAccountNumber) : const Value.absent(),
+          bankIfsc: legacyProfile ? Value(profile.bankIfsc) : const Value.absent(),
+          upiId: legacyProfile ? Value(profile.upiId) : const Value.absent(),
+          role: Value(profile.role.name),
+          updatedAt: Value(now),
+          revision: Value(revision),
+          syncStatus: const Value(SyncRecordStatus.pending),
+        );
+        await db.into(db.userProfiles).insertOnConflictUpdate(profileCompanion);
 
-          await enqueueMutation(
-            db: db,
-            table: 'companies',
-            recordId: existingComp.id,
-            type: 'UPSERT',
-            fullRowMap: {
-              'id': existingComp.id,
-              'name': compName,
-              'legalName': compName,
-              'gstin': profile.gstin.isNotEmpty ? profile.gstin : existingComp.gstin,
-              'address': profile.address.isNotEmpty ? profile.address : existingComp.address,
-              'bankName': profile.bankName ?? existingComp.bankName,
-              'bankAccountNumber': profile.bankAccountNumber ?? existingComp.bankAccountNumber,
-              'bankIfsc': profile.bankIfsc ?? existingComp.bankIfsc,
-              'upiId': profile.upiId ?? existingComp.upiId,
-              'ownerId': existingComp.ownerId,
-              'mode': existingComp.mode,
-              'currencyCode': existingComp.currencyCode,
-              'isActive': existingComp.isActive,
-              'isDeleted': existingComp.isDeleted,
-              'updatedAt': now,
-            },
-          );
+        // Enqueue sync outbox mutation for user_profiles
+        await enqueueMutation(
+          db: db,
+          table: 'user_profiles',
+          recordId: profile.id,
+          type: 'UPSERT',
+          fullRowMap: {
+            'id': profile.id,
+            'name': profile.name,
+            'phoneNumber': profile.phoneNumber,
+            'email': profile.email,
+            if (legacyProfile) 'businessName': profile.businessName,
+            if (legacyProfile) 'address': profile.address,
+            if (legacyProfile) 'gstin': profile.gstin,
+            if (legacyProfile) 'businessType': profile.businessType,
+            if (legacyProfile) 'bankName': profile.bankName,
+            if (legacyProfile) 'bankAccountNumber': profile.bankAccountNumber,
+            if (legacyProfile) 'bankIfsc': profile.bankIfsc,
+            if (legacyProfile) 'upiId': profile.upiId,
+            'role': profile.role.name,
+            'isDeleted': false,
+            'updatedAt': now,
+            'revision': revision,
+          },
+        );
+
+        // Personal expense account fields also supply the legacy company details.
+        if (legacyProfile && profile.activeCompanyId.isNotEmpty) {
+          final existingComp = await (db.select(db.companies)
+                ..where((c) => c.id.equals(profile.activeCompanyId)))
+              .getSingleOrNull();
+          if (existingComp != null &&
+              CompanyMode.tryParse(existingComp.mode) == CompanyMode.expenseTracker) {
+            final compName = profile.businessName.isNotEmpty ? profile.businessName : existingComp.name;
+            await (db.update(db.companies)..where((c) => c.id.equals(profile.activeCompanyId))).write(
+              CompaniesCompanion(
+                name: Value(compName),
+                legalName: Value(compName),
+                gstin: Value(profile.gstin.isNotEmpty ? profile.gstin : existingComp.gstin),
+                address: Value(profile.address.isNotEmpty ? profile.address : existingComp.address),
+                bankName: Value(profile.bankName ?? existingComp.bankName),
+                bankAccountNumber: Value(profile.bankAccountNumber ?? existingComp.bankAccountNumber),
+                bankIfsc: Value(profile.bankIfsc ?? existingComp.bankIfsc),
+                upiId: Value(profile.upiId ?? existingComp.upiId),
+                updatedAt: Value(now),
+                syncStatus: const Value(SyncRecordStatus.pending),
+              ),
+            );
+
+            await enqueueMutation(
+              db: db,
+              table: 'companies',
+              recordId: existingComp.id,
+              type: 'UPSERT',
+              fullRowMap: {
+                'id': existingComp.id,
+                'name': compName,
+                'legalName': compName,
+                'gstin': profile.gstin.isNotEmpty ? profile.gstin : existingComp.gstin,
+                'address': profile.address.isNotEmpty ? profile.address : existingComp.address,
+                'bankName': profile.bankName ?? existingComp.bankName,
+                'bankAccountNumber': profile.bankAccountNumber ?? existingComp.bankAccountNumber,
+                'bankIfsc': profile.bankIfsc ?? existingComp.bankIfsc,
+                'upiId': profile.upiId ?? existingComp.upiId,
+                'ownerId': existingComp.ownerId,
+                'mode': existingComp.mode,
+                'currencyCode': existingComp.currencyCode,
+                'isActive': existingComp.isActive,
+                'isDeleted': existingComp.isDeleted,
+                'updatedAt': now,
+              },
+            );
+          }
         }
-      }
+      });
 
-      // Trigger background sync
-      try {
-        ref.read(syncEngineProvider).triggerBackgroundSync();
-      } catch (_) {}
-    } catch (e, st) {
-      debugPrint('UserProfileNotifier: Error saving profile to database: $e\n$st');
+      engine.triggerBackgroundSync();
+      return true;
+    } catch (e) {
+      debugPrint('UserProfileNotifier: Error saving profile: ${e.runtimeType}');
+      return false;
     }
   }
 

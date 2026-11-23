@@ -6,6 +6,7 @@ import 'package:ledger_pulse/presentation/auth/app_root_gate.dart';
 import 'package:ledger_pulse/presentation/auth/phone_input_screen.dart';
 import 'package:ledger_pulse/presentation/auth/profile_onboarding_screen.dart';
 import 'package:ledger_pulse/presentation/auth/profile_selector_screen.dart';
+import 'package:ledger_pulse/presentation/providers/ledger_creation_provider.dart';
 import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
 import 'package:ledger_pulse/presentation/providers/profile_session_state.dart';
 import 'package:ledger_pulse/presentation/widgets/active_profile_indicator_pill.dart';
@@ -75,7 +76,7 @@ void main() {
       expect(find.byType(ProfileOnboardingScreen), findsOneWidget);
       expect(find.text('Set Up Your Workspace'), findsOneWidget);
       expect(find.text('Personal & Expense'), findsOneWidget);
-      expect(find.text('Ledger · Coming Soon'), findsOneWidget);
+      expect(find.text('Business Ledger'), findsOneWidget);
     });
 
     testWidgets('AppRootGate routes to ProfileSelectorScreen when multiple profiles exist',
@@ -131,7 +132,7 @@ void main() {
       expect(find.text('+ Create New Workspace'), findsOneWidget);
     });
 
-    testWidgets('ProfileOnboardingScreen keeps Expense available when Ledger is tapped',
+    testWidgets('Ledger creation can be enabled and disabled during development',
         (tester) async {
       await tester.pumpWidget(
         const ProviderScope(
@@ -147,12 +148,25 @@ void main() {
       expect(find.text('Workspace Name'), findsOneWidget);
       expect(find.text('GSTIN (Optional)'), findsNothing);
 
-      await tester.tap(find.text('Ledger · Coming Soon'));
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(ProfileOnboardingScreen)),
+      );
+      final flag = container.read(ledgerCreationEnabledProvider.notifier);
+      await flag.setEnabled(false);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ledger · Unavailable'));
       await tester.pumpAndSettle();
 
       expect(find.text('Expense Workspace Setup'), findsOneWidget);
       expect(find.text('Workspace Name'), findsOneWidget);
       expect(find.text('Business Details & Compliance'), findsNothing);
+
+      await flag.setEnabled(true);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Business Ledger'));
+      await tester.pumpAndSettle();
+      expect(find.text('Business Details & Compliance'), findsOneWidget);
     });
 
     testWidgets('ActiveProfileIndicatorPill shows active workspace name and domain badge',

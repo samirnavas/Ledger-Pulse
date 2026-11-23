@@ -168,7 +168,7 @@ void main() {
 
     // Zero-company state form is visible
     expect(find.text('Set Up Your Workspace'), findsOneWidget);
-    expect(find.text('Ledger · Coming Soon'), findsOneWidget);
+    expect(find.text('Business Ledger'), findsOneWidget);
   });
 
   testWidgets('LedgerPulseApp transitions from SplashScreen to PhoneInput when unauthenticated',

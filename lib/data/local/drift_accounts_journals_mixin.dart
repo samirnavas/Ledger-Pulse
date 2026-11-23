@@ -163,6 +163,7 @@ mixin DriftAccountsJournalsMixin on DriftLedgerRepositoryBase {
           ),
         );
     updateStreamController.add(null);
+    triggerBackgroundSync();
   }
 
   Future<List<JournalModel>> getJournals({DateTime? startDate, DateTime? endDate}) async {

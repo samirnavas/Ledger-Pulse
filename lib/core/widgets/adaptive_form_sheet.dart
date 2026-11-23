@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../theme/adaptive_theme.dart';
+import 'draggable_modal_sheet.dart';
 
 /// Class wrapper for displaying and structuring platform-adaptive form bottom sheets.
 class AdaptiveFormSheet {
@@ -42,44 +43,27 @@ Future<T?> showAdaptiveFormSheet<T>({
 }) {
   final isIos = AdaptiveThemeHelper.isIos(context);
 
-  if (isIos) {
-    return showCupertinoModalPopup<T>(
-      context: context,
-      barrierDismissible: isDismissible,
-      useRootNavigator: useRootNavigator,
-      builder: (sheetContext) {
-        return _AdaptiveFormSheetWrapper(
-          isIos: true,
-          title: title,
-          doneLabel: doneLabel,
-          onDone: onDone,
-          child: builder(sheetContext),
-        );
-      },
-    );
-  } else {
-    return showModalBottomSheet<T>(
-      context: context,
-      isScrollControlled: true,
-      isDismissible: isDismissible,
-      enableDrag: enableDrag,
-      useRootNavigator: useRootNavigator,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return _AdaptiveFormSheetWrapper(
-          isIos: false,
-          title: title,
-          doneLabel: doneLabel,
-          onDone: onDone,
-          child: builder(sheetContext),
-        );
-      },
-    );
-  }
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    isDismissible: isDismissible,
+    enableDrag: enableDrag,
+    useRootNavigator: useRootNavigator,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) => _AdaptiveFormSheetWrapper(
+      isIos: isIos,
+      showHandle: enableDrag,
+      title: title,
+      doneLabel: doneLabel,
+      onDone: onDone,
+      child: builder(sheetContext),
+    ),
+  );
 }
 
 class _AdaptiveFormSheetWrapper extends StatelessWidget {
   final bool isIos;
+  final bool showHandle;
   final String? title;
   final String? doneLabel;
   final VoidCallback? onDone;
@@ -87,6 +71,7 @@ class _AdaptiveFormSheetWrapper extends StatelessWidget {
 
   const _AdaptiveFormSheetWrapper({
     required this.isIos,
+    required this.showHandle,
     this.title,
     this.doneLabel,
     this.onDone,
@@ -127,18 +112,7 @@ class _AdaptiveFormSheetWrapper extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Drag handle
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 10, bottom: 8),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white24 : Colors.black12,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
+              if (showHandle) const ModalDragHandle(),
 
               // Optional Header
               if (title != null || doneLabel != null)

@@ -330,12 +330,12 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
                 ],
                 const SizedBox(height: 16),
 
-                // 1. Spending by Category Card
-                _CategoryBreakdownCard(report: catReport),
+                // 1. Monthly Trend Card
+                _MonthlyTrendCard(report: trendReport),
                 const SizedBox(height: 16),
 
-                // 2. Monthly Trend Card
-                _MonthlyTrendCard(report: trendReport),
+                // 2. Spending by Category Card
+                _CategoryBreakdownCard(report: catReport),
                 const SizedBox(height: 16),
 
                 // 3. Income vs Expense Card
@@ -370,7 +370,7 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
 }
 
 // ==========================================
-// 1. SPENDING BY CATEGORY CARD
+// SPENDING BY CATEGORY CARD
 // ==========================================
 
 class _CategoryBreakdownCard extends StatefulWidget {
@@ -603,7 +603,7 @@ class _CategoryDonutPainter extends CustomPainter {
 }
 
 // ==========================================
-// 2. MONTHLY TREND CARD
+// MONTHLY TREND CARD
 // ==========================================
 
 class _MonthlyTrendCard extends StatefulWidget {
@@ -618,6 +618,7 @@ class _MonthlyTrendCard extends StatefulWidget {
 class _MonthlyTrendCardState extends State<_MonthlyTrendCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  bool _showLineChart = false;
 
   @override
   void initState() {
@@ -647,11 +648,35 @@ class _MonthlyTrendCardState extends State<_MonthlyTrendCard>
           AdaptiveSectionHeader(
             padding: EdgeInsets.zero,
             title: 'Monthly trend',
-            trailing: Text(
-              'Avg: ${CurrencyFormatter.format(widget.report.averageMonthlyExpenseInCents.round())}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Avg: ${CurrencyFormatter.format(widget.report.averageMonthlyExpenseInCents.round())}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                SizedBox.square(
+                  dimension: 44,
+                  child: IconButton(
+                    iconSize: 18,
+                    padding: EdgeInsets.zero,
+                    tooltip: _showLineChart ? 'Show bar chart' : 'Show line chart',
+                    icon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_showLineChart ? Icons.bar_chart : Icons.show_chart),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.swap_horiz_rounded, size: 14),
+                      ],
+                    ),
+                    onPressed: () {
+                      setState(() => _showLineChart = !_showLineChart);
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 12),
@@ -675,10 +700,8 @@ class _MonthlyTrendCardState extends State<_MonthlyTrendCard>
                     months: widget.report.months,
                     theme: theme,
                     isIos: isIos,
-                    progress: CurvedAnimation(
-                      parent: _controller,
-                      curve: Curves.easeOutCubic,
-                    ).value,
+                    showLineChart: _showLineChart,
+                    progress: Curves.easeOutCubic.transform(_controller.value),
                   ),
                 );
               },
@@ -723,12 +746,14 @@ class _MonthlyTrendChartPainter extends CustomPainter {
   final ThemeData theme;
   final bool isIos;
   final double progress;
+  final bool showLineChart;
 
   _MonthlyTrendChartPainter({
     required this.months,
     required this.theme,
     required this.isIos,
     required this.progress,
+    required this.showLineChart,
   });
 
   @override
@@ -773,6 +798,11 @@ class _MonthlyTrendChartPainter extends CustomPainter {
     );
 
     final double barRadius = isIos ? 6.0 : 8.0;
+    Offset? previousIncome;
+    Offset? previousExpense;
+    final linePaint = Paint()
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
 
     for (int i = 0; i < months.length; i++) {
       final m = months[i];
@@ -783,8 +813,28 @@ class _MonthlyTrendChartPainter extends CustomPainter {
       final double exHeight =
           (m.totalExpenseInCents / maxVal) * (chartHeight * 0.85) * progress;
 
-      // Income bar
-      if (inHeight > 0) {
+      if (showLineChart) {
+        final income = Offset(groupCenterX, chartHeight - inHeight);
+        final expense = Offset(groupCenterX, chartHeight - exHeight);
+        if (previousIncome != null && previousExpense != null) {
+          canvas.drawLine(
+            previousIncome,
+            income,
+            linePaint..color = incomePaint.color,
+          );
+          canvas.drawLine(
+            previousExpense,
+            expense,
+            linePaint..color = expensePaint.color,
+          );
+        }
+        canvas.drawCircle(income, 2.5, incomePaint);
+        canvas.drawCircle(expense, 2.5, expensePaint);
+        previousIncome = income;
+        previousExpense = expense;
+      }
+
+      if (!showLineChart && inHeight > 0) {
         final inRect = RRect.fromRectAndRadius(
           Rect.fromLTWH(
             groupCenterX - barWidth - (spacing / 2),
@@ -797,8 +847,7 @@ class _MonthlyTrendChartPainter extends CustomPainter {
         canvas.drawRRect(inRect, incomePaint);
       }
 
-      // Expense bar
-      if (exHeight > 0) {
+      if (!showLineChart && exHeight > 0) {
         final exRect = RRect.fromRectAndRadius(
           Rect.fromLTWH(
             groupCenterX + (spacing / 2),
@@ -828,7 +877,11 @@ class _MonthlyTrendChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MonthlyTrendChartPainter oldDelegate) =>
-      oldDelegate.progress != progress;
+      oldDelegate.progress != progress ||
+      oldDelegate.showLineChart != showLineChart ||
+      oldDelegate.months != months ||
+      oldDelegate.theme != theme ||
+      oldDelegate.isIos != isIos;
 }
 
 // ==========================================

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../data/local/database.dart';
 
@@ -273,6 +274,87 @@ final class WorkspaceSyncEngine {
       variables: [Variable(workspace)],
     ).getSingleOrNull();
     return operation != null;
+  }
+
+  Future<bool> hasPendingCategoryWrite(String workspace, String category) async {
+    await _initialize();
+    return await _pendingCategoryWrite(db, workspace, category) != null;
+  }
+
+  Future<bool> retryConflictedCategoryVisibilityChange(String workspace) async {
+    return db.transaction(() async {
+      final pending = await db.customSelect(
+        '''SELECT * FROM workspace_command_outbox
+           WHERE workspace_id = ? AND accepted_sequence IS NULL AND discarded = 0
+           ORDER BY ordinal LIMIT 1''',
+        variables: [Variable(workspace)],
+      ).getSingleOrNull();
+      if (pending == null ||
+          pending.readNullable<String>('rejection_code') != '40001' ||
+          pending.read<String>('kind') != 'write_entity') {
+        return false;
+      }
+      final data = _object(jsonDecode(pending.read<String>('payload')));
+      if (data['table'] != 'expense_categories') return false;
+      final fields = _object(data['fields']);
+      if (fields['deleted_at'] != true && !fields.containsKey('archived_at')) {
+        return false;
+      }
+      if (data['expected_revision'] != 0 &&
+          fields.keys.any((key) => key != 'archived_at' && key != 'deleted_at')) {
+        return false;
+      }
+      final category = await (db.select(db.expenseCategories)
+            ..where((row) => row.profileId.equals(workspace) &
+                row.id.equals(data['id'] as String)))
+          .getSingleOrNull();
+      if (category == null || category.revision <= (data['expected_revision'] as int)) {
+        return false;
+      }
+      final newerEdit = await (db.select(db.syncOutbox)
+            ..where((row) => row.targetTable.equals('exp_categories') &
+                row.recordId.equals(category.id)))
+          .getSingleOrNull();
+      if (newerEdit != null) {
+        await db.customStatement(
+          '''UPDATE workspace_command_outbox SET discarded = 1
+             WHERE workspace_id = ? AND operation_id = ?''',
+          [workspace, pending.read<String>('operation_id')],
+        );
+        return true;
+      }
+      final deleted = fields['deleted_at'] == true;
+      final archivedAt = DateTime.tryParse(fields['archived_at']?.toString() ?? '');
+      if (fields['archived_at'] != null && archivedAt == null) return false;
+      await (db.update(db.expenseCategories)
+            ..where((row) => row.profileId.equals(workspace) &
+                row.id.equals(category.id)))
+          .write(ExpenseCategoriesCompanion(
+            isDeleted: deleted ? const Value(true) : const Value.absent(),
+            archivedAt: Value(archivedAt),
+            syncStatus: const Value(SyncRecordStatus.pending),
+          ));
+      await db.customStatement(
+        '''UPDATE workspace_command_outbox
+           SET operation_id = ?, payload = ?, rejection_code = NULL
+           WHERE workspace_id = ? AND operation_id = ?''',
+        [
+          const Uuid().v4(),
+          jsonEncode(_canonicalJson({
+            'table': 'expense_categories',
+            'id': category.id,
+            'expected_revision': category.revision,
+            'fields': {
+              if (deleted) 'deleted_at': true,
+              if (fields.containsKey('archived_at')) 'archived_at': fields['archived_at'],
+            },
+          })),
+          workspace,
+          pending.read<String>('operation_id'),
+        ],
+      );
+      return true;
+    });
   }
 
   Future<WorkspaceSyncOutcome> synchronize() async {
@@ -606,6 +688,37 @@ final class WorkspaceSyncEngine {
 
 class _ScopeChanged implements Exception {
   const _ScopeChanged();
+}
+
+Future<QueryRow?> _pendingCategoryWrite(
+  AppDatabase db,
+  String workspace,
+  String category, {
+  bool unacceptedOnly = false,
+}) =>
+    db.customSelect(
+      r'''SELECT operation_id FROM workspace_command_outbox
+         WHERE workspace_id = ? AND kind = 'write_entity'
+           AND json_extract(payload, '$.table') = 'expense_categories'
+           AND json_extract(payload, '$.id') = ?
+           AND reconciled = 0 AND discarded = 0
+           AND (? = 0 OR accepted_sequence IS NULL)
+         ORDER BY ordinal LIMIT 1''',
+      variables: [Variable(workspace), Variable(category), Variable(unacceptedOnly ? 1 : 0)],
+    ).getSingleOrNull();
+
+Future<bool> hasUnacceptedCategoryWrite(
+  AppDatabase db,
+  String workspace,
+  String category,
+) async {
+  final storage = await db.customSelect(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'workspace_command_outbox'",
+  ).getSingleOrNull();
+  if (storage == null) return false;
+  return await _pendingCategoryWrite(
+    db, workspace, category, unacceptedOnly: true,
+  ) != null;
 }
 
 bool _isAuthenticationError(String? code) =>

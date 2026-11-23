@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/modules/module_catalog.dart';
 import '../../data/models/company_model.dart';
@@ -5,6 +6,7 @@ import '../../domain/exceptions/ledger_exceptions.dart';
 import '../../domain/models/workspace_profile_header.dart';
 import 'auth_providers.dart';
 import 'ledger_providers.dart';
+import 'ledger_creation_provider.dart';
 import 'profile_provider.dart';
 import 'profile_session_controller.dart';
 import 'profile_session_state.dart';
@@ -36,7 +38,11 @@ final companiesProvider = FutureProvider<List<Company>>((ref) async {
   final sub = repo.repositoryUpdatesStream.listen((_) {
     ref.invalidateSelf();
   });
+  final db = repo.db;
+  final projectionUpdates = db.tableUpdates(TableUpdateQuery.onTable(db.companies))
+      .listen((_) => ref.invalidateSelf());
   ref.onDispose(sub.cancel);
+  ref.onDispose(projectionUpdates.cancel);
   return await repo.getCompanies();
 });
 
@@ -52,10 +58,10 @@ final userCompaniesProvider = Provider<List<Company>>((ref) {
     return Company(
       id: header.id,
       name: header.name,
-      legalName: header.legalName,
+      legalName: company?.legalName ?? header.legalName,
       mode: header.type.toCompanyMode(),
       currencyCode: header.currencyCode,
-      gstin: header.gstin ?? company?.gstin,
+      gstin: company == null ? header.gstin : company.gstin,
       stateCode: company?.stateCode,
       dealerType: company?.dealerType ?? 'regular',
       address: company?.address,
@@ -147,6 +153,10 @@ class CompanyController extends Notifier<void> {
     Company newCompany, {
     Map<String, int>? initialWalletBalancesInCents,
   }) async {
+    if (newCompany.mode == CompanyMode.ledger &&
+        !ref.read(ledgerCreationEnabledProvider)) {
+      throw StateError('Ledger creation is disabled.');
+    }
     // Enforce SubscriptionTier.maxCompanies on creation
     final currentTier = ref.read(currentSubscriptionTierProvider);
     final existingCompanies = ref.read(userCompaniesProvider);
@@ -235,9 +245,7 @@ class CompanyController extends Notifier<void> {
         }
         return c;
       }).toList();
-      ref.read(userProfileProvider.notifier).updateProfile(
-        currentProfile.copyWith(companies: updatedList),
-      );
+      ref.read(userProfileProvider.notifier).showCompanies(updatedList);
     }
   }
 

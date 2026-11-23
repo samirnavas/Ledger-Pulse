@@ -35,6 +35,8 @@ import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import '../providers/profile_provider.dart';
+import 'archived_categories_screen.dart';
+import 'arrange_categories_screen.dart';
 import 'recurring_screen.dart';
 import 'wallet_report_screen.dart';
 
@@ -586,7 +588,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
             context,
             wasDeleted
                 ? '${cat.name} was deleted. Tip: Swipe left to delete faster next time.'
-                : '${cat.name} was archived (has transaction history).',
+                : '${cat.name} was moved to Archived Categories.',
           );
         }
       } catch (e) {
@@ -657,7 +659,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     final colors = Theme.of(context).colorScheme;
     final addLabel = ['Add workspace', 'Add wallet', 'Add category'][_selectedTab];
 
-    void openRecurringRules() {
+    void openAutomation() {
       Navigator.of(context).push(
         createAdaptivePageRoute(builder: (_) => const RecurringScreen()),
       );
@@ -669,11 +671,11 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
         if (company.isModuleEnabled(AppModule.recurring))
           if (isIos)
             Tooltip(
-              message: 'Recurring Rules',
+              message: 'Automation',
               child: CupertinoButton(
                 key: const Key('accounts_recurring_rules_button'),
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                onPressed: openRecurringRules,
+                onPressed: openAutomation,
                 child: const Icon(CupertinoIcons.repeat, size: 22),
               ),
             )
@@ -681,8 +683,8 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
             IconButton(
               key: const Key('accounts_recurring_rules_button'),
               icon: const Icon(Icons.update_rounded),
-              tooltip: 'Recurring Rules',
-              onPressed: openRecurringRules,
+              tooltip: 'Automation',
+              onPressed: openAutomation,
             ),
         if (isIos)
           Tooltip(
@@ -942,71 +944,86 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     final nameCtrl = TextEditingController(text: profile.name);
     final phoneCtrl = TextEditingController(text: profile.phoneNumber);
     final emailCtrl = TextEditingController(text: profile.email);
-    final addressCtrl = TextEditingController(text: profile.address);
+
+    BuildContext? accountSheetContext;
+    var saving = false;
+    Future<void> saveAccount(BuildContext sheetCtx) async {
+      if (saving) return;
+      final name = nameCtrl.text.trim();
+      if (name.isEmpty) {
+        showAppFeedback(context, 'Enter your full name');
+        return;
+      }
+      saving = true;
+      final updated = ref.read(userProfileProvider).copyWith(
+        name: name,
+        phoneNumber: phoneCtrl.text.trim(),
+        email: emailCtrl.text.trim(),
+      );
+      final saved = await ref.read(userProfileProvider.notifier)
+          .saveProfile(updated);
+      saving = false;
+      if (!context.mounted || !sheetCtx.mounted) return;
+      if (!saved) {
+        showAppFeedback(context, 'Could not save your account details');
+        return;
+      }
+      Navigator.of(sheetCtx).pop();
+      showAppFeedback(context, 'Account updated successfully');
+    }
 
     await showAdaptiveFormSheet<void>(
       context: context,
       title: 'Edit Account',
       doneLabel: 'Save',
-      builder: (sheetCtx) => SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                prefixIcon: Icon(Icons.person_outline_rounded),
+      onDone: () {
+        final sheetCtx = accountSheetContext;
+        if (sheetCtx != null) saveAccount(sheetCtx);
+      },
+      builder: (sheetCtx) {
+        accountSheetContext = sheetCtx;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Full Name',
+                  prefixIcon: Icon(Icons.person_outline_rounded),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone Number',
-                prefixIcon: Icon(Icons.phone_outlined),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email Address',
-                prefixIcon: Icon(Icons.email_outlined),
+              const SizedBox(height: 12),
+              TextField(
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email Address',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: addressCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Address',
-                prefixIcon: Icon(Icons.location_on_outlined),
+              const SizedBox(height: 20),
+              AdaptiveButton(
+                isFullWidth: true,
+                height: 48,
+                onPressed: () => saveAccount(sheetCtx),
+                child: const Text('Save Account'),
               ),
-            ),
-            const SizedBox(height: 20),
-            AdaptiveButton(
-              isFullWidth: true,
-              height: 48,
-              onPressed: () {
-                final updated = profile.copyWith(
-                  name: nameCtrl.text.trim(),
-                  phoneNumber: phoneCtrl.text.trim(),
-                  email: emailCtrl.text.trim(),
-                  address: addressCtrl.text.trim(),
-                );
-                ref.read(userProfileProvider.notifier).updateProfile(updated);
-                Navigator.of(sheetCtx).pop();
-                showAppFeedback(context, 'Account updated successfully');
-              },
-              child: const Text('Save Account'),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1113,6 +1130,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
   ) {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
+    final defaultWalletId = ref.watch(defaultWalletIdProvider).value;
 
     return walletsAsync.when(
       data: (wallets) {
@@ -1179,6 +1197,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
 
             ...wallets.map((wallet) {
               final isLiability = wallet.type == AccountType.liability;
+              final isDefault = wallet.id == defaultWalletId;
+              final walletType = isLiability
+                  ? 'Credit Card / Liability'
+                  : 'Asset Wallet';
               final icon = _getWalletIcon(wallet);
               final iconColor = isLiability
                   ? AppColors.payableRed
@@ -1223,9 +1245,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              isLiability
-                                  ? 'Credit Card / Liability'
-                                  : 'Asset Wallet',
+                              isDefault ? '$walletType · Default' : walletType,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
@@ -1264,16 +1284,38 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                           size: 20,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
-                        onSelected: (val) {
+                        onSelected: (val) async {
                           if (val == 'edit') {
                             _editWallet(wallet, company);
                           } else if (val == 'delete') {
                             _deleteWallet(wallet);
+                          } else if (val == 'default') {
+                            if (ref.read(activeCompanyProvider).id != company.id) {
+                              return;
+                            }
+                            try {
+                              await ref.read(expenseRepositoryProvider)
+                                  .setDefaultWalletId(isDefault ? null : wallet.id);
+                            } catch (_) {
+                              if (context.mounted) {
+                                showAppFeedback(
+                                  context,
+                                  'Could not change the default wallet.',
+                                  isError: true,
+                                );
+                              }
+                            }
                           }
                         },
-                        itemBuilder: (ctx) => const [
-                          PopupMenuItem(value: 'edit', child: Text('Edit')),
-                          PopupMenuItem(value: 'delete', child: Text('Delete')),
+                        itemBuilder: (ctx) => [
+                          PopupMenuItem(
+                            value: 'default',
+                            child: Text(isDefault
+                                ? 'Clear default wallet'
+                                : 'Set as default wallet'),
+                          ),
+                          const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                          const PopupMenuItem(value: 'delete', child: Text('Delete')),
                         ],
                       ),
                     ],
@@ -1322,6 +1364,8 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
             subCats.putIfAbsent(c.parentAccountId!, () => []).add(c);
           }
         }
+        final canArrange = topLevel.length > 1 ||
+            subCats.values.any((children) => children.length > 1);
 
         return Column(
           children: [
@@ -1340,10 +1384,50 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: AdaptiveSectionHeader(
-                title: _selectedCatType == AccountType.expense
-                    ? 'Expense Categories'
-                    : 'Income Categories',
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  AdaptiveButton(
+                    type: AdaptiveButtonType.text,
+                    height: 44,
+                    onPressed: !canArrange ? null : () {
+                      Navigator.of(context).push(
+                        createAdaptivePageRoute<void>(
+                          builder: (_) => ArrangeCategoriesScreen(
+                            workspaceId: company.id,
+                            type: _selectedCatType,
+                            categories: filtered,
+                          ),
+                        ),
+                      );
+                    },
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 6,
+                      children: [
+                        Icon(Icons.swap_vert_rounded, size: 18),
+                        Text('Arrange'),
+                      ],
+                    ),
+                  ),
+                  AdaptiveButton(
+                    type: AdaptiveButtonType.text,
+                    height: 44,
+                    onPressed: () => Navigator.of(context).push(
+                      createAdaptivePageRoute(
+                        builder: (_) => const ArchivedCategoriesScreen(),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 6,
+                      children: [
+                        Icon(Icons.archive_outlined, size: 18),
+                        Text('View archive'),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
 

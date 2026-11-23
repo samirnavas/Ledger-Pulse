@@ -34,6 +34,7 @@ internal object WidgetEntry {
     private class EntryContext(private val data: JSONObject) {
         val user = data.getString("user")
         val company = data.getString("company")
+        val defaultWallet = data.optString("default_wallet")
         val scope = "$user/$company"
 
         fun choices(key: String): List<Choice> {
@@ -217,6 +218,12 @@ internal object WidgetEntry {
             }
             val state = JSONObject().put("scope", entry.scope)
                 .put("id", "tx_widget_${UUID.randomUUID().toString().replace("-", "")}")
+            val defaultWalletIndex = entry.choices("wallets")
+                .indexOfFirst { it.id == entry.defaultWallet }
+            if (defaultWalletIndex >= 0) {
+                state.put("wallet", entry.defaultWallet)
+                    .put("walletPage", defaultWalletIndex / CHOICES_PER_PAGE)
+            }
             store(context, id, state)
             update()
             return

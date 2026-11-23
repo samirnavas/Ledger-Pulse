@@ -33,16 +33,20 @@ class WidgetEntryService {
     required Role role,
     required List<AccountModel> wallets,
     required List<AccountModel> categories,
+    String? defaultWalletId,
   }) async {
     if (!AccessControlService.hasPermission(role, UserAction.createExpense)) {
       await clear();
       return;
     }
+    final activeWallets = _accounts(company.id, wallets);
     final value = jsonEncode({
       'company': company.id,
       'user': userId,
       'role': role.name,
-      'wallets': _accounts(company.id, wallets),
+      'wallets': activeWallets,
+      if (activeWallets.any((wallet) => wallet['id'] == defaultWalletId))
+        'default_wallet': defaultWalletId,
       'expense': _accounts(
         company.id,
         categories.where((a) => a.type == AccountType.expense),

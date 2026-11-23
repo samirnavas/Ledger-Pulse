@@ -1,13 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show Value, Variable;
+import 'package:drift/drift.dart' show Value, Variable, OrderingTerm;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:ledger_pulse/core/network/drift_workspace_replica.dart';
-import 'package:ledger_pulse/core/network/sync_engine.dart' show SyncEngine;
+import 'package:ledger_pulse/core/network/sync_engine.dart'
+    show SyncEngine, SyncEngineStatus;
 import 'package:ledger_pulse/core/network/workspace_sync_engine.dart';
 import 'package:ledger_pulse/data/local/database.dart';
 import 'package:ledger_pulse/data/local/outbox_helper.dart';
@@ -25,8 +26,165 @@ const recordId = '30000000-0000-4000-8000-000000000001';
 const uuid = Uuid();
 
 void main() {
+  for (final action in ['delete', 'archive', 'restore']) {
+    test('a pending category $action survives a newer snapshot', () async {
+      final archive = action == 'archive';
+      final deleted = action == 'delete';
+      final db = AppDatabase(NativeDatabase.memory(), actor);
+      addTearDown(db.close);
+      final server = _Server();
+      final normalized = WorkspaceSyncEngine(
+        db: db,
+        gateway: _Gateway(server),
+        replica: DriftWorkspaceReplica(db),
+      );
+      final sync = SyncEngine(
+        db: db,
+        activeUserId: actor,
+        gateway: FakeGateway(),
+        workspaceSync: normalized,
+      );
+      addTearDown(sync.dispose);
+      await db.into(db.profiles).insert(ProfilesCompanion.insert(
+        id: workspace, name: 'Expense', ownerId: const Value(actor),
+      ));
+      await db.into(db.expenseCategories).insert(ExpenseCategoriesCompanion.insert(
+        id: recordId,
+        profileId: workspace,
+        name: 'Old name',
+        revision: const Value(1),
+        archivedAt: Value(archive ? DateTime.utc(2026, 11, 23) : null),
+        isDeleted: Value(deleted),
+      ));
+      await enqueueMutation(
+        db: db,
+        table: 'exp_categories',
+        recordId: recordId,
+        type: deleted ? 'DELETE' : 'UPDATE',
+        fullRowMap: {'id': recordId, 'profile_id': workspace, 'is_deleted': deleted},
+      );
+      server.transactions[(workspace, recordId)] = {
+        'name': 'Old name',
+        'category_type': 'expense',
+        'revision': '1',
+        'created_at': '2026-11-22T00:00:00Z',
+        'updated_at': '2026-11-22T00:00:00Z',
+        if (action == 'restore') 'archived_at': '2026-11-22T00:00:00Z',
+      };
+      server.submit(workspace, uuid.v4(), 'write_entity', {
+        'table': 'expense_categories',
+        'id': recordId,
+        'expected_revision': 1,
+        'fields': {'name': 'New cloud name'},
+      });
+
+      final result = await sync.syncAll(companyId: workspace);
+      expect(result.success, isTrue);
+      expect((await sync.syncAll(companyId: workspace)).success, isTrue);
+      final local = await db.select(db.expenseCategories).getSingle();
+      expect(local.isDeleted, deleted);
+      expect(local.archivedAt != null, archive);
+      expect(local.name, 'New cloud name');
+      expect(local.revision, 3);
+    });
+  }
+
+  test('business and bank details synchronize to their own ledger profiles', () async {
+    final db = AppDatabase(NativeDatabase.memory(), actor);
+    addTearDown(db.close);
+    final server = _Server();
+    final sync = SyncEngine(
+      db: db,
+      activeUserId: actor,
+      gateway: FakeGateway(),
+      workspaceSync: WorkspaceSyncEngine(
+        db: db,
+        gateway: _Gateway(server),
+        replica: DriftWorkspaceReplica(db),
+      ),
+    );
+    addTearDown(sync.dispose);
+    for (final (id, name, gst, upi) in [
+      (workspace, 'North Business', 'GST-NORTH', 'north@upi'),
+      (otherWorkspace, 'South Business', 'GST-SOUTH', 'south@upi'),
+    ]) {
+      server.transactions[(id, id)] = {
+        'revision': '1',
+        'created_at': '2026-11-22T00:00:00Z',
+        'updated_at': '2026-11-22T00:00:00Z',
+      };
+      await db.into(db.profiles).insert(ProfilesCompanion.insert(
+        id: id, name: name, ownerId: const Value(actor),
+        profileType: const Value('ledger'), revision: const Value(1),
+      ));
+      await db.into(db.companies).insert(CompaniesCompanion.insert(
+        id: id, name: name, legalName: name, profileId: Value(id),
+        ownerId: const Value(actor), revision: const Value(1),
+        gstin: Value(gst), upiId: Value(upi),
+      ));
+      await enqueueMutation(
+        db: db, table: 'companies', recordId: id, type: 'UPSERT',
+        fullRowMap: {'id': id, 'profile_id': id},
+      );
+      expect((await sync.pushQueue(companyId: id)).success, isTrue);
+      expect(server.transactions[(id, id)], containsPair('tax_registration_no', gst));
+      expect(server.transactions[(id, id)], containsPair('payment_address', upi));
+    }
+    final companies = await (db.select(db.companies)
+      ..orderBy([(row) => OrderingTerm.asc(row.id)])).get();
+    expect(companies.map((row) => row.upiId), ['north@upi', 'south@upi']);
+    expect(companies.map((row) => row.revision), [2, 2]);
+    expect(await db.select(db.userProfiles).get(), isEmpty);
+  });
+
+  test('committed account edits upload without selecting a workspace', () async {
+    final device = await _device(_Gateway(_Server()));
+    addTearDown(device.db.close);
+    final gateway = FakeGateway();
+    final sync = SyncEngine(
+      db: device.db,
+      activeUserId: actor,
+      gateway: gateway,
+      workspaceSync: device.engine,
+    );
+    addTearDown(sync.dispose);
+    sync.startUploadingEdits();
+
+    final uploaded = device.db.select(device.db.userProfiles).watch().firstWhere(
+      (rows) => rows.any((row) => row.syncStatus == SyncRecordStatus.synced),
+    );
+    await device.db.transaction(() async {
+      await device.db.into(device.db.userProfiles).insert(
+        UserProfilesCompanion.insert(
+          id: actor,
+          name: 'Updated name',
+          phoneNumber: '5550100',
+          email: 'updated@example.test',
+          syncStatus: const Value(SyncRecordStatus.pending),
+        ),
+      );
+      await enqueueMutation(
+        db: device.db,
+        table: 'user_profiles',
+        recordId: actor,
+        type: 'UPSERT',
+        fullRowMap: {
+          'id': actor,
+          'name': 'Updated name',
+          'phoneNumber': '5550100',
+          'email': 'updated@example.test',
+        },
+      );
+      expect(gateway.getRow('user_profiles', actor), isNull);
+    });
+
+    await uploaded.timeout(const Duration(seconds: 5));
+    expect(gateway.getRow('user_profiles', actor), containsPair('phone_number', '5550100'));
+    expect(gateway.getRow('user_profiles', actor), containsPair('email', 'updated@example.test'));
+  });
+
   test(
-    'app sync promotes a scoped Expense category into the command queue',
+    'a committed Expense category preserves its archive status when uploaded',
     () async {
       final server = _Server();
       final device = await _device(_Gateway(server));
@@ -53,6 +211,7 @@ void main() {
               id: recordId,
               profileId: workspace,
               name: 'Food',
+              archivedAt: Value(DateTime.utc(2026, 11, 22)),
             ),
           );
       await enqueueMutation(
@@ -68,9 +227,17 @@ void main() {
         },
       );
       final pending = await device.db.select(device.db.syncOutbox).getSingle();
-      expect((await sync.syncAll(companyId: workspace)).success, isTrue);
+      final uploaded = sync.statusStream.firstWhere(
+        (status) => status == SyncEngineStatus.success,
+      );
+      sync.startUploadingEdits();
+      await uploaded.timeout(const Duration(seconds: 5));
       expect(await device.db.select(device.db.syncOutbox).get(), isEmpty);
       expect(server.receipts[(workspace, pending.id)], isNotNull);
+      expect(
+        server.transactions[(workspace, recordId)]?['archived_at'],
+        '2026-11-22T00:00:00.000Z',
+      );
       expect((await sync.syncAll(companyId: workspace)).success, isTrue);
       expect(server.commits[workspace], hasLength(1));
 
@@ -727,7 +894,7 @@ class _Gateway implements WorkspaceCommandGateway {
         tables.putIfAbsent(
               change['table'] as String,
               () => {},
-            )[(change['key'] as SyncJson)['id'] as String] =
+            )[(change['key'] as SyncJson).values.join('/')] =
             change['row'] as SyncJson;
       }
     }
@@ -737,6 +904,12 @@ class _Gateway implements WorkspaceCommandGateway {
       'workspace': {
         'id': workspace,
         'owner_user_id': actor,
+        'workspace_type': tables.containsKey('ledger_profiles') ? 'ledger' : 'expense',
+        'name': 'Workspace',
+        'currency_code': 'INR',
+        'created_at': '2026-11-22T00:00:00Z',
+        'updated_at': '2026-11-22T00:00:00Z',
+        'revision': '1',
         'lifecycle_state': deleted ? 'deleted' : 'active',
       },
       'tables': deleted
@@ -844,6 +1017,6 @@ class _Server {
 SyncJson _change(String table, String id, String workspace, SyncJson fields) =>
     {
       'table': table,
-      'key': {'id': id},
+      'key': {if (table == 'ledger_profiles') 'workspace_id': workspace else 'id': id},
       'row': {...fields, 'id': id, 'workspace_id': workspace},
     };

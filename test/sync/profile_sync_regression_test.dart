@@ -71,6 +71,25 @@ void main() {
       await dbA.close();
     });
 
+    test('Disabled Ledger creation leaves no workspace or queued writes', () async {
+      final profiles = DriftProfileRepository(
+        db: dbA,
+        syncEngine: syncEngineA,
+        ledgerCreationEnabled: () => false,
+      );
+
+      await expectLater(
+        profiles.createProfile(
+          name: 'Blocked Ledger',
+          type: ProfileType.ledger,
+          accountId: testUserId,
+        ),
+        throwsStateError,
+      );
+      expect(await dbA.select(dbA.profiles).get(), isEmpty);
+      expect(await dbA.select(dbA.syncOutbox).get(), isEmpty);
+    });
+
     test('Workspace setup stores and syncs business and bank details', () async {
       final profiles = DriftProfileRepository(db: dbA, syncEngine: syncEngineA);
       await profiles.createProfile(
@@ -201,19 +220,16 @@ void main() {
         activeCompanyId: companyId,
       );
 
-      notifier.updateProfile(updatedProfile);
+      expect(await notifier.saveProfile(updatedProfile), isTrue);
 
-      // Verify local database updated immediately with pending status
-      await Future<void>.delayed(const Duration(milliseconds: 100));
       final localRow = await (dbA.select(dbA.userProfiles)..where((t) => t.id.equals(testUserId))).getSingle();
       expect(localRow.name, equals('Samir Navas Updated'));
       expect(localRow.businessName, equals('Apex Prime Technologies'));
       expect(localRow.bankName, equals('State Bank of India'));
-      expect(localRow.syncStatus, equals(SyncRecordStatus.pending));
-
-      // Synchronize
-      final pushRes = await syncEngineA.pushQueue(companyId: companyId);
-      expect(pushRes.success, isTrue);
+      await (dbA.select(dbA.userProfiles)..where((t) => t.id.equals(testUserId)))
+          .watchSingle()
+          .firstWhere((row) => row.syncStatus == SyncRecordStatus.synced)
+          .timeout(const Duration(seconds: 5));
 
       final remoteRow = fakeRemote.getRow('user_profiles', testUserId);
       expect(remoteRow, isNotNull);
