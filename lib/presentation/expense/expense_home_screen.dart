@@ -878,7 +878,7 @@ class _ExpenseHomeView extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
 
-            // (f) Category Breakdown Donut Card
+            // (f) Category Breakdown Card
             categoriesAsync.when(
               data: (categories) {
                 return summaryAsync.when(

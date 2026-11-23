@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="widget_add_background">@android:color/system_accent1_100</color>
-    <color name="widget_on_add">@android:color/system_accent1_900</color>
+    <color name="widget_add_background">@android:color/system_accent1_600</color>
+    <color name="widget_on_add">@android:color/system_accent1_0</color>
+    <color name="widget_entry_type_background">@android:color/system_accent3_200</color>
+    <color name="widget_on_entry_type">@android:color/system_accent3_900</color>
     <!-- Material You (Monet) Dynamic Palette on Android 12+ (API 31+) -->
     <!-- Matches system widgets like Clock, Battery, Weather and Ledger Pulse widget -->
     <color name="widget_bg">@android:color/system_accent2_100</color>

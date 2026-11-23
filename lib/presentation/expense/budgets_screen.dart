@@ -489,6 +489,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   ),
                   AmountText(
                     amountInCents: overall.totalSpentInCents,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
                     overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.medium,
@@ -525,6 +526,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   ),
                   AmountText(
                     amountInCents: overall.totalAllocatedInCents,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
                     overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.medium,
@@ -663,6 +665,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                 children: [
                   AmountText(
                     amountInCents: progress.spentInCents,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
                     overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.small,
@@ -675,6 +678,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   ),
                   AmountText(
                     amountInCents: progress.effectiveAllocatedInCents,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
                     overrideColor: theme.colorScheme.onSurface,
                     currencyCode: company.currencyCode,
                     variant: AmountVariant.small,

@@ -32,7 +32,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:maxLines="1"
                 android:text="Profile Name"
-                android:textColor="@color/widget_expense_text"
+                android:textColor="@color/widget_expense_heading"
                 android:textSize="17sp"
                 android:textStyle="bold" />
 

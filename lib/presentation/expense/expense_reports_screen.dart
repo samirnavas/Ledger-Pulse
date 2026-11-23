@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,7 +22,7 @@ import '../../data/reporting/report_export_service.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import 'wallet_report_screen.dart';
-import 'widgets/category_breakdown_card.dart';
+import 'widgets/category_breakdown_grid.dart';
 
 enum ReportDateFilter {
   thisMonth('This Month'),
@@ -206,6 +205,7 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
   @override
   Widget build(BuildContext context) {
     final range = _getDateRange();
+    final currencyCode = ref.watch(activeCompanyProvider).currencyCode;
 
     final txnsAsync = ref.watch(transactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
@@ -335,7 +335,10 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
                 const SizedBox(height: 16),
 
                 // 2. Spending by Category Card
-                _CategoryBreakdownCard(report: catReport),
+                _CategoryBreakdownCard(
+                  report: catReport,
+                  currencyCode: currencyCode,
+                ),
                 const SizedBox(height: 16),
 
                 // 3. Income vs Expense Card
@@ -373,50 +376,41 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
 // SPENDING BY CATEGORY CARD
 // ==========================================
 
-class _CategoryBreakdownCard extends StatefulWidget {
+class _CategoryBreakdownCard extends StatelessWidget {
+  const _CategoryBreakdownCard({
+    required this.report,
+    required this.currencyCode,
+  });
+
   final CategorySpendingReport report;
-
-  const _CategoryBreakdownCard({required this.report});
-
-  @override
-  State<_CategoryBreakdownCard> createState() => _CategoryBreakdownCardState();
-}
-
-class _CategoryBreakdownCardState extends State<_CategoryBreakdownCard>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 750),
-    )..forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final String currencyCode;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final palette = getChartPalette(context);
 
-    if (widget.report.categories.isEmpty) {
-      return AdaptiveSurfaceCard(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const AdaptiveSectionHeader(
-              padding: EdgeInsets.zero,
-              title: 'Spending by category',
-            ),
-            const SizedBox(height: 16),
+    return AdaptiveSurfaceCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AdaptiveSectionHeader(
+            padding: EdgeInsets.zero,
+            title: 'Spending by category',
+            trailing: report.categories.isEmpty
+                ? null
+                : Text(
+                    CurrencyFormatter.format(
+                      report.totalSpentInCents,
+                      currencyCode: currencyCode,
+                    ),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 16),
+          if (report.categories.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -427,179 +421,24 @@ class _CategoryBreakdownCardState extends State<_CategoryBreakdownCard>
                   ),
                 ),
               ),
+            )
+          else
+            CategoryBreakdownGrid(
+              currencyCode: currencyCode,
+              tiles: [
+                for (final category in report.categories)
+                  (
+                    name: category.categoryName,
+                    amountInCents: category.totalSpentInCents,
+                    percentage: category.percentage,
+                    onTap: null,
+                  ),
+              ],
             ),
-          ],
-        ),
-      );
-    }
-
-    return AdaptiveSurfaceCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AdaptiveSectionHeader(
-            padding: EdgeInsets.zero,
-            title: 'Spending by category',
-            trailing: Text(
-              CurrencyFormatter.format(widget.report.totalSpentInCents),
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Animated Donut Chart
-          Center(
-            child: SizedBox(
-              width: 150,
-              height: 150,
-              child: AnimatedBuilder(
-                animation: _controller,
-                builder: (context, child) {
-                  return CustomPaint(
-                    painter: _CategoryDonutPainter(
-                      categories: widget.report.categories,
-                      totalSpend: widget.report.totalSpentInCents,
-                      palette: palette,
-                      progress: CurvedAnimation(
-                        parent: _controller,
-                        curve: Curves.easeOutCubic,
-                      ).value,
-                      backgroundColor: theme.colorScheme.outlineVariant
-                          .withValues(alpha: 0.25),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Total',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontSize: 11,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            CurrencyFormatter.formatCompact(
-                              widget.report.totalSpentInCents,
-                              includeSymbol: true,
-                            ),
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Category items
-          ...widget.report.categories.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final cat = entry.value;
-            final color = palette[idx % palette.length];
-
-            return AdaptiveListRow(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-              showDivider: false,
-              leading: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-              title: cat.categoryName,
-              subtitle: '${cat.percentage.toStringAsFixed(1)}%',
-              trailing: AmountText(
-                amountInCents: cat.totalSpentInCents,
-                variant: AmountVariant.medium,
-              ),
-            );
-          }),
         ],
       ),
     );
   }
-}
-
-class _CategoryDonutPainter extends CustomPainter {
-  final List<CategorySpendingItem> categories;
-  final int totalSpend;
-  final List<Color> palette;
-  final double progress;
-  final Color backgroundColor;
-
-  _CategoryDonutPainter({
-    required this.categories,
-    required this.totalSpend,
-    required this.palette,
-    required this.progress,
-    required this.backgroundColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (totalSpend <= 0) return;
-
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-    const strokeWidth = 18.0;
-    final rect = Rect.fromCircle(
-      center: center,
-      radius: radius - (strokeWidth / 2),
-    );
-
-    // Background track
-    final bgPaint = Paint()
-      ..color = backgroundColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-    canvas.drawCircle(center, radius - (strokeWidth / 2), bgPaint);
-
-    double startAngle = -math.pi / 2;
-    const double gap = 0.05;
-
-    for (int i = 0; i < categories.length; i++) {
-      final sweepAngle =
-          (categories[i].totalSpentInCents / totalSpend) *
-          2 *
-          math.pi *
-          progress;
-      if (sweepAngle <= 0) continue;
-
-      final paint = Paint()
-        ..color = palette[i % palette.length]
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round;
-
-      if (categories.length > 1 && sweepAngle > gap) {
-        canvas.drawArc(
-          rect,
-          startAngle + (gap / 2),
-          sweepAngle - gap,
-          false,
-          paint,
-        );
-      } else {
-        canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
-      }
-      startAngle += sweepAngle;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _CategoryDonutPainter oldDelegate) =>
-      oldDelegate.progress != progress ||
-      oldDelegate.totalSpend != totalSpend ||
-      oldDelegate.categories != categories;
 }
 
 // ==========================================

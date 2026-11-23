@@ -106,7 +106,7 @@ internal object WidgetEntry {
         views.removeAllViews(R.id.widget_entry_rows)
         val token = state.getString("id")
         fun intent(action: String) = actionIntent(context, id, token, action)
-        fun row(vararg keys: Pair<String, String>) {
+        fun row(vararg keys: Pair<String, String>, accent: Boolean = false) {
             val row = RemoteViews(context.packageName, R.layout.widget_entry_row)
             keys.forEach { (label, action) ->
                 val key = RemoteViews(context.packageName, R.layout.widget_entry_key)
@@ -123,15 +123,23 @@ internal object WidgetEntry {
                         else -> label
                     }
                 )
-                if (action == "save" || action == "review") {
-                    key.setInt(R.id.widget_entry_key, "setBackgroundResource", R.drawable.widget_add_pill)
-                    key.setTextColor(
-                        R.id.widget_entry_key,
-                        androidx.core.content.ContextCompat.getColor(context, R.color.widget_on_add)
-                    )
+                val style = when {
+                    action == "save" || action == "review" ->
+                        R.drawable.widget_add_pill to R.color.widget_on_add
+                    action == "type" || (accent && label.isNotEmpty()) ->
+                        R.drawable.widget_entry_type_pill to R.color.widget_on_entry_type
+                    else -> null
                 }
-                if (action.isEmpty()) {
-                    key.setInt(R.id.widget_entry_key, "setBackgroundResource", 0)
+                when {
+                    style != null -> {
+                        key.setInt(R.id.widget_entry_key, "setBackgroundResource", style.first)
+                        key.setTextColor(
+                            R.id.widget_entry_key,
+                            androidx.core.content.ContextCompat.getColor(context, style.second)
+                        )
+                    }
+                    action.isEmpty() ->
+                        key.setInt(R.id.widget_entry_key, "setBackgroundResource", 0)
                 }
                 if (action.isNotEmpty()) key.setOnClickPendingIntent(R.id.widget_entry_key, intent(action))
                 row.addView(R.id.widget_entry_row, key)
@@ -166,9 +174,14 @@ internal object WidgetEntry {
                 row(
                     heading(if (transfer) "From wallet" else "Wallet", "wallet", wallets),
                     heading(if (transfer) "To wallet" else "Category", "destination", destinations),
+                    accent = true,
                 )
                 repeat(CHOICES_PER_PAGE) { index ->
-                    row(choiceKey("wallet", wallets, index), choiceKey("destination", destinations, index))
+                    row(
+                        choiceKey("wallet", wallets, index),
+                        choiceKey("destination", destinations, index),
+                        accent = true,
+                    )
                 }
                 row(
                     "Back" to "amount",

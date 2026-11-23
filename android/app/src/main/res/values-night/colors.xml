@@ -2,6 +2,8 @@
 <resources>
     <color name="widget_add_background">#A7C8FF</color>
     <color name="widget_on_add">#003061</color>
+    <color name="widget_entry_type_background">@color/widget_container_tonal</color>
+    <color name="widget_on_entry_type">@color/widget_expense_text</color>
     <!-- M3 Expressive Dark Mode Tokens for Ledger Pulse Widget -->
     <color name="widget_bg">#1E1B16</color>
     <color name="widget_container_tonal">#2B2822</color>
@@ -16,6 +18,7 @@
     <!-- Expense Tracker Widget Tokens: aliases to widget theme tokens -->
     <color name="widget_expense_bg">@color/widget_bg</color>
     <color name="widget_expense_text">@color/widget_on_surface</color>
+    <color name="widget_expense_heading">@color/widget_expense_text</color>
     <color name="widget_expense_subtext">@color/widget_on_surface_variant</color>
     <color name="widget_expense_track">@color/widget_container_tonal</color>
     <color name="widget_expense_fill">@color/widget_inflow_indicator</color>

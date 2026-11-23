@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="widget_add_background">#D5E3FF</color>
-    <color name="widget_on_add">#001B3C</color>
+    <color name="widget_add_background">#345B91</color>
+    <color name="widget_on_add">#FFFFFF</color>
+    <color name="widget_entry_type_background">#FFC4B8</color>
+    <color name="widget_on_entry_type">#551F16</color>
     <!-- M3 Expressive Light Mode Tokens for Ledger Pulse Widget -->
     <color name="widget_bg">#F2EDE8</color>
     <color name="widget_container_tonal">#E5DFD9</color>
@@ -16,6 +18,7 @@
     <!-- Expense Tracker Widget Tokens: aliases to widget theme tokens -->
     <color name="widget_expense_bg">@color/widget_bg</color>
     <color name="widget_expense_text">@color/widget_on_surface</color>
+    <color name="widget_expense_heading">@color/widget_expense_fill</color>
     <color name="widget_expense_subtext">@color/widget_on_surface_variant</color>
     <color name="widget_expense_track">@color/widget_container_tonal</color>
     <color name="widget_expense_fill">@color/widget_inflow_indicator</color>

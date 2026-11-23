@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ledger_pulse/presentation/expense/widgets/category_breakdown_grid.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_chip.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_controls.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_list_row.dart';
@@ -147,6 +148,41 @@ void main() {
   );
 
   group('Prompt UI-7 Reports & Export Sheet Tests', () {
+    testWidgets('Category breakdown lays out three spending tiles per row', (
+      tester,
+    ) async {
+      var foodTapped = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 300,
+              child: CategoryBreakdownGrid(
+                currencyCode: 'USD',
+                tiles: [
+                  for (final name in ['Food', 'Travel', 'Bills', 'Other'])
+                    (
+                      name: name,
+                      amountInCents: 1250,
+                      percentage: 25.0,
+                      onTap: name == 'Food' ? () => foodTapped = true : null,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      final firstRow = tester.getTopLeft(find.text('Food')).dy;
+      expect(tester.getTopLeft(find.text('Travel')).dy, firstRow);
+      expect(tester.getTopLeft(find.text('Bills')).dy, firstRow);
+      expect(tester.getTopLeft(find.text('Other')).dy, greaterThan(firstRow));
+      expect(find.text('25%'), findsNWidgets(4));
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      await tester.tap(find.text('Food'));
+      expect(foodTapped, isTrue);
+    });
+
     testWidgets(
       'Reports tab renders on Android with AdaptiveChips and Section Cards',
       (tester) async {
