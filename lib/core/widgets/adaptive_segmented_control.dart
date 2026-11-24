@@ -108,7 +108,10 @@ class AdaptiveSegmentedControl<T extends Object> extends StatelessWidget {
                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                           color: fgColor,
                         ),
-                        child: entry.value,
+                        child: IconTheme.merge(
+                          data: IconThemeData(color: fgColor),
+                          child: entry.value,
+                        ),
                       ),
                     ),
                   ),

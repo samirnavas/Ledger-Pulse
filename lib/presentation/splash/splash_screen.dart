@@ -3,11 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lottie/lottie.dart';
-import '../../core/constants/colors.dart';
-import '../../core/constants/strings.dart';
 import '../../core/theme/adaptive_theme.dart';
 import '../../core/utils/adaptive_page_route.dart';
-import '../../core/widgets/paypr_logo.dart';
 import '../auth/app_root_gate.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -78,20 +75,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
-    // Adaptive background color
-    final backgroundColor = isIos
-        ? (isDark ? AppColors.surfaceDark : AppColors.cupertinoSystemBackground)
-        : (isDark
-              ? Theme.of(context).colorScheme.surface
-              : AppColors.surfaceLight);
-
-    final textColor = isDark
-        ? AppColors.textPrimaryDark
-        : AppColors.textPrimaryLight;
-
-    final subtextColor = isDark
-        ? AppColors.textSecondaryDark
-        : AppColors.textSecondaryLight;
+    final backgroundColor = isDark ? Colors.black : Colors.white;
 
     // Animation timeline calculation (snappy & fast):
     // 1. Fade in & scale: 300ms (or 100ms when fast-tracking deep links)
@@ -109,61 +93,29 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         : const Duration(milliseconds: 250);
     final animateLogo =
         !SplashScreen.skipHold && !MediaQuery.disableAnimationsOf(context);
-    const staticLogo = PayprLogo(size: 96);
-
-    final logo = animateLogo
-        ? Lottie.asset(
-            'assets/animations/paypr_splash.json',
-            controller: _logoAnimation,
-            onLoaded: (_) {
+    // The mark spans 252 px across the 1080 px reference.
+    final logoWidth = MediaQuery.sizeOf(context).shortestSide * (252 / 1080);
+    final Widget logo = Lottie.asset(
+      isDark
+          ? 'assets/animations/paypr_splash.json'
+          : 'assets/animations/paypr_splash_light.json',
+      width: logoWidth,
+      height: logoWidth * (336 / 252),
+      fit: BoxFit.contain,
+      controller: animateLogo
+          ? _logoAnimation
+          : const AlwaysStoppedAnimation(1.0),
+      onLoaded: animateLogo
+          ? (_) {
               _logoAnimation.duration = exitDelay;
-              _logoAnimation.forward();
-            },
-            frameBuilder: (_, child, composition) => composition == null
-                ? staticLogo
-                : Container(
-                    width: 96,
-                    height: 96,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: PayprLogo.backgroundColor,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: child,
-                  ),
-            fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => staticLogo,
-          )
-        : staticLogo;
-
-    final branding = Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        logo,
-        const SizedBox(height: 24),
-        Text(
-          AppStrings.appName,
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-            color: textColor,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          AppStrings.tagline,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: subtextColor,
-            letterSpacing: 0.2,
-          ),
-        ),
-      ],
+              _logoAnimation.forward(from: 0);
+            }
+          : null,
+      errorBuilder: (_, _, _) => const SizedBox.shrink(),
     );
+
     final content = Center(
-      child: branding
+      child: logo
           .animate(onComplete: (_) => _onSequenceFinished())
           .fadeIn(duration: entryDuration, curve: Curves.easeOut)
           .scale(
@@ -189,13 +141,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (isIos) {
       return CupertinoPageScaffold(
         backgroundColor: backgroundColor,
-        child: SafeArea(child: content),
+        child: content,
       );
     }
 
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: SafeArea(child: content),
+      body: content,
     );
   }
 }

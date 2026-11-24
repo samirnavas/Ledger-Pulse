@@ -151,26 +151,43 @@ void main() {
       expect(pressed, isTrue);
     });
 
-    testWidgets('AdaptiveSegmentedControl triggers onValueChanged', (WidgetTester tester) async {
+    testWidgets('AdaptiveSegmentedControl updates icon and text colors on selection', (WidgetTester tester) async {
       String selected = 'one';
       await tester.pumpWidget(
         MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.android),
           home: Scaffold(
-            body: AdaptiveSegmentedControl<String>(
-              groupValue: selected,
-              children: const {
-                'one': Text('Tab 1'),
-                'two': Text('Tab 2'),
-              },
-              onValueChanged: (val) => selected = val,
+            body: StatefulBuilder(
+              builder: (context, setState) => AdaptiveSegmentedControl<String>(
+                groupValue: selected,
+                children: const {
+                  'one': Row(children: [Icon(Icons.person_add), Text('Tab 1')]),
+                  'two': Row(children: [Icon(Icons.login), Text('Tab 2')]),
+                },
+                onValueChanged: (val) => setState(() => selected = val),
+              ),
             ),
           ),
         ),
       );
 
+      Color? iconColor(IconData icon) =>
+          IconTheme.of(tester.element(find.byIcon(icon))).color;
+      Color? textColor(String label) =>
+          DefaultTextStyle.of(tester.element(find.text(label))).style.color;
+
+      final selectedColor = textColor('Tab 1');
+      expect(iconColor(Icons.person_add), selectedColor);
+      expect(iconColor(Icons.login), textColor('Tab 2'));
+      expect(iconColor(Icons.login), isNot(selectedColor));
+
       await tester.tap(find.text('Tab 2'));
       await tester.pumpAndSettle();
       expect(selected, equals('two'));
+      expect(iconColor(Icons.login), selectedColor);
+      expect(iconColor(Icons.login), textColor('Tab 2'));
+      expect(iconColor(Icons.person_add), textColor('Tab 1'));
+      expect(iconColor(Icons.person_add), isNot(selectedColor));
     });
   });
 

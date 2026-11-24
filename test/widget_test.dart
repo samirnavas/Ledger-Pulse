@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:paypr/data/local/database.dart';
 import 'package:paypr/data/local/drift_ledger_repository.dart';
 import 'package:paypr/main.dart';
-import 'package:paypr/core/constants/strings.dart';
 import 'package:paypr/data/models/company_model.dart';
 import 'package:paypr/data/models/sync_model.dart';
 import 'package:paypr/data/models/user_profile_model.dart';
@@ -59,10 +58,12 @@ class TestProfileSession extends ProfileSessionController {
 void main() {
   testWidgets('PayprApp starts with SplashScreen and transitions to Dashboard with active company',
       (WidgetTester tester) async {
-    final composition = await tester.runAsync(
-      () => AssetLottie('assets/animations/paypr_splash.json').load(),
-    );
-    expect(composition?.images.values.single.loadedImage, isNotNull);
+    for (final asset in ['paypr_splash.json', 'paypr_splash_light.json']) {
+      final composition = await tester.runAsync(
+        () => AssetLottie('assets/animations/$asset').load(),
+      );
+      expect(composition?.images.values.single.loadedImage, isNotNull);
+    }
 
     final db = AppDatabase(NativeDatabase.memory());
     final repo = DriftLedgerRepository(db: db, postingEngine: null);
@@ -118,8 +119,6 @@ void main() {
 
     // Verify initial splash screen is shown
     await tester.pump();
-    expect(find.text('Paypr'), findsOneWidget);
-    expect(find.text(AppStrings.tagline), findsOneWidget);
     expect(find.byType(LottieBuilder), findsOneWidget);
 
     // Advance the splash and route transitions. The shell can still be
@@ -205,7 +204,7 @@ void main() {
 
     // Splash is shown
     await tester.pump();
-    expect(find.text(AppStrings.appName), findsOneWidget);
+    expect(find.byType(LottieBuilder), findsOneWidget);
 
     // Wait for splash animation sequence
     await tester.pumpAndSettle();

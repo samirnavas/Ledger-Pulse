@@ -62,6 +62,7 @@ dependencies:
   shared_preferences: ^2.5.5
   home_widget: ^0.10.0
   material_symbols_icons: 4.2960.0
+  flutter_svg: ^2.3.4
 
 dev_dependencies:
   flutter_test:

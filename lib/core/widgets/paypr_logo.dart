@@ -1,28 +1,35 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-/// The official Paypr mark on a surface that preserves its contrast.
+/// The Paypr mark with contrast adapted to the surrounding theme.
 class PayprLogo extends StatelessWidget {
-  static const backgroundColor = Color(0xFF030303);
-
   const PayprLogo({super.key, required this.size});
 
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return SvgPicture.asset(
+      'assets/icons/paypr_black.svg',
+      width: size * 253 / 336,
       height: size,
-      padding: EdgeInsets.all(size / 8),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(size / 4),
-      ),
-      child: Image.asset(
-        'assets/icons/paypr_logo.png',
-        fit: BoxFit.contain,
-        excludeFromSemantics: true,
-      ),
+      colorMapper: isDark ? const _DarkLogoColorMapper() : null,
+      excludeFromSemantics: true,
     );
+  }
+}
+
+class _DarkLogoColorMapper extends ColorMapper {
+  const _DarkLogoColorMapper();
+
+  @override
+  Color substitute(
+    String? id,
+    String elementName,
+    String attributeName,
+    Color color,
+  ) {
+    return color == Colors.black ? Colors.white : color;
   }
 }
