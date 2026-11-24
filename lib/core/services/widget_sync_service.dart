@@ -16,8 +16,10 @@ class WidgetSyncService {
   static const String androidWidgetQualified = 'com.ledgerpulse.ledger_pulse.LedgerPulseWidgetProvider';
   static const String androidGlanceQualified = 'com.ledgerpulse.ledger_pulse.LedgerPulseGlanceReceiver';
   static const String iOSWidgetName = 'LedgerPulseWidget';
+  static const activeWorkspaceKey = 'widget_active_workspace';
 
   static StreamSubscription<Uri?>? _widgetClickSubscription;
+  static Future<void> _pendingSync = Future<void>.value();
 
   /// Initializes App Group and handles deep linking if the app was launched from a widget.
   static Future<void> initialize({
@@ -63,7 +65,15 @@ class WidgetSyncService {
     BudgetPeriodType budgetPeriod = BudgetPeriodType.monthly,
     List<({String name, double percent})>? topCategories,
   }) async {
+    final previous = _pendingSync;
+    final completion = Completer<void>();
+    _pendingSync = completion.future;
+    await previous;
     try {
+      if (Platform.isAndroid) {
+        final activeWorkspace = await HomeWidget.getWidgetData<String>(activeWorkspaceKey);
+        if (activeWorkspace != null && activeWorkspace != company.id) return false;
+      }
       final currencySym = company.currencyCode == 'INR' ? '₹' : company.currencyCode;
       final isExpense = company.mode == CompanyMode.expenseTracker;
 
@@ -110,7 +120,6 @@ class WidgetSyncService {
 
       // 1. Save data fields
       await HomeWidget.saveWidgetData<String>('company_name', company.name);
-      await HomeWidget.saveWidgetData<String>('company_id', company.id);
       await HomeWidget.saveWidgetData<String>('mode', company.mode.canonicalValue);
       await HomeWidget.saveWidgetData<String>('currency_symbol', currencySym);
       await HomeWidget.saveWidgetData<String>('cash_in_label', cashInLabel);
@@ -197,6 +206,7 @@ class WidgetSyncService {
 
       await HomeWidget.saveWidgetData<String>('last_sync_timestamp', timestamp);
       await HomeWidget.saveWidgetData<String>('deep_link_uri', deepLinkUri);
+      await HomeWidget.saveWidgetData<String>('company_id', company.id);
 
       // 2. Trigger native widget updates
       if (Platform.isAndroid) {
@@ -224,6 +234,8 @@ class WidgetSyncService {
     } catch (e) {
       debugPrint('WidgetSyncService.syncWidgetData error: $e');
       return false;
+    } finally {
+      completion.complete();
     }
   }
 }

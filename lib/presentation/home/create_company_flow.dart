@@ -285,7 +285,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
   String get _stepTitle {
     switch (_currentStep) {
       case 0:
-        return 'Company Profile';
+        return 'Workspace Details';
       case 1:
         return 'Business Type';
       case 2:

@@ -38,6 +38,7 @@ import 'transaction_details_screen.dart';
 import 'transactions_screen.dart';
 import 'widgets/category_breakdown_card.dart';
 import 'widgets/expense_sidebar_drawer.dart';
+import 'widgets/category_icons.dart';
 
 /// Adaptive Home Shell for Expense Tracker mode mirroring DashboardScreen.
 /// Uses AdaptiveScaffold with company-switcher title, profile action,
@@ -153,17 +154,18 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
     final transactionsIndex = hasBudgets ? 3 : 2;
     final clampedIndex = currentTabIndex.clamp(0, transactionsIndex);
 
-    ref.listen(expenseTabControllerProvider.select((state) => state.currentIndex), (
-      previous,
-      next,
-    ) {
-      final index = next.clamp(0, transactionsIndex);
-      if (_navTransition?.index == index) return;
-      if (_pageController.hasClients &&
-          (_navTransition != null || _pageController.page?.round() != index)) {
-        _pageController.jumpToPage(index);
-      }
-    });
+    ref.listen(
+      expenseTabControllerProvider.select((state) => state.currentIndex),
+      (previous, next) {
+        final index = next.clamp(0, transactionsIndex);
+        if (_navTransition?.index == index) return;
+        if (_pageController.hasClients &&
+            (_navTransition != null ||
+                _pageController.page?.round() != index)) {
+          _pageController.jumpToPage(index);
+        }
+      },
+    );
 
     void selectTab(int index) {
       HapticFeedback.lightImpact();
@@ -271,30 +273,16 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
         key: const PageStorageKey('expense_tab_transactions'),
         isActive: clampedIndex == transactionsIndex,
         onBackToHome: () {
-          if (ref.read(expenseTabControllerProvider).currentIndex
-              .clamp(0, transactionsIndex) == transactionsIndex) {
+          if (ref
+                  .read(expenseTabControllerProvider)
+                  .currentIndex
+                  .clamp(0, transactionsIndex) ==
+              transactionsIndex) {
             selectTab(0);
           }
         },
       ),
     ];
-
-    // Header Title Widget or String
-    Widget? titleWidget;
-    String? titleText;
-    if (clampedIndex == 0) {
-      titleWidget = const Material(
-        type: MaterialType.transparency,
-        child: ActiveProfileIndicatorPill(),
-      );
-    } else if (hasBudgets && clampedIndex == 1) {
-      titleText = modeStrings.budgetsTab;
-    } else if ((hasBudgets && clampedIndex == 2) ||
-        (!hasBudgets && clampedIndex == 1)) {
-      titleText = modeStrings.reportsTab;
-    } else {
-      titleText = modeStrings.transactionsTab;
-    }
 
     // Scaffold actions
     final List<Widget> actions = [
@@ -306,7 +294,8 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             onPressed: () {
               HapticFeedback.lightImpact();
-              final txns = ref.read(transactionsProvider).value ?? [];
+              final txns = ref.read(transactionsProvider).asData?.value;
+              if (txns == null) return;
               final now = DateTime.now();
               final start = DateTime(now.year, now.month, 1);
               final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
@@ -326,7 +315,8 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
             tooltip: 'Export Report',
             onPressed: () {
               HapticFeedback.lightImpact();
-              final txns = ref.read(transactionsProvider).value ?? [];
+              final txns = ref.read(transactionsProvider).asData?.value;
+              if (txns == null) return;
               final now = DateTime.now();
               final start = DateTime(now.year, now.month, 1);
               final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59, 999);
@@ -374,8 +364,10 @@ class _ExpenseHomeScreenState extends ConsumerState<ExpenseHomeScreen> {
       child: AdaptiveScaffold(
         scaffoldKey: _scaffoldKey,
         drawer: const ExpenseSidebarDrawer(),
-        titleWidget: titleWidget,
-        title: titleText,
+        titleWidget: const Material(
+          type: MaterialType.transparency,
+          child: ActiveProfileIndicatorPill(),
+        ),
         actions: actions,
         floatingActionButton: isIos
             ? null
@@ -971,13 +963,14 @@ class _ExpenseHomeView extends ConsumerWidget {
                         ? (isIos
                               ? CupertinoIcons.arrow_right_arrow_left
                               : Icons.swap_horiz_rounded)
-                        : (isIncome
-                              ? (isIos
-                                    ? CupertinoIcons.arrow_down
-                                    : Icons.arrow_downward_rounded)
-                              : (isIos
-                                    ? CupertinoIcons.arrow_up
-                                    : Icons.arrow_upward_rounded));
+                        : savedCategoryIcon(cat) ??
+                              (isIncome
+                                  ? (isIos
+                                        ? CupertinoIcons.arrow_down
+                                        : Icons.arrow_downward_rounded)
+                                  : (isIos
+                                        ? CupertinoIcons.arrow_up
+                                        : Icons.arrow_upward_rounded));
                     final title = t.narration?.trim().isNotEmpty == true
                         ? t.narration!
                         : (cat?.name ?? (isIncome ? 'Income' : 'Expense'));

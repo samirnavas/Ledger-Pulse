@@ -39,6 +39,7 @@ import 'archived_categories_screen.dart';
 import 'arrange_categories_screen.dart';
 import 'recurring_screen.dart';
 import 'wallet_report_screen.dart';
+import 'widgets/category_icons.dart';
 
 /// Screen managing My Account (with Account, Wallet, and Category sections).
 class ExpenseAccountsScreen extends ConsumerStatefulWidget {
@@ -189,11 +190,15 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
         CompanySwitcherSheet.showAddCompanyDialog(context, ref);
       case 1:
         await showAddWalletDialogStatic(
-          context, ref, ref.read(activeCompanyProvider),
+          context,
+          ref,
+          ref.read(activeCompanyProvider),
         );
       case 2:
         await ExpenseAccountsScreen.showAddCategorySheet(
-          context, ref, categoryType: _selectedCatType,
+          context,
+          ref,
+          categoryType: _selectedCatType,
         );
     }
   }
@@ -354,7 +359,8 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                   ),
                   decoration: InputDecoration(
                     labelText: 'Opening Balance',
-                    prefixText: '${CurrencyFormatter.getSymbol(company.currencyCode)} ',
+                    prefixText:
+                        '${CurrencyFormatter.getSymbol(company.currencyCode)} ',
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -380,7 +386,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
       await repo.updateWallet(
         id: wallet.id,
         name: updatedName == wallet.name ? null : updatedName,
-        openingBalanceInCents: updatedOpening == opening ? null : updatedOpening,
+        openingBalanceInCents: updatedOpening == opening
+            ? null
+            : updatedOpening,
       );
       if (mounted) showAppFeedback(context, 'Wallet updated');
     } catch (e) {
@@ -414,7 +422,8 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
       await showAdaptiveInfoDialog(
         context: context,
         title: 'Wallet in use',
-        message: '${wallet.name} cannot be deleted because it is used by '
+        message:
+            '${wallet.name} cannot be deleted because it is used by '
             'one or more transactions.',
       );
     } catch (e) {
@@ -437,6 +446,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
   }) async {
     final nameController = TextEditingController(text: initialCategory?.name);
     String? selectedParentId = initialCategory?.parentAccountId;
+    String? selectedIconName = initialCategory?.iconName;
+    var saving = false;
+    final workspaceId = ref.read(activeCompanyProvider).id;
+    BuildContext? categorySheetContext;
 
     final effectiveCategories = allCategories.isNotEmpty
         ? allCategories
@@ -453,7 +466,12 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
 
     Future<void> doSave(BuildContext sheetCtx) async {
       final name = nameController.text.trim();
-      if (name.isEmpty) return;
+      if (name.isEmpty ||
+          saving ||
+          !context.mounted ||
+          ref.read(activeCompanyProvider).id != workspaceId)
+        return;
+      saving = true;
 
       HapticFeedback.mediumImpact();
       try {
@@ -464,16 +482,20 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
             id: initialCategory.id,
             name: name,
             parentAccountId: selectedParentId,
+            iconName: selectedIconName,
           );
         } else {
           createdCategory = await repo.createCategory(
             name: name,
             type: categoryType,
             parentAccountId: selectedParentId,
+            iconName: selectedIconName,
           );
         }
         if (context.mounted) {
-          Navigator.of(sheetCtx).pop(createdCategory);
+          if (sheetCtx.mounted && ModalRoute.of(sheetCtx)?.isCurrent == true) {
+            Navigator.of(sheetCtx).pop(createdCategory);
+          }
           showAppFeedback(
             context,
             initialCategory != null ? 'Category updated' : 'Category saved',
@@ -483,6 +505,8 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
         if (context.mounted) {
           showAppFeedback(context, 'Error saving category: $e', isError: true);
         }
+      } finally {
+        saving = false;
       }
     }
 
@@ -493,66 +517,99 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
           ? 'Edit Category'
           : 'Add ${categoryType == AccountType.expense ? 'Expense' : 'Income'} Category',
       doneLabel: 'Save',
-      onDone: () => doSave(context),
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          final pickerItems = [
-            const AdaptivePickerItem<String?>(
-              value: null,
-              label: 'None (Top Level)',
-            ),
-            ...potentialParents.map(
-              (p) => AdaptivePickerItem<String?>(value: p.id, label: p.name),
-            ),
-          ];
+      onDone: () {
+        final sheetContext = categorySheetContext;
+        if (sheetContext != null && sheetContext.mounted) doSave(sheetContext);
+      },
+      builder: (sheetContext) {
+        categorySheetContext = sheetContext;
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final pickerItems = [
+              const AdaptivePickerItem<String?>(
+                value: null,
+                label: 'None (Top Level)',
+              ),
+              ...potentialParents.map(
+                (p) => AdaptivePickerItem<String?>(
+                  value: p.id,
+                  label: p.name,
+                  icon: Icon(categoryIcon(p)),
+                ),
+              ),
+            ];
 
-          return Material(
-            type: MaterialType.transparency,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  TextField(
-                    key: const Key('category_name_input'),
-                    controller: nameController,
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Category Name',
-                      hintText: 'e.g. Subscriptions, Groceries',
-                      border: OutlineInputBorder(),
+            return Material(
+              type: MaterialType.transparency,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextField(
+                      key: const Key('category_name_input'),
+                      controller: nameController,
+                      autofocus: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Category Name',
+                        hintText: 'e.g. Subscriptions, Groceries',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  if (potentialParents.isNotEmpty) ...[
-                    AdaptiveDropdownField<String?>(
-                      label: 'Parent Category',
-                      value: selectedParentId,
-                      hint: 'None (Top Level)',
-                      items: pickerItems,
-                      onChanged: (val) {
-                        setDialogState(() => selectedParentId = val);
+                    const SizedBox(height: 16),
+                    AdaptiveDropdownField<String>(
+                      key: const Key('category_icon_picker'),
+                      label: 'Category icon',
+                      value: categoryIconPresets.containsKey(selectedIconName)
+                          ? selectedIconName
+                          : 'auto',
+                      prefixIcon: Icon(
+                        categoryIconPresets[selectedIconName]?.$2 ??
+                            categoryIcon(initialCategory),
+                      ),
+                      items: [
+                        for (final preset in categoryIconPresets.entries)
+                          AdaptivePickerItem(
+                            value: preset.key,
+                            label: preset.value.$1,
+                            icon: Icon(preset.value.$2),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        setDialogState(() => selectedIconName = value);
                       },
                     ),
                     const SizedBox(height: 16),
-                  ],
-                  const SizedBox(height: 8),
-                  AdaptiveButton(
-                    key: const Key('save_category_button'),
-                    onPressed: () => doSave(sheetContext),
-                    child: Text(
-                      initialCategory != null
-                          ? 'Update Category'
-                          : 'Save Category',
+                    if (potentialParents.isNotEmpty) ...[
+                      AdaptiveDropdownField<String?>(
+                        label: 'Parent Category',
+                        value: selectedParentId,
+                        hint: 'None (Top Level)',
+                        items: pickerItems,
+                        onChanged: (val) {
+                          setDialogState(() => selectedParentId = val);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    const SizedBox(height: 8),
+                    AdaptiveButton(
+                      key: const Key('save_category_button'),
+                      onPressed: () => doSave(sheetContext),
+                      child: Text(
+                        initialCategory != null
+                            ? 'Update Category'
+                            : 'Save Category',
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        },
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -643,7 +700,11 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                     child: switch (index) {
                       0 => _buildProfileTab(context, company, profile),
                       1 => _buildWalletsTab(context, company, walletsAsync),
-                      _ => _buildCategoriesTab(context, company, categoriesAsync),
+                      _ => _buildCategoriesTab(
+                        context,
+                        company,
+                        categoriesAsync,
+                      ),
                     },
                   ),
                 ),
@@ -657,12 +718,16 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
 
     final isIos = AdaptiveThemeHelper.isIos(context);
     final colors = Theme.of(context).colorScheme;
-    final addLabel = ['Add workspace', 'Add wallet', 'Add category'][_selectedTab];
+    final addLabel = [
+      'Add workspace',
+      'Add wallet',
+      'Add category',
+    ][_selectedTab];
 
     void openAutomation() {
-      Navigator.of(context).push(
-        createAdaptivePageRoute(builder: (_) => const RecurringScreen()),
-      );
+      Navigator.of(
+        context,
+      ).push(createAdaptivePageRoute(builder: (_) => const RecurringScreen()));
     }
 
     return AdaptiveScaffold(
@@ -755,9 +820,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          profile.name.isNotEmpty
-                              ? profile.name
-                              : 'My Account',
+                          profile.name.isNotEmpty ? profile.name : 'My Account',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -955,12 +1018,15 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
         return;
       }
       saving = true;
-      final updated = ref.read(userProfileProvider).copyWith(
-        name: name,
-        phoneNumber: phoneCtrl.text.trim(),
-        email: emailCtrl.text.trim(),
-      );
-      final saved = await ref.read(userProfileProvider.notifier)
+      final updated = ref
+          .read(userProfileProvider)
+          .copyWith(
+            name: name,
+            phoneNumber: phoneCtrl.text.trim(),
+            email: emailCtrl.text.trim(),
+          );
+      final saved = await ref
+          .read(userProfileProvider.notifier)
           .saveProfile(updated);
       saving = false;
       if (!context.mounted || !sheetCtx.mounted) return;
@@ -1076,36 +1142,6 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     }
   }
 
-  IconData _getCategoryIcon(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('food') ||
-        lower.contains('dining') ||
-        lower.contains('restaurant')) {
-      return Icons.restaurant_rounded;
-    } else if (lower.contains('salary') ||
-        lower.contains('income') ||
-        lower.contains('wage')) {
-      return Icons.payments_rounded;
-    } else if (lower.contains('transport') ||
-        lower.contains('travel') ||
-        lower.contains('fuel')) {
-      return Icons.directions_car_rounded;
-    } else if (lower.contains('bill') ||
-        lower.contains('utility') ||
-        lower.contains('electric')) {
-      return Icons.receipt_long_rounded;
-    } else if (lower.contains('shopping') || lower.contains('grocer')) {
-      return Icons.shopping_bag_rounded;
-    } else if (lower.contains('invest') || lower.contains('dividend')) {
-      return Icons.trending_up_rounded;
-    } else if (lower.contains('rent') || lower.contains('home')) {
-      return Icons.home_rounded;
-    } else if (lower.contains('health') || lower.contains('medical')) {
-      return Icons.medical_services_rounded;
-    }
-    return Icons.category_rounded;
-  }
-
   IconData _getWalletIcon(AccountModel wallet) {
     if (wallet.type == AccountType.liability) {
       return Icons.credit_card_rounded;
@@ -1130,7 +1166,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
   ) {
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
-    final defaultWalletId = ref.watch(defaultWalletIdProvider).value;
+    final defaultWalletId = ref.watch(defaultWalletIdProvider).asData?.value;
 
     return walletsAsync.when(
       data: (wallets) {
@@ -1273,7 +1309,6 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-
                         ],
                       ),
                       const SizedBox(width: 4),
@@ -1290,12 +1325,16 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                           } else if (val == 'delete') {
                             _deleteWallet(wallet);
                           } else if (val == 'default') {
-                            if (ref.read(activeCompanyProvider).id != company.id) {
+                            if (ref.read(activeCompanyProvider).id !=
+                                company.id) {
                               return;
                             }
                             try {
-                              await ref.read(expenseRepositoryProvider)
-                                  .setDefaultWalletId(isDefault ? null : wallet.id);
+                              await ref
+                                  .read(expenseRepositoryProvider)
+                                  .setDefaultWalletId(
+                                    isDefault ? null : wallet.id,
+                                  );
                             } catch (_) {
                               if (context.mounted) {
                                 showAppFeedback(
@@ -1310,12 +1349,20 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                         itemBuilder: (ctx) => [
                           PopupMenuItem(
                             value: 'default',
-                            child: Text(isDefault
-                                ? 'Clear default wallet'
-                                : 'Set as default wallet'),
+                            child: Text(
+                              isDefault
+                                  ? 'Clear default wallet'
+                                  : 'Set as default wallet',
+                            ),
                           ),
-                          const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                          const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Edit'),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete'),
+                          ),
                         ],
                       ),
                     ],
@@ -1364,7 +1411,8 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
             subCats.putIfAbsent(c.parentAccountId!, () => []).add(c);
           }
         }
-        final canArrange = topLevel.length > 1 ||
+        final canArrange =
+            topLevel.length > 1 ||
             subCats.values.any((children) => children.length > 1);
 
         return Column(
@@ -1390,17 +1438,19 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                   AdaptiveButton(
                     type: AdaptiveButtonType.text,
                     height: 44,
-                    onPressed: !canArrange ? null : () {
-                      Navigator.of(context).push(
-                        createAdaptivePageRoute<void>(
-                          builder: (_) => ArrangeCategoriesScreen(
-                            workspaceId: company.id,
-                            type: _selectedCatType,
-                            categories: filtered,
-                          ),
-                        ),
-                      );
-                    },
+                    onPressed: !canArrange
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              createAdaptivePageRoute<void>(
+                                builder: (_) => ArrangeCategoriesScreen(
+                                  workspaceId: company.id,
+                                  type: _selectedCatType,
+                                  categories: filtered,
+                                ),
+                              ),
+                            );
+                          },
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       spacing: 6,
@@ -1467,7 +1517,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                       ),
                                   child: AdaptiveListRow(
                                     leading: Icon(
-                                      _getCategoryIcon(parent.name),
+                                      categoryIcon(parent),
                                       color: primaryColor,
                                     ),
                                     title: parent.name,
@@ -1547,7 +1597,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                                           bottom: 4,
                                         ),
                                         leading: Icon(
-                                          _getCategoryIcon(sub.name),
+                                          categoryIcon(sub),
                                           size: 18,
                                           color: primaryColor.withValues(
                                             alpha: 0.8,

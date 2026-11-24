@@ -1103,7 +1103,7 @@ class ProfileSessionController extends Notifier<ProfileSessionState> {
 
     if (userId == null || userId.isEmpty) {
       state = const SessionErrorState(
-          'Cannot switch profile while unauthenticated.');
+          'Sign in to switch workspaces.');
       return;
     }
 

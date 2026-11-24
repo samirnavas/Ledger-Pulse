@@ -116,7 +116,7 @@ class _ReceivablesPayablesScreenState
     final vouchersAsync = _isPayables
         ? ref.watch(payablesVouchersProvider)
         : ref.watch(receivablesVouchersProvider);
-    final partiesList = ref.watch(partyListProvider).value ?? [];
+    final partiesList = ref.watch(partyListProvider).asData?.value ?? [];
 
     return AdaptiveScaffold(
       title: _isPayables ? 'Accounts Payable' : 'Accounts Receivable',

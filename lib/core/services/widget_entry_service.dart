@@ -42,6 +42,7 @@ class WidgetEntryService {
     final activeWallets = _accounts(company.id, wallets);
     final value = jsonEncode({
       'company': company.id,
+      'name': company.name,
       'user': userId,
       'role': role.name,
       'wallets': activeWallets,
@@ -65,11 +66,10 @@ class WidgetEntryService {
   static List<Map<String, String>> _accounts(
     String companyId,
     Iterable<AccountModel> accounts,
-  ) =>
-      accounts
-          .where((a) => a.companyId == companyId && a.isActive && !a.isDeleted)
-          .map((a) => {'id': a.id, 'name': a.name})
-          .toList();
+  ) => accounts
+      .where((a) => a.companyId == companyId && a.isActive && !a.isDeleted)
+      .map((a) => {'id': a.id, 'name': a.name})
+      .toList();
 
   static Future<void> clear() async {
     if (await HomeWidget.getWidgetData<String>(contextKey) != null) {
@@ -96,7 +96,13 @@ class WidgetEntryService {
     final user = context['user'] as String;
     final companyId = context['company'] as String;
     if (request['user'] != user || request['company'] != companyId) {
-      return 'Profile changed. Start again.';
+      return 'Workspace changed. Start again.';
+    }
+    final activeWorkspace = await HomeWidget.getWidgetData<String>(
+      WidgetSyncService.activeWorkspaceKey,
+    );
+    if (activeWorkspace != null && activeWorkspace != companyId) {
+      return 'Workspace changed. Start again.';
     }
     final type = request['type'];
     if (!const ['expense', 'income', 'transfer'].contains(type)) {
@@ -175,6 +181,12 @@ class WidgetEntryService {
           )) {
             return 'Choose an active category';
           }
+        }
+        if (await HomeWidget.getWidgetData<String>(
+              WidgetSyncService.activeWorkspaceKey,
+            )
+            case final String active when active != companyId) {
+          return 'Workspace changed. Start again.';
         }
         if (await HomeWidget.getWidgetData<String>(contextKey) != rawContext ||
             await HomeWidget.getWidgetData<bool>(enabledKey) != true) {

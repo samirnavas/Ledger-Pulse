@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/company_providers.dart';
+
 /// State representing the expense shell's active tab and custom actions.
 class ExpenseTabState {
   final int currentIndex;
@@ -38,7 +40,10 @@ class ExpenseTabState {
 /// Controller managing active tab index and actions for ExpenseHomeScreen.
 class ExpenseTabController extends Notifier<ExpenseTabState> {
   @override
-  ExpenseTabState build() => const ExpenseTabState(currentIndex: 0);
+  ExpenseTabState build() {
+    ref.watch(activeCompanyProvider.select((company) => company.id));
+    return const ExpenseTabState();
+  }
 
   void setTab(int index) {
     state = ExpenseTabState(currentIndex: index);

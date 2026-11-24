@@ -200,6 +200,7 @@ void main() {
           await tester.dragFrom(swipeStart, swipeEnd - swipeStart);
           await tester.pumpAndSettle();
           expect(tester.widget<AdaptiveBottomNav>(nav).currentIndex, index);
+          expect(find.byKey(const Key('active_profile_indicator_pill')), findsOneWidget);
         }
         expect(find.byType(ExpenseTransactionsScreen), findsOneWidget);
 

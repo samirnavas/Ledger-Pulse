@@ -18,6 +18,7 @@ import '../../data/models/voucher_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import 'quick_add_transaction_sheet.dart';
+import 'widgets/category_icons.dart';
 
 enum _TransactionAction { edit, delete }
 
@@ -73,6 +74,11 @@ class TransactionDetailsScreen extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider).asData?.value;
     final wallets = ref.watch(walletsProvider).asData?.value;
     final company = ref.watch(activeCompanyProvider);
+    if (company.id != transaction.companyId) {
+      return const Center(
+        child: Text('Transaction unavailable in this workspace'),
+      );
+    }
     final category = categories
         ?.where((c) => c.id == transaction.categoryAccountId)
         .firstOrNull;
@@ -203,7 +209,7 @@ class TransactionDetailsScreen extends ConsumerWidget {
             detail(
               'Category',
               category?.name ?? 'Uncategorized',
-              Icons.category_outlined,
+              categoryIcon(category),
             ),
           detail(
             transfer ? 'From wallet' : 'Wallet',
@@ -381,6 +387,8 @@ Future<bool> confirmVoidExpenseTransaction(
   WidgetRef ref,
   VoucherModel transaction,
 ) async {
+  final workspace = ref.read(activeCompanyProvider);
+  if (workspace.id != transaction.companyId) return false;
   final type = switch (transaction.type) {
     VoucherType.expense => 'expense',
     VoucherType.income => 'income entry',
@@ -389,7 +397,7 @@ Future<bool> confirmVoidExpenseTransaction(
   };
   final amount = CurrencyFormatter.format(
     transaction.totalAmountInCents,
-    currencyCode: ref.read(activeCompanyProvider).currencyCode,
+    currencyCode: workspace.currencyCode,
     absolute: true,
     showDecimalsAlways: false,
   );
@@ -403,7 +411,10 @@ Future<bool> confirmVoidExpenseTransaction(
     confirmLabel: 'Delete',
     isDestructive: true,
   );
-  if (!confirmed || !context.mounted) return false;
+  if (!confirmed ||
+      !context.mounted ||
+      ref.read(activeCompanyProvider).id != workspace.id)
+    return false;
   try {
     await ref.read(expenseRepositoryProvider).voidTransaction(transaction.id);
     if (context.mounted) {

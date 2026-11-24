@@ -165,56 +165,39 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
 
       if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
         WidgetSyncService.initialize(
-          onWidgetClick: (uri) {
+          onWidgetClick: (uri) async {
             final companyId = uri.queryParameters['company_id'];
-            if (companyId != null && companyId.isNotEmpty) {
-              final activeCompany = ref.read(activeCompanyProvider);
-              if (activeCompany.id != companyId) {
-                ref.read(companyControllerProvider.notifier).selectCompany(companyId);
-                final sessionState = ref.read(profileSessionProvider);
-                if (sessionState is ActiveProfileReadySessionState) {
-                  final match = sessionState.availableProfiles.where((p) => p.id == companyId).firstOrNull;
-                  if (match != null && match.id != sessionState.activeProfile.id) {
-                    ref.read(profileSessionProvider.notifier).switchProfile(match);
-                  }
-                }
+            final quickAdd = uri.queryParameters['action'] == 'quick_add';
+            for (var attempt = 0; attempt < 40 && mounted; attempt++) {
+              final session = ref.read(profileSessionProvider);
+              if (!SplashScreen.isSplashActive &&
+                  session is! LoadingProfilesSessionState &&
+                  session is! SessionInitializingState) {
+                break;
               }
+              await Future<void>.delayed(const Duration(milliseconds: 100));
             }
+            if (!mounted || SplashScreen.isSplashActive) return;
+            final navigator = LedgerPulseApp.rootNavigatorKey.currentState;
+            if (navigator == null || QuickAddTransactionSheet.isSheetOpen) return;
+            // Leave open editors and their drafts in place when a widget is tapped.
+            if (navigator.canPop()) return;
 
-            final actionParam = uri.queryParameters['action'];
-            if (actionParam == 'quick_add') {
-              void tryOpenQuickAdd([int attempts = 0]) {
-                if (QuickAddTransactionSheet.isSheetOpen) return;
-
-                // 1. Wait until splash screen has completed its transition and pushReplacement
-                if (SplashScreen.isSplashActive && attempts < 40) {
-                  Future.delayed(const Duration(milliseconds: 100), () => tryOpenQuickAdd(attempts + 1));
-                  return;
-                }
-
-                // 2. Wait until profile session has finished loading workspaces
-                final sessionState = ref.read(profileSessionProvider);
-                if ((sessionState is LoadingProfilesSessionState || sessionState is SessionInitializingState) && attempts < 40) {
-                  Future.delayed(const Duration(milliseconds: 100), () => tryOpenQuickAdd(attempts + 1));
-                  return;
-                }
-
-                // 3. Ensure rootNavigatorKey has a mounted context ready to present modal
-                final ctx = LedgerPulseApp.rootNavigatorKey.currentContext;
-                if (ctx != null && ctx.mounted) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    final readyCtx = LedgerPulseApp.rootNavigatorKey.currentContext;
-                    if (readyCtx != null && readyCtx.mounted && !QuickAddTransactionSheet.isSheetOpen) {
-                      QuickAddTransactionSheet.show(readyCtx);
-                    }
-                  });
-                } else if (attempts < 40) {
-                  Future.delayed(const Duration(milliseconds: 100), () => tryOpenQuickAdd(attempts + 1));
-                }
-              }
-              WidgetsBinding.instance.addPostFrameCallback((_) => tryOpenQuickAdd());
+            final session = ref.read(profileSessionProvider);
+            if (session is! ActiveProfileReadySessionState) return;
+            if (companyId != null && companyId != session.activeProfile.id) {
+              final target = session.availableProfiles
+                  .where((workspace) => workspace.id == companyId)
+                  .firstOrNull;
+              if (target == null) return;
+              await ref.read(profileSessionProvider.notifier).switchProfile(target);
             }
-
+            if (!mounted) return;
+            final company = ref.read(activeCompanyProvider);
+            if (companyId != null && company.id != companyId) return;
+            if (quickAdd && company.isExpense && navigator.mounted && !navigator.canPop()) {
+              await QuickAddTransactionSheet.show(navigator.context);
+            }
             final moduleParam = uri.queryParameters['module'] ??
                 (uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null);
             if (moduleParam != null) {

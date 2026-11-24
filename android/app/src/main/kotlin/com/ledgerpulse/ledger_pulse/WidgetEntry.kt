@@ -9,6 +9,7 @@ import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.view.View
 import android.widget.RemoteViews
 import android.widget.Toast
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -18,6 +19,7 @@ import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodChannel
 import java.math.BigDecimal
 import java.util.UUID
+import org.json.JSONArray
 import org.json.JSONObject
 
 private const val CHANNEL = "ledger_pulse/widget_entry"
@@ -26,14 +28,16 @@ internal object WidgetEntry {
     private const val ENABLED = "widget_keypad_enabled"
     private const val ENTRY_CONTEXT = "widget_entry_context"
     private const val CHOICES_PER_PAGE = 2
+    private const val RECENT_CATEGORY_LIMIT = 5
     private val detailsPages = setOf("details", "wallet", "destination")
-    private val saving = mutableSetOf<Int>()
+    private val saving = mutableSetOf<String>()
 
     private data class Choice(val id: String, val name: String)
 
     private class EntryContext(private val data: JSONObject) {
         val user = data.getString("user")
         val company = data.getString("company")
+        val name = data.optString("name")
         val defaultWallet = data.optString("default_wallet")
         val scope = "$user/$company"
 
@@ -50,7 +54,8 @@ internal object WidgetEntry {
         if (!data.getBoolean(ENABLED, false)) return null
         val raw = data.getString(ENTRY_CONTEXT, null) ?: return null
         return EntryContext(JSONObject(raw)).takeIf {
-            it.company == data.getString("company_id", null)
+            it.company == data.getString("company_id", null) &&
+                it.company == data.getString("widget_active_workspace", it.company)
         }
     }
 
@@ -59,7 +64,52 @@ internal object WidgetEntry {
         return if (type == "transfer") {
             entry.choices("wallets").filterNot { it.id == state.optString("wallet") }
         } else {
-            entry.choices(type)
+            val recent = recentCategories(state.optJSONObject("defaults"), type)
+            entry.choices(type).sortedBy { choice ->
+                recent.indexOf(choice.id).takeIf { it >= 0 } ?: recent.size
+            }
+        }
+    }
+
+    private fun recentCategories(defaults: JSONObject?, type: String): List<String> {
+        val items = defaults?.optJSONObject(type)?.optJSONArray("categories") ?: return emptyList()
+        return List(items.length()) { items.getString(it) }
+    }
+
+    private fun defaults(context: Context) =
+        context.getSharedPreferences("widget_entry_defaults", Context.MODE_PRIVATE)
+
+    private fun remember(context: Context, entry: EntryContext, type: String, wallet: String, destination: String) {
+        val preferences = defaults(context)
+        val saved = JSONObject(preferences.getString(entry.scope, "{}").orEmpty())
+        val byType = JSONObject().put("wallet", wallet)
+        if (type != "transfer") {
+            val categories = (listOf(destination) + recentCategories(saved, type))
+                .distinct().take(RECENT_CATEGORY_LIMIT)
+            byType.put("categories", JSONArray(categories))
+        }
+        saved.put("type", type).put(type, byType)
+        preferences.edit().putString(entry.scope, saved.toString()).apply()
+    }
+
+    private fun applyDefaults(entry: EntryContext, state: JSONObject, type: String) {
+        val saved = state.optJSONObject("defaults")
+        val rememberedWallet = saved?.optJSONObject(type)?.optString("wallet")
+        val wallets = entry.choices("wallets")
+        val walletIndex = listOf(rememberedWallet, entry.defaultWallet, wallets.firstOrNull()?.id)
+            .firstNotNullOfOrNull { id -> wallets.indexOfFirst { it.id == id }.takeIf { it >= 0 } }
+        state.remove("wallet")
+        state.remove("walletPage")
+        state.remove("destination")
+        state.remove("destinationPage")
+        state.put("type", type)
+        if (walletIndex != null) {
+            state.put("wallet", wallets[walletIndex].id).put("walletPage", walletIndex / CHOICES_PER_PAGE)
+        }
+        if (type != "transfer") {
+            val available = entry.choices(type)
+            val category = recentCategories(saved, type).firstOrNull { id -> available.any { it.id == id } }
+            if (category != null) state.put("destination", category)
         }
     }
 
@@ -71,18 +121,30 @@ internal object WidgetEntry {
     private fun drafts(context: Context) =
         context.getSharedPreferences("widget_entry_drafts", Context.MODE_PRIVATE)
 
-    private fun draft(context: Context, id: Int): JSONObject? =
-        drafts(context).getString(id.toString(), null)?.let(::JSONObject)
-
-    private fun store(context: Context, id: Int, draft: JSONObject?) {
-        drafts(context).edit().putString(id.toString(), draft?.toString()).apply()
+    private fun draft(context: Context, id: Int, scope: String): JSONObject? {
+        val preferences = drafts(context)
+        val key = "$id:$scope"
+        preferences.getString(key, null)?.let { return JSONObject(it) }
+        val legacy = preferences.getString(id.toString(), null)?.let(::JSONObject) ?: return null
+        if (legacy.optString("scope") != scope) return null
+        preferences.edit().putString(key, legacy.toString()).remove(id.toString()).apply()
+        return legacy
     }
 
-    fun delete(context: Context, id: Int) = store(context, id, null)
+    private fun store(context: Context, id: Int, scope: String, draft: JSONObject?) {
+        drafts(context).edit().putString("$id:$scope", draft?.toString()).apply()
+    }
+
+    fun delete(context: Context, id: Int) {
+        val preferences = drafts(context)
+        val editor = preferences.edit().remove(id.toString())
+        preferences.all.keys.filter { it.startsWith("$id:") }.forEach { editor.remove(it) }
+        editor.apply()
+    }
 
     fun openIntent(context: Context, id: Int, data: SharedPreferences): PendingIntent? {
-        if (!data.getBoolean(ENABLED, false)) return null
-        return actionIntent(context, id, "keypad", "open")
+        val entry = entryContext(data) ?: return null
+        return actionIntent(context, id, entry.scope, "open")
     }
 
     private fun actionIntent(
@@ -96,14 +158,16 @@ internal object WidgetEntry {
     }
 
     fun render(context: Context, id: Int, data: SharedPreferences): RemoteViews? {
-        val entry = entryContext(data)
-        val state = draft(context, id) ?: return null
-        if (entry == null || entry.scope != state.optString("scope") || state.optString("page") == "receipt") {
-            delete(context, id)
+        val entry = entryContext(data) ?: return null
+        val state = draft(context, id, entry.scope) ?: return null
+        if (state.optString("page") == "receipt") {
+            store(context, id, entry.scope, null)
             return null
         }
         val views = RemoteViews(context.packageName, R.layout.widget_entry)
         views.removeAllViews(R.id.widget_entry_rows)
+        views.setViewVisibility(R.id.widget_entry_close, View.VISIBLE)
+        views.setViewVisibility(R.id.widget_entry_workspace, View.VISIBLE)
         val token = state.getString("id")
         fun intent(action: String) = actionIntent(context, id, token, action)
         fun row(vararg keys: Pair<String, String>, accent: Boolean = false) {
@@ -150,13 +214,15 @@ internal object WidgetEntry {
         val amount = state.optString("amount").ifEmpty { "0" }
         val currency = data.getString("currency_symbol", "").orEmpty()
         val error = state.optString("error")
+        val workspace = entry.name.ifBlank { data.getString("company_name", "Workspace").orEmpty() }
+        views.setTextViewText(R.id.widget_entry_workspace, workspace)
         views.setTextViewText(R.id.widget_entry_title, error.ifEmpty { "$currency $amount".trim() })
         views.setOnClickPendingIntent(R.id.widget_entry_close, intent("cancel"))
 
         val wallets = entry.choices("wallets")
         val destinations = destinations(entry, state)
         when {
-            id in saving -> row("Saving…" to "")
+            token in saving -> row("Saving…" to "")
             state.optBoolean("retry") -> row("Retry save" to "save")
             state.optString("page") in detailsPages -> {
                 fun heading(label: String, field: String, choices: List<Choice>) =
@@ -180,7 +246,6 @@ internal object WidgetEntry {
                     row(
                         choiceKey("wallet", wallets, index),
                         choiceKey("destination", destinations, index),
-                        accent = true,
                     )
                 }
                 row(
@@ -210,7 +275,6 @@ internal object WidgetEntry {
         fun update() {
             LedgerPulseWidgetProvider().onUpdate(context, manager, intArrayOf(id), data)
         }
-        if (id in saving) return
         val entry = entryContext(data)
         if (action == "open") {
             if (entry == null) {
@@ -224,29 +288,30 @@ internal object WidgetEntry {
                 update()
                 return
             }
-            // The launcher may still hold the open intent from an earlier widget update.
-            if (parts[1] != "keypad" && parts[1] != entry.scope) {
+            if (parts[1] != entry.scope) {
+                update()
+                return
+            }
+            if (draft(context, id, entry.scope) != null) {
                 update()
                 return
             }
             val state = JSONObject().put("scope", entry.scope)
                 .put("id", "tx_widget_${UUID.randomUUID().toString().replace("-", "")}")
-            val defaultWalletIndex = entry.choices("wallets")
-                .indexOfFirst { it.id == entry.defaultWallet }
-            if (defaultWalletIndex >= 0) {
-                state.put("wallet", entry.defaultWallet)
-                    .put("walletPage", defaultWalletIndex / CHOICES_PER_PAGE)
-            }
-            store(context, id, state)
+            val saved = JSONObject(defaults(context).getString(entry.scope, "{}").orEmpty())
+            state.put("defaults", saved)
+            applyDefaults(entry, state, saved.optString("type", "expense"))
+            store(context, id, entry.scope, state)
             update()
             return
         }
 
         if (entry == null) return
-        val state = draft(context, id) ?: return
-        if (parts[1] != state.optString("id") || entry.scope != state.optString("scope")) return
+        val state = draft(context, id, entry.scope) ?: return
+        val token = state.optString("id")
+        if (parts[1] != token || token in saving || entry.scope != state.optString("scope")) return
         if (action == "cancel") {
-            delete(context, id)
+            store(context, id, entry.scope, null)
             update()
             return
         }
@@ -258,13 +323,11 @@ internal object WidgetEntry {
             "amount" -> state.remove("page")
             "review" -> state.put("page", "details")
             "type" -> {
-                state.put("type", when (type) {
+                applyDefaults(entry, state, when (type) {
                     "expense" -> "income"
                     "income" -> "transfer"
                     else -> "expense"
                 })
-                state.remove("destination")
-                state.remove("destinationPage")
             }
             "more:wallet", "more:destination" -> {
                 if (state.optString("page") !in detailsPages) return
@@ -289,9 +352,9 @@ internal object WidgetEntry {
                     else -> null
                 }
                 if (error == null) {
-                    saving.add(id)
+                    saving.add(token)
                     state.put("retry", true)
-                    store(context, id, state)
+                    store(context, id, entry.scope, state)
                     update()
                     val pending = async()
                     WidgetEntryEngine.save(context, mapOf(
@@ -303,12 +366,13 @@ internal object WidgetEntry {
                         "wallet" to wallet,
                         "destination" to destination,
                     )) { message, uncertain ->
-                        saving.remove(id)
-                        if (draft(context, id)?.optString("id") == state.optString("id")) {
+                        saving.remove(token)
+                        if (message == null) remember(context, entry, type, wallet, destination)
+                        if (draft(context, id, entry.scope)?.optString("id") == state.optString("id")) {
                             if (message == null) {
-                                delete(context, id)
+                                store(context, id, entry.scope, null)
                             } else {
-                                store(context, id, state.put("retry", uncertain).put("error", message))
+                                store(context, id, entry.scope, state.put("retry", uncertain).put("error", message))
                             }
                         }
                         try {
@@ -343,7 +407,7 @@ internal object WidgetEntry {
                 } else return
             }
         }
-        store(context, id, state)
+        store(context, id, entry.scope, state)
         update()
     }
 }

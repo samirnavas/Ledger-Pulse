@@ -23,6 +23,7 @@ import '../../data/models/company_model.dart';
 import '../providers/budget_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
+import 'widgets/category_icons.dart';
 
 /// Screen displaying category budgets, progress bars, rollover indicators,
 /// and an overall budget summary for each period.
@@ -145,8 +146,11 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                 label: 'All Categories (Overall)',
               ),
               ...expenseCategories.map(
-                (cat) =>
-                    AdaptivePickerItem<String>(value: cat.id, label: cat.name),
+                (cat) => AdaptivePickerItem<String>(
+                  value: cat.id,
+                  label: cat.name,
+                  icon: Icon(categoryIcon(cat)),
+                ),
               ),
             ];
 
@@ -303,6 +307,12 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
 
     final progressListAsync = ref.watch(budgetsProgressListProvider);
     final summaries = ref.watch(budgetSummariesByPeriodProvider);
+    final categoryIcons = {
+      for (final category
+          in ref.watch(categoriesProvider).asData?.value ??
+              const <AccountModel>[])
+        category.id: categoryIcon(category),
+    };
 
     return AdaptivePageEntrance(
       child: Material(
@@ -318,14 +328,15 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
           ),
           error: (err, _) => Center(child: Text('Error loading budgets: $err')),
           data: (progressList) {
-            final categoryBudgets = progressList.where(
-              (item) => !item.budget.isOverall,
-            ).toList();
+            final categoryBudgets = progressList
+                .where((item) => !item.budget.isOverall)
+                .toList();
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
               children: [
                 for (final summary
-                    in summaries.value ?? const <OverallBudgetSummary>[])
+                    in summaries.asData?.value ??
+                        const <OverallBudgetSummary>[])
                   _buildOverallBudgetCard(theme, company, summary),
 
                 if (categoryBudgets.isNotEmpty) ...[
@@ -349,7 +360,12 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                   ),
                   const SizedBox(height: 12),
                   for (final progress in categoryBudgets)
-                    _buildBudgetCard(theme, company, progress),
+                    _buildBudgetCard(
+                      theme,
+                      company,
+                      progress,
+                      categoryIcons[progress.budget.categoryId],
+                    ),
                 ],
 
                 if (progressList.isEmpty)
@@ -402,10 +418,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                 color: theme.colorScheme.error,
               ),
               SizedBox(width: 8),
-              Text(
-                'Delete',
-                style: TextStyle(color: theme.colorScheme.error),
-              ),
+              Text('Delete', style: TextStyle(color: theme.colorScheme.error)),
             ],
           ),
         ),
@@ -465,7 +478,9 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            includesAll ? 'All Categories' : 'Includes ${categories.join(', ')}',
+            includesAll
+                ? 'All Categories'
+                : 'Includes ${categories.join(', ')}',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 14),
@@ -545,6 +560,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
     ThemeData theme,
     Company company,
     BudgetProgress progress,
+    IconData? icon,
   ) {
     final budget = progress.budget;
     final progressColor = _getThresholdColor(context, progress.percentUsed);
@@ -571,7 +587,7 @@ class _BudgetsScreenState extends ConsumerState<BudgetsScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        Icons.category_rounded,
+                        icon ?? Icons.category_rounded,
                         color: progressColor,
                         size: 20,
                       ),

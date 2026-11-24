@@ -11,6 +11,7 @@ import android.graphics.RectF
 import android.net.Uri
 import android.os.Bundle
 import android.widget.RemoteViews
+import android.view.View
 import androidx.core.content.ContextCompat
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetPlugin
@@ -61,11 +62,18 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
             val minWidth = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH) ?: 140
             val isMedium = minWidth >= 220
 
-            val views = if (isExpense) {
+            val activeWorkspace = widgetData.getString("widget_active_workspace", null)
+            val views = if (activeWorkspace != null && activeWorkspace != widgetData.getString("company_id", null)) {
+                RemoteViews(context.packageName, R.layout.widget_entry).apply {
+                    removeAllViews(R.id.widget_entry_rows)
+                    setViewVisibility(R.id.widget_entry_close, View.GONE)
+                    setViewVisibility(R.id.widget_entry_workspace, View.GONE)
+                    setTextViewText(R.id.widget_entry_title, "Loading workspace…")
+                }
+            } else if (isExpense) {
                 WidgetEntry.render(context, appWidgetId, widgetData)
                     ?: buildExpenseWidget(context, widgetData, appWidgetId, isMedium)
             } else {
-                WidgetEntry.delete(context, appWidgetId)
                 buildLedgerWidget(context, widgetData, isMedium)
             }
 
@@ -114,7 +122,7 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
         appWidgetId: Int,
         isMedium: Boolean
     ): RemoteViews {
-        val companyName = widgetData.getString("company_name", "Profile Name") ?: "Profile Name"
+        val companyName = widgetData.getString("company_name", "Workspace") ?: "Workspace"
         val companyId = widgetData.getString("company_id", "default") ?: "default"
         val currencySymbol = widgetData.getString("currency_symbol", "₹") ?: "₹"
 

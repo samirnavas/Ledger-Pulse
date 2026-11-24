@@ -1962,6 +1962,7 @@ class DriftExpenseRepository {
       isActive: c.archivedAt == null && !c.isDeleted,
       parentAccountId: c.parentCategoryId,
       description: 'Category: ${c.name}',
+      iconName: c.iconName,
       currentBalanceInCents: 0,
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,

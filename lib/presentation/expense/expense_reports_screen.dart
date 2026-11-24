@@ -23,6 +23,7 @@ import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import 'wallet_report_screen.dart';
 import 'widgets/category_breakdown_grid.dart';
+import 'widgets/category_icons.dart';
 
 enum ReportDateFilter {
   thisMonth('This Month'),
@@ -217,8 +218,8 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
         color: Colors.transparent,
         child: txnsAsync.when(
           data: (allTxns) {
-            final categories = categoriesAsync.value ?? [];
-            final wallets = walletsAsync.value ?? [];
+            final categories = categoriesAsync.asData?.value ?? [];
+            final wallets = walletsAsync.asData?.value ?? [];
 
             final catReport = ExpenseReportEngine.calculateSpendingByCategory(
               vouchers: allTxns,
@@ -270,6 +271,7 @@ class _ExpenseReportsScreenState extends ConsumerState<ExpenseReportsScreen> {
                       (category) => AdaptivePickerItem(
                         value: category.id,
                         label: category.name,
+                        icon: Icon(categoryIcon(category)),
                       ),
                     ),
                   ],
@@ -501,11 +503,15 @@ class _MonthlyTrendCardState extends State<_MonthlyTrendCard>
                   child: IconButton(
                     iconSize: 18,
                     padding: EdgeInsets.zero,
-                    tooltip: _showLineChart ? 'Show bar chart' : 'Show line chart',
+                    tooltip: _showLineChart
+                        ? 'Show bar chart'
+                        : 'Show line chart',
                     icon: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(_showLineChart ? Icons.bar_chart : Icons.show_chart),
+                        Icon(
+                          _showLineChart ? Icons.bar_chart : Icons.show_chart,
+                        ),
                         const SizedBox(width: 2),
                         const Icon(Icons.swap_horiz_rounded, size: 14),
                       ],

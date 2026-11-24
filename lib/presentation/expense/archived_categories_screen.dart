@@ -11,6 +11,7 @@ import '../../core/widgets/skeleton_list_tile.dart';
 import '../../data/models/account_model.dart';
 import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
+import 'widgets/category_icons.dart';
 
 class ArchivedCategoriesScreen extends ConsumerWidget {
   const ArchivedCategoriesScreen({super.key});
@@ -33,10 +34,9 @@ class ArchivedCategoriesScreen extends ConsumerWidget {
       return;
     }
     try {
-      await ref.read(expenseRepositoryProvider).updateCategory(
-        id: category.id,
-        isActive: true,
-      );
+      await ref
+          .read(expenseRepositoryProvider)
+          .updateCategory(id: category.id, isActive: true);
       if (context.mounted) {
         showAppFeedback(context, '${category.name} was restored.');
       }
@@ -75,6 +75,7 @@ class ArchivedCategoriesScreen extends ConsumerWidget {
               final category = items[index];
               return AdaptiveListRow(
                 title: category.name,
+                leading: Icon(categoryIcon(category)),
                 subtitle: category.type == AccountType.income
                     ? 'Income'
                     : 'Expense',

@@ -40,6 +40,7 @@ final expenseRepositoryProvider = Provider<DriftExpenseRepository>((ref) {
 class SelectedMonthNotifier extends Notifier<DateTime> {
   @override
   DateTime build() {
+    ref.watch(activeCompanyProvider.select((company) => company.id));
     final now = DateTime.now();
     return DateTime(now.year, now.month);
   }
@@ -58,7 +59,10 @@ final selectedMonthProvider =
 /// Notifier controlling active transaction filters.
 class TransactionFiltersNotifier extends Notifier<TransactionFilters> {
   @override
-  TransactionFilters build() => const TransactionFilters();
+  TransactionFilters build() {
+    ref.watch(activeCompanyProvider.select((company) => company.id));
+    return const TransactionFilters();
+  }
 
   void updateFilters(TransactionFilters filters) {
     state = filters;

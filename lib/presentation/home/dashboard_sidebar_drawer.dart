@@ -426,7 +426,7 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                       ),
                     ),
                     subtitle: Text(
-                      'Color theme, profile, cloud sync & system settings',
+                      'Color theme, account, cloud sync & system settings',
                       style: TextStyle(
                         fontSize: 11,
                         color: isIos

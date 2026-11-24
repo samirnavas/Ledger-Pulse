@@ -26,6 +26,7 @@ import '../providers/expense_providers.dart';
 import '../providers/recurring_providers.dart';
 import 'widgets/transaction_type_switcher.dart';
 import 'accounts_screen.dart';
+import 'widgets/category_icons.dart';
 
 /// Modal bottom sheet for rapid transaction entry (Expense, Income, Transfer).
 /// Built on [DraggableModalSheet] with device keypad, amount display, presets,
@@ -43,6 +44,14 @@ class QuickAddTransactionSheet extends ConsumerStatefulWidget {
     VoucherModel? initialVoucher,
   }) async {
     if (_isSheetOpen) return null;
+    final workspace = ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(activeCompanyProvider);
+    if (!workspace.isExpense ||
+        (initialVoucher != null && initialVoucher.companyId != workspace.id)) {
+      return null;
+    }
     _isSheetOpen = true;
     HapticFeedback.lightImpact();
     try {
@@ -50,6 +59,7 @@ class QuickAddTransactionSheet extends ConsumerStatefulWidget {
         context: context,
         showDragHandle: false,
         enableDrag: false,
+        isDismissible: false,
         elevation: 0,
         isScrollControlled: true,
         useSafeArea: true,
@@ -71,6 +81,9 @@ class QuickAddTransactionSheet extends ConsumerStatefulWidget {
 class _QuickAddTransactionSheetState
     extends ConsumerState<QuickAddTransactionSheet> {
   late VoucherType _selectedType;
+  late final Company _workspace;
+  bool _pickedWallet = false;
+  late final DateTime _initialDate;
   String _amountString = '0';
   late final TextEditingController _amountController;
   late final FocusNode _amountFocusNode;
@@ -109,6 +122,11 @@ class _QuickAddTransactionSheetState
     return (_amountString == '0' || _amountString.isEmpty) &&
         _noteController.text.trim().isEmpty &&
         _refController.text.trim().isEmpty &&
+        _selectedType == VoucherType.expense &&
+        _selectedCategoryId == null &&
+        _selectedToWalletId == null &&
+        !_pickedWallet &&
+        _selectedDate == _initialDate &&
         _receiptPhotoUrl == null &&
         !_isRepeating;
   }
@@ -116,6 +134,7 @@ class _QuickAddTransactionSheetState
   @override
   void initState() {
     super.initState();
+    _workspace = ref.read(activeCompanyProvider);
     final v = widget.initialVoucher;
     if (v != null) {
       _selectedType = v.type;
@@ -139,6 +158,7 @@ class _QuickAddTransactionSheetState
       _refController = TextEditingController();
       _selectedDate = DateTime.now();
     }
+    _initialDate = _selectedDate;
     _amountFocusNode = FocusNode();
 
     _amountController.addListener(_onAmountControllerChanged);
@@ -309,6 +329,16 @@ class _QuickAddTransactionSheetState
   }
 
   Future<void> _saveTransaction(Company company) async {
+    if (!company.isExpense ||
+        ref.read(activeCompanyProvider).id != _workspace.id ||
+        company.id != _workspace.id ||
+        (widget.initialVoucher?.companyId ?? _workspace.id) != _workspace.id) {
+      setState(
+        () => _errorMessage =
+            'Return to ${_workspace.name} to save this transaction.',
+      );
+      return;
+    }
     final amountCents = CurrencyFormatter.parseToCents(_amountString);
 
     if (amountCents <= 0) {
@@ -347,6 +377,10 @@ class _QuickAddTransactionSheetState
 
     try {
       final repo = ref.read(expenseRepositoryProvider);
+      final recurringService =
+          _isRepeating && company.isModuleEnabled(AppModule.recurring)
+          ? ref.read(recurringServiceProvider)
+          : null;
       final note = _noteController.text.trim().isEmpty
           ? null
           : _noteController.text.trim();
@@ -407,7 +441,7 @@ class _QuickAddTransactionSheetState
         }
 
         // If repeat option is enabled, register a recurring rule starting on the next interval date
-        if (_isRepeating && company.isModuleEnabled(AppModule.recurring)) {
+        if (recurringService != null) {
           final nextDate = RecurringService.advanceDate(
             _selectedDate,
             _recurringInterval,
@@ -424,14 +458,12 @@ class _QuickAddTransactionSheetState
                 : null,
             notes: note,
           );
-          await ref
-              .read(recurringServiceProvider)
-              .createRule(
-                template: template,
-                interval: _recurringInterval,
-                nextRunDate: nextDate,
-                endDate: _endDate,
-              );
+          await recurringService.createRule(
+            template: template,
+            interval: _recurringInterval,
+            nextRunDate: nextDate,
+            endDate: _endDate,
+          );
         }
       }
 
@@ -453,36 +485,6 @@ class _QuickAddTransactionSheetState
     return Theme.of(context).colorScheme.primary;
   }
 
-  IconData _getCategoryIcon(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('food') ||
-        lower.contains('dining') ||
-        lower.contains('restaurant')) {
-      return Icons.restaurant_rounded;
-    } else if (lower.contains('salary') ||
-        lower.contains('income') ||
-        lower.contains('wage')) {
-      return Icons.payments_rounded;
-    } else if (lower.contains('transport') ||
-        lower.contains('travel') ||
-        lower.contains('fuel')) {
-      return Icons.directions_car_rounded;
-    } else if (lower.contains('bill') ||
-        lower.contains('utility') ||
-        lower.contains('electric')) {
-      return Icons.receipt_long_rounded;
-    } else if (lower.contains('shopping') || lower.contains('grocer')) {
-      return Icons.shopping_bag_rounded;
-    } else if (lower.contains('invest') || lower.contains('dividend')) {
-      return Icons.trending_up_rounded;
-    } else if (lower.contains('rent') || lower.contains('home')) {
-      return Icons.home_rounded;
-    } else if (lower.contains('health') || lower.contains('medical')) {
-      return Icons.medical_services_rounded;
-    }
-    return Icons.category_rounded;
-  }
-
   Future<void> _openCategoryPicker(
     BuildContext context,
     List<AccountModel> categories,
@@ -497,18 +499,22 @@ class _QuickAddTransactionSheetState
           value: '__add_category__',
           label: 'Add category',
           icon: Icon(Icons.add_rounded, size: 18),
+          isPrimaryAction: true,
         ),
         ...categories.map((cat) {
           return AdaptivePickerItem<String>(
             value: cat.id,
             label: cat.name,
             subtitle: cat.description ?? cat.type.name,
-            icon: Icon(_getCategoryIcon(cat.name), size: 18),
+            icon: Icon(categoryIcon(cat), size: 18),
           );
         }),
       ],
     );
-    if (!mounted || !context.mounted) return;
+    if (!mounted ||
+        !context.mounted ||
+        ref.read(activeCompanyProvider).id != _workspace.id)
+      return;
     if (picked == '__add_category__') {
       final created = await ExpenseAccountsScreen.showAddCategorySheet(
         context,
@@ -590,7 +596,7 @@ class _QuickAddTransactionSheetState
                     label: cat.name,
                     isSelected: isSelected,
                     selectedColor: themeColor,
-                    icon: Icon(_getCategoryIcon(cat.name), size: 16),
+                    icon: Icon(categoryIcon(cat), size: 16),
                     onSelected: (selected) {
                       if (selected) {
                         HapticFeedback.selectionClick();
@@ -769,6 +775,10 @@ class _QuickAddTransactionSheetState
     final walletsAsync = ref.watch(walletsProvider);
     final defaultWallet = ref.watch(defaultWalletIdProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
+    final workspaceMatches =
+        company.isExpense &&
+        company.id == _workspace.id &&
+        (widget.initialVoucher?.companyId ?? _workspace.id) == _workspace.id;
 
     final themeColor = _getTypeColor(context, _selectedType);
 
@@ -780,28 +790,33 @@ class _QuickAddTransactionSheetState
               ? AppColors.surfaceCardDark
               : Theme.of(context).colorScheme.surfaceContainerHighest);
 
-    walletsAsync.whenData((wallets) {
-      if (_selectedWalletId == null &&
-          wallets.isNotEmpty &&
-          (defaultWallet.hasValue || defaultWallet.hasError)) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _selectedWalletId == null) {
-            final preferred = ref.read(defaultWalletIdProvider).value;
-            setState(() {
-              _selectedWalletId = wallets
-                  .where((wallet) => wallet.id == preferred)
-                  .firstOrNull
-                  ?.id ?? wallets.first.id;
-            });
-          }
-        });
-      }
-    });
+    final wallets = walletsAsync.asData?.value;
+    if (workspaceMatches &&
+        _selectedWalletId == null &&
+        wallets != null &&
+        wallets.isNotEmpty &&
+        !defaultWallet.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            _selectedWalletId == null &&
+            ref.read(activeCompanyProvider).id == _workspace.id) {
+          final preferred = ref.read(defaultWalletIdProvider).asData?.value;
+          setState(() {
+            _selectedWalletId =
+                wallets
+                    .where((wallet) => wallet.id == preferred)
+                    .firstOrNull
+                    ?.id ??
+                wallets.first.id;
+          });
+        }
+      });
+    }
 
     return PopScope(
-      canPop: _isClean,
+      canPop: _isClean && !_isSubmitting,
       onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
+        if (didPop || _isSubmitting) return;
         final shouldDiscard = await showAdaptiveConfirmDialog(
           context: context,
           title: 'Discard unsaved changes?',
@@ -820,9 +835,26 @@ class _QuickAddTransactionSheetState
         maxChildSize: 0.98,
         snapSizes: const [0.95, 0.98],
         showHandle: true,
-        shouldCloseOnMinExtent: _isClean,
+        shouldCloseOnMinExtent: _isClean && !_isSubmitting,
         backgroundColor: containerColor,
         builder: (sheetContext, scrollController) {
+          if (!workspaceMatches) {
+            return ListView(
+              controller: scrollController,
+              children: [
+                ListTile(
+                  title: Text(
+                    'Return to ${_workspace.name} to continue this draft.',
+                  ),
+                  trailing: IconButton(
+                    tooltip: 'Close',
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                ),
+              ],
+            );
+          }
           return Padding(
             padding: EdgeInsets.only(
               left: 16,
@@ -896,6 +928,12 @@ class _QuickAddTransactionSheetState
                     ),
                   ],
                 ),
+                Text(
+                  'Workspace: ${_workspace.name}',
+                  style: Theme.of(context).textTheme.titleSmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 8),
 
                 // Scrollable Form Body
@@ -966,6 +1004,7 @@ class _QuickAddTransactionSheetState
                             onSelected: (id) {
                               setState(() {
                                 _selectedWalletId = id;
+                                _pickedWallet = true;
                                 _errorMessage = null;
                               });
                             },

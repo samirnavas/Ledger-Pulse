@@ -29,6 +29,7 @@ import '../providers/company_providers.dart';
 import '../providers/expense_providers.dart';
 import '../providers/recurring_providers.dart';
 import 'widgets/transaction_type_switcher.dart';
+import 'widgets/category_icons.dart';
 
 /// Screen listing recurring transaction rules, allowing users to
 /// create, edit, pause/resume, delete, and manually trigger due rules.
@@ -186,9 +187,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
         Navigator.of(sheetCtx).pop();
         showAppFeedback(
           context,
-          existingRule == null
-              ? 'Automation created'
-              : 'Automation updated',
+          existingRule == null ? 'Automation created' : 'Automation updated',
         );
       }
     }
@@ -197,9 +196,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
     Future<void> Function()? saveFromHeader;
     await showAdaptiveFormSheet<void>(
       context: context,
-      title: existingRule == null
-          ? 'Add Automation'
-          : 'Edit Automation',
+      title: existingRule == null ? 'Add Automation' : 'Edit Automation',
       doneLabel: 'Save',
       onDone: () => saveFromHeader?.call(),
       builder: (sheetContext) {
@@ -217,7 +214,11 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
 
             final categoryPickerItems = filteredCategories
                 .map(
-                  (c) => AdaptivePickerItem<String>(value: c.id, label: c.name),
+                  (c) => AdaptivePickerItem<String>(
+                    value: c.id,
+                    label: c.name,
+                    icon: Icon(categoryIcon(c)),
+                  ),
                 )
                 .toList();
 
@@ -410,11 +411,7 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
       }
     } catch (e) {
       if (mounted) {
-        showAppFeedback(
-          context,
-          'Could not run automation: $e',
-          isError: true,
-        );
+        showAppFeedback(context, 'Could not run automation: $e', isError: true);
       }
     }
   }
@@ -482,7 +479,8 @@ class _RecurringScreenState extends ConsumerState<RecurringScreen> {
               SkeletonListTile(),
             ],
           ),
-          error: (err, _) => Center(child: Text('Could not load automations: $err')),
+          error: (err, _) =>
+              Center(child: Text('Could not load automations: $err')),
           data: (rules) {
             if (rules.isEmpty) {
               return EmptyStateView(

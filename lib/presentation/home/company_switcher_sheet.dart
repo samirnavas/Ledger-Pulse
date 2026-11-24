@@ -8,6 +8,7 @@ import '../../core/widgets/draggable_modal_sheet.dart';
 import '../../core/widgets/liquid_glass_card.dart';
 import '../../data/models/company_model.dart';
 import '../auth/profile_onboarding_screen.dart';
+import '../expense/quick_add_transaction_sheet.dart';
 import '../providers/auth_providers.dart';
 import '../providers/company_providers.dart';
 import '../providers/profile_provider.dart';
@@ -83,20 +84,31 @@ class CompanySwitcherSheet extends ConsumerStatefulWidget {
 }
 
 class _CompanySwitcherSheetState extends ConsumerState<CompanySwitcherSheet> {
-  void _switchWorkspace(Company company) {
-    final sessionState = ref.read(profileSessionProvider);
-    if (sessionState is ActiveProfileReadySessionState) {
-      final match = sessionState.availableProfiles
-          .where((p) => p.id == company.id)
-          .firstOrNull;
-      if (match != null) {
-        ref.read(profileSessionProvider.notifier).switchProfile(match);
-        Navigator.pop(context);
-        return;
-      }
+  bool _switching = false;
+
+  Future<void> _switchWorkspace(Company company) async {
+    if (_switching || QuickAddTransactionSheet.isSheetOpen) return;
+    if (ref.read(activeCompanyProvider).id == company.id) {
+      Navigator.pop(context);
+      return;
     }
-    ref.read(companyControllerProvider.notifier).selectCompany(company.id);
-    Navigator.pop(context);
+    _switching = true;
+    final route = ModalRoute.of(context);
+    final sessionState = ref.read(profileSessionProvider);
+    try {
+      if (sessionState is ActiveProfileReadySessionState) {
+        final match = sessionState.availableProfiles
+            .where((p) => p.id == company.id)
+            .firstOrNull;
+        if (match == null) return;
+        await ref.read(profileSessionProvider.notifier).switchProfile(match);
+      } else {
+        await ref.read(companyControllerProvider.notifier).selectCompany(company.id);
+      }
+      if (mounted && route?.isCurrent == true) Navigator.pop(context);
+    } finally {
+      _switching = false;
+    }
   }
 
   void _showAddCompanyDialog(BuildContext context) {

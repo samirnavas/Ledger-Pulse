@@ -282,7 +282,7 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
                       ),
                     ),
                     subtitle: Text(
-                      'Preferences, theme, profile & system',
+                      'Preferences, theme, account & system',
                       style: TextStyle(
                         fontSize: 11,
                         color: isIos

@@ -77,8 +77,10 @@ final widgetEntryContextProvider = Provider<void>((ref) {
   );
   final role = ref.watch(userProfileProvider.select((profile) => profile.role));
   final isExpense = company.mode == CompanyMode.expenseTracker;
-  final wallets = isExpense ? ref.watch(walletsProvider).value : null;
-  final categories = isExpense ? ref.watch(categoriesProvider).value : null;
+  final wallets = isExpense ? ref.watch(walletsProvider).asData?.value : null;
+  final categories = isExpense
+      ? ref.watch(categoriesProvider).asData?.value
+      : null;
   final defaultWallet = isExpense ? ref.watch(defaultWalletIdProvider) : null;
   final enabled = ref.watch(widgetKeypadEnabledProvider).value;
   final hasActiveCompany = ref.watch(
@@ -89,6 +91,20 @@ final widgetEntryContextProvider = Provider<void>((ref) {
   Future.microtask(() async {
     if (!ref.mounted) return;
     try {
+      if (!authLoading &&
+          hasActiveCompany &&
+          await HomeWidget.getWidgetData<String>(
+                WidgetSyncService.activeWorkspaceKey,
+              ) !=
+              company.id &&
+          ref.mounted) {
+        await HomeWidget.saveWidgetData(
+          WidgetSyncService.activeWorkspaceKey,
+          company.id,
+        );
+        await WidgetEntryService.refresh();
+      }
+      if (!ref.mounted) return;
       if (enabled == false) {
         await WidgetEntryService.clear();
       } else if (authLoading || !hasActiveCompany) {
@@ -96,7 +112,9 @@ final widgetEntryContextProvider = Provider<void>((ref) {
         return;
       } else if (!isExpense) {
         await WidgetEntryService.clear();
-      } else if (enabled == true && wallets != null && categories != null &&
+      } else if (enabled == true &&
+          wallets != null &&
+          categories != null &&
           defaultWallet?.isLoading == false) {
         await WidgetEntryService.publish(
           company: company,
@@ -127,11 +145,14 @@ final widgetSyncProvider = Provider<void>((ref) {
     final budget = ref.watch(_widgetOverallBudgetProvider).asData;
     final transactionsAsync = ref.watch(_widgetTodayExpensesProvider);
 
-    final summary = summaryAsync.value;
-    final transactions = transactionsAsync.value;
-    if (summary == null || transactions == null || budget == null) return;
-
-    final categories = categoriesAsync.value ?? [];
+    final summary = summaryAsync.asData?.value;
+    final transactions = transactionsAsync.asData?.value;
+    final categories = categoriesAsync.asData?.value;
+    if (summary == null ||
+        transactions == null ||
+        budget == null ||
+        categories == null)
+      return;
 
     final pendingUpdate = Timer(const Duration(milliseconds: 150), () {
       syncExpenseWidgetData(
@@ -188,6 +209,8 @@ final syncWidgetDataActionProvider = Provider<Future<void> Function()>((ref) {
           endDate: endOfMonth,
         );
 
+        if (!ref.mounted || ref.read(activeCompanyProvider).id != company.id)
+          return;
         await syncExpenseWidgetData(
           company: company,
           summary: summary,
@@ -199,6 +222,8 @@ final syncWidgetDataActionProvider = Provider<Future<void> Function()>((ref) {
       }
       final repo = ref.read(ledgerRepositoryProvider);
       final summary = await repo.getBusinessSummary();
+      if (!ref.mounted || ref.read(activeCompanyProvider).id != company.id)
+        return;
       await WidgetSyncService.syncWidgetData(
         company: company,
         totalReceivableCents: summary.$1,

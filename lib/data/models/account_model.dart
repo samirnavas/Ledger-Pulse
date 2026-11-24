@@ -40,6 +40,7 @@ class AccountModel {
   final bool isActive;
   final bool isDeleted;
   final String? description;
+  final String? iconName;
   final int currentBalanceInCents;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -56,6 +57,7 @@ class AccountModel {
     this.isActive = true,
     this.isDeleted = false,
     this.description,
+    this.iconName,
     this.currentBalanceInCents = 0,
     required this.createdAt,
     required this.updatedAt,
@@ -73,6 +75,7 @@ class AccountModel {
     bool? isActive,
     bool? isDeleted,
     String? description,
+    String? iconName,
     int? currentBalanceInCents,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -89,6 +92,7 @@ class AccountModel {
       isActive: isActive ?? this.isActive,
       isDeleted: isDeleted ?? this.isDeleted,
       description: description ?? this.description,
+      iconName: iconName ?? this.iconName,
       currentBalanceInCents: currentBalanceInCents ?? this.currentBalanceInCents,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -108,6 +112,7 @@ class AccountModel {
       'isActive': isActive,
       'isDeleted': isDeleted,
       'description': description,
+      if (iconName != null) 'iconName': iconName,
       'currentBalanceInCents': currentBalanceInCents,
       'createdAt': encodeTime(createdAt),
       'updatedAt': encodeTime(updatedAt),
@@ -130,6 +135,7 @@ class AccountModel {
       isActive: (map['isActive'] as bool?) ?? true,
       isDeleted: (map['isDeleted'] as bool?) ?? (map['is_deleted'] as bool?) ?? false,
       description: map['description'] as String?,
+      iconName: map['iconName'] as String?,
       currentBalanceInCents: (map['currentBalanceInCents'] as int?) ?? 0,
       createdAt: decodeTime(map['createdAt'] ?? map['created_at']),
       updatedAt: decodeTime(map['updatedAt'] ?? map['updated_at']),

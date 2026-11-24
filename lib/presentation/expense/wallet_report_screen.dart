@@ -35,16 +35,24 @@ class WalletReportScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final wallets = ref.watch(walletsProvider).value ?? const <AccountModel>[];
+    final workspace = ref.watch(activeCompanyProvider);
+    if (workspace.id != wallet.companyId) {
+      return const AdaptiveScaffold(
+        title: 'Wallet report',
+        body: Center(child: Text('Wallet unavailable in this workspace')),
+      );
+    }
+    final wallets =
+        ref.watch(walletsProvider).asData?.value ?? const <AccountModel>[];
     final walletState = ref.watch(_walletBalanceProvider(wallet.id));
-    final currentWallet = walletState.value;
+    final currentWallet = walletState.asData?.value;
     final categories =
-        ref.watch(categoriesProvider).value ?? const <AccountModel>[];
+        ref.watch(categoriesProvider).asData?.value ?? const <AccountModel>[];
     final names = {
       for (final account in [...wallets, ...categories])
         account.id: account.name,
     };
-    final currency = ref.watch(activeCompanyProvider).currencyCode;
+    final currency = workspace.currencyCode;
     final transactions = ref.watch(_walletTransactionsProvider(wallet.id));
     final isIos = AdaptiveThemeHelper.isIos(context);
 
@@ -52,7 +60,7 @@ class WalletReportScreen extends ConsumerWidget {
       title: currentWallet?.name ?? wallet.name,
       body: Material(
         type: MaterialType.transparency,
-        child: walletState.hasValue && currentWallet == null
+        child: walletState.asData != null && currentWallet == null
             ? const Center(child: Text('Wallet unavailable'))
             : transactions.when(
                 loading: () =>

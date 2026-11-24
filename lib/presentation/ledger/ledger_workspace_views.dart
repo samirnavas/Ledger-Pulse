@@ -513,7 +513,7 @@ class _LedgerTransactionsViewState
   @override
   Widget build(BuildContext context) {
     final parties =
-        ref.watch(_transactionParties).value ?? const <String, String>{};
+        ref.watch(_transactionParties).asData?.value ?? const <String, String>{};
     final activeParty = parties.containsKey(_partyId) ? _partyId : null;
     final companyId = ref.watch(activeCompanyIdProvider);
     final end = _range?.end;

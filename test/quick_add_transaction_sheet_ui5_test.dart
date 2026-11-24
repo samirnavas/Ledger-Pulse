@@ -192,12 +192,28 @@ void main() {
           );
           tester.testTextInput.hide();
           await tester.pumpAndSettle();
+          final iconPicker = find.byKey(const Key('category_icon_picker'));
+          await tester.ensureVisible(iconPicker);
+          await tester.tap(iconPicker);
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Food & dining'));
+          await tester.pumpAndSettle();
           final save = find.byKey(const Key('save_category_button'));
           await tester.ensureVisible(save);
-          await tester.tap(platform == TargetPlatform.iOS ? find.text('Save') : save);
+          await tester.tap(
+            platform == TargetPlatform.iOS ? find.text('Save') : save,
+          );
           await tester.pumpAndSettle();
           final created = (await expenseRepo.getCategories()).singleWhere(
             (c) => c.name == 'Inline category',
+          );
+          expect(created.iconName, 'restaurant');
+          expect(
+            find.descendant(
+              of: find.byKey(Key('cat_chip_${created.id}')),
+              matching: find.byIcon(Icons.restaurant_rounded),
+            ),
+            findsOneWidget,
           );
           expect(
             created.type,
@@ -528,6 +544,49 @@ void main() {
       // Sheet should now be closed
       expect(find.byType(QuickAddTransactionSheet), findsNothing);
       expect(sheetDismissed, isTrue);
+    });
+
+    testWidgets('Keeps the draft in the workspace where it was opened', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(800, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final activeWorkspace = ValueNotifier(testCompany);
+      addTearDown(activeWorkspace.dispose);
+      const form = Scaffold(body: QuickAddTransactionSheet());
+      await tester.pumpWidget(
+        ValueListenableBuilder(
+          valueListenable: activeWorkspace,
+          builder: (context, company, _) =>
+              buildTestApp(child: form, companyOverride: company),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final amount = find.byKey(const Key('quick_add_amount_field'));
+      final submit = find.byKey(const Key('quick_add_submit_button'));
+      expect(find.text('Workspace: Smart Ledger'), findsOneWidget);
+      await tester.enterText(amount, '25');
+      await tester.pumpAndSettle();
+
+      activeWorkspace.value = testCompany.copyWith(
+        id: 'other',
+        name: 'Business',
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Return to Smart Ledger to continue this draft.'),
+        findsOneWidget,
+      );
+      expect(submit, findsNothing);
+
+      activeWorkspace.value = testCompany;
+      await tester.pumpAndSettle();
+      expect(find.text('25'), findsOneWidget);
+      expect(submit, findsOneWidget);
     });
 
     testWidgets('7. Repeat toggle creates a recurring rule', (tester) async {

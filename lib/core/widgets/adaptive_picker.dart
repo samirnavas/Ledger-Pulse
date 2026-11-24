@@ -11,6 +11,7 @@ class AdaptivePickerItem<T> {
   final String? subtitle;
   final Widget? icon;
   final bool isDestructive;
+  final bool isPrimaryAction;
 
   const AdaptivePickerItem({
     required this.value,
@@ -18,6 +19,7 @@ class AdaptivePickerItem<T> {
     this.subtitle,
     this.icon,
     this.isDestructive = false,
+    this.isPrimaryAction = false,
   });
 }
 
@@ -55,8 +57,10 @@ Future<T?> showAdaptivePicker<T>({
   final isIos = AdaptiveThemeHelper.isIos(context);
   final height = MediaQuery.sizeOf(context).height;
   final itemHeight = items.any((item) => item.subtitle != null) ? 72 : 56;
-  final initialSize = ((144 + items.length * itemHeight) / height)
-      .clamp(0.30, 0.60);
+  final initialSize = ((144 + items.length * itemHeight) / height).clamp(
+    0.30,
+    0.60,
+  );
 
   return showAdaptiveDraggableModal<T>(
     context: context,
@@ -82,24 +86,45 @@ Future<T?> showAdaptivePicker<T>({
                   child: Text(message, style: theme.textTheme.bodyMedium),
                 ),
               for (final item in items)
-                ListTile(
-                  leading: item.icon,
-                  title: Text(
-                    item.label,
-                    style: TextStyle(
-                      fontWeight: item.value == selectedValue
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: item.isDestructive ? theme.colorScheme.error : null,
+                if (item.isPrimaryAction)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      onPressed: () => Navigator.of(context).pop(item.value),
+                      icon: item.icon ?? const Icon(Icons.add_rounded),
+                      label: Text(item.label),
                     ),
+                  )
+                else
+                  ListTile(
+                    leading: item.icon,
+                    title: Text(
+                      item.label,
+                      style: TextStyle(
+                        fontWeight: item.value == selectedValue
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: item.isDestructive
+                            ? theme.colorScheme.error
+                            : null,
+                      ),
+                    ),
+                    subtitle: item.subtitle == null
+                        ? null
+                        : Text(item.subtitle!),
+                    selected: item.value == selectedValue,
+                    trailing: item.value == selectedValue
+                        ? Icon(
+                            isIos
+                                ? CupertinoIcons.checkmark
+                                : Icons.check_rounded,
+                          )
+                        : null,
+                    onTap: () => Navigator.of(context).pop(item.value),
                   ),
-                  subtitle: item.subtitle == null ? null : Text(item.subtitle!),
-                  selected: item.value == selectedValue,
-                  trailing: item.value == selectedValue
-                      ? Icon(isIos ? CupertinoIcons.checkmark : Icons.check_rounded)
-                      : null,
-                  onTap: () => Navigator.of(context).pop(item.value),
-                ),
               AdaptiveButton(
                 type: AdaptiveButtonType.text,
                 onPressed: () => Navigator.of(context).pop(),

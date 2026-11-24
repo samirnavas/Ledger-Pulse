@@ -105,7 +105,9 @@ final activeCompanyProvider = Provider<Company>((ref) {
     }
 
     return Company(
-      id: activeCompanyId,
+      id: sessionState is ActiveProfileReadySessionState
+          ? sessionState.activeProfile.id
+          : activeCompanyId,
       name: fallbackName,
       legalName: fallbackName,
       mode: fallbackMode,

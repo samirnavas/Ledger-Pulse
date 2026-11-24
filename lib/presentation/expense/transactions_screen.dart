@@ -31,6 +31,7 @@ import '../providers/expense_providers.dart';
 import '../providers/sync_providers.dart';
 import 'quick_add_transaction_sheet.dart';
 import 'transaction_details_screen.dart';
+import 'widgets/category_icons.dart';
 
 /// Transactions list tab matching the ledger's party list layout and primitives:
 /// - Floating top row with [AdaptiveSearchField] and [AdaptiveIconSurfaceButton] (active filter indicator).
@@ -436,7 +437,8 @@ class _ExpenseTransactionsScreenState
         : <String, AccountModel>{};
 
     final isStandalone =
-        widget.onBackToHome == null && (ModalRoute.of(context)?.canPop ?? false);
+        widget.onBackToHome == null &&
+        (ModalRoute.of(context)?.canPop ?? false);
 
     final Widget innerContent = PopScope(
       canPop: !widget.isActive || !_isSearchActive,
@@ -695,11 +697,13 @@ class _ExpenseTransactionsScreenState
                                       ? walletMap[txn.toWalletAccountId!]
                                       : null;
 
-                                  final categoryIcon = _getCategoryIcon(
-                                    cat?.name,
-                                    txn.type,
-                                    isIos,
-                                  );
+                                  final transactionIcon =
+                                      savedCategoryIcon(cat) ??
+                                      _getCategoryIcon(
+                                        cat?.name,
+                                        txn.type,
+                                        isIos,
+                                      );
 
                                   final note = txn.narration?.trim() ?? '';
                                   final fallbackTitle = isTransfer
@@ -788,7 +792,7 @@ class _ExpenseTransactionsScreenState
                                       leading: _buildCategoryAvatar(
                                         context,
                                         themeColor,
-                                        categoryIcon,
+                                        transactionIcon,
                                         isIos,
                                       ),
                                       title: title,
@@ -1004,6 +1008,7 @@ class _TransactionFilterModalContent extends ConsumerWidget {
                   final isSel = filters.categoryIds?.contains(c.id) ?? false;
                   return AdaptiveChip(
                     label: c.name,
+                    icon: Icon(categoryIcon(c), size: 16),
                     isSelected: isSel,
                     selectedColor: theme.colorScheme.primary,
                     onSelected: (selected) {
