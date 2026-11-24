@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/accounting/gst_tax_engine.dart';
-import 'package:ledger_pulse/data/models/gst_models.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
+import 'package:paypr/data/accounting/gst_tax_engine.dart';
+import 'package:paypr/data/models/gst_models.dart';
+import 'package:paypr/data/models/voucher_model.dart';
 
 void main() {
   group('GST Tax Calculation Engine Tests (FR-GST-02)', () {

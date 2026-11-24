@@ -29,20 +29,22 @@ class ArchivedWalletsScreen extends ConsumerWidget {
     );
     if (!confirmed ||
         !context.mounted ||
-        ref.read(activeCompanyProvider).id != workspaceId)
+        ref.read(activeCompanyProvider).id != workspaceId) {
       return;
+    }
     try {
       await ref
           .read(expenseRepositoryProvider)
           .updateWallet(id: wallet.id, isActive: true);
       if (context.mounted) showAppFeedback(context, 'Wallet restored');
     } catch (_) {
-      if (context.mounted)
+      if (context.mounted) {
         showAppFeedback(
           context,
           'Could not restore the wallet.',
           isError: true,
         );
+      }
     }
   }
 

@@ -21,6 +21,7 @@ import '../providers/profile_provider.dart';
 import '../providers/profile_session_controller.dart';
 import 'phone_input_screen.dart';
 import 'profile_onboarding_screen.dart';
+import '../../core/widgets/paypr_logo.dart';
 
 String _pendingKey(String userId) => 'first_use_workspace_$userId';
 
@@ -97,8 +98,8 @@ const _walletTypes = {
   ExpenseWalletType.digitalWallet: 'Digital wallet',
 };
 
-class LedgerPulseWelcomeScreen extends StatelessWidget {
-  const LedgerPulseWelcomeScreen({super.key});
+class PayprWelcomeScreen extends StatelessWidget {
+  const PayprWelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -108,20 +109,12 @@ class LedgerPulseWelcomeScreen extends StatelessWidget {
       ),
     );
     return _SetupScaffold(
-      title: 'LedgerPulse',
+      title: 'Paypr',
       body: _SetupFields(
         children: [
           Align(
             alignment: AlignmentDirectional.centerStart,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                'assets/icons/app_icon.png',
-                width: 64,
-                height: 64,
-                excludeFromSemantics: true,
-              ),
-            ),
+            child: const PayprLogo(size: 64),
           ),
           const SizedBox(height: 24),
           const _SetupHeading(
@@ -287,7 +280,7 @@ class _FirstUseSetupScreenState extends ConsumerState<FirstUseSetupScreen> {
     final workspace = widget.workspace;
     if (workspace == null) {
       return _SetupScaffold(
-        title: 'Set up LedgerPulse',
+        title: 'Set up Paypr',
         body: _SetupFields(
           children: [
             const _SetupHeading(
@@ -329,13 +322,13 @@ class _FirstUseSetupScreenState extends ConsumerState<FirstUseSetupScreen> {
     if (ref.watch(activeCompanyProvider.select((company) => company.id)) !=
         workspace.id) {
       return const _SetupScaffold(
-        title: 'Set up LedgerPulse',
+        title: 'Set up Paypr',
         body: Center(child: CircularProgressIndicator.adaptive()),
       );
     }
     final wallets = ref.watch(walletsProvider);
     return _SetupScaffold(
-      title: 'Set up LedgerPulse',
+      title: 'Set up Paypr',
       body: wallets.when(
         loading: () =>
             const Center(child: CircularProgressIndicator.adaptive()),

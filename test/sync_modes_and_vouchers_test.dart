@@ -1,15 +1,15 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/network/sync_engine.dart';
-import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
-import 'package:ledger_pulse/data/local/audit_service.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
-import 'package:ledger_pulse/data/local/drift_voucher_repository.dart';
-import 'package:ledger_pulse/data/models/account_model.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
+import 'package:paypr/core/network/sync_engine.dart';
+import 'package:paypr/data/accounting/voucher_posting_engine.dart';
+import 'package:paypr/data/local/audit_service.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/local/drift_ledger_repository.dart';
+import 'package:paypr/data/local/drift_voucher_repository.dart';
+import 'package:paypr/data/models/account_model.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/voucher_model.dart';
 import 'sync/support/strict_fake_remote.dart';
 
 void main() {

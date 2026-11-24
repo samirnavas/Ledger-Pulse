@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/theme/android_theme.dart';
+import 'package:paypr/core/theme/android_theme.dart';
 
 /// Helper function to capture a clean Golden UI snapshot of any page or widget.
 ///

@@ -1,11 +1,11 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/reporting/custom_sql_report_engine.dart';
-import 'package:ledger_pulse/data/reporting/report_export_service.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/reporting/custom_sql_report_engine.dart';
+import 'package:paypr/data/reporting/report_export_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

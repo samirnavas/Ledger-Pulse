@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/subscription_tier_model.dart';
-import 'package:ledger_pulse/data/services/licensing_service.dart';
+import 'package:paypr/data/models/subscription_tier_model.dart';
+import 'package:paypr/data/services/licensing_service.dart';
 
 void main() {
   group('Subscription & Licensing Unlocked Tests', () {

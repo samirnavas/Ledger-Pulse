@@ -4,8 +4,8 @@ import 'mode_strings.dart';
 export 'mode_strings.dart';
 
 class AppStrings {
-  static const String appName = 'LedgerPulse';
-  static const String tagline = 'Modern Business Bookkeeping';
+  static const String appName = 'Paypr';
+  static const String tagline = 'Expense tracking & bookkeeping';
 
   // Auth
   static const String enterPhoneTitle = 'Enter your mobile number';

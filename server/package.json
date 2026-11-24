@@ -1,7 +1,7 @@
 {
-  "name": "ledger-pulse-server",
+  "name": "paypr-server",
   "version": "1.0.0",
-  "description": "Local JSON-backed REST API server for LedgerPulse",
+  "description": "Local JSON-backed REST API server for Paypr",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

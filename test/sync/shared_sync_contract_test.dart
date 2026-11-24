@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/network/expense_sync_serializer.dart';
-import 'package:ledger_pulse/core/network/ledger_sync_serializer.dart';
-import 'package:ledger_pulse/core/network/sync_contract.dart';
-import 'package:ledger_pulse/data/models/expense/expense_transaction_model.dart';
-import 'package:ledger_pulse/data/models/expense/expense_wallet_model.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
+import 'package:paypr/core/network/expense_sync_serializer.dart';
+import 'package:paypr/core/network/ledger_sync_serializer.dart';
+import 'package:paypr/core/network/sync_contract.dart';
+import 'package:paypr/data/models/expense/expense_transaction_model.dart';
+import 'package:paypr/data/models/expense/expense_wallet_model.dart';
+import 'package:paypr/data/models/voucher_model.dart';
 
 void main() {
   group('Shared Sync Contract & Isolated Serialization Tests', () {

@@ -18,12 +18,11 @@ class WidgetEntryService {
   static const enabledKey = 'widget_keypad_enabled';
   static const contextKey = 'widget_entry_context';
   static const revisionKey = 'widget_entry_revision';
-  static const channel = MethodChannel('ledger_pulse/widget_entry');
+  static const channel = MethodChannel('paypr/widget_entry');
 
   static Future<void> refresh() async {
     await HomeWidget.updateWidget(
-      qualifiedAndroidName:
-          'com.ledgerpulse.ledger_pulse.LedgerPulseWidgetProvider',
+      qualifiedAndroidName: 'com.paypr.app.PayprWidgetProvider',
     );
   }
 

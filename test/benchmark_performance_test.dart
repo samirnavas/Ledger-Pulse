@@ -3,11 +3,11 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
-import 'package:ledger_pulse/data/local/audit_service.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
+import 'package:paypr/data/accounting/voucher_posting_engine.dart';
+import 'package:paypr/data/local/audit_service.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/models/voucher_model.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

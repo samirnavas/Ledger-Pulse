@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/constants/strings.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/models/transaction_model.dart';
-import 'package:ledger_pulse/presentation/ledger/party_ledger_screen.dart';
-import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
-import 'package:ledger_pulse/presentation/reports/statement_preview_screen.dart';
+import 'package:paypr/core/constants/strings.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/models/transaction_model.dart';
+import 'package:paypr/presentation/ledger/party_ledger_screen.dart';
+import 'package:paypr/presentation/providers/ledger_providers.dart';
+import 'package:paypr/presentation/reports/statement_preview_screen.dart';
 
 void main() {
   final testParty = Party(

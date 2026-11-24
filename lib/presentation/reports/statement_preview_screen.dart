@@ -157,7 +157,7 @@ class _StatementPreviewScreenState
       );
 
       final safeName = party.name.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-      final fileName = 'LedgerPulse_${safeName}_Statement.pdf';
+      final fileName = 'Paypr_${safeName}_Statement.pdf';
       final tempDir = await getTemporaryDirectory();
       final file = File('${tempDir.path}/$fileName');
       await file.writeAsBytes(pdfBytes);
@@ -229,7 +229,7 @@ class _StatementPreviewScreenState
     if (entries.length > 8) {
       buffer.writeln('... and ${entries.length - 8} more transactions.');
     }
-    buffer.writeln('\nGenerated via Ledger Pulse');
+    buffer.writeln('\nGenerated via Paypr');
 
     final prefilledText = buffer.toString();
     final encodedText = Uri.encodeComponent(prefilledText);
@@ -426,7 +426,9 @@ class _StatementPreviewScreenState
                                       // Note / Description
                                       Expanded(
                                         child: Text(
-                                          LedgerPaymentMethod.strip(entry.note) ??
+                                          LedgerPaymentMethod.strip(
+                                                entry.note,
+                                              ) ??
                                               (isGave ? 'You Gave' : 'You Got'),
                                           style: const TextStyle(
                                             fontSize: 13,

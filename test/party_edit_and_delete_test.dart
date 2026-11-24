@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/mock/mock_ledger_repository.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/presentation/home/party_list_tab.dart';
-import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
+import 'package:paypr/data/mock/mock_ledger_repository.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/presentation/home/party_list_tab.dart';
+import 'package:paypr/presentation/providers/ledger_providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

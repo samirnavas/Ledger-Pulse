@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/transaction_model.dart';
-import 'package:ledger_pulse/domain/exceptions/ledger_exceptions.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/local/drift_ledger_repository.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/transaction_model.dart';
+import 'package:paypr/domain/exceptions/ledger_exceptions.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

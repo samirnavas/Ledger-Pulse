@@ -1,12 +1,12 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/network/sync_engine.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/local/drift_expense_repository_v2.dart';
-import 'package:ledger_pulse/data/models/expense/expense_category_model.dart';
-import 'package:ledger_pulse/data/models/expense/expense_transaction_model.dart';
-import 'package:ledger_pulse/data/models/expense/expense_wallet_model.dart';
+import 'package:paypr/core/network/sync_engine.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/local/drift_expense_repository_v2.dart';
+import 'package:paypr/data/models/expense/expense_category_model.dart';
+import 'package:paypr/data/models/expense/expense_transaction_model.dart';
+import 'package:paypr/data/models/expense/expense_wallet_model.dart';
 
 void main() {
   group('Independent Expense Domain & Financial Invariants Tests', () {

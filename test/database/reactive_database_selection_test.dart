@@ -5,13 +5,13 @@ import 'package:drift/native.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/local/connection/connection.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/domain/repositories/i_auth_repository.dart';
-import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
-import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_state.dart';
+import 'package:paypr/data/local/connection/connection.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/domain/repositories/i_auth_repository.dart';
+import 'package:paypr/presentation/providers/auth_providers.dart';
+import 'package:paypr/presentation/providers/ledger_providers.dart';
+import 'package:paypr/presentation/providers/profile_session_controller.dart';
+import 'package:paypr/presentation/providers/profile_session_state.dart';
 
 /// Test mock auth repository that allows dynamic state emission
 class ReactiveMockAuthRepository implements IAuthRepository {

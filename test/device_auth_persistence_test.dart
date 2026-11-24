@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:ledger_pulse/data/repositories/supabase_auth_repository.dart';
-import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
+import 'package:paypr/data/repositories/supabase_auth_repository.dart';
+import 'package:paypr/presentation/providers/auth_providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

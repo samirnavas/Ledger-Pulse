@@ -45,8 +45,9 @@ class _WalletTransferScreenState extends ConsumerState<WalletTransferScreen> {
   }
 
   Future<void> _save(AccountModel from, AccountModel to, int cents) async {
-    if (_saving || ref.read(activeCompanyProvider).id != widget.workspace.id)
+    if (_saving || ref.read(activeCompanyProvider).id != widget.workspace.id) {
       return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -182,10 +183,11 @@ class _WalletTransferScreenState extends ConsumerState<WalletTransferScreen> {
                     error: (_, _) =>
                         const Center(child: Text('Could not load wallets.')),
                     data: (wallets) {
-                      if (wallets.length < 2)
+                      if (wallets.length < 2) {
                         return const Center(
                           child: Text('Two active wallets are required.'),
                         );
+                      }
                       final byId = {
                         for (final wallet in wallets) wallet.id: wallet,
                       };

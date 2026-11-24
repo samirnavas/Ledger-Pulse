@@ -81,21 +81,21 @@ void main() async {
         if (sharedPreferences != null)
           sharedPreferencesProvider.overrideWithValue(sharedPreferences),
       ],
-      child: const LedgerPulseApp(),
+      child: const PayprApp(),
     ),
   );
 }
 
-class LedgerPulseApp extends ConsumerStatefulWidget {
+class PayprApp extends ConsumerStatefulWidget {
   static final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
-  const LedgerPulseApp({super.key});
+  const PayprApp({super.key});
 
   @override
-  ConsumerState<LedgerPulseApp> createState() => _LedgerPulseAppState();
+  ConsumerState<PayprApp> createState() => _PayprAppState();
 }
 
-class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
+class _PayprAppState extends ConsumerState<PayprApp> {
   AppLifecycleListener? _lifecycleListener;
   Timer? _recurringTimer;
   String? _widgetEntryRevision;
@@ -178,7 +178,7 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
               await Future<void>.delayed(const Duration(milliseconds: 100));
             }
             if (!mounted || SplashScreen.isSplashActive) return;
-            final navigator = LedgerPulseApp.rootNavigatorKey.currentState;
+            final navigator = PayprApp.rootNavigatorKey.currentState;
             if (navigator == null || QuickAddTransactionSheet.isSheetOpen) return;
             // Leave open editors and their drafts in place when a widget is tapped.
             if (navigator.canPop()) return;
@@ -251,7 +251,7 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
       final isDark = themeMode == ThemeMode.dark ||
           (themeMode == ThemeMode.system && MediaQuery.platformBrightnessOf(context) == Brightness.dark);
       return CupertinoApp(
-        navigatorKey: LedgerPulseApp.rootNavigatorKey,
+        navigatorKey: PayprApp.rootNavigatorKey,
         title: AppStrings.appName,
         debugShowCheckedModeBanner: false,
         theme: isDark ? IosTheme.darkTheme : IosTheme.lightTheme,
@@ -271,7 +271,7 @@ class _LedgerPulseAppState extends ConsumerState<LedgerPulseApp> {
         final darkScheme = (dynamicColorEnabled ? darkDynamic : null) ?? AppColorTheme.dark;
 
         return MaterialApp(
-          navigatorKey: LedgerPulseApp.rootNavigatorKey,
+          navigatorKey: PayprApp.rootNavigatorKey,
           title: AppStrings.appName,
           debugShowCheckedModeBanner: false,
           theme: AndroidTheme.getLight(lightScheme),

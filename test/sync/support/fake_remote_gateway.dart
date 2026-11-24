@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'package:ledger_pulse/core/network/sync_codec.dart';
-import 'package:ledger_pulse/core/network/sync_engine.dart';
+import 'package:paypr/core/network/sync_codec.dart';
+import 'package:paypr/core/network/sync_engine.dart';
 
 /// Test double implementing [RemoteGateway] to emulate PostgREST APIs in unit tests.
 class FakeGateway implements RemoteGateway {

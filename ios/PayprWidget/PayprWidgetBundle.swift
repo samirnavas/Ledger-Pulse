@@ -2,8 +2,8 @@ import WidgetKit
 import SwiftUI
 
 @main
-struct LedgerPulseWidgetBundle: WidgetBundle {
+struct PayprWidgetBundle: WidgetBundle {
     var body: some Widget {
-        LedgerPulseWidget()
+        PayprWidget()
     }
 }

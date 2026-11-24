@@ -1,18 +1,18 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
-import 'package:ledger_pulse/data/local/audit_service.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/local/drift_inventory_repository.dart';
-import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
-import 'package:ledger_pulse/data/local/drift_voucher_repository.dart';
-import 'package:ledger_pulse/data/models/account_model.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/inventory_item_model.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/models/stock_ledger_model.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
-import 'package:ledger_pulse/data/reporting/financial_statement_engine.dart';
+import 'package:paypr/data/accounting/voucher_posting_engine.dart';
+import 'package:paypr/data/local/audit_service.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/local/drift_inventory_repository.dart';
+import 'package:paypr/data/local/drift_ledger_repository.dart';
+import 'package:paypr/data/local/drift_voucher_repository.dart';
+import 'package:paypr/data/models/account_model.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/inventory_item_model.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/models/stock_ledger_model.dart';
+import 'package:paypr/data/models/voucher_model.dart';
+import 'package:paypr/data/reporting/financial_statement_engine.dart';
 import 'helpers/legacy_module_test_company.dart';
 
 void main() {

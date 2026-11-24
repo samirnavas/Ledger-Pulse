@@ -2,10 +2,10 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/network/sync_engine.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
+import 'package:paypr/core/network/sync_engine.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/domain/models/workspace_profile_header.dart';
+import 'package:paypr/presentation/providers/profile_session_controller.dart';
 import '../sync/support/fake_remote_gateway.dart';
 
 /// Test double extending [FakeGateway] to record the exact sequence of remote table calls.

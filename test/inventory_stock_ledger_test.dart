@@ -1,10 +1,10 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/local/audit_service.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/local/drift_inventory_repository.dart';
-import 'package:ledger_pulse/data/models/inventory_item_model.dart';
-import 'package:ledger_pulse/data/models/stock_ledger_model.dart';
+import 'package:paypr/data/local/audit_service.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/local/drift_inventory_repository.dart';
+import 'package:paypr/data/models/inventory_item_model.dart';
+import 'package:paypr/data/models/stock_ledger_model.dart';
 import 'helpers/legacy_module_test_company.dart';
 
 void main() {

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/utils/currency_formatter.dart';
+import 'package:paypr/core/utils/currency_formatter.dart';
 
 void main() {
   group('CurrencyFormatter Tests', () {

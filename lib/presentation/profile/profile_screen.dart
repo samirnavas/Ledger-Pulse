@@ -175,7 +175,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         context: context,
         builder: (BuildContext context) => CupertinoActionSheet(
           title: const Text('Logout Confirmation'),
-          message: const Text('Are you sure you want to logout from Ledger Pulse?'),
+          message: const Text('Are you sure you want to logout from Paypr?'),
           actions: <CupertinoActionSheetAction>[
             CupertinoActionSheetAction(
               isDestructiveAction: true,
@@ -209,7 +209,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const Text('Logout'),
             ],
           ),
-          content: const Text('Are you sure you want to log out from Ledger Pulse?'),
+          content: const Text('Are you sure you want to log out from Paypr?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),

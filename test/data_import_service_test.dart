@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/services/data_import_service.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/services/data_import_service.dart';
 
 void main() {
   test('ledger CSV validates rows and applies opening balance direction', () {

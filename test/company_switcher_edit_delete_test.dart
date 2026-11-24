@@ -1,19 +1,19 @@
 import 'package:drift/native.dart';
 import 'package:drift/drift.dart' show Value;
-import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_state.dart';
-import 'package:ledger_pulse/presentation/home/edit_profile_sheet.dart';
+import 'package:paypr/domain/models/workspace_profile_header.dart';
+import 'package:paypr/presentation/providers/profile_session_controller.dart';
+import 'package:paypr/presentation/providers/profile_session_state.dart';
+import 'package:paypr/presentation/home/edit_profile_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/user_profile_model.dart';
-import 'package:ledger_pulse/presentation/home/company_switcher_sheet.dart';
-import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/database_providers.dart';
-import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/user_profile_model.dart';
+import 'package:paypr/presentation/home/company_switcher_sheet.dart';
+import 'package:paypr/presentation/providers/company_providers.dart';
+import 'package:paypr/presentation/providers/database_providers.dart';
+import 'package:paypr/presentation/providers/profile_provider.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

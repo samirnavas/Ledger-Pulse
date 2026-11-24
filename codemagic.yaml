@@ -16,7 +16,7 @@ workflows:
       - name: Set up iOS code signing
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "com.ledger.pulse" --type IOS_APP_STORE --create
+          app-store-connect fetch-signing-files "com.paypr.app" --type IOS_APP_STORE --create
           keychain add-certificates
       - name: Build iOS App
         script: |

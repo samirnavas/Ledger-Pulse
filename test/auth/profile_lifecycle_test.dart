@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_state.dart';
+import 'package:paypr/domain/models/workspace_profile_header.dart';
+import 'package:paypr/presentation/providers/profile_session_state.dart';
 
 void main() {
   group('Profile Session & Immutability Lifecycle Tests', () {

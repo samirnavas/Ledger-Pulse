@@ -4,7 +4,7 @@
     <color name="widget_on_add">#003061</color>
     <color name="widget_entry_type_background">#55251D</color>
     <color name="widget_on_entry_type">#FFC4B8</color>
-    <!-- M3 Expressive Dark Mode Tokens for Ledger Pulse Widget -->
+    <!-- M3 Expressive Dark Mode Tokens for Paypr Widget -->
     <color name="widget_bg">#1E1B16</color>
     <color name="widget_container_tonal">#2B2822</color>
     <color name="widget_on_surface">#E8E2D9</color>

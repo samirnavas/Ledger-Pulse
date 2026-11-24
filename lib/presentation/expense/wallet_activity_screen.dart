@@ -91,7 +91,7 @@ class _WalletActivityScreenState extends ConsumerState<WalletActivityScreen> {
                             .where((item) => item.type == VoucherType.transfer)
                             .toList()
                       : transactions;
-                  if (entries.isEmpty)
+                  if (entries.isEmpty) {
                     return Center(
                       child: Text(
                         _transfersOnly
@@ -99,6 +99,7 @@ class _WalletActivityScreenState extends ConsumerState<WalletActivityScreen> {
                             : 'No wallet activity yet.',
                       ),
                     );
+                  }
                   return ListView.builder(
                     itemCount: entries.length,
                     itemBuilder: (context, index) {

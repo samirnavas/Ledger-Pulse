@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/models/transaction_model.dart';
-import 'package:ledger_pulse/presentation/home/add_party_dialog.dart';
-import 'package:ledger_pulse/presentation/ledger/add_entry_bottom_sheet.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/models/transaction_model.dart';
+import 'package:paypr/presentation/home/add_party_dialog.dart';
+import 'package:paypr/presentation/ledger/add_entry_bottom_sheet.dart';
 
 void main() {
   group('AddPartyDialog & AddEntryBottomSheet Feature Tests', () {

@@ -1,4 +1,4 @@
-package com.ledgerpulse.ledger_pulse
+package com.paypr.app
 
 import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
@@ -11,7 +11,7 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
-            "com.ledgerpulse.ledger_pulse/app_info",
+            "com.paypr.app/app_info",
         ).setMethodCallHandler { call, result ->
             if (call.method != "getVersion") {
                 result.notImplemented()

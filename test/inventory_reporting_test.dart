@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/inventory_item_model.dart';
-import 'package:ledger_pulse/data/models/stock_ledger_model.dart';
-import 'package:ledger_pulse/data/reporting/inventory_report_engine.dart';
+import 'package:paypr/data/models/inventory_item_model.dart';
+import 'package:paypr/data/models/stock_ledger_model.dart';
+import 'package:paypr/data/reporting/inventory_report_engine.dart';
 
 void main() {
   group('Inventory Report Engine Tests (FR-RPT-01, FR-INT-08)', () {

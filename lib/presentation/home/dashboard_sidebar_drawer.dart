@@ -11,6 +11,7 @@ import '../reports/reporting_hub_screen.dart';
 import '../settings/settings_screen.dart';
 import 'company_switcher_sheet.dart';
 import 'sync_settings_sheet.dart';
+import '../../core/widgets/paypr_logo.dart';
 
 class DashboardSidebarDrawer extends ConsumerWidget {
   const DashboardSidebarDrawer({super.key, this.onOpenArchivedParties});
@@ -328,7 +329,9 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                   if (!isExpense && onOpenArchivedParties != null)
                     ListTile(
                       leading: Icon(
-                        isIos ? CupertinoIcons.archivebox : Icons.archive_outlined,
+                        isIos
+                            ? CupertinoIcons.archivebox
+                            : Icons.archive_outlined,
                       ),
                       title: const Text('Archived parties'),
                       onTap: () {
@@ -344,10 +347,11 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: (isIos
-                                  ? CupertinoColors.systemGreen
-                                  : colorScheme.secondary)
-                              .withValues(alpha: 0.12),
+                          color:
+                              (isIos
+                                      ? CupertinoColors.systemGreen
+                                      : colorScheme.secondary)
+                                  .withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(isIos ? 10 : 14),
                         ),
                         child: Icon(
@@ -383,7 +387,9 @@ class DashboardSidebarDrawer extends ConsumerWidget {
                         size: isIos ? 14 : 20,
                         color: isIos
                             ? CupertinoColors.tertiaryLabel
-                            : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                            : colorScheme.onSurfaceVariant.withValues(
+                                alpha: 0.6,
+                              ),
                       ),
                       onTap: () {
                         HapticFeedback.lightImpact();
@@ -463,14 +469,7 @@ class DashboardSidebarDrawer extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: Image.asset(
-                      'assets/icons/app_icon.png',
-                      height: 16,
-                      width: 16,
-                    ),
-                  ),
+                  const PayprLogo(size: 16),
                   const SizedBox(width: 8),
                   const Text(
                     AppStrings.appName,

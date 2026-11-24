@@ -3,16 +3,16 @@ import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/network/sync_engine.dart';
-import 'package:ledger_pulse/data/accounting/voucher_posting_engine.dart';
-import 'package:ledger_pulse/data/local/audit_service.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/user_profile_model.dart';
-import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
-import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
+import 'package:paypr/core/network/sync_engine.dart';
+import 'package:paypr/data/accounting/voucher_posting_engine.dart';
+import 'package:paypr/data/local/audit_service.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/local/drift_ledger_repository.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/user_profile_model.dart';
+import 'package:paypr/presentation/providers/company_providers.dart';
+import 'package:paypr/presentation/providers/ledger_providers.dart';
+import 'package:paypr/presentation/providers/profile_provider.dart';
 
 class FailingDriftLedgerRepository extends DriftLedgerRepository {
   FailingDriftLedgerRepository({required super.db, super.syncEngine, super.postingEngine});

@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/gst_models.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
-import 'package:ledger_pulse/presentation/reports/invoice_pdf_generator.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/gst_models.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/models/voucher_model.dart';
+import 'package:paypr/presentation/reports/invoice_pdf_generator.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

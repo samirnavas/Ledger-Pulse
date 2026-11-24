@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/gst_models.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
-import 'package:ledger_pulse/data/services/einvoice_ewaybill_service.dart';
+import 'package:paypr/data/models/gst_models.dart';
+import 'package:paypr/data/models/voucher_model.dart';
+import 'package:paypr/data/services/einvoice_ewaybill_service.dart';
 
 void main() {
   group('e-Invoice & e-Way Bill Compliance Tests (FR-GST-05, FR-GST-06)', () {

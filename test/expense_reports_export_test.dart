@@ -1,15 +1,15 @@
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/constants/mode_strings.dart';
-import 'package:ledger_pulse/core/services/widget_sync_service.dart';
-import 'package:ledger_pulse/data/models/account_model.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
-import 'package:ledger_pulse/data/reporting/expense_report_engine.dart';
-import 'package:ledger_pulse/data/reporting/report_export_service.dart';
-import 'package:ledger_pulse/data/services/expense_csv_import_service.dart';
-import 'package:ledger_pulse/domain/exceptions/ledger_exceptions.dart';
+import 'package:paypr/core/constants/strings.dart';
+import 'package:paypr/core/services/widget_sync_service.dart';
+import 'package:paypr/data/models/account_model.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/voucher_model.dart';
+import 'package:paypr/data/reporting/expense_report_engine.dart';
+import 'package:paypr/data/reporting/report_export_service.dart';
+import 'package:paypr/data/services/expense_csv_import_service.dart';
+import 'package:paypr/domain/exceptions/ledger_exceptions.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -547,7 +547,7 @@ void main() {
       expect(mergedData['cash_out_label'], "This Month's Spend");
       expect(mergedData['cash_in_raw'], 500.0);
       expect(mergedData['cash_out_raw'], 200.0);
-      expect(mergedData['deep_link_uri'], 'ledgerpulse://dashboard?company_id=cmp_test_expense');
+      expect(mergedData['deep_link_uri'], 'paypr://dashboard?company_id=cmp_test_expense');
     });
   });
 
@@ -557,8 +557,7 @@ void main() {
       final ledgerStrings = ModeStrings.of(CompanyMode.ledger);
 
       // App and titles
-      expect(expenseStrings.appTitle, 'ExpensePulse');
-      expect(ledgerStrings.appTitle, 'LedgerPulse');
+      expect(AppStrings.appName, 'Paypr');
       expect(expenseStrings.modeBadge, 'EXPENSE');
       expect(ledgerStrings.modeBadge, 'LEDGER');
 

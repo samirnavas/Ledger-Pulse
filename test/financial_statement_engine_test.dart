@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/inventory_item_model.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/models/transaction_model.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
-import 'package:ledger_pulse/data/reporting/financial_statement_engine.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/inventory_item_model.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/models/transaction_model.dart';
+import 'package:paypr/data/models/voucher_model.dart';
+import 'package:paypr/data/reporting/financial_statement_engine.dart';
 
 void main() {
   group('Financial Statement Engine Tests (FR-RPT-01, FR-RPT-03)', () {

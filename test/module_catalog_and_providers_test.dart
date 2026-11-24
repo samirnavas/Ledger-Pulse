@@ -1,16 +1,16 @@
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/modules/module_catalog.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/user_profile_model.dart';
+import 'package:paypr/core/modules/module_catalog.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/local/drift_ledger_repository.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/user_profile_model.dart';
 
-import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
-import 'package:ledger_pulse/presentation/providers/module_providers.dart';
-import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
+import 'package:paypr/presentation/providers/company_providers.dart';
+import 'package:paypr/presentation/providers/ledger_providers.dart';
+import 'package:paypr/presentation/providers/module_providers.dart';
+import 'package:paypr/presentation/providers/profile_provider.dart';
 
 class _EmptyProfileNotifier extends UserProfileNotifier {
   @override

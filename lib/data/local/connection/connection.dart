@@ -11,7 +11,7 @@ String? developmentDatabaseNamespace() {
   const configured = String.fromEnvironment('LEDGERPULSE_DEV_DB_NAMESPACE');
   if (configured.isEmpty) return null;
   if (!RegExp(r'^[a-zA-Z0-9_-]{1,40}$').hasMatch(configured)) {
-    throw ArgumentError('Invalid LedgerPulse development database namespace.');
+    throw ArgumentError('Invalid Paypr development database namespace.');
   }
   return configured;
 }

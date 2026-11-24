@@ -494,7 +494,7 @@ class SettingsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'LedgerPulse enforces immutable workspace types:\n\n'
+              'Paypr enforces immutable workspace types:\n\n'
               '• A Personal Expense workspace cannot be converted into a Business Ledger.\n'
               '• Your existing expense wallets, categories, and transactions remain completely intact and untouched in this workspace.\n'
               '• Create a separate Business Ledger workspace to track customer and supplier balances.',

@@ -4,10 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/colors.dart';
-import '../../../core/constants/mode_strings.dart';
 import '../../../core/constants/strings.dart';
 import '../../../core/theme/adaptive_theme.dart';
 import '../../../core/utils/adaptive_page_route.dart';
+import '../../../core/widgets/paypr_logo.dart';
 import '../../../data/models/company_model.dart';
 import '../../home/company_switcher_sheet.dart';
 import '../../providers/company_providers.dart';
@@ -319,18 +319,11 @@ class ExpenseSidebarDrawer extends ConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: Image.asset(
-                      'assets/icons/app_icon.png',
-                      height: 16,
-                      width: 16,
-                    ),
-                  ),
+                  const PayprLogo(size: 16),
                   const SizedBox(width: 8),
-                  Text(
-                    modeStrings.appTitle,
-                    style: const TextStyle(
+                  const Text(
+                    AppStrings.appName,
+                    style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
                       fontWeight: FontWeight.w600,

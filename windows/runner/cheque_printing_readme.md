@@ -1,6 +1,6 @@
-# Windows CTS-2010 Cheque Printing Guide (Ludgerpulse ERP)
+# Windows CTS-2010 Cheque Printing Guide (Paypr)
 
-This document provides technical instructions for configuring physical cheque printers (dot matrix, laser, and passbook/cheque slip printers) with **Ludgerpulse ERP** on Windows desktop.
+This document provides technical instructions for configuring physical cheque printers (dot matrix, laser, and passbook/cheque slip printers) with **Paypr** on Windows desktop.
 
 ---
 
@@ -19,7 +19,7 @@ Standard Indian CTS-2010 cheques adhere to strictly defined RBI and NPCI clearin
 
 ## 2. Bank Layout Profiles
 
-Ludgerpulse includes pre-calibrated millimeter coordinate profiles for leading Indian banks:
+Paypr includes pre-calibrated millimeter coordinate profiles for leading Indian banks:
 * **State Bank of India (SBI)**
 * **HDFC Bank**
 * **ICICI Bank**

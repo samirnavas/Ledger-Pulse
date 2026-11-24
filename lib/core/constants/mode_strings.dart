@@ -13,7 +13,6 @@ class ModeStrings {
   static ModeStrings of(CompanyMode mode) => ModeStrings(mode);
 
   // App & Shell Titles
-  String get appTitle => isExpense ? 'ExpensePulse' : 'LedgerPulse';
   String get modeBadge => isExpense ? 'EXPENSE' : 'LEDGER';
   String get modeDisplayName => isExpense ? 'Expense Tracker' : 'Business Ledger';
   String get homeTitle => isExpense ? 'Expense Tracker' : 'Dashboard';

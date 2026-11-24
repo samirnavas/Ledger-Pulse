@@ -9,20 +9,20 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/network/sync_engine.dart';
-import 'package:ledger_pulse/core/theme/android_theme.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/models/account_model.dart';
-import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
-import 'package:ledger_pulse/presentation/auth/app_root_gate.dart';
-import 'package:ledger_pulse/presentation/auth/first_use_setup_screen.dart';
-import 'package:ledger_pulse/presentation/auth/phone_input_screen.dart';
-import 'package:ledger_pulse/presentation/home/home_shell.dart';
-import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
-import 'package:ledger_pulse/presentation/providers/budget_providers.dart';
-import 'package:ledger_pulse/presentation/providers/database_providers.dart';
-import 'package:ledger_pulse/presentation/providers/expense_providers.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
+import 'package:paypr/core/network/sync_engine.dart';
+import 'package:paypr/core/theme/android_theme.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/models/account_model.dart';
+import 'package:paypr/domain/models/workspace_profile_header.dart';
+import 'package:paypr/presentation/auth/app_root_gate.dart';
+import 'package:paypr/presentation/auth/first_use_setup_screen.dart';
+import 'package:paypr/presentation/auth/phone_input_screen.dart';
+import 'package:paypr/presentation/home/home_shell.dart';
+import 'package:paypr/presentation/providers/auth_providers.dart';
+import 'package:paypr/presentation/providers/budget_providers.dart';
+import 'package:paypr/presentation/providers/database_providers.dart';
+import 'package:paypr/presentation/providers/expense_providers.dart';
+import 'package:paypr/presentation/providers/profile_session_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _user = '01aa0000-0000-4000-8000-000000000001';
@@ -86,8 +86,9 @@ Future<void> _capture(WidgetTester tester, String name) async {
   final directory = Platform.environment['LEDGER_ONBOARDING_SCREENSHOTS'];
   if (directory == null) return;
   final dashboardPrefix = Platform.environment['LEDGER_DASHBOARD_CAPTURE'];
-  if (dashboardPrefix != null && !name.startsWith('${dashboardPrefix}_home_'))
+  if (dashboardPrefix != null && !name.startsWith('${dashboardPrefix}_home_')) {
     return;
+  }
   await tester.runAsync(() async {
     final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.byKey(_captureKey),

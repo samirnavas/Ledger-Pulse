@@ -3,10 +3,10 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/models/transaction_model.dart';
-import 'package:ledger_pulse/data/local/outbox_helper.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/models/transaction_model.dart';
+import 'package:paypr/data/local/outbox_helper.dart';
 
 void main() {
   test(

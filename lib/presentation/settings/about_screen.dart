@@ -5,6 +5,7 @@ import '../../core/constants/strings.dart';
 import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_surface_card.dart';
+import '../../core/widgets/paypr_logo.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key});
@@ -14,9 +15,7 @@ class AboutScreen extends StatefulWidget {
 }
 
 class _AboutScreenState extends State<AboutScreen> {
-  static const _appInfo = MethodChannel(
-    'com.ledgerpulse.ledger_pulse/app_info',
-  );
+  static const _appInfo = MethodChannel('com.paypr.app/app_info');
   late final _version = _loadVersion();
 
   Future<String?> _loadVersion() async {
@@ -43,15 +42,7 @@ class _AboutScreenState extends State<AboutScreen> {
               AdaptiveSurfaceCard(
                 child: Column(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.asset(
-                        'assets/icons/app_icon.png',
-                        width: 64,
-                        height: 64,
-                        excludeFromSemantics: true,
-                      ),
-                    ),
+                    const PayprLogo(size: 64),
                     const SizedBox(height: 12),
                     Text(AppStrings.appName, style: theme.textTheme.titleLarge),
                     FutureBuilder<String?>(

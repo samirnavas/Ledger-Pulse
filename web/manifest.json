@@ -1,11 +1,11 @@
 {
-    "name": "LPWeb - Ludgerpulse ERP",
-    "short_name": "LPWeb",
+    "name": "Paypr",
+    "short_name": "Paypr",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "LPWeb - Ludgerpulse ERP Cloud Companion Application",
+    "description": "Paypr is an offline-first expense tracker and accounting app.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

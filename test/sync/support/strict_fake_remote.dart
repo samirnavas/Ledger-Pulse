@@ -1,4 +1,4 @@
-import 'package:ledger_pulse/core/network/sync_codec.dart';
+import 'package:paypr/core/network/sync_codec.dart';
 import 'fake_remote_gateway.dart';
 
 /// Test double extending [FakeGateway] to emulate PostgreSQL timestamptz string normalization.

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/services/cts2010_cheque_printer_service.dart';
+import 'package:paypr/data/services/cts2010_cheque_printer_service.dart';
 
 void main() {
   group('CTS-2010 Indian Cheque Printing Tests (FR-PMT-02, FR-PMT-03)', () {

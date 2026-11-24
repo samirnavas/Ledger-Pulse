@@ -151,8 +151,9 @@ final widgetSyncProvider = Provider<void>((ref) {
     if (summary == null ||
         transactions == null ||
         budget == null ||
-        categories == null)
+        categories == null) {
       return;
+    }
 
     final pendingUpdate = Timer(const Duration(milliseconds: 150), () {
       syncExpenseWidgetData(
@@ -209,8 +210,9 @@ final syncWidgetDataActionProvider = Provider<Future<void> Function()>((ref) {
           endDate: endOfMonth,
         );
 
-        if (!ref.mounted || ref.read(activeCompanyProvider).id != company.id)
+        if (!ref.mounted || ref.read(activeCompanyProvider).id != company.id) {
           return;
+        }
         await syncExpenseWidgetData(
           company: company,
           summary: summary,
@@ -222,8 +224,9 @@ final syncWidgetDataActionProvider = Provider<Future<void> Function()>((ref) {
       }
       final repo = ref.read(ledgerRepositoryProvider);
       final summary = await repo.getBusinessSummary();
-      if (!ref.mounted || ref.read(activeCompanyProvider).id != company.id)
+      if (!ref.mounted || ref.read(activeCompanyProvider).id != company.id) {
         return;
+      }
       await WidgetSyncService.syncWidgetData(
         company: company,
         totalReceivableCents: summary.$1,

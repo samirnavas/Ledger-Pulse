@@ -50,7 +50,7 @@ class ApiLedgerRepository implements ILedgerRepository {
 
     if (lastError != null) {
       throw Exception(
-        'Unable to connect to LedgerPulse server. Please make sure "node server/server.js" is running. (Error: $lastError)',
+        'Unable to connect to Paypr server. Please make sure "node server/server.js" is running. (Error: $lastError)',
       );
     }
 

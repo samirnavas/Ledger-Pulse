@@ -15,7 +15,7 @@ if (releaseSigningFile.isFile) {
 }
 
 android {
-    namespace = "com.ledgerpulse.ledger_pulse"
+    namespace = "com.paypr.app"
     compileSdk = flutter.compileSdkVersion
     buildToolsVersion = "35.0.0"
     ndkVersion = flutter.ndkVersion
@@ -35,7 +35,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.ledgerpulse.ledger_pulse"
+        applicationId = "com.paypr.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

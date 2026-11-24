@@ -14,6 +14,7 @@ import '../../core/widgets/liquid_glass_card.dart';
 import '../providers/auth_providers.dart';
 import '../providers/profile_session_controller.dart';
 import 'app_root_gate.dart';
+import '../../core/widgets/paypr_logo.dart';
 
 enum AuthMode { signUp, login }
 
@@ -311,37 +312,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
             // App Branding Header
             Row(
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: Image.asset(
-                      'assets/icons/app_icon.png',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, _, _) => Container(
-                        color: AppColors.primaryBlue,
-                        child: Icon(
-                          isIos
-                              ? CupertinoIcons.money_dollar_circle_fill
-                              : Icons.account_balance_wallet_rounded,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                const PayprLogo(size: 56),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(

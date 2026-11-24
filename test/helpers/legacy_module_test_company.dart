@@ -1,4 +1,4 @@
-import 'package:ledger_pulse/data/models/company_model.dart';
+import 'package:paypr/data/models/company_model.dart';
 
 /// Supplies the pre-release module policy to tests of retained ERP internals.
 /// Release access is covered using real [Company] instances in the guard tests.

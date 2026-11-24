@@ -2,23 +2,24 @@ import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/local/drift_ledger_repository.dart';
-import 'package:ledger_pulse/main.dart';
-import 'package:ledger_pulse/core/constants/strings.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/sync_model.dart';
-import 'package:ledger_pulse/data/models/user_profile_model.dart';
-import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
-import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
-import 'package:ledger_pulse/presentation/providers/profile_provider.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_state.dart';
-import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
-import 'package:ledger_pulse/presentation/home/home_shell.dart';
-import 'package:ledger_pulse/presentation/auth/phone_input_screen.dart';
-import 'package:ledger_pulse/presentation/providers/sync_providers.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/local/drift_ledger_repository.dart';
+import 'package:paypr/main.dart';
+import 'package:paypr/core/constants/strings.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/sync_model.dart';
+import 'package:paypr/data/models/user_profile_model.dart';
+import 'package:paypr/presentation/providers/auth_providers.dart';
+import 'package:paypr/presentation/providers/company_providers.dart';
+import 'package:paypr/presentation/providers/ledger_providers.dart';
+import 'package:paypr/presentation/providers/profile_provider.dart';
+import 'package:paypr/presentation/providers/profile_session_controller.dart';
+import 'package:paypr/presentation/providers/profile_session_state.dart';
+import 'package:paypr/domain/models/workspace_profile_header.dart';
+import 'package:paypr/presentation/home/home_shell.dart';
+import 'package:paypr/presentation/auth/first_use_setup_screen.dart';
+import 'package:paypr/presentation/providers/sync_providers.dart';
+import 'package:lottie/lottie.dart';
 
 class FakeAuthController extends AuthController {
   final AuthState _initialState;
@@ -56,8 +57,13 @@ class TestProfileSession extends ProfileSessionController {
 }
 
 void main() {
-  testWidgets('LedgerPulseApp starts with SplashScreen and transitions to Dashboard with active company',
+  testWidgets('PayprApp starts with SplashScreen and transitions to Dashboard with active company',
       (WidgetTester tester) async {
+    final composition = await tester.runAsync(
+      () => AssetLottie('assets/animations/paypr_splash.json').load(),
+    );
+    expect(composition?.images.values.single.loadedImage, isNotNull);
+
     final db = AppDatabase(NativeDatabase.memory());
     final repo = DriftLedgerRepository(db: db, postingEngine: null);
     addTearDown(() async {
@@ -106,14 +112,15 @@ void main() {
               )),
           syncControllerProvider.overrideWith(FakeSyncNotifier.new),
         ],
-        child: const LedgerPulseApp(),
+        child: const PayprApp(),
       ),
     );
 
     // Verify initial splash screen is shown
     await tester.pump();
-    expect(find.text(AppStrings.appName), findsOneWidget);
-    expect(find.text('Smart Digital Ledger & Bookkeeping'), findsOneWidget);
+    expect(find.text('Paypr'), findsOneWidget);
+    expect(find.text(AppStrings.tagline), findsOneWidget);
+    expect(find.byType(LottieBuilder), findsOneWidget);
 
     // Advance the splash and route transitions. The shell can still be
     // loading its repository after the route has appeared.
@@ -127,7 +134,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   });
 
-  testWidgets('LedgerPulseApp displays zero-company state on fresh authenticated install without companies',
+  testWidgets('PayprApp displays zero-company state on fresh authenticated install without companies',
       (WidgetTester tester) async {
     final db = AppDatabase(NativeDatabase.memory());
     final repo = DriftLedgerRepository(db: db, postingEngine: null);
@@ -159,19 +166,18 @@ void main() {
               )),
           syncControllerProvider.overrideWith(FakeSyncNotifier.new),
         ],
-        child: const LedgerPulseApp(),
+        child: const PayprApp(),
       ),
     );
 
     await tester.pump();
     await tester.pumpAndSettle();
 
-    // Zero-company state form is visible
-    expect(find.text('Set Up Your Workspace'), findsOneWidget);
-    expect(find.text('Business Ledger'), findsOneWidget);
+    expect(find.byType(FirstUseSetupScreen), findsOneWidget);
+    expect(find.text('Set up Paypr'), findsOneWidget);
   });
 
-  testWidgets('LedgerPulseApp transitions from SplashScreen to PhoneInput when unauthenticated',
+  testWidgets('The splash opens the Paypr welcome screen when unauthenticated',
       (WidgetTester tester) async {
     final db = AppDatabase(NativeDatabase.memory());
     final repo = DriftLedgerRepository(db: db, postingEngine: null);
@@ -185,12 +191,15 @@ void main() {
         overrides: [
           authControllerProvider.overrideWith(
               () => FakeAuthController(const AuthState(isAuthenticated: false))),
+          profileSessionProvider.overrideWith(
+            () => TestProfileSession(const UnauthenticatedSessionState()),
+          ),
           ledgerUpdatesStreamProvider.overrideWith((ref) => Stream.value(null)),
           ledgerRepositoryProvider.overrideWithValue(repo),
           driftLedgerRepositoryProvider.overrideWithValue(repo),
           syncControllerProvider.overrideWith(FakeSyncNotifier.new),
         ],
-        child: const LedgerPulseApp(),
+        child: const PayprApp(),
       ),
     );
 
@@ -201,8 +210,8 @@ void main() {
     // Wait for splash animation sequence
     await tester.pumpAndSettle();
 
-    // Phone input screen is visible
-    expect(find.byType(PhoneInputScreen), findsOneWidget);
-    expect(find.text('Create Account'), findsWidgets);
+    expect(find.byType(PayprWelcomeScreen), findsOneWidget);
+    expect(find.text('Paypr'), findsOneWidget);
+    expect(find.text('Get started'), findsOneWidget);
   });
 }

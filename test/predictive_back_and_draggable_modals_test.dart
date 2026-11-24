@@ -2,12 +2,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/theme/android_theme.dart';
-import 'package:ledger_pulse/core/utils/adaptive_page_route.dart';
-import 'package:ledger_pulse/core/widgets/adaptive_form_sheet.dart';
-import 'package:ledger_pulse/core/widgets/adaptive_picker.dart';
-import 'package:ledger_pulse/core/widgets/draggable_modal_sheet.dart';
-import 'package:ledger_pulse/presentation/reports/pdf_export_modal.dart';
+import 'package:paypr/core/theme/android_theme.dart';
+import 'package:paypr/core/utils/adaptive_page_route.dart';
+import 'package:paypr/core/widgets/adaptive_form_sheet.dart';
+import 'package:paypr/core/widgets/adaptive_picker.dart';
+import 'package:paypr/core/widgets/draggable_modal_sheet.dart';
+import 'package:paypr/presentation/reports/pdf_export_modal.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

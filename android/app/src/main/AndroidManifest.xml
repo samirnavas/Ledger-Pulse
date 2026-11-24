@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
 
     <application
-        android:label="Ledgerpulse"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true"
@@ -39,20 +39,21 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="ledgerpulse" android:host="dashboard"/>
+                <data android:scheme="paypr" android:host="dashboard"/>
             </intent-filter>
         </activity>
 
-        <!-- Ledger Pulse Native Home Widget Provider (RemoteViews) -->
+        <!-- Paypr Native Home Widget Provider (RemoteViews) -->
         <receiver
-            android:name=".LedgerPulseWidgetProvider"
+            android:name=".PayprWidgetProvider"
+            android:label="@string/widget_name"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
-                android:resource="@xml/ledger_pulse_widget_info" />
+                android:resource="@xml/paypr_widget_info" />
         </receiver>
 
         <receiver android:name=".WidgetEntryReceiver" android:exported="false" />

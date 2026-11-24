@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/presentation/expense/widgets/category_breakdown_grid.dart';
-import 'package:ledger_pulse/core/widgets/adaptive_chip.dart';
-import 'package:ledger_pulse/core/widgets/adaptive_controls.dart';
-import 'package:ledger_pulse/core/widgets/adaptive_list_row.dart';
-import 'package:ledger_pulse/core/widgets/adaptive_section_header.dart';
-import 'package:ledger_pulse/core/widgets/adaptive_surface_card.dart';
-import 'package:ledger_pulse/data/models/account_model.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
-import 'package:ledger_pulse/presentation/expense/expense_csv_import_sheet.dart';
-import 'package:ledger_pulse/presentation/expense/expense_reports_screen.dart';
-import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/expense_providers.dart';
+import 'package:paypr/presentation/expense/widgets/category_breakdown_grid.dart';
+import 'package:paypr/core/widgets/adaptive_chip.dart';
+import 'package:paypr/core/widgets/adaptive_controls.dart';
+import 'package:paypr/core/widgets/adaptive_list_row.dart';
+import 'package:paypr/core/widgets/adaptive_section_header.dart';
+import 'package:paypr/core/widgets/adaptive_surface_card.dart';
+import 'package:paypr/data/models/account_model.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/voucher_model.dart';
+import 'package:paypr/presentation/expense/expense_csv_import_sheet.dart';
+import 'package:paypr/presentation/expense/expense_reports_screen.dart';
+import 'package:paypr/presentation/providers/company_providers.dart';
+import 'package:paypr/presentation/providers/expense_providers.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

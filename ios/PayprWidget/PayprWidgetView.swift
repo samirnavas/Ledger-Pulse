@@ -2,7 +2,7 @@ import WidgetKit
 import SwiftUI
 
 // MARK: - Timeline Entry
-struct LedgerPulseEntry: TimelineEntry {
+struct PayprEntry: TimelineEntry {
     let date: Date
     let companyName: String
     let companyId: String
@@ -31,12 +31,12 @@ struct LedgerPulseEntry: TimelineEntry {
 }
 
 // MARK: - Timeline Provider
-struct LedgerPulseTimelineProvider: TimelineProvider {
-    typealias Entry = LedgerPulseEntry
-    private let appGroupId = "group.com.ledgerpulse.app"
+struct PayprTimelineProvider: TimelineProvider {
+    typealias Entry = PayprEntry
+    private let appGroupId = "group.com.paypr.app"
 
-    func placeholder(in context: Context) -> LedgerPulseEntry {
-        LedgerPulseEntry(
+    func placeholder(in context: Context) -> PayprEntry {
+        PayprEntry(
             date: Date(),
             companyName: "Profile Name",
             companyId: "default",
@@ -60,19 +60,19 @@ struct LedgerPulseTimelineProvider: TimelineProvider {
         )
     }
 
-    func getSnapshot(in context: Context, completion: @escaping (LedgerPulseEntry) -> Void) {
+    func getSnapshot(in context: Context, completion: @escaping (PayprEntry) -> Void) {
         let entry = loadEntry(isPreview: context.isPreview)
         completion(entry)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<LedgerPulseEntry>) -> Void) {
+    func getTimeline(in context: Context, completion: @escaping (Timeline<PayprEntry>) -> Void) {
         let currentEntry = loadEntry(isPreview: false)
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 15, to: Date()) ?? Date()
         let timeline = Timeline(entries: [currentEntry], policy: .after(nextUpdate))
         completion(timeline)
     }
 
-    private func loadEntry(isPreview: Bool) -> LedgerPulseEntry {
+    private func loadEntry(isPreview: Bool) -> PayprEntry {
         let userDefaults = UserDefaults(suiteName: appGroupId)
         let companyName = userDefaults?.string(forKey: "company_name") ?? "Profile Name"
         let companyId = userDefaults?.string(forKey: "company_id") ?? "default"
@@ -114,7 +114,7 @@ struct LedgerPulseTimelineProvider: TimelineProvider {
 
         let timestamp = userDefaults?.string(forKey: "last_sync_timestamp") ?? ISO8601DateFormatter().string(from: Date())
 
-        return LedgerPulseEntry(
+        return PayprEntry(
             date: Date(),
             companyName: companyName,
             companyId: companyId,
@@ -140,8 +140,8 @@ struct LedgerPulseTimelineProvider: TimelineProvider {
 }
 
 // MARK: - Main Widget View
-struct LedgerPulseWidgetEntryView: View {
-    var entry: LedgerPulseTimelineProvider.Entry
+struct PayprWidgetEntryView: View {
+    var entry: PayprTimelineProvider.Entry
     @Environment(\.widgetFamily) var family
     @Environment(\.colorScheme) var colorScheme
 
@@ -167,13 +167,13 @@ struct LedgerPulseWidgetEntryView: View {
                 }
             }
         }
-        .widgetURL(URL(string: "ledgerpulse://dashboard?company_id=\(entry.companyId)"))
+        .widgetURL(URL(string: "paypr://dashboard?company_id=\(entry.companyId)"))
     }
 }
 
 // MARK: - Small Expense Tracker View (Matches Image 1)
 struct SmallExpenseWidgetView: View {
-    let entry: LedgerPulseEntry
+    let entry: PayprEntry
     let colorScheme: ColorScheme
 
     private var backgroundColor: Color {
@@ -222,7 +222,7 @@ struct SmallExpenseWidgetView: View {
 
                     Spacer()
 
-                    Link(destination: URL(string: "ledgerpulse://dashboard?company_id=\(entry.companyId)&action=quick_add")!) {
+                    Link(destination: URL(string: "paypr://dashboard?company_id=\(entry.companyId)&action=quick_add")!) {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .bold))
                             .foregroundColor(textColor)
@@ -288,7 +288,7 @@ struct SmallExpenseWidgetView: View {
 
 // MARK: - Medium Expense Tracker View (Matches Image 2)
 struct MediumExpenseWidgetView: View {
-    let entry: LedgerPulseEntry
+    let entry: PayprEntry
     let colorScheme: ColorScheme
 
     private var backgroundColor: Color {
@@ -393,7 +393,7 @@ struct MediumExpenseWidgetView: View {
                     // Plus action button
                     HStack {
                         Spacer()
-                        Link(destination: URL(string: "ledgerpulse://dashboard?company_id=\(entry.companyId)&action=quick_add")!) {
+                        Link(destination: URL(string: "paypr://dashboard?company_id=\(entry.companyId)&action=quick_add")!) {
                             Image(systemName: "plus")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(textColor)
@@ -544,7 +544,7 @@ struct DonutChartView: View {
 
 // MARK: - Small Form Factor View (Ledger Mode)
 struct SmallWidgetView: View {
-    let entry: LedgerPulseEntry
+    let entry: PayprEntry
     let colorScheme: ColorScheme
 
     private var backgroundColor: Color {
@@ -643,7 +643,7 @@ struct SmallWidgetView: View {
 
 // MARK: - Medium Form Factor View (Ledger Mode)
 struct MediumWidgetView: View {
-    let entry: LedgerPulseEntry
+    let entry: PayprEntry
     let colorScheme: ColorScheme
 
     private var backgroundColor: Color {
@@ -691,7 +691,7 @@ struct MediumWidgetView: View {
                             .foregroundColor(textColor)
                             .lineLimit(1)
 
-                        Text("LIVE LEDGER PULSE")
+                        Text("Paypr")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundColor(subtitleColor)
                     }
@@ -777,14 +777,14 @@ struct MediumWidgetView: View {
 }
 
 // MARK: - Widget Configuration
-struct LedgerPulseWidget: Widget {
-    let kind: String = "LedgerPulseWidget"
+struct PayprWidget: Widget {
+    let kind: String = "PayprWidget"
 
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: LedgerPulseTimelineProvider()) { entry in
-            LedgerPulseWidgetEntryView(entry: entry)
+        StaticConfiguration(kind: kind, provider: PayprTimelineProvider()) { entry in
+            PayprWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Ledger Pulse")
+        .configurationDisplayName("Paypr")
         .description("Real-time metrics and expense tracking for your active company.")
         .supportedFamilies([.systemSmall, .systemMedium])
         .contentMarginsDisabled()

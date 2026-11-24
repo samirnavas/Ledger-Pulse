@@ -1,4 +1,4 @@
-# LedgerPulse Expense Tracker Mode – Manual QA Checklist
+# Paypr Expense Tracker Mode – Manual QA Checklist
 
 This manual QA checklist provides step-by-step verification instructions for testing the Expense Tracker mode UI across Android (API 34+) and iOS platforms.
 

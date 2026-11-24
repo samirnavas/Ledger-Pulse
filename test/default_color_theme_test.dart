@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/theme/android_theme.dart';
-import 'package:ledger_pulse/core/theme/app_color_theme.dart';
-import 'package:ledger_pulse/core/theme/ios_theme.dart';
+import 'package:paypr/core/theme/android_theme.dart';
+import 'package:paypr/core/theme/app_color_theme.dart';
+import 'package:paypr/core/theme/ios_theme.dart';
 
 void main() {
   test('Fallback matches the captured phone palette in both appearances', () {

@@ -1,4 +1,4 @@
-﻿package com.ledgerpulse.ledger_pulse
+﻿package com.paypr.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -22,7 +22,7 @@ import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
-private const val CHANNEL = "ledger_pulse/widget_entry"
+private const val CHANNEL = "paypr/widget_entry"
 
 internal object WidgetEntry {
     private const val ENABLED = "widget_keypad_enabled"
@@ -151,7 +151,7 @@ internal object WidgetEntry {
         context: Context, id: Int, token: String, action: String
     ): PendingIntent {
         val intent = Intent(context, WidgetEntryReceiver::class.java).apply {
-            data = Uri.Builder().scheme("ledgerpulse-widget").authority("entry")
+            data = Uri.Builder().scheme("paypr-widget").authority("entry")
                 .appendPath(id.toString()).appendPath(token).appendPath(action).build()
         }
         return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
@@ -269,11 +269,11 @@ internal object WidgetEntry {
         if (parts.size != 3) return
         val id = parts[0].toIntOrNull() ?: return
         val manager = AppWidgetManager.getInstance(context)
-        if (manager.getAppWidgetInfo(id)?.provider?.className != LedgerPulseWidgetProvider::class.java.name) return
+        if (manager.getAppWidgetInfo(id)?.provider?.className != PayprWidgetProvider::class.java.name) return
         val data = HomeWidgetPlugin.getData(context)
         val action = parts[2]
         fun update() {
-            LedgerPulseWidgetProvider().onUpdate(context, manager, intArrayOf(id), data)
+            PayprWidgetProvider().onUpdate(context, manager, intArrayOf(id), data)
         }
         val entry = entryContext(data)
         if (action == "open") {
@@ -281,7 +281,7 @@ internal object WidgetEntry {
                 if (data.getBoolean(ENABLED, false)) {
                     Toast.makeText(
                         context,
-                        "Keypad unavailable. Open LedgerPulse to refresh your profile.",
+                        context.getString(R.string.widget_keypad_unavailable),
                         Toast.LENGTH_SHORT,
                     ).show()
                 }

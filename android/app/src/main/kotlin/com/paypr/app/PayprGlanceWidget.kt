@@ -1,4 +1,4 @@
-package com.ledgerpulse.ledger_pulse
+package com.paypr.app
 
 import android.content.Context
 import android.content.Intent
@@ -38,7 +38,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import es.antonborri.home_widget.HomeWidgetPlugin
 
-class LedgerPulseGlanceWidget : GlanceAppWidget() {
+class PayprGlanceWidget : GlanceAppWidget() {
 
     companion object {
         private val SMALL_SQUARE = DpSize(120.dp, 120.dp)
@@ -92,7 +92,7 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
 
         val deepLinkIntent = Intent(
             Intent.ACTION_VIEW,
-            Uri.parse("ledgerpulse://dashboard?company_id=$companyId"),
+            Uri.parse("paypr://dashboard?company_id=$companyId"),
             context,
             MainActivity::class.java
         ).apply {
@@ -101,7 +101,7 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
 
         val quickAddIntent = Intent(
             Intent.ACTION_VIEW,
-            Uri.parse("ledgerpulse://dashboard?company_id=$companyId&action=quick_add"),
+            Uri.parse("paypr://dashboard?company_id=$companyId&action=quick_add"),
             context,
             MainActivity::class.java
         ).apply {
@@ -125,7 +125,7 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
                         quickAddIntent = quickAddIntent
                     )
                 } else {
-                    LedgerPulseWidgetContent(
+                    PayprWidgetContent(
                         companyName = companyName,
                         cashIn = cashIn,
                         cashOut = cashOut,
@@ -272,7 +272,7 @@ class LedgerPulseGlanceWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun LedgerPulseWidgetContent(
+    private fun PayprWidgetContent(
         companyName: String,
         cashIn: String,
         cashOut: String,

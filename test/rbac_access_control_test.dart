@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/rbac_model.dart';
-import 'package:ledger_pulse/data/security/access_control_service.dart';
+import 'package:paypr/data/models/rbac_model.dart';
+import 'package:paypr/data/security/access_control_service.dart';
 
 void main() {
   group('RBAC AccessControlService Tests', () {

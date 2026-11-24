@@ -413,8 +413,9 @@ Future<bool> confirmVoidExpenseTransaction(
   );
   if (!confirmed ||
       !context.mounted ||
-      ref.read(activeCompanyProvider).id != workspace.id)
+      ref.read(activeCompanyProvider).id != workspace.id) {
     return false;
+  }
   try {
     await ref.read(expenseRepositoryProvider).voidTransaction(transaction.id);
     if (context.mounted) {

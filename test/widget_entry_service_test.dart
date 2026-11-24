@@ -1,16 +1,16 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/services/widget_entry_service.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/local/drift_expense_repository.dart';
-import 'package:ledger_pulse/data/models/account_model.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/rbac_model.dart';
+import 'package:paypr/core/services/widget_entry_service.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/local/drift_expense_repository.dart';
+import 'package:paypr/data/models/account_model.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/rbac_model.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -128,7 +128,7 @@ void main() {
       return response.future;
     }
 
-    expect(await sendSave('different_profile'), 'Profile changed. Start again.');
+    expect(await sendSave('different_profile'), 'Workspace changed. Start again.');
     expect(await sendSave(company), isNull);
     expect(await sendSave(company), isNull);
     expect((await repo.getWallets()).single.currentBalanceInCents, 8750);

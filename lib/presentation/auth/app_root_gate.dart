@@ -9,6 +9,7 @@ import '../../core/utils/adaptive_page_route.dart';
 import '../../core/widgets/adaptive_button.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/liquid_glass_card.dart';
+import '../../core/widgets/paypr_logo.dart';
 import '../home/home_shell.dart';
 import '../providers/auth_providers.dart';
 import '../providers/profile_session_controller.dart';
@@ -39,7 +40,7 @@ class AppRootGate extends ConsumerWidget {
     }
 
     if (sessionState is UnauthenticatedSessionState) {
-      return const LedgerPulseWelcomeScreen();
+      return const PayprWelcomeScreen();
     }
 
     if (sessionState is OnboardingRequiredSessionState) {
@@ -102,7 +103,7 @@ class AppRootGate extends ConsumerWidget {
       return _buildErrorScreen(context, ref, sessionState);
     }
 
-    return const LedgerPulseWelcomeScreen();
+    return const PayprWelcomeScreen();
   }
 
   Widget _buildLoadingScreen(BuildContext context) {
@@ -123,19 +124,7 @@ class AppRootGate extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.primaryBlueLight,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.account_balance_wallet_rounded,
-                size: 36,
-                color: AppColors.primaryBlue,
-              ),
-            ),
+            const PayprLogo(size: 72),
             const SizedBox(height: 24),
             Text(
               'Loading your workspaces...',

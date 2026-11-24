@@ -152,7 +152,7 @@ class ReportExportService {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(
-              'Ludgerpulse ERP • Confidential Financial Report',
+              'Paypr • Confidential Financial Report',
               style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
             ),
             pw.Text(
@@ -381,7 +381,7 @@ class ReportExportService {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(
-              'Ledger Pulse • Transaction History Report',
+              'Paypr • Transaction History Report',
               style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
             ),
             pw.Text(

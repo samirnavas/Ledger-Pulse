@@ -1,9 +1,9 @@
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/network/sync_codec.dart';
-import 'package:ledger_pulse/core/network/sync_engine.dart';
-import 'package:ledger_pulse/data/local/database.dart';
+import 'package:paypr/core/network/sync_codec.dart';
+import 'package:paypr/core/network/sync_engine.dart';
+import 'package:paypr/data/local/database.dart';
 
 import 'support/fake_remote_gateway.dart';
 

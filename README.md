@@ -1,6 +1,6 @@
-﻿# Ledger Pulse
+﻿# Paypr
 
-Ledger Pulse is an offline-first Flutter app with two profile types. Switch profiles from the top bar or drawer. Profile type is fixed at creation.
+Paypr is an offline-first Flutter app with two profile types. Switch profiles from the top bar or drawer. Profile type is fixed at creation.
 
 - **Business ledger** has Home, Parties, Transactions, and Reports. Record customer and supplier credit, payments, opening balances, corrections, and voids. Archive settled parties and view or restore them from the Parties tab. Reports include outstanding balances, the transaction register, statements, and posted cash or bank movements. Statements can be shared as PDF or CSV. Party CSV import previews pasted rows, checks active and archived party names, and commits each valid batch atomically.
 - **Expense tracker** provides wallets, expense and income transactions, transfers, categories, budgets, recurring rules, and reports.
@@ -18,6 +18,8 @@ flutter test
 Flutter tests use local Drift or simulated remotes for most workflows. Verify live authentication delivery, authenticated Supabase policy enforcement, native receipt and share behavior, and device layouts in staging before release. Receipt references currently point to device files. Receipt images are not synchronized.
 
 The GitHub Actions workflow runs Flutter analysis, selected financial and sync tests, and unsigned Android and iOS release builds. Store distribution still requires platform signing.
+
+See the [Paypr identity rollout](docs/paypr-identity.md) for package IDs, signing setup, and how to protect data in legacy development installs.
 
 ## Android release builds
 

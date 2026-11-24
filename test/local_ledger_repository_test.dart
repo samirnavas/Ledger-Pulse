@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/local/local_asset_ledger_repository.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/models/transaction_model.dart';
+import 'package:paypr/data/local/local_asset_ledger_repository.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/models/transaction_model.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

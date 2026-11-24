@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/theme/android_theme.dart';
-import 'package:ledger_pulse/core/utils/adaptive_page_route.dart';
+import 'package:paypr/core/theme/android_theme.dart';
+import 'package:paypr/core/utils/adaptive_page_route.dart';
 
 void main() {
   final TestWidgetsFlutterBinding binding =

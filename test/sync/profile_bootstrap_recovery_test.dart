@@ -5,9 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:ledger_pulse/core/network/sync_engine.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/local/outbox_helper.dart';
+import 'package:paypr/core/network/sync_engine.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/local/outbox_helper.dart';
 import 'support/fake_remote_gateway.dart';
 
 void main() {

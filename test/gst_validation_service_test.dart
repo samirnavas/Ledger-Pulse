@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/gst_models.dart';
-import 'package:ledger_pulse/data/services/gst_validation_service.dart';
+import 'package:paypr/data/models/gst_models.dart';
+import 'package:paypr/data/services/gst_validation_service.dart';
 
 void main() {
   group('GST Validation Service Tests (FR-GST-01)', () {
@@ -54,7 +54,7 @@ void main() {
 
       expect(result.isValid, isTrue);
       expect(result.details, isNotNull);
-      expect(result.details!.legalName, contains('Ledger Pulse'));
+      expect(result.details!.legalName, 'Example Enterprise Pvt Ltd');
       expect(result.details!.stateCode, equals('29'));
       expect(result.details!.dealerType, equals(GstDealerType.regular));
 

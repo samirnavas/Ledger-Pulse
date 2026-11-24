@@ -189,7 +189,7 @@ class _CreateCompanyFlowState extends ConsumerState<CreateCompanyFlow> {
     if (isIos) {
       showAdaptiveInfoDialog(
         context: context,
-        title: 'Ledger Pulse',
+        title: 'Paypr',
         message: message,
       );
     } else {

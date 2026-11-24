@@ -1,16 +1,16 @@
 import 'package:flutter/services.dart';
-import 'package:ledger_pulse/core/services/widget_sync_service.dart';
+import 'package:paypr/core/services/widget_sync_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ledger_pulse/core/utils/currency_formatter.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/budget_model.dart';
-import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
-import 'package:ledger_pulse/presentation/expense/quick_add_transaction_sheet.dart';
-import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_state.dart';
-import 'package:ledger_pulse/presentation/splash/splash_screen.dart';
+import 'package:paypr/core/utils/currency_formatter.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/budget_model.dart';
+import 'package:paypr/domain/models/workspace_profile_header.dart';
+import 'package:paypr/presentation/expense/quick_add_transaction_sheet.dart';
+import 'package:paypr/presentation/providers/company_providers.dart';
+import 'package:paypr/presentation/providers/profile_session_controller.dart';
+import 'package:paypr/presentation/providers/profile_session_state.dart';
+import 'package:paypr/presentation/splash/splash_screen.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -53,16 +53,16 @@ void main() {
       expect(formattedWithoutSym, equals('1,000'));
     });
 
-    test('Deep link URI generation matches format ledgerpulse://dashboard?company_id={id}', () {
-      final uri = Uri.parse('ledgerpulse://dashboard?company_id=${testCompany.id}');
-      expect(uri.scheme, equals('ledgerpulse'));
+    test('Deep link URI generation matches format paypr://dashboard?company_id={id}', () {
+      final uri = Uri.parse('paypr://dashboard?company_id=${testCompany.id}');
+      expect(uri.scheme, equals('paypr'));
       expect(uri.host, equals('dashboard'));
       expect(uri.queryParameters['company_id'], equals('cmp_enterprise'));
     });
 
-    test('Deep link with quick_add action matches format ledgerpulse://dashboard?company_id={id}&action=quick_add', () {
-      final uri = Uri.parse('ledgerpulse://dashboard?company_id=${expenseProfile.id}&action=quick_add');
-      expect(uri.scheme, equals('ledgerpulse'));
+    test('Deep link with quick_add action matches format paypr://dashboard?company_id={id}&action=quick_add', () {
+      final uri = Uri.parse('paypr://dashboard?company_id=${expenseProfile.id}&action=quick_add');
+      expect(uri.scheme, equals('paypr'));
       expect(uri.host, equals('dashboard'));
       expect(uri.queryParameters['company_id'], equals('cmp_personal'));
       expect(uri.queryParameters['action'], equals('quick_add'));

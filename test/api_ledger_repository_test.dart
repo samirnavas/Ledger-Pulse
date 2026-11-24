@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:ledger_pulse/data/api/api_ledger_repository.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
+import 'package:paypr/data/api/api_ledger_repository.dart';
+import 'package:paypr/data/models/party_model.dart';
 
 void main() {
   group('ApiLedgerRepository', () {

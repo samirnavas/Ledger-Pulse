@@ -254,7 +254,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`========================================`);
-  console.log(` LedgerPulse JSON Server is running!`);
+  console.log(` Paypr JSON Server is running!`);
   console.log(` Port: ${PORT}`);
   console.log(` Local: http://localhost:${PORT}`);
   console.log(` Android Emulator: http://10.0.2.2:${PORT}`);

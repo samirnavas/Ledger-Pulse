@@ -545,8 +545,9 @@ class _QuickAddTransactionSheetState
     );
     if (!mounted ||
         !context.mounted ||
-        ref.read(activeCompanyProvider).id != _workspace.id)
+        ref.read(activeCompanyProvider).id != _workspace.id) {
       return;
+    }
     if (picked == '__add_category__') {
       final created = await ExpenseAccountsScreen.showAddCategorySheet(
         context,

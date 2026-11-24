@@ -2,27 +2,27 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/theme/android_theme.dart';
-import 'package:ledger_pulse/core/widgets/liquid_glass_card.dart';
-import 'package:ledger_pulse/core/utils/adaptive_page_route.dart';
-import 'package:ledger_pulse/core/widgets/adaptive_bottom_nav.dart';
-import 'package:ledger_pulse/core/widgets/adaptive_button.dart';
-import 'package:ledger_pulse/core/widgets/adaptive_segmented_control.dart';
-import 'package:ledger_pulse/core/widgets/empty_state_view.dart';
-import 'package:ledger_pulse/core/widgets/skeleton_list_tile.dart';
+import 'package:paypr/core/theme/android_theme.dart';
+import 'package:paypr/core/widgets/liquid_glass_card.dart';
+import 'package:paypr/core/utils/adaptive_page_route.dart';
+import 'package:paypr/core/widgets/adaptive_bottom_nav.dart';
+import 'package:paypr/core/widgets/adaptive_button.dart';
+import 'package:paypr/core/widgets/adaptive_segmented_control.dart';
+import 'package:paypr/core/widgets/empty_state_view.dart';
+import 'package:paypr/core/widgets/skeleton_list_tile.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ledger_pulse/data/models/party_model.dart';
-import 'package:ledger_pulse/data/models/transaction_model.dart';
-import 'package:ledger_pulse/presentation/home/add_party_dialog.dart';
-import 'package:ledger_pulse/presentation/ledger/add_entry_bottom_sheet.dart';
-import 'package:ledger_pulse/data/mock/mock_ledger_repository.dart';
-import 'package:ledger_pulse/presentation/home/party_list_tab.dart';
-import 'package:ledger_pulse/presentation/ledger/party_ledger_screen.dart';
-import 'package:ledger_pulse/presentation/providers/ledger_providers.dart';
+import 'package:paypr/data/models/party_model.dart';
+import 'package:paypr/data/models/transaction_model.dart';
+import 'package:paypr/presentation/home/add_party_dialog.dart';
+import 'package:paypr/presentation/ledger/add_entry_bottom_sheet.dart';
+import 'package:paypr/data/mock/mock_ledger_repository.dart';
+import 'package:paypr/presentation/home/party_list_tab.dart';
+import 'package:paypr/presentation/ledger/party_ledger_screen.dart';
+import 'package:paypr/presentation/providers/ledger_providers.dart';
 import 'package:real_liquid_glass/real_liquid_glass.dart';
 import 'package:shimmer/shimmer.dart';
 
-import 'package:ledger_pulse/core/theme/ios_theme.dart';
+import 'package:paypr/core/theme/ios_theme.dart';
 
 void main() {
   group('AndroidTheme M3 Expressive Tests', () {

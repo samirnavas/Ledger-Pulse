@@ -1,4 +1,4 @@
-# Ludgerpulse Windows Desktop Custom Report Engine (FR-RPT-04)
+# Paypr Windows Desktop Custom Report Engine (FR-RPT-04)
 
 This desktop add-on module allows power users to query the local SQLite database using raw SQL syntax and XML configuration files.
 

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/company_model.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
-import 'package:ledger_pulse/presentation/providers/company_providers.dart';
-import 'package:ledger_pulse/presentation/providers/voucher_providers.dart';
-import 'package:ledger_pulse/presentation/reports/receivables_payables_screen.dart';
+import 'package:paypr/data/models/company_model.dart';
+import 'package:paypr/data/models/voucher_model.dart';
+import 'package:paypr/presentation/providers/company_providers.dart';
+import 'package:paypr/presentation/providers/voucher_providers.dart';
+import 'package:paypr/presentation/reports/receivables_payables_screen.dart';
 
 void main() {
   group('Receivables & Payables Tracking (FR-VCH-07)', () {

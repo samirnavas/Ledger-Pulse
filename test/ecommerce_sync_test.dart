@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/models/voucher_model.dart';
-import 'package:ledger_pulse/data/services/ecommerce_sync_service.dart';
+import 'package:paypr/data/models/voucher_model.dart';
+import 'package:paypr/data/services/ecommerce_sync_service.dart';
 import 'helpers/legacy_module_test_company.dart';
 
 void main() {

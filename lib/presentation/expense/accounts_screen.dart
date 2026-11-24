@@ -49,7 +49,9 @@ import 'widgets/category_icons.dart';
 class ExpenseAccountsScreen extends ConsumerStatefulWidget {
   static Future<void> showAddWalletSheet(BuildContext context, WidgetRef ref) =>
       _ExpenseAccountsScreenState.showAddWalletDialogStatic(
-        context, ref, ref.read(activeCompanyProvider),
+        context,
+        ref,
+        ref.read(activeCompanyProvider),
       );
 
   final int initialTab;
@@ -230,8 +232,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
       final name = nameController.text.trim();
       if (name.isEmpty ||
           !context.mounted ||
-          ref.read(activeCompanyProvider).id != company.id)
+          ref.read(activeCompanyProvider).id != company.id) {
         return;
+      }
 
       HapticFeedback.mediumImpact();
       final cents = CurrencyFormatter.parseToCents(balanceController.text);
@@ -482,8 +485,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
       if (name.isEmpty ||
           saving ||
           !context.mounted ||
-          ref.read(activeCompanyProvider).id != workspaceId)
+          ref.read(activeCompanyProvider).id != workspaceId) {
         return;
+      }
       saving = true;
 
       HapticFeedback.mediumImpact();
@@ -1195,20 +1199,22 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     );
     if (!confirmed ||
         !mounted ||
-        ref.read(activeCompanyProvider).id != wallet.companyId)
+        ref.read(activeCompanyProvider).id != wallet.companyId) {
       return;
+    }
     try {
       await ref
           .read(expenseRepositoryProvider)
           .updateWallet(id: wallet.id, isActive: false);
       if (mounted) showAppFeedback(context, 'Wallet archived');
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         showAppFeedback(
           context,
           'Could not archive the wallet.',
           isError: true,
         );
+      }
     }
   }
 
@@ -1298,8 +1304,9 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
         ),
       ),
     );
-    if (saved == true && context.mounted)
+    if (saved == true && context.mounted) {
       showAppFeedback(context, 'Transfer recorded');
+    }
   }
 
   void _openWalletActivity(BuildContext context, Company company) {
@@ -1348,12 +1355,13 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
                 .read(expenseRepositoryProvider)
                 .setDefaultWalletId(isDefault ? null : wallet.id);
           } catch (_) {
-            if (context.mounted)
+            if (context.mounted) {
               showAppFeedback(
                 context,
                 'Could not change the default wallet.',
                 isError: true,
               );
+            }
           }
       }
     }

@@ -1,10 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/data/accounting/manufacturing_journal_engine.dart';
-import 'package:ledger_pulse/data/local/audit_service.dart';
-import 'package:ledger_pulse/data/local/database.dart';
-import 'package:ledger_pulse/data/models/manufacturing_bom_model.dart';
+import 'package:paypr/data/accounting/manufacturing_journal_engine.dart';
+import 'package:paypr/data/local/audit_service.dart';
+import 'package:paypr/data/local/database.dart';
+import 'package:paypr/data/models/manufacturing_bom_model.dart';
 
 void main() {
   group('Manufacturing Journal & BOM Tests (FR-INT-04)', () {

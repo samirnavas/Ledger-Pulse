@@ -1,4 +1,4 @@
-package com.ledgerpulse.ledger_pulse
+package com.paypr.app
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -17,7 +17,7 @@ import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetPlugin
 import es.antonborri.home_widget.HomeWidgetProvider
 
-class LedgerPulseWidgetProvider : HomeWidgetProvider() {
+class PayprWidgetProvider : HomeWidgetProvider() {
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         appWidgetIds.forEach { WidgetEntry.delete(context, it) }
@@ -79,7 +79,7 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         } catch (e: Exception) {
-            android.util.Log.e("LedgerPulseWidget", "Error updating widget: ${e.message}", e)
+            android.util.Log.e("PayprWidget", "Error updating widget: ${e.message}", e)
         }
     }
 
@@ -175,7 +175,7 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
             }
 
             // Route enabled keypad taps through the receiver, which reads the current profile.
-            val quickAddUri = Uri.parse("ledgerpulse://dashboard?company_id=$companyId&action=quick_add")
+            val quickAddUri = Uri.parse("paypr://dashboard?company_id=$companyId&action=quick_add")
             val quickAddIntent = HomeWidgetLaunchIntent.getActivity(
                 context,
                 MainActivity::class.java,
@@ -185,7 +185,7 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
             setOnClickPendingIntent(R.id.widget_expense_add_button, addIntent ?: quickAddIntent)
 
             // Root click PendingIntent: opens dashboard for active company
-            val deepLinkUri = Uri.parse("ledgerpulse://dashboard?company_id=$companyId")
+            val deepLinkUri = Uri.parse("paypr://dashboard?company_id=$companyId")
             val pendingIntent = HomeWidgetLaunchIntent.getActivity(
                 context,
                 MainActivity::class.java,
@@ -217,9 +217,9 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
         }
 
         val layoutId = if (isMedium) {
-            R.layout.widget_ledger_pulse_medium
+            R.layout.widget_paypr_medium
         } else {
-            R.layout.widget_ledger_pulse_small
+            R.layout.widget_paypr_small
         }
 
         return RemoteViews(context.packageName, layoutId).apply {
@@ -229,7 +229,7 @@ class LedgerPulseWidgetProvider : HomeWidgetProvider() {
             setTextViewText(R.id.widget_inflow_symbol, currencySymbol)
             setTextViewText(R.id.widget_outflow_symbol, currencySymbol)
 
-            val deepLinkUri = Uri.parse("ledgerpulse://dashboard?company_id=$companyId")
+            val deepLinkUri = Uri.parse("paypr://dashboard?company_id=$companyId")
             val pendingIntent = HomeWidgetLaunchIntent.getActivity(
                 context,
                 MainActivity::class.java,

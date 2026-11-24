@@ -194,8 +194,8 @@ class GstValidationService {
     if (gstin == '29ABCDE1234F1ZH') {
       return GstinDetails(
         gstin: gstin,
-        legalName: 'Ledger Pulse Enterprise Pvt Ltd',
-        tradeName: 'Ludgerpulse Tech Solutions',
+        legalName: 'Example Enterprise Pvt Ltd',
+        tradeName: 'Example Tech Solutions',
         stateCode: stateCode,
         stateName: stateName,
         dealerType: GstDealerType.regular,

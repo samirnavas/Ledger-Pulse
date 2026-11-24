@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
-import 'package:ledger_pulse/presentation/auth/app_root_gate.dart';
-import 'package:ledger_pulse/presentation/auth/phone_input_screen.dart';
-import 'package:ledger_pulse/presentation/auth/profile_onboarding_screen.dart';
-import 'package:ledger_pulse/presentation/auth/profile_selector_screen.dart';
-import 'package:ledger_pulse/presentation/providers/ledger_creation_provider.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_controller.dart';
-import 'package:ledger_pulse/presentation/providers/profile_session_state.dart';
-import 'package:ledger_pulse/presentation/widgets/active_profile_indicator_pill.dart';
+import 'package:paypr/domain/models/workspace_profile_header.dart';
+import 'package:paypr/presentation/auth/app_root_gate.dart';
+import 'package:paypr/presentation/auth/phone_input_screen.dart';
+import 'package:paypr/presentation/auth/profile_onboarding_screen.dart';
+import 'package:paypr/presentation/auth/profile_selector_screen.dart';
+import 'package:paypr/presentation/providers/ledger_creation_provider.dart';
+import 'package:paypr/presentation/providers/profile_session_controller.dart';
+import 'package:paypr/presentation/providers/profile_session_state.dart';
+import 'package:paypr/presentation/widgets/active_profile_indicator_pill.dart';
 
 void main() {
   group('Account & Profile UI Integration Tests', () {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/core/widgets/splitting_fab.dart';
+import 'package:paypr/core/widgets/splitting_fab.dart';
 
 void main() {
   testWidgets('SplittingProfileFab renders Edit Account in collapsed state', (tester) async {

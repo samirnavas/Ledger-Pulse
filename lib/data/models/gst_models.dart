@@ -22,7 +22,7 @@ enum GstDealerType {
   bool get isRegular => this == GstDealerType.regular;
 }
 
-/// Dynamic invoice templates supported by Ludgerpulse
+/// Dynamic invoice templates supported by Paypr
 enum InvoiceTemplateType {
   modernExpressive,
   classicCorporate,

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ledger_pulse/presentation/auth/profile_onboarding_screen.dart';
+import 'package:paypr/presentation/auth/profile_onboarding_screen.dart';
 import '../helpers/golden_helper.dart';
 
 void main() {

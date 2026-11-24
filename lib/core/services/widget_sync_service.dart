@@ -11,11 +11,11 @@ import '../utils/currency_formatter.dart';
 
 /// Production service managing Home Screen Widgets synchronization for Android & iOS.
 class WidgetSyncService {
-  static const String appGroupId = 'group.com.ledgerpulse.app';
-  static const String androidWidgetProvider = 'LedgerPulseWidgetProvider';
-  static const String androidWidgetQualified = 'com.ledgerpulse.ledger_pulse.LedgerPulseWidgetProvider';
-  static const String androidGlanceQualified = 'com.ledgerpulse.ledger_pulse.LedgerPulseGlanceReceiver';
-  static const String iOSWidgetName = 'LedgerPulseWidget';
+  static const String appGroupId = 'group.com.paypr.app';
+  static const String androidWidgetProvider = 'PayprWidgetProvider';
+  static const String androidWidgetQualified = 'com.paypr.app.PayprWidgetProvider';
+  static const String androidGlanceQualified = 'com.paypr.app.PayprGlanceReceiver';
+  static const String iOSWidgetName = 'PayprWidget';
   static const activeWorkspaceKey = 'widget_active_workspace';
 
   static StreamSubscription<Uri?>? _widgetClickSubscription;
@@ -116,7 +116,7 @@ class WidgetSyncService {
       final double cashInRaw = effectiveInCents / 100.0;
       final double cashOutRaw = effectiveOutCents / 100.0;
       final String timestamp = DateTime.now().toIso8601String();
-      final String deepLinkUri = 'ledgerpulse://dashboard?company_id=${company.id}';
+      final String deepLinkUri = 'paypr://dashboard?company_id=${company.id}';
 
       // 1. Save data fields
       await HomeWidget.saveWidgetData<String>('company_name', company.name);

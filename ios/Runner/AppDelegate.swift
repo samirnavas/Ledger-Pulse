@@ -13,7 +13,7 @@ import UIKit
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     let appInfo = FlutterMethodChannel(
-      name: "com.ledgerpulse.ledger_pulse/app_info",
+      name: "com.paypr.app/app_info",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     appInfo.setMethodCallHandler { call, result in
