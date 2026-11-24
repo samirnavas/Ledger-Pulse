@@ -11,7 +11,7 @@ import 'package:ledger_pulse/data/repositories/supabase_auth_repository.dart';
 import 'package:ledger_pulse/domain/models/workspace_profile_header.dart';
 import 'package:ledger_pulse/presentation/auth/app_root_gate.dart';
 import 'package:ledger_pulse/presentation/auth/phone_input_screen.dart';
-import 'package:ledger_pulse/presentation/auth/profile_onboarding_screen.dart';
+import 'package:ledger_pulse/presentation/auth/first_use_setup_screen.dart';
 import 'package:ledger_pulse/presentation/auth/profile_selector_screen.dart';
 import 'package:ledger_pulse/presentation/providers/auth_providers.dart';
 import 'package:ledger_pulse/presentation/providers/database_providers.dart';
@@ -322,7 +322,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byType(ProfileOnboardingScreen), findsOneWidget);
+      expect(find.byType(FirstUseSetupScreen), findsOneWidget);
     });
 
     testWidgets('7. AppRootGate renders ProfileSelectorScreen when multiple profiles exist',

@@ -61,6 +61,7 @@ dependencies:
   uuid: ^4.6.0
   shared_preferences: ^2.5.5
   home_widget: ^0.10.0
+  material_symbols_icons: 4.2960.0
 
 dev_dependencies:
   flutter_test:

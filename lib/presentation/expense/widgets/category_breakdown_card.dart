@@ -38,27 +38,7 @@ class CategoryBreakdownCard extends StatelessWidget {
           ..sort((a, b) => b.value.compareTo(a.value));
 
     if (spentEntries.isEmpty || totalExpenseInCents <= 0) {
-      return AdaptiveSurfaceCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const AdaptiveSectionHeader(title: 'Category Breakdown'),
-            const SizedBox(height: 16),
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Text(
-                  'No expenses recorded for this period.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     return AdaptiveSurfaceCard(

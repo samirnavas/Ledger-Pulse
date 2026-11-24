@@ -13,16 +13,16 @@ import '../home/home_shell.dart';
 import '../providers/auth_providers.dart';
 import '../providers/profile_session_controller.dart';
 import '../providers/profile_session_state.dart';
-import 'phone_input_screen.dart';
+import 'first_use_setup_screen.dart';
 import 'profile_onboarding_screen.dart';
 import 'profile_selector_screen.dart';
 
 /// Central reactive session gate that routes the application based on [ProfileSessionState].
 ///
 /// Ensures strict adherence to the profile lifecycle:
-/// 1. Unauthenticated -> PhoneInputScreen
+/// 1. Unauthenticated -> welcome and authentication
 /// 2. Loading -> Adaptive loading surface
-/// 3. Zero profiles -> ProfileOnboardingScreen (never creates profile implicitly)
+/// 3. Zero profiles or an unfinished first-use workspace -> setup
 /// 4. Multiple profiles -> ProfileSelectorScreen
 /// 5. Active Profile ready -> HomeShell
 /// 6. Revoked membership / Error -> Adaptive error state with Retry / Switch / Logout
@@ -39,11 +39,14 @@ class AppRootGate extends ConsumerWidget {
     }
 
     if (sessionState is UnauthenticatedSessionState) {
-      return const PhoneInputScreen();
+      return const LedgerPulseWelcomeScreen();
     }
 
     if (sessionState is OnboardingRequiredSessionState) {
-      return ProfileOnboardingScreen(userId: sessionState.userId);
+      return FirstUseSetupScreen(
+        key: ValueKey(sessionState.userId),
+        userId: sessionState.userId,
+      );
     }
 
     if (sessionState is ProfileSelectionRequiredSessionState) {
@@ -54,6 +57,15 @@ class AppRootGate extends ConsumerWidget {
     }
 
     if (sessionState is ActiveProfileReadySessionState) {
+      if (sessionState.activeProfile.isExpense &&
+          ref.watch(pendingFirstUseWorkspaceProvider(sessionState.userId)) ==
+              sessionState.activeProfile.id) {
+        return FirstUseSetupScreen(
+          key: ValueKey(sessionState.userId),
+          userId: sessionState.userId,
+          workspace: sessionState.activeProfile,
+        );
+      }
       if (kReleaseMode && sessionState.activeProfile.isLedger) {
         return AdaptiveScaffold(
           title: 'Ledger · Coming Soon',
@@ -65,13 +77,16 @@ class AppRootGate extends ConsumerWidget {
                     .where((workspace) => workspace.isExpense)
                     .firstOrNull;
                 if (expense != null) {
-                  ref.read(profileSessionProvider.notifier).switchProfile(expense);
+                  ref
+                      .read(profileSessionProvider.notifier)
+                      .switchProfile(expense);
                 } else {
-                  Navigator.of(context).push(createAdaptivePageRoute(
-                    builder: (_) => ProfileOnboardingScreen(
-                      userId: sessionState.userId,
+                  Navigator.of(context).push(
+                    createAdaptivePageRoute(
+                      builder: (_) =>
+                          ProfileOnboardingScreen(userId: sessionState.userId),
                     ),
-                  ));
+                  );
                 }
               },
             ),
@@ -87,19 +102,20 @@ class AppRootGate extends ConsumerWidget {
       return _buildErrorScreen(context, ref, sessionState);
     }
 
-    return const PhoneInputScreen();
+    return const LedgerPulseWelcomeScreen();
   }
 
   Widget _buildLoadingScreen(BuildContext context) {
     final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark ||
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
     final backgroundColor = isIos
         ? (isDark ? AppColors.surfaceDark : AppColors.cupertinoSystemBackground)
         : (isDark
-            ? Theme.of(context).colorScheme.surface
-            : AppColors.surfaceLight);
+              ? Theme.of(context).colorScheme.surface
+              : AppColors.surfaceLight);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -150,7 +166,8 @@ class AppRootGate extends ConsumerWidget {
     SessionErrorState errorState,
   ) {
     final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark ||
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
     final isRevoked = errorState.message.toLowerCase().contains('revoked');
@@ -186,10 +203,9 @@ class AppRootGate extends ConsumerWidget {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                         side: BorderSide(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outlineVariant
-                              .withValues(alpha: 0.4),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.outlineVariant.withValues(alpha: 0.4),
                         ),
                       ),
                       color: Theme.of(context).colorScheme.surfaceContainerLow,

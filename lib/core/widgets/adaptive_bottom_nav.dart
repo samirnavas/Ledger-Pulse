@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:real_liquid_glass/real_liquid_glass.dart';
@@ -30,7 +32,8 @@ class AdaptiveBottomNav extends StatelessWidget {
         return const SizedBox.shrink();
       }
 
-      final items = iosItems ??
+      final items =
+          iosItems ??
           const [
             BottomNavigationBarItem(
               icon: Icon(CupertinoIcons.person_2),
@@ -58,11 +61,35 @@ class AdaptiveBottomNav extends StatelessWidget {
         child: RealLiquidGlass(
           borderRadius: 28,
           blur: 24,
-          child: CupertinoTabBar(
-            backgroundColor: Colors.transparent,
-            currentIndex: currentIndex.clamp(0, items.length - 1),
-            onTap: onTap,
-            items: items,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final labelWidth = constraints.maxWidth / items.length;
+              double labelHeight = 0;
+              for (final item in items) {
+                final label = item.label;
+                if (label == null) continue;
+                final painter = TextPainter(
+                  text: TextSpan(
+                    text: label,
+                    style: CupertinoTheme.of(
+                      context,
+                    ).textTheme.tabLabelTextStyle,
+                  ),
+                  textDirection: Directionality.of(context),
+                  textScaler: MediaQuery.textScalerOf(context),
+                )..layout(maxWidth: labelWidth);
+                labelHeight = math.max(labelHeight, painter.height);
+                painter.dispose();
+              }
+              // Native defaults use a 30 dp icon and 4 dp below the label.
+              return CupertinoTabBar(
+                height: math.max(50, 30 + labelHeight + 4),
+                backgroundColor: Colors.transparent,
+                currentIndex: currentIndex.clamp(0, items.length - 1),
+                onTap: onTap,
+                items: items,
+              );
+            },
           ),
         ),
       );
@@ -72,7 +99,8 @@ class AdaptiveBottomNav extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final effectiveDestinations = destinations ??
+    final effectiveDestinations =
+        destinations ??
         const [
           NavigationDestination(
             icon: Icon(Icons.people_outline),
@@ -105,10 +133,9 @@ class AdaptiveBottomNav extends StatelessWidget {
         border: isDark
             ? Border(
                 top: BorderSide(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outlineVariant
-                      .withValues(alpha: 0.3),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outlineVariant.withValues(alpha: 0.3),
                   width: 1,
                 ),
               )

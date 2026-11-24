@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/local/drift_budget_repository.dart';
@@ -44,6 +45,10 @@ final budgetsListProvider = FutureProvider<List<BudgetModel>>((ref) async {
     ref.invalidateSelf();
   });
   ref.onDispose(sub.cancel);
+  final db = ref.watch(appDatabaseProvider);
+  final projection = db.tableUpdates(TableUpdateQuery.onTable(db.expenseBudgets))
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(projection.cancel);
 
   return await repo.getBudgets(includeInactive: false);
 });

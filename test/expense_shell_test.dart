@@ -23,9 +23,7 @@ import 'package:ledger_pulse/presentation/expense/expense_home_screen.dart';
 import 'package:ledger_pulse/presentation/expense/accounts_screen.dart';
 import 'package:ledger_pulse/presentation/expense/transaction_details_screen.dart';
 import 'package:ledger_pulse/presentation/expense/transactions_screen.dart';
-import 'package:ledger_pulse/core/constants/mode_strings.dart';
 import 'package:ledger_pulse/core/widgets/adaptive_section_header.dart';
-import 'package:ledger_pulse/core/widgets/empty_state_view.dart';
 import 'package:ledger_pulse/presentation/expense/widgets/category_breakdown_card.dart';
 import 'package:ledger_pulse/presentation/expense/providers/expense_tab_controller.dart';
 import 'package:ledger_pulse/presentation/expense/widgets/expense_sidebar_drawer.dart';
@@ -298,6 +296,11 @@ void main() {
     });
 
     testWidgets('FAB on Android and nav "+" button on iOS', (tester) async {
+      await expenseRepo.addExpense(
+        categoryAccountId: '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}',
+        walletAccountId: '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}',
+        amountInCents: 4500,
+      );
       // 1. Android shows SpringMorphingFab
       await tester.pumpWidget(buildExpenseShellApp(platform: TargetPlatform.android));
       await tester.pumpAndSettle();
@@ -494,8 +497,10 @@ void main() {
           of: settings,
           matching: find.byType(Scrollable),
         );
-        final profile = find.text('Personal details, wallets and categories');
+        final profile = find.widgetWithText(ListTile, 'Personal details, wallets and categories');
         await tester.scrollUntilVisible(profile, 200, scrollable: settingsList);
+        await tester.ensureVisible(profile);
+        await tester.pumpAndSettle();
         await tester.tap(profile);
         await tester.pumpAndSettle();
         expect(find.byType(ExpenseAccountsScreen), findsOneWidget);
@@ -646,6 +651,12 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
+      await expenseRepo.addExpense(
+        categoryAccountId: '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}',
+        walletAccountId: '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}',
+        amountInCents: 4500,
+      );
+
       await tester.pumpWidget(buildExpenseShellApp(platform: TargetPlatform.android));
       await tester.pumpAndSettle();
 
@@ -665,8 +676,15 @@ void main() {
       await tester.pumpWidget(buildExpenseShellApp(platform: TargetPlatform.android));
       await tester.pumpAndSettle();
 
-      expect(find.byType(EmptyStateView), findsOneWidget);
-      expect(find.text(ModeStrings.of(CompanyMode.expenseTracker).emptyRecordsTitle), findsOneWidget);
+      expect(find.text('Your first expense'), findsOneWidget);
+      expect(find.text('Welcome!'), findsOneWidget);
+      expect(find.text('Spent this month'), findsOneWidget);
+      expect(find.byKey(const Key('expense_prev_month_btn')), findsNothing);
+      expect(find.byType(CategoryBreakdownCard), findsNothing);
+      expect(find.text('Recent Transactions'), findsNothing);
+      expect(find.byKey(const Key('home_first_expense_action')), findsOneWidget);
+      expect(find.byKey(const Key('expense_quick_add_fab')), findsNothing);
+      expect(find.text('See all'), findsNothing);
     });
 
     testWidgets('month change updates cards and month switcher', (tester) async {
@@ -677,6 +695,11 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
+      await expenseRepo.addExpense(
+        categoryAccountId: '${expenseCompanyId}_${ExpenseTrackerDefaults.foodDiningId}',
+        walletAccountId: '${expenseCompanyId}_${ExpenseTrackerDefaults.walletCashId}',
+        amountInCents: 4500,
+      );
       await tester.pumpWidget(buildExpenseShellApp(platform: TargetPlatform.android));
       await tester.pumpAndSettle();
 

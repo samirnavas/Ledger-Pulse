@@ -33,8 +33,28 @@ import 'widgets/category_icons.dart';
 /// and adaptive chips.
 class QuickAddTransactionSheet extends ConsumerStatefulWidget {
   final VoucherModel? initialVoucher;
+  final String? onboardingWalletId;
+  final String? onboardingTransactionId;
+  final Widget? onboardingHeader;
+  final VoidCallback? onOnboardingComplete;
 
-  const QuickAddTransactionSheet({super.key, this.initialVoucher});
+  const QuickAddTransactionSheet({super.key, this.initialVoucher})
+    : onboardingWalletId = null,
+      onboardingTransactionId = null,
+      onboardingHeader = null,
+      onOnboardingComplete = null;
+
+  const QuickAddTransactionSheet.firstExpense({
+    super.key,
+    required String walletId,
+    required String transactionId,
+    required Widget header,
+    required VoidCallback onComplete,
+  }) : initialVoucher = null,
+       onboardingWalletId = walletId,
+       onboardingTransactionId = transactionId,
+       onboardingHeader = header,
+       onOnboardingComplete = onComplete;
 
   static bool _isSheetOpen = false;
   static bool get isSheetOpen => _isSheetOpen;
@@ -100,6 +120,7 @@ class _QuickAddTransactionSheetState
   String? _errorMessage;
   bool _isRepeating = false;
   RecurringIntervalType _recurringInterval = RecurringIntervalType.monthly;
+  bool get _isFirstExpense => widget.onboardingWalletId != null;
 
   bool get _isClean {
     if (widget.initialVoucher != null) {
@@ -152,6 +173,7 @@ class _QuickAddTransactionSheetState
       _receiptPhotoUrl = v.receiptPhotoUrl;
     } else {
       _selectedType = VoucherType.expense;
+      _selectedWalletId = widget.onboardingWalletId;
       _amountString = '0';
       _amountController = TextEditingController(text: '0');
       _noteController = TextEditingController();
@@ -165,6 +187,7 @@ class _QuickAddTransactionSheetState
     _noteController.addListener(_onFieldChanged);
     _refController.addListener(_onFieldChanged);
 
+    if (_isFirstExpense) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusAmountAndShowKeyboard();
       final route = ModalRoute.of(context);
@@ -329,6 +352,7 @@ class _QuickAddTransactionSheetState
   }
 
   Future<void> _saveTransaction(Company company) async {
+    if (_isSubmitting) return;
     if (!company.isExpense ||
         ref.read(activeCompanyProvider).id != _workspace.id ||
         company.id != _workspace.id ||
@@ -418,6 +442,7 @@ class _QuickAddTransactionSheetState
             narration: note,
             referenceNumber: refNum,
             receiptPhotoUrl: _receiptPhotoUrl,
+            customId: widget.onboardingTransactionId,
           );
         } else if (_selectedType == VoucherType.income) {
           await repo.addIncome(
@@ -469,13 +494,20 @@ class _QuickAddTransactionSheetState
 
       if (mounted) {
         HapticFeedback.mediumImpact();
-        Navigator.of(context).pop(true);
+        final finish = widget.onOnboardingComplete;
+        if (finish == null) {
+          Navigator.of(context).pop(true);
+        } else {
+          finish();
+        }
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
-          _errorMessage = e.toString().replaceFirst('Exception: ', '');
+          _errorMessage = _isFirstExpense
+              ? 'Could not save the expense. Check your entries and try again.'
+              : e.toString().replaceFirst('Exception: ', '');
         });
       }
     }
@@ -813,6 +845,472 @@ class _QuickAddTransactionSheetState
       });
     }
 
+    Widget buildForm(
+      BuildContext sheetContext,
+      ScrollController? scrollController,
+    ) {
+      if (!workspaceMatches) {
+        return ListView(
+          controller: scrollController,
+          children: [
+            ListTile(
+              title: Text(
+                'Return to ${_workspace.name} to continue this draft.',
+              ),
+              trailing: IconButton(
+                tooltip: 'Close',
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+            ),
+          ],
+        );
+      }
+      return Padding(
+        padding: EdgeInsets.only(
+          left: _isFirstExpense ? 24 : 16,
+          right: _isFirstExpense ? 24 : 16,
+          top: 0,
+          bottom: _isFirstExpense
+              ? 8
+              : MediaQuery.of(sheetContext).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!_isFirstExpense) ...[
+              // Header: Title & Close Button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: themeColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          widget.initialVoucher != null
+                              ? (isIos
+                                    ? CupertinoIcons.pencil
+                                    : Icons.edit_outlined)
+                              : (_selectedType == VoucherType.expense
+                                    ? (isIos
+                                          ? CupertinoIcons.arrow_up
+                                          : Icons.arrow_upward_rounded)
+                                    : (_selectedType == VoucherType.income
+                                          ? (isIos
+                                                ? CupertinoIcons.arrow_down
+                                                : Icons.arrow_downward_rounded)
+                                          : (isIos
+                                                ? CupertinoIcons
+                                                      .arrow_right_arrow_left
+                                                : Icons.swap_horiz_rounded))),
+                          size: 15,
+                          color: themeColor,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.initialVoucher != null
+                              ? 'EDIT TRANSACTION'
+                              : (_selectedType == VoucherType.expense
+                                    ? 'NEW EXPENSE'
+                                    : (_selectedType == VoucherType.income
+                                          ? 'NEW INCOME'
+                                          : 'NEW TRANSFER')),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: themeColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () {
+                      Navigator.of(context).maybePop();
+                    },
+                  ),
+                ],
+              ),
+              Text(
+                'Workspace: ${_workspace.name}',
+                style: Theme.of(context).textTheme.titleSmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 8),
+            ],
+            // Scrollable Form Body
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ?widget.onboardingHeader,
+                    if (!_isFirstExpense)
+                      // Type Switcher (Expense, Income, Transfer)
+                      TransactionTypeSwitcher(
+                        selectedType: _selectedType,
+                        onTypeChanged: (type) {
+                          setState(() {
+                            _selectedType = type;
+                            _selectedCategoryId = null;
+                            _errorMessage = null;
+                          });
+                        },
+                      ),
+                    const SizedBox(height: 12),
+
+                    // Amount Display with Device Keyboard (Numberpad)
+                    EntryAmountDisplay(
+                      amountString: _amountString,
+                      themeColor: themeColor,
+                      errorMessage: _errorMessage,
+                      currencyCode: company.currencyCode,
+                      controller: _amountController,
+                      focusNode: _amountFocusNode,
+                      autofocus: !_isFirstExpense,
+                      showKeypadIcon: false,
+                      textFieldKey: const Key('quick_add_amount_field'),
+                      onTap: () => _amountFocusNode.requestFocus(),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Category Selector (Expense & Income)
+                    if (_selectedType != VoucherType.transfer) ...[
+                      categoriesAsync.when(
+                        data: (cats) => _buildCategorySelector(
+                          sheetContext,
+                          cats,
+                          themeColor,
+                        ),
+                        loading: () => const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: CupertinoActivityIndicator(),
+                          ),
+                        ),
+                        error: (e, _) => Text('Error loading categories: $e'),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    if (_isFirstExpense)
+                      Text(
+                        'Wallet: ${wallets?.where((wallet) => wallet.id == _selectedWalletId).firstOrNull?.name ?? ''}',
+                      ),
+                    // Wallet Selector (Source Wallet)
+                    if (!_isFirstExpense)
+                      walletsAsync.when(
+                        data: (wallets) => _buildWalletSelector(
+                          context: sheetContext,
+                          title: _selectedType == VoucherType.transfer
+                              ? 'From Wallet'
+                              : 'Paid With / To',
+                          wallets: wallets,
+                          selectedId: _selectedWalletId,
+                          onSelected: (id) {
+                            setState(() {
+                              _selectedWalletId = id;
+                              _pickedWallet = true;
+                              _errorMessage = null;
+                            });
+                          },
+                          themeColor: themeColor,
+                          currencyCode: company.currencyCode,
+                          keyPrefix: 'wallet_chip_',
+                        ),
+                        loading: () => const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: CupertinoActivityIndicator(),
+                          ),
+                        ),
+                        error: (e, _) => Text('Error loading wallets: $e'),
+                      ),
+                    const SizedBox(height: 12),
+
+                    // Destination Wallet (Transfer only)
+                    if (_selectedType == VoucherType.transfer) ...[
+                      if (!_isFirstExpense)
+                        walletsAsync.when(
+                          data: (wallets) {
+                            final availableToWallets = wallets
+                                .where((w) => w.id != _selectedWalletId)
+                                .toList();
+                            return _buildWalletSelector(
+                              context: sheetContext,
+                              title: 'To Wallet',
+                              wallets: availableToWallets,
+                              selectedId: _selectedToWalletId,
+                              onSelected: (id) {
+                                setState(() {
+                                  _selectedToWalletId = id;
+                                  _errorMessage = null;
+                                });
+                              },
+                              themeColor: themeColor,
+                              currencyCode: company.currencyCode,
+                              keyPrefix: 'to_wallet_chip_',
+                            );
+                          },
+                          loading: () => const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(8.0),
+                              child: CupertinoActivityIndicator(),
+                            ),
+                          ),
+                          error: (e, _) => Text('Error loading wallets: $e'),
+                        ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Note, Date and Receipt
+                    if (_isFirstExpense)
+                      if (isIos)
+                        CupertinoTextField(
+                          key: const Key('quick_add_note_field'),
+                          controller: _noteController,
+                          placeholder: 'Note (optional)',
+                          padding: const EdgeInsets.all(12),
+                        )
+                      else
+                        TextField(
+                          key: const Key('quick_add_note_field'),
+                          controller: _noteController,
+                          decoration: const InputDecoration(
+                            labelText: 'Note (optional)',
+                          ),
+                        )
+                    else ...[
+                      EntryNoteAndDetails(
+                        noteController: _noteController,
+                        selectedDate: _selectedDate,
+                        receiptUrl: _receiptPhotoUrl,
+                        themeColor: themeColor,
+                        onPickDate: _pickDate,
+                        onOpenAttachmentPicker: _openAttachmentPicker,
+                        labelText: 'Note (Optional)',
+                        hintText: 'e.g. Dinner with team, Bill, Shopping...',
+                        noteFieldKey: const Key('quick_add_note_field'),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Reference Number Input
+                      TextFormField(
+                        controller: _refController,
+                        textCapitalization: TextCapitalization.characters,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(sheetContext).colorScheme.onSurface,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'Reference # (Optional)',
+                          labelStyle: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(
+                              sheetContext,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                          hintText: 'e.g. INV-1002, TXN-5481',
+                          prefixIcon: Icon(
+                            Icons.numbers_rounded,
+                            size: 18,
+                            color: themeColor,
+                          ),
+                          filled: true,
+                          fillColor: isDark
+                              ? AppColors.surfaceCardDark
+                              : Theme.of(sheetContext)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withValues(alpha: 0.4),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 8,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(
+                              color: isDark
+                                  ? AppColors.borderDark
+                                  : Theme.of(
+                                      sheetContext,
+                                    ).colorScheme.outlineVariant,
+                            ),
+                          ),
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    // Repeat Option
+                    if (!_isFirstExpense &&
+                        company.isModuleEnabled(AppModule.recurring) &&
+                        widget.initialVoucher == null) ...[
+                      AdaptiveSwitch(
+                        key: const Key('quick_add_repeat_switch'),
+                        value: _isRepeating,
+                        label: 'Repeat Transaction',
+                        subtitle: 'Automatically generate recurring vouchers',
+                        onChanged: (val) {
+                          setState(() => _isRepeating = val);
+                        },
+                      ),
+                      if (_isRepeating) ...[
+                        const SizedBox(height: 8),
+                        AdaptiveDropdownField<RecurringIntervalType>(
+                          key: const Key('quick_add_repeat_interval'),
+                          label: 'Repeat Frequency',
+                          value: _recurringInterval,
+                          items: const [
+                            AdaptivePickerItem(
+                              value: RecurringIntervalType.daily,
+                              label: 'Daily',
+                            ),
+                            AdaptivePickerItem(
+                              value: RecurringIntervalType.weekly,
+                              label: 'Weekly',
+                            ),
+                            AdaptivePickerItem(
+                              value: RecurringIntervalType.monthly,
+                              label: 'Monthly',
+                            ),
+                            AdaptivePickerItem(
+                              value: RecurringIntervalType.yearly,
+                              label: 'Yearly',
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _recurringInterval = val);
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: AdaptiveDateField(
+                                label: 'Start Date',
+                                selectedDate: _selectedDate,
+                                onDateSelected: (d) =>
+                                    setState(() => _selectedDate = d),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: AdaptiveDateField(
+                                label: 'End Date (Optional)',
+                                selectedDate:
+                                    _endDate ??
+                                    _selectedDate.add(
+                                      const Duration(days: 365),
+                                    ),
+                                onDateSelected: (d) =>
+                                    setState(() => _endDate = d),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      const SizedBox(height: 8),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+            // Submit Button
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: AdaptiveButton(
+                  key: const Key('quick_add_submit_button'),
+                  isFullWidth: true,
+                  height: 52,
+                  isLoading: _isSubmitting,
+                  type: AdaptiveButtonType.primary,
+                  onPressed: _isSubmitting
+                      ? null
+                      : () => _saveTransaction(company),
+                  child: _isFirstExpense
+                      ? const Text('Save Expense')
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              widget.initialVoucher != null
+                                  ? (isIos
+                                        ? CupertinoIcons.check_mark
+                                        : Icons.check_rounded)
+                                  : (_selectedType == VoucherType.expense
+                                        ? (isIos
+                                              ? CupertinoIcons.arrow_up
+                                              : Icons.arrow_upward_rounded)
+                                        : (_selectedType == VoucherType.income
+                                              ? (isIos
+                                                    ? CupertinoIcons.arrow_down
+                                                    : Icons
+                                                          .arrow_downward_rounded)
+                                              : (isIos
+                                                    ? CupertinoIcons
+                                                          .arrow_right_arrow_left
+                                                    : Icons
+                                                          .swap_horiz_rounded))),
+                              size: 20,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              widget.initialVoucher != null
+                                  ? 'Update Transaction'
+                                  : (_selectedType == VoucherType.expense
+                                        ? 'Save Expense'
+                                        : (_selectedType == VoucherType.income
+                                              ? 'Save Income'
+                                              : 'Save Transfer')),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+            if (_isFirstExpense)
+              SafeArea(
+                top: false,
+                child: AdaptiveButton(
+                  type: AdaptiveButtonType.text,
+                  onPressed: _isSubmitting ? null : widget.onOnboardingComplete,
+                  child: const Text('Skip for now'),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    if (_isFirstExpense) return buildForm(context, null);
+
     return PopScope(
       canPop: _isClean && !_isSubmitting,
       onPopInvokedWithResult: (didPop, result) async {
@@ -837,428 +1335,7 @@ class _QuickAddTransactionSheetState
         showHandle: true,
         shouldCloseOnMinExtent: _isClean && !_isSubmitting,
         backgroundColor: containerColor,
-        builder: (sheetContext, scrollController) {
-          if (!workspaceMatches) {
-            return ListView(
-              controller: scrollController,
-              children: [
-                ListTile(
-                  title: Text(
-                    'Return to ${_workspace.name} to continue this draft.',
-                  ),
-                  trailing: IconButton(
-                    tooltip: 'Close',
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.of(context).maybePop(),
-                  ),
-                ),
-              ],
-            );
-          }
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 0,
-              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 16,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header: Title & Close Button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: themeColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            widget.initialVoucher != null
-                                ? (isIos
-                                      ? CupertinoIcons.pencil
-                                      : Icons.edit_outlined)
-                                : (_selectedType == VoucherType.expense
-                                      ? (isIos
-                                            ? CupertinoIcons.arrow_up
-                                            : Icons.arrow_upward_rounded)
-                                      : (_selectedType == VoucherType.income
-                                            ? (isIos
-                                                  ? CupertinoIcons.arrow_down
-                                                  : Icons
-                                                        .arrow_downward_rounded)
-                                            : (isIos
-                                                  ? CupertinoIcons
-                                                        .arrow_right_arrow_left
-                                                  : Icons.swap_horiz_rounded))),
-                            size: 15,
-                            color: themeColor,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            widget.initialVoucher != null
-                                ? 'EDIT TRANSACTION'
-                                : (_selectedType == VoucherType.expense
-                                      ? 'NEW EXPENSE'
-                                      : (_selectedType == VoucherType.income
-                                            ? 'NEW INCOME'
-                                            : 'NEW TRANSFER')),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: themeColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: () {
-                        Navigator.of(context).maybePop();
-                      },
-                    ),
-                  ],
-                ),
-                Text(
-                  'Workspace: ${_workspace.name}',
-                  style: Theme.of(context).textTheme.titleSmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-
-                // Scrollable Form Body
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scrollController,
-                    physics: const ClampingScrollPhysics(),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Type Switcher (Expense, Income, Transfer)
-                        TransactionTypeSwitcher(
-                          selectedType: _selectedType,
-                          onTypeChanged: (type) {
-                            setState(() {
-                              _selectedType = type;
-                              _selectedCategoryId = null;
-                              _errorMessage = null;
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Amount Display with Device Keyboard (Numberpad)
-                        EntryAmountDisplay(
-                          amountString: _amountString,
-                          themeColor: themeColor,
-                          errorMessage: _errorMessage,
-                          currencyCode: company.currencyCode,
-                          controller: _amountController,
-                          focusNode: _amountFocusNode,
-                          autofocus: true,
-                          showKeypadIcon: false,
-                          textFieldKey: const Key('quick_add_amount_field'),
-                          onTap: () => _amountFocusNode.requestFocus(),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Category Selector (Expense & Income)
-                        if (_selectedType != VoucherType.transfer) ...[
-                          categoriesAsync.when(
-                            data: (cats) => _buildCategorySelector(
-                              sheetContext,
-                              cats,
-                              themeColor,
-                            ),
-                            loading: () => const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: CupertinoActivityIndicator(),
-                              ),
-                            ),
-                            error: (e, _) =>
-                                Text('Error loading categories: $e'),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // Wallet Selector (Source Wallet)
-                        walletsAsync.when(
-                          data: (wallets) => _buildWalletSelector(
-                            context: sheetContext,
-                            title: _selectedType == VoucherType.transfer
-                                ? 'From Wallet'
-                                : 'Paid With / To',
-                            wallets: wallets,
-                            selectedId: _selectedWalletId,
-                            onSelected: (id) {
-                              setState(() {
-                                _selectedWalletId = id;
-                                _pickedWallet = true;
-                                _errorMessage = null;
-                              });
-                            },
-                            themeColor: themeColor,
-                            currencyCode: company.currencyCode,
-                            keyPrefix: 'wallet_chip_',
-                          ),
-                          loading: () => const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(8.0),
-                              child: CupertinoActivityIndicator(),
-                            ),
-                          ),
-                          error: (e, _) => Text('Error loading wallets: $e'),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Destination Wallet (Transfer only)
-                        if (_selectedType == VoucherType.transfer) ...[
-                          walletsAsync.when(
-                            data: (wallets) {
-                              final availableToWallets = wallets
-                                  .where((w) => w.id != _selectedWalletId)
-                                  .toList();
-                              return _buildWalletSelector(
-                                context: sheetContext,
-                                title: 'To Wallet',
-                                wallets: availableToWallets,
-                                selectedId: _selectedToWalletId,
-                                onSelected: (id) {
-                                  setState(() {
-                                    _selectedToWalletId = id;
-                                    _errorMessage = null;
-                                  });
-                                },
-                                themeColor: themeColor,
-                                currencyCode: company.currencyCode,
-                                keyPrefix: 'to_wallet_chip_',
-                              );
-                            },
-                            loading: () => const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: CupertinoActivityIndicator(),
-                              ),
-                            ),
-                            error: (e, _) => Text('Error loading wallets: $e'),
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // Note, Date and Receipt
-                        EntryNoteAndDetails(
-                          noteController: _noteController,
-                          selectedDate: _selectedDate,
-                          receiptUrl: _receiptPhotoUrl,
-                          themeColor: themeColor,
-                          onPickDate: _pickDate,
-                          onOpenAttachmentPicker: _openAttachmentPicker,
-                          labelText: 'Note (Optional)',
-                          hintText: 'e.g. Dinner with team, Bill, Shopping...',
-                          noteFieldKey: const Key('quick_add_note_field'),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Reference Number Input
-                        TextFormField(
-                          controller: _refController,
-                          textCapitalization: TextCapitalization.characters,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(sheetContext).colorScheme.onSurface,
-                          ),
-                          decoration: InputDecoration(
-                            labelText: 'Reference # (Optional)',
-                            labelStyle: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(
-                                sheetContext,
-                              ).colorScheme.onSurfaceVariant,
-                            ),
-                            hintText: 'e.g. INV-1002, TXN-5481',
-                            prefixIcon: Icon(
-                              Icons.numbers_rounded,
-                              size: 18,
-                              color: themeColor,
-                            ),
-                            filled: true,
-                            fillColor: isDark
-                                ? AppColors.surfaceCardDark
-                                : Theme.of(sheetContext)
-                                      .colorScheme
-                                      .surfaceContainerHighest
-                                      .withValues(alpha: 0.4),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: isDark
-                                    ? AppColors.borderDark
-                                    : Theme.of(
-                                        sheetContext,
-                                      ).colorScheme.outlineVariant,
-                              ),
-                            ),
-                            isDense: true,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Repeat Option
-                        if (company.isModuleEnabled(AppModule.recurring) &&
-                            widget.initialVoucher == null) ...[
-                          AdaptiveSwitch(
-                            key: const Key('quick_add_repeat_switch'),
-                            value: _isRepeating,
-                            label: 'Repeat Transaction',
-                            subtitle:
-                                'Automatically generate recurring vouchers',
-                            onChanged: (val) {
-                              setState(() => _isRepeating = val);
-                            },
-                          ),
-                          if (_isRepeating) ...[
-                            const SizedBox(height: 8),
-                            AdaptiveDropdownField<RecurringIntervalType>(
-                              key: const Key('quick_add_repeat_interval'),
-                              label: 'Repeat Frequency',
-                              value: _recurringInterval,
-                              items: const [
-                                AdaptivePickerItem(
-                                  value: RecurringIntervalType.daily,
-                                  label: 'Daily',
-                                ),
-                                AdaptivePickerItem(
-                                  value: RecurringIntervalType.weekly,
-                                  label: 'Weekly',
-                                ),
-                                AdaptivePickerItem(
-                                  value: RecurringIntervalType.monthly,
-                                  label: 'Monthly',
-                                ),
-                                AdaptivePickerItem(
-                                  value: RecurringIntervalType.yearly,
-                                  label: 'Yearly',
-                                ),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() => _recurringInterval = val);
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: AdaptiveDateField(
-                                    label: 'Start Date',
-                                    selectedDate: _selectedDate,
-                                    onDateSelected: (d) =>
-                                        setState(() => _selectedDate = d),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: AdaptiveDateField(
-                                    label: 'End Date (Optional)',
-                                    selectedDate:
-                                        _endDate ??
-                                        _selectedDate.add(
-                                          const Duration(days: 365),
-                                        ),
-                                    onDateSelected: (d) =>
-                                        setState(() => _endDate = d),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                          ],
-                          const SizedBox(height: 8),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-
-                // Submit Button
-                SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: AdaptiveButton(
-                      key: const Key('quick_add_submit_button'),
-                      isFullWidth: true,
-                      height: 52,
-                      isLoading: _isSubmitting,
-                      type: AdaptiveButtonType.primary,
-                      onPressed: _isSubmitting
-                          ? null
-                          : () => _saveTransaction(company),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            widget.initialVoucher != null
-                                ? (isIos
-                                      ? CupertinoIcons.check_mark
-                                      : Icons.check_rounded)
-                                : (_selectedType == VoucherType.expense
-                                      ? (isIos
-                                            ? CupertinoIcons.arrow_up
-                                            : Icons.arrow_upward_rounded)
-                                      : (_selectedType == VoucherType.income
-                                            ? (isIos
-                                                  ? CupertinoIcons.arrow_down
-                                                  : Icons
-                                                        .arrow_downward_rounded)
-                                            : (isIos
-                                                  ? CupertinoIcons
-                                                        .arrow_right_arrow_left
-                                                  : Icons.swap_horiz_rounded))),
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            widget.initialVoucher != null
-                                ? 'Update Transaction'
-                                : (_selectedType == VoucherType.expense
-                                      ? 'Save Expense'
-                                      : (_selectedType == VoucherType.income
-                                            ? 'Save Income'
-                                            : 'Save Transfer')),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+        builder: buildForm,
       ),
     );
   }

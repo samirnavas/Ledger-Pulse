@@ -128,55 +128,12 @@ class _ProfileOnboardingScreenState
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs?.setString(activeWorkspacePreferenceKey(widget.userId), created.id);
 
-      // Populate user_profiles in local database with details given during signup & onboarding
-      final authState = ref.read(authControllerProvider);
-      final accountName = (widget.initialName != null && widget.initialName!.trim().isNotEmpty)
-          ? widget.initialName!.trim()
-          : (authState.userName?.isNotEmpty == true ? authState.userName! : name);
-      final accountEmail = authState.email ?? '';
-      final accountPhone = authState.phoneNumber ?? '';
-
-      final db = ref.read(appDatabaseProvider);
-      await db.transaction(() async {
-        final existing = await (db.select(db.userProfiles)
-              ..where((row) => row.id.equals(widget.userId)))
-            .getSingleOrNull();
-        if (existing != null) return;
-
-        final now = DateTime.now();
-
-        await db.into(db.userProfiles).insert(
-          UserProfilesCompanion.insert(
-            id: widget.userId,
-            name: accountName,
-            phoneNumber: accountPhone,
-            email: accountEmail,
-            role: const drift.Value('admin'),
-            updatedAt: drift.Value(now),
-            syncStatus: const drift.Value(SyncRecordStatus.pending),
-          ),
-        );
-
-        await enqueueMutation(
-          db: db,
-          table: 'user_profiles',
-          recordId: widget.userId,
-          type: 'UPSERT',
-          fullRowMap: {
-            'id': widget.userId,
-            'name': accountName,
-            'phone_number': accountPhone,
-            'phoneNumber': accountPhone,
-            'email': accountEmail,
-            'role': 'admin',
-            'is_deleted': false,
-            'isDeleted': false,
-            'updated_at': now.toIso8601String(),
-            'updatedAt': now,
-          },
-        );
-      });
-
+      await ensureWorkspaceAccountIdentity(
+        ref,
+        widget.userId,
+        name,
+        preferredName: widget.initialName,
+      );
       // Reload profile session and user profile so state machine transitions to active profile
       await ref
           .read(profileSessionProvider.notifier)
@@ -555,4 +512,64 @@ class _ProfileOnboardingScreenState
       ),
     );
   }
+}
+
+Future<void> ensureWorkspaceAccountIdentity(
+  WidgetRef ref,
+  String userId,
+  String fallbackName, {
+  String? preferredName,
+}) async {
+  // Populate user_profiles in local database with details given during signup & onboarding
+  final authState = ref.read(authControllerProvider);
+  final accountName = preferredName?.trim().isNotEmpty == true
+      ? preferredName!.trim()
+      : authState.userName?.trim().isNotEmpty == true
+          ? authState.userName!
+          : fallbackName;
+  final accountEmail = authState.email ?? '';
+  final accountPhone = authState.phoneNumber ?? '';
+
+  final db = ref.read(appDatabaseProvider);
+  await db.transaction(() async {
+    final existing = await (db.select(
+      db.userProfiles,
+    )..where((row) => row.id.equals(userId))).getSingleOrNull();
+    if (existing != null) return;
+
+    final now = DateTime.now();
+
+    await db
+        .into(db.userProfiles)
+        .insert(
+          UserProfilesCompanion.insert(
+            id: userId,
+            name: accountName,
+            phoneNumber: accountPhone,
+            email: accountEmail,
+            role: const drift.Value('admin'),
+            updatedAt: drift.Value(now),
+            syncStatus: const drift.Value(SyncRecordStatus.pending),
+          ),
+        );
+
+    await enqueueMutation(
+      db: db,
+      table: 'user_profiles',
+      recordId: userId,
+      type: 'UPSERT',
+      fullRowMap: {
+        'id': userId,
+        'name': accountName,
+        'phone_number': accountPhone,
+        'phoneNumber': accountPhone,
+        'email': accountEmail,
+        'role': 'admin',
+        'is_deleted': false,
+        'isDeleted': false,
+        'updated_at': now.toIso8601String(),
+        'updatedAt': now,
+      },
+    );
+  });
 }

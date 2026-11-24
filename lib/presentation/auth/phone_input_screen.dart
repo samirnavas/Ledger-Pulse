@@ -14,19 +14,20 @@ import '../../core/widgets/liquid_glass_card.dart';
 import '../providers/auth_providers.dart';
 import '../providers/profile_session_controller.dart';
 import 'app_root_gate.dart';
-import 'profile_onboarding_screen.dart';
 
 enum AuthMode { signUp, login }
 
 class PhoneInputScreen extends ConsumerStatefulWidget {
-  const PhoneInputScreen({super.key});
+  const PhoneInputScreen({super.key, this.initialMode = AuthMode.signUp});
+
+  final AuthMode initialMode;
 
   @override
   ConsumerState<PhoneInputScreen> createState() => _PhoneInputScreenState();
 }
 
 class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
-  AuthMode _authMode = AuthMode.signUp;
+  late AuthMode _authMode = widget.initialMode;
   bool _obscurePassword = true;
   bool _isBootstrapping = false;
 
@@ -45,6 +46,7 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
   }
 
   void _handleSubmit() async {
+    if (_isBootstrapping) return;
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final name = _nameController.text.trim();
@@ -87,16 +89,14 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
             return;
           }
 
-          final userId = ref.read(authControllerProvider).userId ??
+          final userId =
+              ref.read(authControllerProvider).userId ??
               ref.read(authRepositoryProvider).currentUserId;
 
           if (userId != null && mounted) {
             Navigator.of(context).pushAndRemoveUntil(
               createAdaptivePageRoute(
-                builder: (context) => ProfileOnboardingScreen(
-                  userId: userId,
-                  initialName: name,
-                ),
+                builder: (context) => const AppRootGate(),
                 transitionType: SharedAxisTransitionType.scaled,
               ),
               (route) => false,
@@ -109,13 +109,11 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
       } else {
         final success = await ref
             .read(authControllerProvider.notifier)
-            .signInWithEmailAndPassword(
-              email: email,
-              password: password,
-            );
+            .signInWithEmailAndPassword(email: email, password: password);
 
         if (success && mounted) {
-          final userId = ref.read(authControllerProvider).userId ??
+          final userId =
+              ref.read(authControllerProvider).userId ??
               ref.read(authRepositoryProvider).currentUserId;
 
           if (userId != null && mounted) {
@@ -156,7 +154,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
     bool isDark,
   ) {
     final email = authState.confirmationEmail ?? _emailController.text.trim();
-    final primaryColor = isIos ? CupertinoColors.activeBlue : Theme.of(context).colorScheme.primary;
+    final primaryColor = isIos
+        ? CupertinoColors.activeBlue
+        : Theme.of(context).colorScheme.primary;
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -185,7 +185,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
         Text(
           'We have sent a verification link to:',
           style: AppTypography.bodyMedium.copyWith(
-            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
           ),
           textAlign: TextAlign.center,
         ),
@@ -193,7 +195,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05),
+            color: isDark
+                ? Colors.white10
+                : Colors.black.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Text(
@@ -201,7 +205,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: isIos ? (isDark ? Colors.white : Colors.black) : Theme.of(context).colorScheme.onSurface,
+              color: isIos
+                  ? (isDark ? Colors.white : Colors.black)
+                  : Theme.of(context).colorScheme.onSurface,
             ),
             textAlign: TextAlign.center,
           ),
@@ -210,7 +216,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
         Text(
           'Please open your email and tap the confirmation link to activate your account. Once verified, return here to sign in.',
           style: AppTypography.bodySmall.copyWith(
-            color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondaryLight,
+            color: isDark
+                ? AppColors.textSecondaryDark
+                : AppColors.textSecondaryLight,
             fontSize: 13,
           ),
           textAlign: TextAlign.center,
@@ -218,7 +226,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
         const SizedBox(height: 28),
         AdaptiveButton(
           onPressed: () {
-            ref.read(authControllerProvider.notifier).clearConfirmationPending();
+            ref
+                .read(authControllerProvider.notifier)
+                .clearConfirmationPending();
             setState(() {
               _authMode = AuthMode.login;
               _errorMessage = null;
@@ -234,7 +244,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
         const SizedBox(height: 12),
         TextButton(
           onPressed: () {
-            ref.read(authControllerProvider.notifier).clearConfirmationPending();
+            ref
+                .read(authControllerProvider.notifier)
+                .clearConfirmationPending();
             setState(() {
               _authMode = AuthMode.signUp;
               _errorMessage = null;
@@ -263,19 +275,28 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
               side: BorderSide(
-                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+                color: Theme.of(
+                  context,
+                ).colorScheme.outlineVariant.withValues(alpha: 0.4),
               ),
             ),
             color: Theme.of(context).colorScheme.surfaceContainerLow,
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: content,
-            ),
+            child: Padding(padding: const EdgeInsets.all(20.0), child: content),
           );
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(authControllerProvider, (previous, next) {
+      if (previous?.isEmailConfirmationPending == true &&
+          next.isAuthenticated &&
+          mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          createAdaptivePageRoute<void>(builder: (_) => const AppRootGate()),
+          (_) => false,
+        );
+      }
+    });
     final authState = ref.watch(authControllerProvider);
     final isIos = AdaptiveThemeHelper.isIos(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -311,7 +332,9 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                       errorBuilder: (context, _, _) => Container(
                         color: AppColors.primaryBlue,
                         child: Icon(
-                          isIos ? CupertinoIcons.money_dollar_circle_fill : Icons.account_balance_wallet_rounded,
+                          isIos
+                              ? CupertinoIcons.money_dollar_circle_fill
+                              : Icons.account_balance_wallet_rounded,
                           color: Colors.white,
                           size: 32,
                         ),
@@ -320,18 +343,20 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      AppStrings.appName,
-                      style: AppTypography.titleLarge,
-                    ),
-                    Text(
-                      'Secure Cloud Accounting & Sync',
-                      style: AppTypography.bodySmall.copyWith(fontSize: 13),
-                    ),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        AppStrings.appName,
+                        style: AppTypography.titleLarge,
+                      ),
+                      Text(
+                        'Secure Cloud Accounting & Sync',
+                        style: AppTypography.bodySmall.copyWith(fontSize: 13),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -372,7 +397,12 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
 
             if (authState.isEmailConfirmationPending) ...[
               // EMAIL CONFIRMATION PENDING STATE
-              _buildEmailConfirmationPendingView(context, authState, isIos, isDark),
+              _buildEmailConfirmationPendingView(
+                context,
+                authState,
+                isIos,
+                isDark,
+              ),
             ] else ...[
               // SIGN UP / LOGIN FORM
               Column(
@@ -456,12 +486,16 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                   prefixIcon: const Icon(Icons.lock_outline_rounded),
                   suffixIcon: IconButton(
                     icon: Icon(
-                      _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      _obscurePassword
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                     ),
                     onPressed: () {
                       setState(() => _obscurePassword = !_obscurePassword);
                     },
-                    tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                    tooltip: _obscurePassword
+                        ? 'Show password'
+                        : 'Hide password',
                   ),
                 ),
                 onSubmitted: (_) => _handleSubmit(),
@@ -487,7 +521,10 @@ class _PhoneInputScreenState extends ConsumerState<PhoneInputScreen> {
                 isLoading: authState.isLoading || _isBootstrapping,
                 child: Text(
                   _authMode == AuthMode.login ? 'Login' : 'Create Account',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],

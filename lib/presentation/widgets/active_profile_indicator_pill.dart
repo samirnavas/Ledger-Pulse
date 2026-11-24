@@ -24,7 +24,8 @@ class ActiveProfileIndicatorPill extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isIos = AdaptiveThemeHelper.isIos(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark ||
+    final isDark =
+        Theme.of(context).brightness == Brightness.dark ||
         CupertinoTheme.of(context).brightness == Brightness.dark;
 
     final sessionState = ref.watch(profileSessionProvider);
@@ -75,11 +76,11 @@ class ActiveProfileIndicatorPill extends ConsumerWidget {
               child: Icon(
                 isExpense
                     ? (isIos
-                        ? CupertinoIcons.money_dollar_circle_fill
-                        : Icons.account_balance_wallet_rounded)
+                          ? CupertinoIcons.money_dollar_circle_fill
+                          : Icons.account_balance_wallet_rounded)
                     : (isIos
-                        ? CupertinoIcons.building_2_fill
-                        : Icons.business_rounded),
+                          ? CupertinoIcons.building_2_fill
+                          : Icons.business_rounded),
                 size: 16,
                 color: themeColor,
               ),
@@ -124,33 +125,42 @@ class ActiveProfileIndicatorPill extends ConsumerWidget {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: themeColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          isExpense ? 'PERSONAL' : 'BUSINESS',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.3,
-                            color: themeColor,
+                      Flexible(
+                        flex: 2,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: themeColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isExpense ? 'PERSONAL' : 'BUSINESS',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.3,
+                              color: themeColor,
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        roleName,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: isDark
-                              ? AppColors.textSecondaryDark
-                              : AppColors.textSecondaryLight,
+                      Flexible(
+                        child: Text(
+                          roleName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isDark
+                                ? AppColors.textSecondaryDark
+                                : AppColors.textSecondaryLight,
+                          ),
                         ),
                       ),
                     ],
@@ -164,4 +174,3 @@ class ActiveProfileIndicatorPill extends ConsumerWidget {
     );
   }
 }
-

@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/adaptive_theme.dart';
+import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../core/widgets/adaptive_button.dart';
+import '../../core/widgets/adaptive_form_sheet.dart';
 import '../../core/widgets/adaptive_list_row.dart';
 import '../../core/widgets/adaptive_scaffold.dart';
 import '../../core/widgets/adaptive_section_header.dart';
@@ -29,9 +32,14 @@ final _walletTransactionsProvider = StreamProvider.autoDispose
     });
 
 class WalletReportScreen extends ConsumerWidget {
-  const WalletReportScreen({super.key, required this.wallet});
+  const WalletReportScreen({
+    super.key,
+    required this.wallet,
+    this.hideBalances = false,
+  });
 
   final AccountModel wallet;
+  final bool hideBalances;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -44,12 +52,15 @@ class WalletReportScreen extends ConsumerWidget {
     }
     final wallets =
         ref.watch(walletsProvider).asData?.value ?? const <AccountModel>[];
+    final archived =
+        ref.watch(archivedWalletsProvider).asData?.value ??
+        const <AccountModel>[];
     final walletState = ref.watch(_walletBalanceProvider(wallet.id));
     final currentWallet = walletState.asData?.value;
     final categories =
         ref.watch(categoriesProvider).asData?.value ?? const <AccountModel>[];
     final names = {
-      for (final account in [...wallets, ...categories])
+      for (final account in [...wallets, ...archived, ...categories])
         account.id: account.name,
     };
     final currency = workspace.currencyCode;
@@ -86,6 +97,7 @@ class WalletReportScreen extends ConsumerWidget {
                             wallet: currentWallet ?? wallet,
                             spent: spent,
                             currency: currency,
+                            hideBalances: hideBalances,
                           ),
                           const AdaptiveSectionHeader(
                             title: 'All Transactions',
@@ -131,18 +143,27 @@ class WalletReportScreen extends ConsumerWidget {
                         if (note.isNotEmpty) typeLabel,
                         DateFormatter.formatFull(item.date),
                       ].join(' · '),
-                      trailing: AmountText(
-                        amountInCents: incoming
-                            ? item.totalAmountInCents
-                            : -item.totalAmountInCents,
-                        currencyCode: currency,
-                        showSign: true,
-                        variant: AmountVariant.small,
-                        overrideColor: Theme.of(context).colorScheme.onSurface,
-                      ),
+                      trailing: hideBalances
+                          ? const Text('••••', semanticsLabel: 'Amount hidden')
+                          : AmountText(
+                              amountInCents: incoming
+                                  ? item.totalAmountInCents
+                                  : -item.totalAmountInCents,
+                              currencyCode: currency,
+                              showSign: true,
+                              variant: AmountVariant.small,
+                              overrideColor: Theme.of(
+                                context,
+                              ).colorScheme.onSurface,
+                            ),
                       showDivider: index < items.length,
-                      onTap: () =>
-                          TransactionDetailsScreen.show(context, item, ref),
+                      onTap: hideBalances
+                          ? null
+                          : () => TransactionDetailsScreen.show(
+                              context,
+                              item,
+                              ref,
+                            ),
                     );
                   },
                 ),
@@ -157,11 +178,13 @@ class _WalletSummary extends StatelessWidget {
     required this.wallet,
     required this.spent,
     required this.currency,
+    required this.hideBalances,
   });
 
   final AccountModel wallet;
   final int spent;
   final String currency;
+  final bool hideBalances;
 
   @override
   Widget build(BuildContext context) {
@@ -186,23 +209,136 @@ class _WalletSummary extends StatelessWidget {
             style: theme.textTheme.labelLarge?.copyWith(color: foreground),
           ),
           const SizedBox(height: 4),
-          AmountText(
-            amountInCents: isLiability ? balance.abs() : balance,
-            currencyCode: currency,
-            variant: AmountVariant.large,
-            overrideColor: foreground,
-          ),
+          if (hideBalances)
+            const Text('••••', semanticsLabel: 'Balance hidden')
+          else
+            AmountText(
+              amountInCents: isLiability ? balance.abs() : balance,
+              currencyCode: currency,
+              variant: AmountVariant.large,
+              overrideColor: foreground,
+            ),
           const SizedBox(height: 16),
           Text(
             'Total spent',
             style: theme.textTheme.labelLarge?.copyWith(color: foreground),
           ),
           const SizedBox(height: 4),
-          AmountText(
-            amountInCents: spent,
-            currencyCode: currency,
-            overrideColor: foreground,
+          if (hideBalances)
+            const Text('••••', semanticsLabel: 'Amount hidden')
+          else
+            AmountText(
+              amountInCents: spent,
+              currencyCode: currency,
+              overrideColor: foreground,
+            ),
+          if (!hideBalances) ...[
+            const SizedBox(height: 12),
+            AdaptiveButton(
+              type: AdaptiveButtonType.secondary,
+              onPressed: () => _compareBalance(context),
+              child: const Text('Check balance'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _compareBalance(BuildContext context) {
+    return showAdaptiveFormSheet<void>(
+      context: context,
+      title: 'Check balance',
+      doneLabel: 'Done',
+      builder: (context) =>
+          _WalletBalanceCheck(wallet: wallet, currency: currency),
+    );
+  }
+}
+
+class _WalletBalanceCheck extends ConsumerStatefulWidget {
+  const _WalletBalanceCheck({required this.wallet, required this.currency});
+
+  final AccountModel wallet;
+  final String currency;
+
+  @override
+  ConsumerState<_WalletBalanceCheck> createState() =>
+      _WalletBalanceCheckState();
+}
+
+class _WalletBalanceCheckState extends ConsumerState<_WalletBalanceCheck> {
+  String _input = '';
+
+  @override
+  Widget build(BuildContext context) {
+    if (ref.watch(activeCompanyProvider.select((company) => company.id)) !=
+        widget.wallet.companyId) {
+      return const Padding(
+        padding: EdgeInsets.all(20),
+        child: Text('Wallet unavailable in this workspace.'),
+      );
+    }
+    final wallet = ref
+        .watch(_walletBalanceProvider(widget.wallet.id))
+        .asData
+        ?.value;
+    final valid = RegExp(
+      r'^-?(\d{1,12}(\.\d{0,2})?|\.\d{1,2})$',
+    ).hasMatch(_input.trim());
+    final difference = wallet == null || !valid
+        ? null
+        : CurrencyFormatter.parseToCents(_input) - wallet.currentBalanceInCents;
+    final isCredit = widget.wallet.type == AccountType.liability;
+    const keyboard = TextInputType.numberWithOptions(
+      decimal: true,
+      signed: true,
+    );
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final label = isCredit ? 'Statement amount owed' : 'Actual balance';
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            wallet == null
+                ? 'Loading recorded balance…'
+                : 'Recorded balance ${CurrencyFormatter.format(wallet.currentBalanceInCents, currencyCode: widget.currency)}',
           ),
+          const SizedBox(height: 8),
+          Text(
+            isCredit
+                ? 'Enter the amount owed, or a negative amount if your card has a credit.'
+                : 'Enter the current balance from your statement or count your cash.',
+          ),
+          const SizedBox(height: 12),
+          if (isIos)
+            CupertinoTextField(
+              placeholder: label,
+              keyboardType: keyboard,
+              onChanged: (value) => setState(() => _input = value),
+            )
+          else
+            TextField(
+              decoration: InputDecoration(
+                labelText: label,
+                border: const OutlineInputBorder(),
+              ),
+              keyboardType: keyboard,
+              onChanged: (value) => setState(() => _input = value),
+            ),
+          const SizedBox(height: 12),
+          if (difference == 0)
+            const Text('Your recorded balance matches.')
+          else if (difference != null)
+            Text(
+              'Your actual balance is ${CurrencyFormatter.format(difference.abs(), currencyCode: widget.currency)} ${difference > 0 ? 'higher' : 'lower'} than recorded.',
+            ),
+          if (!valid && _input.isNotEmpty)
+            const Text('Enter an amount with up to two decimal places.'),
         ],
       ),
     );

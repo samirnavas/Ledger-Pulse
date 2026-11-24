@@ -5,6 +5,7 @@ import '../../data/local/drift_expense_repository.dart';
 import '../../data/models/account_model.dart';
 import '../../data/models/company_model.dart';
 import '../../data/models/voucher_model.dart';
+import 'auth_providers.dart';
 import 'company_providers.dart';
 import 'database_providers.dart';
 import 'profile_provider.dart';
@@ -78,6 +79,39 @@ final transactionFiltersProvider =
     NotifierProvider<TransactionFiltersNotifier, TransactionFilters>(
   TransactionFiltersNotifier.new,
 );
+
+final dashboardTransactionHistoryProvider =
+    FutureProvider.autoDispose<({bool hasActivity, bool hasExpense})>((ref) {
+  _watchDashboardTransactionUpdates(ref);
+  return ref.watch(expenseRepositoryProvider).getTransactionHistory();
+});
+
+/// The dashboard uses the selected reporting month independently of list filters.
+final dashboardRecentTransactionsProvider = FutureProvider.autoDispose<List<VoucherModel>>((ref) {
+  _watchDashboardTransactionUpdates(ref);
+  final month = ref.watch(selectedMonthProvider);
+  return ref.watch(expenseRepositoryProvider).getTransactions(
+    startDate: DateTime(month.year, month.month),
+    endDate: DateTime(month.year, month.month + 1).subtract(const Duration(milliseconds: 1)),
+    limit: 10,
+  );
+});
+
+void _watchDashboardTransactionUpdates(Ref ref) {
+  final db = ref.watch(appDatabaseProvider);
+  final changes = db.tableUpdates(TableUpdateQuery.onTable(db.expenseTransactions))
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(changes.cancel);
+}
+
+String dashboardSetupPreferenceKey(String userId, String workspaceId) =>
+    'dashboard_setup_${userId}_$workspaceId';
+
+/// True when dismissed, false when setup was offered during workspace creation.
+final dashboardSetupPreferenceProvider = Provider.autoDispose.family<bool?, String>((ref, workspaceId) {
+  final user = ref.watch(activeUserIdProvider);
+  return ref.watch(sharedPreferencesProvider)?.getBool(dashboardSetupPreferenceKey(user, workspaceId));
+});
 
 /// Reactive stream of transactions for the selected month and active filters.
 /// Automatically refreshed when the repository updates stream emits.
@@ -155,6 +189,7 @@ final monthSummaryProvider = FutureProvider<ExpenseMonthSummary>((ref) async {
   ref.onDispose(sub.cancel);
 
   final selectedMonth = ref.watch(selectedMonthProvider);
+  _watchDashboardTransactionUpdates(ref);
   return await repo.getMonthSummary(selectedMonth);
 });
 
@@ -171,6 +206,10 @@ final walletsProvider = FutureProvider<List<AccountModel>>((ref) async {
     ref.invalidateSelf();
   });
   ref.onDispose(sub.cancel);
+  final db = ref.watch(appDatabaseProvider);
+  final projection = db.tableUpdates(TableUpdateQuery.onTable(db.expenseWallets))
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(projection.cancel);
 
   return await repo.getWallets(includeArchived: false);
 });
@@ -184,6 +223,20 @@ final defaultWalletIdProvider = FutureProvider<String?>((ref) async {
       .listen((_) => ref.invalidateSelf());
   ref.onDispose(subscription.cancel);
   return ref.watch(expenseRepositoryProvider).getDefaultWalletId();
+});
+
+final archivedWalletsProvider = FutureProvider.autoDispose<List<AccountModel>>((ref) async {
+  final company = ref.watch(activeCompanyProvider);
+  if (!company.isExpense) return const [];
+  final repo = ref.watch(expenseRepositoryProvider);
+  final sub = repo.repositoryUpdatesStream.listen((_) => ref.invalidateSelf());
+  ref.onDispose(sub.cancel);
+  final db = ref.watch(appDatabaseProvider);
+  final projection = db.tableUpdates(TableUpdateQuery.onTable(db.expenseWallets))
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(projection.cancel);
+  final wallets = await repo.getWallets(includeArchived: true);
+  return wallets.where((wallet) => !wallet.isActive).toList();
 });
 
 /// Reactive list of active expense and income categories.

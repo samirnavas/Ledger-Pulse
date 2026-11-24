@@ -38,11 +38,20 @@ import '../providers/profile_provider.dart';
 import 'archived_categories_screen.dart';
 import 'arrange_categories_screen.dart';
 import 'recurring_screen.dart';
+import 'archived_wallets_screen.dart';
+import 'wallet_activity_screen.dart';
 import 'wallet_report_screen.dart';
+import 'wallet_transfer_screen.dart';
+import 'widgets/wallet_overview.dart';
 import 'widgets/category_icons.dart';
 
 /// Screen managing My Account (with Account, Wallet, and Category sections).
 class ExpenseAccountsScreen extends ConsumerStatefulWidget {
+  static Future<void> showAddWalletSheet(BuildContext context, WidgetRef ref) =>
+      _ExpenseAccountsScreenState.showAddWalletDialogStatic(
+        context, ref, ref.read(activeCompanyProvider),
+      );
+
   final int initialTab;
   final bool isStandalone;
 
@@ -136,6 +145,7 @@ class ExpenseAccountsScreen extends ConsumerStatefulWidget {
 }
 
 class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
+  bool _hideWalletBalances = false;
   late int _selectedTab; // 0 = Profile, 1 = Wallet, 2 = Category
   late final PageController _pageController;
   Object? _sectionTransition;
@@ -218,7 +228,10 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
 
     Future<void> doSave(BuildContext sheetCtx) async {
       final name = nameController.text.trim();
-      if (name.isEmpty) return;
+      if (name.isEmpty ||
+          !context.mounted ||
+          ref.read(activeCompanyProvider).id != company.id)
+        return;
 
       HapticFeedback.mediumImpact();
       final cents = CurrencyFormatter.parseToCents(balanceController.text);
@@ -731,9 +744,12 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     }
 
     return AdaptiveScaffold(
-      title: ModeStrings.of(company.mode).accountsTab,
+      title: _selectedTab == 1
+          ? 'Wallets'
+          : ModeStrings.of(company.mode).accountsTab,
       actions: [
-        if (company.isModuleEnabled(AppModule.recurring))
+        if (_selectedTab == 1) _walletPrivacyButton(context),
+        if (_selectedTab != 1 && company.isModuleEnabled(AppModule.recurring))
           if (isIos)
             Tooltip(
               message: 'Automation',
@@ -751,7 +767,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
               tooltip: 'Automation',
               onPressed: openAutomation,
             ),
-        if (isIos)
+        if (isIos && _selectedTab != 1)
           Tooltip(
             message: addLabel,
             child: CupertinoButton(
@@ -761,7 +777,7 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
             ),
           ),
       ],
-      floatingActionButton: isIos
+      floatingActionButton: isIos || _selectedTab == 1
           ? null
           : SpringMorphingFab(
               key: ValueKey(addLabel),
@@ -1142,17 +1158,58 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     }
   }
 
-  IconData _getWalletIcon(AccountModel wallet) {
-    if (wallet.type == AccountType.liability) {
-      return Icons.credit_card_rounded;
+  Widget _walletPrivacyButton(BuildContext context) {
+    final label = _hideWalletBalances ? 'Show balances' : 'Hide balances';
+    void toggle() => setState(() => _hideWalletBalances = !_hideWalletBalances);
+    if (AdaptiveThemeHelper.isIos(context)) {
+      return Tooltip(
+        message: label,
+        child: CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          onPressed: toggle,
+          child: Icon(
+            _hideWalletBalances ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+            size: 22,
+          ),
+        ),
+      );
     }
-    final lower = wallet.name.toLowerCase();
-    if (lower.contains('bank')) {
-      return Icons.account_balance_rounded;
-    } else if (lower.contains('cash')) {
-      return Icons.payments_rounded;
+    return IconButton(
+      tooltip: label,
+      onPressed: toggle,
+      icon: Icon(
+        _hideWalletBalances
+            ? Icons.visibility_off_outlined
+            : Icons.visibility_outlined,
+      ),
+    );
+  }
+
+  Future<void> _archiveWallet(AccountModel wallet) async {
+    final confirmed = await showAdaptiveConfirmDialog(
+      context: context,
+      title: 'Archive wallet?',
+      message:
+          '${wallet.name} will be excluded from your total. Its transaction history will remain available.',
+      confirmLabel: 'Archive',
+    );
+    if (!confirmed ||
+        !mounted ||
+        ref.read(activeCompanyProvider).id != wallet.companyId)
+      return;
+    try {
+      await ref
+          .read(expenseRepositoryProvider)
+          .updateWallet(id: wallet.id, isActive: false);
+      if (mounted) showAppFeedback(context, 'Wallet archived');
+    } catch (_) {
+      if (mounted)
+        showAppFeedback(
+          context,
+          'Could not archive the wallet.',
+          isError: true,
+        );
     }
-    return Icons.account_balance_wallet_rounded;
   }
 
   // -------------------------------------------------------------
@@ -1164,212 +1221,60 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
     Company company,
     AsyncValue<List<AccountModel>> walletsAsync,
   ) {
-    final theme = Theme.of(context);
-    final primaryColor = theme.colorScheme.primary;
     final defaultWalletId = ref.watch(defaultWalletIdProvider).asData?.value;
 
     return walletsAsync.when(
       data: (wallets) {
-        if (wallets.isEmpty) {
-          return const EmptyStateView(
-            title: 'No Wallets Configured',
-            subtitle:
-                'Add a wallet to record cash, bank, or credit card transactions.',
-            icon: Icons.account_balance_wallet_outlined,
-          );
-        }
-
-        // Calculate total balance across asset wallets and liability cards
-        int totalAssetBalance = 0;
-        int totalLiabilityBalance = 0;
-        for (final w in wallets) {
-          if (w.type == AccountType.liability) {
-            totalLiabilityBalance += w.currentBalanceInCents;
-          } else {
-            totalAssetBalance += w.currentBalanceInCents;
-          }
-        }
-        final netWorth = totalAssetBalance - totalLiabilityBalance;
-
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
           children: [
-            // Net Balance Across Wallets Card
-            AdaptiveSurfaceCard(
-              padding: const EdgeInsets.all(18),
-              margin: const EdgeInsets.only(bottom: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Total Liquid Assets',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  AmountText(
-                    amountInCents: netWorth,
-                    currencyCode: company.currencyCode,
-                    variant: AmountVariant.large,
-                  ),
-                  if (totalLiabilityBalance > 0) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Includes ${CurrencyFormatter.format(totalLiabilityBalance, currencyCode: company.currencyCode)} credit debt',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppColors.payableRed,
-                      ),
-                    ),
-                  ],
-                ],
+            if (!widget.isStandalone)
+              Align(
+                alignment: Alignment.centerRight,
+                child: _walletPrivacyButton(context),
+              ),
+            WalletOverview(
+              wallets: wallets,
+              currency: company.currencyCode,
+              hideBalances: _hideWalletBalances,
+              onAdd: () => showAddWalletDialogStatic(context, ref, company),
+              onTransfer: wallets.length < 2
+                  ? null
+                  : () => _openWalletTransfer(context, company),
+              onActivity: () => _openWalletActivity(context, company),
+            ),
+            const SizedBox(height: 24),
+            const AdaptiveSectionHeader(
+              title: 'Your wallets',
+              padding: EdgeInsets.only(bottom: 12),
+            ),
+            if (wallets.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Add a wallet to track cash, bank balances, or credit cards.',
+                ),
+              ),
+            for (final wallet in wallets)
+              _walletRow(
+                context,
+                company,
+                wallet,
+                isDefault: wallet.id == defaultWalletId,
+              ),
+            const SizedBox(height: 12),
+            AdaptiveListRow(
+              title: 'Archived wallets',
+              leading: const Icon(Icons.archive_outlined),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              showDivider: false,
+              onTap: () => Navigator.of(context).push(
+                createAdaptivePageRoute<void>(
+                  builder: (_) =>
+                      ArchivedWalletsScreen(workspaceId: company.id),
+                ),
               ),
             ),
-
-            AdaptiveSectionHeader(
-              title: 'Your Wallets',
-              padding: const EdgeInsets.only(bottom: 12),
-            ),
-
-            ...wallets.map((wallet) {
-              final isLiability = wallet.type == AccountType.liability;
-              final isDefault = wallet.id == defaultWalletId;
-              final walletType = isLiability
-                  ? 'Credit Card / Liability'
-                  : 'Asset Wallet';
-              final icon = _getWalletIcon(wallet);
-              final iconColor = isLiability
-                  ? AppColors.payableRed
-                  : primaryColor;
-              final iconBg = iconColor.withValues(alpha: 0.12);
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: AdaptiveSurfaceCard(
-                  key: Key('wallet_card_${wallet.id}'),
-                  onTap: () => Navigator.of(context).push(
-                    createAdaptivePageRoute<void>(
-                      builder: (_) => WalletReportScreen(wallet: wallet),
-                    ),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: iconBg,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(icon, color: iconColor, size: 22),
-                      ),
-                      const SizedBox(width: 14),
-
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              wallet.name,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              isDefault ? '$walletType · Default' : walletType,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          AmountText(
-                            amountInCents: wallet.currentBalanceInCents,
-                            currencyCode: company.currencyCode,
-                            overrideColor: isLiability
-                                ? AppColors.payableRed
-                                : null,
-                            variant: AmountVariant.medium,
-                          ),
-                          if (isLiability && wallet.currentBalanceInCents > 0)
-                            Text(
-                              'Owed',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: AppColors.payableRed,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(width: 4),
-                      PopupMenuButton<String>(
-                        key: Key('wallet_menu_${wallet.id}'),
-                        icon: Icon(
-                          Icons.more_vert_rounded,
-                          size: 20,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        onSelected: (val) async {
-                          if (val == 'edit') {
-                            _editWallet(wallet, company);
-                          } else if (val == 'delete') {
-                            _deleteWallet(wallet);
-                          } else if (val == 'default') {
-                            if (ref.read(activeCompanyProvider).id !=
-                                company.id) {
-                              return;
-                            }
-                            try {
-                              await ref
-                                  .read(expenseRepositoryProvider)
-                                  .setDefaultWalletId(
-                                    isDefault ? null : wallet.id,
-                                  );
-                            } catch (_) {
-                              if (context.mounted) {
-                                showAppFeedback(
-                                  context,
-                                  'Could not change the default wallet.',
-                                  isError: true,
-                                );
-                              }
-                            }
-                          }
-                        },
-                        itemBuilder: (ctx) => [
-                          PopupMenuItem(
-                            value: 'default',
-                            child: Text(
-                              isDefault
-                                  ? 'Clear default wallet'
-                                  : 'Set as default wallet',
-                            ),
-                          ),
-                          const PopupMenuItem(
-                            value: 'edit',
-                            child: Text('Edit'),
-                          ),
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
           ],
         );
       },
@@ -1378,6 +1283,179 @@ class _ExpenseAccountsScreenState extends ConsumerState<ExpenseAccountsScreen> {
         itemBuilder: (_, index) => const SkeletonListTile(),
       ),
       error: (e, _) => Center(child: Text('Error loading wallets: $e')),
+    );
+  }
+
+  Future<void> _openWalletTransfer(
+    BuildContext context,
+    Company company,
+  ) async {
+    final saved = await Navigator.of(context).push(
+      createAdaptivePageRoute<bool>(
+        builder: (_) => WalletTransferScreen(
+          workspace: company,
+          hideBalances: _hideWalletBalances,
+        ),
+      ),
+    );
+    if (saved == true && context.mounted)
+      showAppFeedback(context, 'Transfer recorded');
+  }
+
+  void _openWalletActivity(BuildContext context, Company company) {
+    Navigator.of(context).push(
+      createAdaptivePageRoute<void>(
+        builder: (_) => WalletActivityScreen(
+          workspace: company,
+          hideBalances: _hideWalletBalances,
+        ),
+      ),
+    );
+  }
+
+  Widget _walletRow(
+    BuildContext context,
+    Company company,
+    AccountModel wallet, {
+    required bool isDefault,
+  }) {
+    final theme = Theme.of(context);
+    final isIos = AdaptiveThemeHelper.isIos(context);
+    final kind = WalletKind.of(wallet);
+    final color = kind.color(context);
+    final liability = kind == WalletKind.credit;
+    final balance = wallet.currentBalanceInCents;
+    final label = kind == WalletKind.other ? 'Asset Wallet' : kind.label;
+    final actions = {
+      'default': isDefault ? 'Clear default wallet' : 'Set as default wallet',
+      if (!_hideWalletBalances) 'edit': 'Edit',
+      'archive': 'Archive',
+      'delete': 'Delete',
+    };
+
+    Future<void> selectAction(String action) async {
+      if (!mounted || ref.read(activeCompanyProvider).id != company.id) return;
+      switch (action) {
+        case 'edit':
+          await _editWallet(wallet, company);
+        case 'archive':
+          await _archiveWallet(wallet);
+        case 'delete':
+          await _deleteWallet(wallet);
+        case 'default':
+          try {
+            await ref
+                .read(expenseRepositoryProvider)
+                .setDefaultWalletId(isDefault ? null : wallet.id);
+          } catch (_) {
+            if (context.mounted)
+              showAppFeedback(
+                context,
+                'Could not change the default wallet.',
+                isError: true,
+              );
+          }
+      }
+    }
+
+    final menuKey = Key('wallet_menu_${wallet.id}');
+    final menu = isIos
+        ? CupertinoButton(
+            key: menuKey,
+            padding: EdgeInsets.zero,
+            onPressed: () async {
+              final selected = await showCupertinoModalPopup<String>(
+                context: context,
+                builder: (popupContext) => CupertinoActionSheet(
+                  title: Text(wallet.name),
+                  actions: [
+                    for (final entry in actions.entries)
+                      CupertinoActionSheetAction(
+                        isDestructiveAction: entry.key == 'delete',
+                        onPressed: () =>
+                            Navigator.of(popupContext).pop(entry.key),
+                        child: Text(entry.value),
+                      ),
+                  ],
+                  cancelButton: CupertinoActionSheetAction(
+                    onPressed: () => Navigator.of(popupContext).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+              );
+              if (selected != null) await selectAction(selected);
+            },
+            child: const Icon(
+              CupertinoIcons.ellipsis,
+              semanticLabel: 'Wallet options',
+            ),
+          )
+        : PopupMenuButton<String>(
+            key: menuKey,
+            tooltip: 'Wallet options',
+            onSelected: selectAction,
+            itemBuilder: (_) => [
+              for (final entry in actions.entries)
+                PopupMenuItem(value: entry.key, child: Text(entry.value)),
+            ],
+          );
+
+    return LayoutBuilder(
+      builder: (context, constraints) => AdaptiveListRow(
+        key: Key('wallet_card_${wallet.id}'),
+        title: wallet.name,
+        subtitle: isDefault ? '$label · Default' : label,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        onTap: () => Navigator.of(context).push(
+          createAdaptivePageRoute<void>(
+            builder: (_) => WalletReportScreen(
+              wallet: wallet,
+              hideBalances: _hideWalletBalances,
+            ),
+          ),
+        ),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Icon(kind.icon(context), color: color, size: 21),
+        ),
+        trailing: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.56),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (_hideWalletBalances)
+                      const Text('••••', semanticsLabel: 'Balance hidden')
+                    else
+                      AmountText(
+                        amountInCents: balance,
+                        currencyCode: company.currencyCode,
+                        overrideColor: liability && balance > 0
+                            ? color
+                            : theme.colorScheme.onSurface,
+                      ),
+                    if (!_hideWalletBalances && liability && balance != 0)
+                      Text(
+                        balance > 0 ? 'Owed' : 'Credit',
+                        style: theme.textTheme.labelSmall,
+                      ),
+                  ],
+                ),
+              ),
+              menu,
+            ],
+          ),
+        ),
+      ),
     );
   }
 

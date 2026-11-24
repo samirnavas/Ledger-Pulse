@@ -893,6 +893,7 @@ class DriftExpenseRepository {
     String? textQuery,
     VoucherType? type,
     bool includeVoided = false,
+    int? limit,
   }) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
@@ -926,17 +927,19 @@ class DriftExpenseRepository {
           t.toWalletId.isIn(walletIds));
     }
 
+    final textFilter = textQuery?.trim().toLowerCase() ?? '';
+    if (limit != null && textFilter.isEmpty) query.limit(limit);
     final rows = await query.get();
     var result = rows.map(_rowToVoucher).toList();
 
-    if (textQuery != null && textQuery.trim().isNotEmpty) {
-      final q = textQuery.trim().toLowerCase();
+    if (textFilter.isNotEmpty) {
       result = result.where((v) {
         final narr = v.narration?.toLowerCase() ?? '';
         final vNum = v.voucherNumber.toLowerCase();
         final refNum = v.referenceNumber?.toLowerCase() ?? '';
-        return narr.contains(q) || vNum.contains(q) || refNum.contains(q);
+        return narr.contains(textFilter) || vNum.contains(textFilter) || refNum.contains(textFilter);
       }).toList();
+      if (limit != null) result = result.take(limit).toList();
     }
 
     return result;
@@ -995,6 +998,24 @@ class DriftExpenseRepository {
       }
       return result;
     });
+  }
+
+  /// All-time activity includes voided entries so a workspace with prior activity
+  /// does not return to the first-use layout after an expense is removed.
+  Future<({bool hasActivity, bool hasExpense})> getTransactionHistory() async {
+    await _ensureExpenseTrackerMode();
+    AccessControlService.verifyPermission(_currentRole, UserAction.viewExpenses);
+
+    final transactions = _db.expenseTransactions;
+    final query = _db.selectOnly(transactions, distinct: true)
+      ..addColumns([transactions.transactionType])
+      ..where(transactions.profileId.equals(_currentCompanyId));
+
+    final rows = await query.get();
+    return (
+      hasActivity: rows.isNotEmpty,
+      hasExpense: rows.any((row) => row.read(transactions.transactionType) == VoucherType.expense.name),
+    );
   }
 
   // --- Balance Calculation Helpers ---
@@ -1172,6 +1193,7 @@ class DriftExpenseRepository {
     String? walletType,
     String? colorHex,
     String? iconName,
+    String? customId,
   }) async {
     await _ensureExpenseTrackerMode();
     AccessControlService.verifyPermission(
@@ -1182,7 +1204,8 @@ class DriftExpenseRepository {
     }
 
     final now = DateTime.now();
-    final walletId = _uuid.v4();
+    final walletId = customId ?? _uuid.v4();
+    final currencyCode = (await _getActiveCompany()).currencyCode;
     final resolvedWalletType = walletType ?? (type == AccountType.liability ? 'credit_card' : 'cash');
 
     final companion = ExpenseWalletsCompanion.insert(
@@ -1190,7 +1213,7 @@ class DriftExpenseRepository {
       profileId: _currentCompanyId,
       name: name,
       walletType: Value(resolvedWalletType),
-      currencyCode: const Value('INR'),
+      currencyCode: Value(currencyCode),
       startingBalanceInCents: Value(openingBalanceInCents),
       currentBalanceInCents: Value(openingBalanceInCents),
       colorHex: Value(colorHex),
@@ -1202,43 +1225,49 @@ class DriftExpenseRepository {
       syncStatus: const Value(SyncRecordStatus.pending),
     );
 
-    await _db.into(_db.expenseWallets).insert(companion);
+    final result = await _db.transaction(() async {
+      if (customId != null) {
+        final existing = await _walletQuery(walletId).getSingleOrNull();
+        if (existing != null) return _walletToAccount(existing);
+      }
+      await _db.into(_db.expenseWallets).insert(companion);
 
-    final created = await getWalletById(walletId);
+      final created = await getWalletById(walletId);
 
-    await _auditService.recordLog(
-      companyId: _currentCompanyId,
-      userId: _currentUserId,
-      entityType: 'wallet',
-      entityId: walletId,
-      action: AuditAction.insert,
-      newState: created.toMap(),
-    );
+      await _auditService.recordLog(
+        companyId: _currentCompanyId,
+        userId: _currentUserId,
+        entityType: 'wallet',
+        entityId: walletId,
+        action: AuditAction.insert,
+        newState: created.toMap(),
+      );
 
-    await enqueueMutation(
-      db: _db,
-      table: 'exp_wallets',
-      recordId: walletId,
-      type: 'INSERT',
-      fullRowMap: {
-        'id': walletId,
-        'profile_id': _currentCompanyId,
-        'name': name,
-        'wallet_type': resolvedWalletType,
-        'currency_code': 'INR',
-        'starting_balance_in_cents': openingBalanceInCents,
-        'current_balance_in_cents': openingBalanceInCents,
-        'color_hex': colorHex,
-        'icon_name': iconName,
-        'is_archived': false,
-        'created_at': encodeTime(now),
-        'updated_at': encodeTime(now),
-        'is_deleted': false,
-      },
-    );
-
+      await enqueueMutation(
+        db: _db,
+        table: 'exp_wallets',
+        recordId: walletId,
+        type: 'INSERT',
+        fullRowMap: {
+          'id': walletId,
+          'profile_id': _currentCompanyId,
+          'name': name,
+          'wallet_type': resolvedWalletType,
+          'currency_code': currencyCode,
+          'starting_balance_in_cents': openingBalanceInCents,
+          'current_balance_in_cents': openingBalanceInCents,
+          'color_hex': colorHex,
+          'icon_name': iconName,
+          'is_archived': false,
+          'created_at': encodeTime(now),
+          'updated_at': encodeTime(now),
+          'is_deleted': false,
+        },
+      );
+      return created;
+    });
     _notifyUpdates();
-    return created;
+    return result;
   }
 
   Future<AccountModel> updateWallet({

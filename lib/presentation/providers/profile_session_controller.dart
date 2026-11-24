@@ -297,6 +297,7 @@ class DriftProfileRepository implements IProfileRepository {
     String? dealerType,
     Set<AppModule>? enabledModules,
     Map<String, int>? initialWalletBalancesInCents,
+    bool seedDefaultWallet = true,
     String? customId,
     String? accountId,
   }) async {
@@ -361,6 +362,12 @@ class DriftProfileRepository implements IProfileRepository {
     );
 
     await db.transaction(() async {
+      if (!seedDefaultWallet && customId != null) {
+        final existing = await (db.select(db.profiles)
+              ..where((profile) => profile.id.equals(profileId)))
+            .getSingleOrNull();
+        if (existing != null) throw StateError('This workspace already exists.');
+      }
       // 1. Insert canonical profile with pending syncStatus and verified ownerId
       await db.into(db.profiles).insertOnConflictUpdate(
             ProfilesCompanion.insert(
@@ -504,55 +511,58 @@ class DriftProfileRepository implements IProfileRepository {
 
       // 8. Seed defaults for expense mode (zero accounting vouchers or accounts)
       if (type == ProfileType.expense) {
-        final initialCash = initialWalletBalancesInCents?['cash'] ??
-            initialWalletBalancesInCents?['Cash in Hand'] ??
-            0;
-        final legacyWalletId = '${profileId}_wal_cash';
-        final legacyWallet = await (db.select(db.expenseWallets)
-              ..where((row) =>
-                  row.id.equals(legacyWalletId) & row.profileId.equals(profileId)))
-            .getSingleOrNull();
-        final walletId = legacyWallet?.id ??
-            const Uuid().v5(Namespace.url.value, 'ledgerpulse:$profileId:wallet:cash');
-        await db.into(db.expenseWallets).insertOnConflictUpdate(
-              ExpenseWalletsCompanion.insert(
-                id: walletId,
-                profileId: profileId,
-                name: 'Cash in Hand',
-                walletType: const Value('cash'),
-                currencyCode: Value(currencyCode),
-                startingBalanceInCents: Value(initialCash),
-                currentBalanceInCents: Value(initialCash),
-                colorHex: const Value('#006C4C'),
-                iconName: const Value('payments'),
-                createdAt: Value(now),
-                updatedAt: Value(now),
-                syncStatus: const Value(SyncRecordStatus.pending),
-              ),
-            );
+        if (seedDefaultWallet) {
+          final initialCash = initialWalletBalancesInCents?['cash'] ??
+              initialWalletBalancesInCents?['Cash in Hand'] ??
+              0;
+          final legacyWalletId = '${profileId}_wal_cash';
+          final legacyWallet = await (db.select(db.expenseWallets)
+                ..where((row) =>
+                    row.id.equals(legacyWalletId) & row.profileId.equals(profileId)))
+              .getSingleOrNull();
+          final walletId = legacyWallet?.id ??
+              const Uuid().v5(Namespace.url.value, 'ledgerpulse:$profileId:wallet:cash');
+          await db.into(db.expenseWallets).insertOnConflictUpdate(
+                ExpenseWalletsCompanion.insert(
+                  id: walletId,
+                  profileId: profileId,
+                  name: 'Cash in Hand',
+                  walletType: const Value('cash'),
+                  currencyCode: Value(currencyCode),
+                  startingBalanceInCents: Value(initialCash),
+                  currentBalanceInCents: Value(initialCash),
+                  colorHex: const Value('#006C4C'),
+                  iconName: const Value('payments'),
+                  createdAt: Value(now),
+                  updatedAt: Value(now),
+                  syncStatus: const Value(SyncRecordStatus.pending),
+                ),
+              );
 
-        await enqueueMutation(
-          db: db,
-          table: 'exp_wallets',
-          recordId: walletId,
-          type: 'UPSERT',
-          fullRowMap: {
-            'id': walletId,
-            'profile_id': profileId,
-            'name': 'Cash in Hand',
-            'wallet_type': 'cash',
-            'currency_code': currencyCode,
-            'starting_balance_in_cents': initialCash,
-            'current_balance_in_cents': initialCash,
-            'color_hex': '#006C4C',
-            'icon_name': 'payments',
-            'is_archived': false,
-            'is_deleted': false,
-            'revision': 0,
-            'created_at': encodeTime(now),
-            'updated_at': encodeTime(now),
-          },
-        );
+          await enqueueMutation(
+            db: db,
+            table: 'exp_wallets',
+            recordId: walletId,
+            type: 'UPSERT',
+            fullRowMap: {
+              'id': walletId,
+              'profile_id': profileId,
+              'name': 'Cash in Hand',
+              'wallet_type': 'cash',
+              'currency_code': currencyCode,
+              'starting_balance_in_cents': initialCash,
+              'current_balance_in_cents': initialCash,
+              'color_hex': '#006C4C',
+              'icon_name': 'payments',
+              'is_archived': false,
+              'is_deleted': false,
+              'revision': 0,
+              'created_at': encodeTime(now),
+              'updated_at': encodeTime(now),
+            },
+          );
+
+        }
 
         final defaultCats = [
           ('Groceries & Food', 'expense', '#D32F2F', 'restaurant'),

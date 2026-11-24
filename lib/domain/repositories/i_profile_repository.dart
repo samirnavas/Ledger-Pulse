@@ -25,6 +25,7 @@ abstract class IProfileRepository {
     String? dealerType,
     Set<AppModule>? enabledModules,
     Map<String, int>? initialWalletBalancesInCents,
+    bool seedDefaultWallet = true,
     String? customId,
     String? accountId,
   });
